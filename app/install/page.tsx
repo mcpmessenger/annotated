@@ -19,7 +19,7 @@ export default function InstallPage() {
                 The Annotated extension lets you highlight and annotate any webpage. Your annotations are instantly shared with our community.
               </p>
 
-              <div className="grid sm:grid-cols-2 gap-6 mb-8">
+              <div className="grid sm:grid-cols-1 max-w-md gap-6 mb-8">
                 <div className="border border-[hsl(var(--border))] rounded-lg p-6">
                   <h3 className="font-bold text-lg mb-3">Chrome & Edge</h3>
                   <p className="text-sm text-[hsl(var(--text-muted))] mb-4">
@@ -30,19 +30,6 @@ export default function InstallPage() {
                     className="inline-flex items-center px-4 py-2 bg-[hsl(var(--foreground))] text-white rounded font-medium hover:shadow-md transition-shadow"
                   >
                     Install on Chrome
-                  </a>
-                </div>
-
-                <div className="border border-[hsl(var(--border))] rounded-lg p-6">
-                  <h3 className="font-bold text-lg mb-3">Firefox</h3>
-                  <p className="text-sm text-[hsl(var(--text-muted))] mb-4">
-                    Available on Firefox Add-ons. Works the same way as Chrome.
-                  </p>
-                  <a
-                    href="#"
-                    className="inline-flex items-center px-4 py-2 bg-[hsl(var(--foreground))] text-white rounded font-medium hover:shadow-md transition-shadow"
-                  >
-                    Install on Firefox
                   </a>
                 </div>
               </div>
