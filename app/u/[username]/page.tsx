@@ -3,16 +3,18 @@ import { notFound } from "next/navigation";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { AnnotationCard } from "@/components/AnnotationCard";
-import { getUser, getUserAnnotations } from "@/lib/data";
+import { getUserProfile, getUserAnnotations } from "@/lib/data";
 
-export default function ProfilePage({ params }: { params: { username: string } }) {
-  const user = getUser(params.username);
+export const revalidate = 0;
+
+export default async function ProfilePage({ params }: { params: { username: string } }) {
+  const user = await getUserProfile(params.username);
 
   if (!user) {
     notFound();
   }
 
-  const annotations = getUserAnnotations(params.username);
+  const annotations = await getUserAnnotations(params.username);
 
   return (
     <div className="flex flex-col min-h-screen">

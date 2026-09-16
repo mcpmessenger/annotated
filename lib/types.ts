@@ -9,10 +9,13 @@ export interface Annotation {
   sourceDomain: string;
   quoteText: string;
   commentary: string;
-  intent: "highlight" | "question" | "critique" | "expand";
+  intent: string;
   createdAt: Date;
   views: number;
   shares: number;
+  media_url?: string | null;
+  media_type?: string | null;
+  avatar_url?: string | null;
 }
 
 export interface User {
@@ -20,7 +23,7 @@ export interface User {
   displayName: string;
   bio: string;
   annotationCount: number;
-  avatar?: string;
+  avatar?: string | null;
 }
 
-export type Intent = "all" | "highlight" | "question" | "critique" | "expand";
+export type Intent = "all" | string;

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
-import { getAnnotation } from "@/lib/data";
+import { getAnnotationBySlug } from "@/lib/data";
 
 const intentLabels: Record<string, string> = {
   highlight: "Highlight",
@@ -26,11 +26,25 @@ export default function AnnotationPage({
 }: {
   params: { username: string; slug: string };
 }) {
-  const annotation = getAnnotation(params.username, params.slug);
+  const [annotation, setAnnotation] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
 
+  import("react").then((React) => {
+    React.useEffect(() => {
+      getAnnotationBySlug(params.slug).then((data) => {
+        setAnnotation(data);
+        setLoading(false);
+      });
+    }, [params.slug]);
+  });
+
+  if (loading) {
+    return <div className="p-12 text-center">Loading...</div>;
+  }
+
   if (!annotation) {
-    notFound();
+    return <div className="p-12 text-center">Annotation not found</div>;
   }
 
   const shareUrl = `${typeof window !== "undefined" ? window.location.origin : ""}/${params.username}/${params.slug}`;

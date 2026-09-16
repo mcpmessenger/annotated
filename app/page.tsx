@@ -2,10 +2,12 @@ import Link from "next/link";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { AnnotationCard } from "@/components/AnnotationCard";
-import { SEED_ANNOTATIONS } from "@/lib/data";
+import { getRecentAnnotations } from "@/lib/data";
 
-export default function Home() {
-  const featured = SEED_ANNOTATIONS.slice(0, 3);
+export const revalidate = 0; // Don't cache this page so new annotations appear instantly
+
+export default async function Home() {
+  const featured = (await getRecentAnnotations()).slice(0, 3);
 
   return (
     <div className="flex flex-col min-h-screen">

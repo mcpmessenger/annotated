@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { AnnotationCard } from "@/components/AnnotationCard";
-import { SEED_ANNOTATIONS } from "@/lib/data";
-import { Intent } from "@/lib/types";
+import { getRecentAnnotations, getAnnotationsByIntent } from "@/lib/data";
+import { Annotation, Intent } from "@/lib/types";
 
 const intentFilters: { value: Intent; label: string }[] = [
   { value: "all", label: "All Intents" },
@@ -19,13 +19,19 @@ const intentFilters: { value: Intent; label: string }[] = [
 export default function ExplorePage() {
   const [activeIntent, setActiveIntent] = useState<Intent>("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [annotations, setAnnotations] = useState<Annotation[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    setLoading(true);
+    getAnnotationsByIntent(activeIntent).then((data) => {
+      setAnnotations(data);
+      setLoading(false);
+    });
+  }, [activeIntent]);
 
   const filtered = useMemo(() => {
-    let result = SEED_ANNOTATIONS;
-
-    if (activeIntent !== "all") {
-      result = result.filter((a) => a.intent === activeIntent);
-    }
+    let result = annotations;
 
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
@@ -39,7 +45,7 @@ export default function ExplorePage() {
     }
 
     return result.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
-  }, [activeIntent, searchQuery]);
+  }, [annotations, searchQuery]);
 
   return (
     <div className="flex flex-col min-h-screen">
