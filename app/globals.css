@@ -21,22 +21,60 @@
 
 @layer components {
   .editorial-container {
-    @apply max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12;
+    max-width: 56rem;
+    margin-inline: auto;
+    padding: 3rem 1rem;
   }
 
   .annotation-card {
-    @apply border border-[hsl(var(--border))] rounded-lg p-6 bg-white hover:shadow-sm transition-shadow;
+    border: 1px solid hsl(var(--border));
+    border-radius: 0.5rem;
+    padding: 1.5rem;
+    background: white;
+    transition: box-shadow 150ms ease;
+  }
+
+  .annotation-card:hover {
+    box-shadow: 0 1px 3px rgb(0 0 0 / 0.08);
   }
 
   .annotation-highlight {
-    @apply bg-[hsl(var(--accent))] bg-opacity-20 px-1 rounded;
+    background: hsl(var(--accent) / 0.2);
+    padding-inline: 0.25rem;
+    border-radius: 0.25rem;
   }
 
   .editorial-heading {
-    @apply text-3xl sm:text-4xl font-bold tracking-tight;
+    font-size: 1.875rem;
+    line-height: 2.25rem;
+    font-weight: 700;
+    letter-spacing: -0.025em;
   }
 
   .editorial-subheading {
-    @apply text-lg sm:text-xl text-[hsl(var(--text-muted))];
+    font-size: 1.125rem;
+    line-height: 1.75rem;
+    color: hsl(var(--text-muted));
+  }
+
+  @media (min-width: 640px) {
+    .editorial-container {
+      padding-inline: 1.5rem;
+    }
+
+    .editorial-heading {
+      font-size: 2.25rem;
+      line-height: 2.5rem;
+    }
+
+    .editorial-subheading {
+      font-size: 1.25rem;
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .editorial-container {
+      padding-inline: 2rem;
+    }
   }
 }
