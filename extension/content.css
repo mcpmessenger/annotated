@@ -1,0 +1,2 @@
+.annotated-highlight { background: linear-gradient(180deg, transparent 35%, rgba(255, 208, 0, .52) 35%, rgba(255, 208, 0, .52) 92%, transparent 92%); color: inherit; cursor: pointer; }
+.annotated-highlight:hover { background: rgba(255, 208, 0, .8); }
