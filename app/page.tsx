@@ -1,47 +1,92 @@
-export default function Page() {
+import Link from "next/link";
+import { Header } from "@/components/Header";
+import { Footer } from "@/components/Footer";
+import { AnnotationCard } from "@/components/AnnotationCard";
+import { SEED_ANNOTATIONS } from "@/lib/data";
+
+export default function Home() {
+  const featured = SEED_ANNOTATIONS.slice(0, 3);
+
   return (
-    <main
-      style={{
-        colorScheme: 'light dark',
-        position: 'relative',
-        display: 'flex',
-        minHeight: '100vh',
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: 'light-dark(#fff, #000)',
-        color: 'light-dark(#000, #fff)',
-      }}
-    >
-      <svg
-        aria-hidden="true"
-        style={{ width: 80, height: 80 }}
-        width={80}
-        height={80}
-        fill="none"
-        viewBox="0 0 20 20"
-        xmlns="http://www.w3.org/2000/svg"
-        stroke="currentColor"
-        strokeWidth="0.5"
-      >
-        <path
-          d="M14.2 14.2H17V6.9375C17 4.76288 15.2371 3 13.0625 3H5.8V5.8M14.2 14.2V7.79063L7.79062 14.2H14.2ZM14.2 14.2V17H6.9375C4.76288 17 3 15.2371 3 13.0625V5.8H5.8M5.8 5.8V12.2313L12.2313 5.8H5.8Z"
-          strokeLinejoin="round"
-        />
-      </svg>
-      <p
-        style={{
-          position: 'absolute',
-          left: '50%',
-          top: 'calc(50% + 56px)',
-          transform: 'translateX(-50%)',
-          whiteSpace: 'nowrap',
-          fontSize: '14px',
-          fontWeight: 500,
-          color: 'light-dark(#71717a, #a1a1aa)',
-        }}
-      >
-        Your v0 generation will show here.
-      </p>
-    </main>
-  )
+    <div className="flex flex-col min-h-screen">
+      <Header />
+
+      <main className="flex-1">
+        {/* Hero */}
+        <section className="border-b border-[hsl(var(--border))] bg-white">
+          <div className="editorial-container">
+            <div className="py-20 space-y-6">
+              <h1 className="editorial-heading">
+                Explore annotations that deepen understanding.
+              </h1>
+              <p className="editorial-subheading max-w-2xl">
+                A public space to share commentary, questions, and insights about the web we read.
+                Every annotation is an invitation to think deeper.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-4 pt-4">
+                <Link
+                  href="/explore"
+                  className="inline-flex items-center justify-center px-6 py-3 rounded font-medium bg-[hsl(var(--foreground))] text-white hover:shadow-md transition-shadow w-full sm:w-auto"
+                >
+                  Explore Annotations
+                </Link>
+                <Link
+                  href="/install"
+                  className="inline-flex items-center justify-center px-6 py-3 rounded font-medium border border-[hsl(var(--border))] text-[hsl(var(--foreground))] hover:bg-gray-50 transition-colors w-full sm:w-auto"
+                >
+                  Install Extension
+                </Link>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Featured Annotations */}
+        <section className="editorial-container">
+          <div className="py-16">
+            <h2 className="text-2xl font-bold mb-8">Recently Shared</h2>
+            <div className="grid gap-6 sm:grid-cols-1 lg:grid-cols-1">
+              {featured.map((annotation) => (
+                <AnnotationCard key={annotation.id} annotation={annotation} />
+              ))}
+            </div>
+            <div className="mt-12 text-center">
+              <Link
+                href="/explore"
+                className="inline-flex items-center text-[hsl(var(--accent))] font-medium hover:underline"
+              >
+                View all annotations →
+              </Link>
+            </div>
+          </div>
+        </section>
+
+        {/* Info Section */}
+        <section className="border-t border-[hsl(var(--border))] bg-gray-50">
+          <div className="editorial-container py-16">
+            <div className="grid sm:grid-cols-2 gap-12">
+              <div>
+                <h3 className="text-lg font-bold mb-3">Why Annotate?</h3>
+                <p className="text-[hsl(var(--text-muted))] leading-relaxed">
+                  Reading alone is consumption. Annotation transforms it into dialogue. When you
+                  annotate, you add your voice to the conversation, creating a layer of collective
+                  thinking on top of published text.
+                </p>
+              </div>
+              <div>
+                <h3 className="text-lg font-bold mb-3">How It Works</h3>
+                <p className="text-[hsl(var(--text-muted))] leading-relaxed">
+                  Install the Annotated extension, highlight text on any webpage, and share your
+                  thoughts. Your annotations appear in your public profile and on this feed, ready
+                  for discussion and discovery.
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <Footer />
+    </div>
+  );
 }
