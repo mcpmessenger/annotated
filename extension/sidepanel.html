@@ -11,6 +11,19 @@
     <div class="brand"><span class="brand-mark">▰</span><span>annotated<span class="dot">.</span></span></div>
     <div class="top-actions">
       <button id="themeBtn" class="icon-btn theme-btn" title="Switch to dark mode">☾</button>
+      
+      <div id="userMenuWrap" class="user-menu-wrap hidden">
+        <div class="avatar top-avatar" id="avatarEl">?</div>
+        <div id="userDropdown" class="user-dropdown hidden">
+          <div class="dropdown-header">
+            <strong id="profileName">Loading…</strong>
+            <div class="muted" id="profileMeta">@user</div>
+          </div>
+          <button id="profileBtn" class="dropdown-item">My profile ↗</button>
+          <button id="signOutBtn" class="dropdown-item text-red">Sign out</button>
+        </div>
+      </div>
+
       <button id="closeBtn" class="icon-btn" title="Close panel">×</button>
     </div>
   </header>
@@ -30,19 +43,7 @@
 
   <!-- ── MAIN APP ─────────────────────────────────────────────────────────────── -->
   <main id="mainApp" class="hidden">
-    <section class="profile-row">
-      <div class="avatar" id="avatarEl">?</div>
-      <div>
-        <strong id="profileName">Loading…</strong>
-        <div class="muted" id="profileMeta">@user · 0 annotations</div>
-      </div>
-      <div class="profile-actions">
-        <button class="tiny-btn" id="profileBtn">My profile ↗</button>
-        <button class="tiny-btn muted-btn" id="signOutBtn">Sign out</button>
-      </div>
-    </section>
-
-    <div class="page-context">
+    <div class="page-context mt-2">
       <span class="live-dot"></span>
       <span id="pageHost">Current page</span>
       <span class="context-sep">·</span>
@@ -52,8 +53,15 @@
     <section class="composer card">
       <div class="composer-title"><span class="highlighter">▰</span> <span>New annotation</span><span class="draft">DRAFT</span></div>
       <div class="quote-box"><div class="quote-mark">"</div><div id="quote" class="quote">Select text on any page to anchor a comment here.</div></div>
-      <textarea id="comment" maxlength="1000" placeholder="What do you want people to notice?"></textarea>
+      
+      <div class="textarea-wrapper">
+        <textarea id="comment" maxlength="1000" placeholder="What do you want people to notice?"></textarea>
+        <button id="dictateBtn" class="dictate-btn" title="Dictate comment">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
+        </button>
+      </div>
       <div class="counter"><span id="counter">0</span> / 1,000</div>
+
       <div class="field-label">Intent <span class="required">Required</span></div>
       <div id="intentList" class="intent-list">
         <button data-intent="Hot Take">Hot Take</button>

@@ -34,6 +34,7 @@ function showApp(user) {
   currentUser = user;
   $('#authScreen').classList.add('hidden');
   $('#mainApp').classList.remove('hidden');
+  $('#userMenuWrap').classList.remove('hidden');
   $('#profileName').textContent = user.name;
   $('#avatarEl').textContent = initials(user.name);
   if (user.avatar) {
@@ -334,3 +335,81 @@ chrome.runtime.onMessage.addListener(message => {
   }
   showAuth();
 })();
+
+// --- Nordic UI Dropdown & Dictation ---
+
+const avatarEl = #avatarEl;
+const userDropdown = #userDropdown;
+
+if(avatarEl) {
+  avatarEl.addEventListener('click', (e) => {
+    e.stopPropagation();
+    userDropdown.classList.toggle('hidden');
+  });
+  document.addEventListener('click', () => {
+    userDropdown.classList.add('hidden');
+  });
+}
+
+// Dictation
+const dictateBtn = #dictateBtn;
+let recognition;
+let isRecording = false;
+
+if ('webkitSpeechRecognition' in window) {
+  recognition = new webkitSpeechRecognition();
+  recognition.continuous = false; // continuous sometimes stops abruptly, false makes it single-shot
+  recognition.interimResults = true;
+
+  let finalTranscript = '';
+  
+  recognition.onstart = () => {
+    finalTranscript = #comment.value; // Store existing text
+  };
+
+  recognition.onresult = (event) => {
+    let interimTranscript = '';
+    for (let i = event.resultIndex; i < event.results.length; ++i) {
+      if (event.results[i].isFinal) {
+        finalTranscript += event.results[i][0].transcript + ' ';
+      } else {
+        interimTranscript += event.results[i][0].transcript;
+      }
+    }
+    const commentInput = #comment;
+    commentInput.value = finalTranscript + interimTranscript;
+    updateCounter();
+  };
+
+  recognition.onerror = (e) => {
+    console.error('Speech recognition error', e);
+    stopDictation();
+  };
+
+  recognition.onend = () => {
+    stopDictation(); // We set continuous to false so it stops after a phrase. User can click again.
+  };
+}
+
+function stopDictation() {
+  isRecording = false;
+  if(dictateBtn) dictateBtn.classList.remove('recording');
+  if (recognition) recognition.stop();
+}
+
+if (dictateBtn) {
+  dictateBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    if (!recognition) {
+      alert("Dictation is not supported in this browser.");
+      return;
+    }
+    if (isRecording) {
+      stopDictation();
+    } else {
+      isRecording = true;
+      dictateBtn.classList.add('recording');
+      recognition.start();
+    }
+  });
+}

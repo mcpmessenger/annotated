@@ -98,3 +98,127 @@
   max-height: 300px;
   object-fit: contain;
 }
+/* --- Nordic UI Refactor --- */
+
+.topbar .top-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.user-menu-wrap {
+  position: relative;
+}
+
+.top-avatar {
+  width: 28px;
+  height: 28px;
+  font-size: 14px;
+  cursor: pointer;
+  margin: 0;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+.top-avatar:hover {
+  opacity: 0.8;
+  transform: scale(1.05);
+}
+
+.user-dropdown {
+  position: absolute;
+  top: 36px;
+  right: -10px;
+  background: var(--surface, #fff);
+  border: 1px solid var(--line, #eaeaea);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  width: 200px;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+[data-theme="dark"] .user-dropdown {
+  background: var(--surface, #1e1e1e);
+  border-color: var(--line, #333);
+}
+
+.user-dropdown.hidden {
+  display: none;
+}
+
+.dropdown-header {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--line, #eaeaea);
+}
+.dropdown-header strong {
+  display: block;
+  font-size: 14px;
+  color: var(--text);
+  margin-bottom: 2px;
+}
+.dropdown-header .muted {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.dropdown-item {
+  background: none;
+  border: none;
+  padding: 12px 16px;
+  text-align: left;
+  font-size: 13px;
+  color: var(--text);
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+.dropdown-item:hover {
+  background: var(--bg-hover, #f5f5f5);
+}
+[data-theme="dark"] .dropdown-item:hover {
+  background: var(--bg-hover, #2a2a2a);
+}
+.dropdown-item.text-red {
+  color: #e53e3e;
+}
+
+/* Dictation Wrapper */
+.textarea-wrapper {
+  position: relative;
+  width: 100%;
+}
+.textarea-wrapper textarea {
+  width: 100%;
+  padding-right: 40px; /* space for mic icon */
+}
+.dictate-btn {
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  background: none;
+  border: none;
+  color: var(--muted, #888);
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+.dictate-btn:hover {
+  color: var(--accent, #d4af37);
+  background: rgba(212, 175, 55, 0.1);
+}
+.dictate-btn.recording {
+  color: #e53e3e;
+  animation: pulse-recording 1.5s infinite;
+}
+
+@keyframes pulse-recording {
+  0% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.1); opacity: 0.7; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* Hide the old profile row that was deleted in HTML just in case */
+.profile-row { display: none !important; }
