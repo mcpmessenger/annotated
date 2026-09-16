@@ -1,8 +1,8 @@
 // ─── Supabase Config ─────────────────────────────────────────────────────────
 // These are filled in by setup.js during first-run, or you can hardcode them here.
-const SUPABASE_URL = 'REPLACE_WITH_SUPABASE_URL';
-const SUPABASE_ANON_KEY = 'REPLACE_WITH_SUPABASE_ANON_KEY';
-const GOOGLE_CLIENT_ID = 'REPLACE_WITH_GOOGLE_CLIENT_ID';
+const SUPABASE_URL = 'https://dajadbvlldrmgzztdksn.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRhamFkYnZsbGRybWd6enRka3NuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk1ODYwMTcsImV4cCI6MjEwNTE2MjAxN30.ZGteNtShkBErPckuMGX4tWMn0AtgU_THFSI37Wgd-eU';
+const GOOGLE_CLIENT_ID = 'REPLACE_WITH_GOOGLE_CLIENT_ID'; // ← Add after GCP OAuth setup
 
 // ─── Lightweight Supabase REST client (no external bundle needed) ─────────────
 class SupabaseClient {
