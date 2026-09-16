@@ -50,25 +50,49 @@ class SupabaseClient {
 
   // ─── Auth: Google OAuth via Supabase (launchWebAuthFlow) ────────────────────
   async signInWithGoogle() {
-    return new Promise((resolve, reject) => {
-      // The redirect URL chrome.identity gives us for this extension
-      const redirectUrl = chrome.identity.getRedirectURL();
+    // ── Step 1: verify Supabase Google provider is configured ─────────────────
+    try {
+      const settingsRes = await fetch(`${this.url}/auth/v1/settings`, {
+        headers: { apikey: this.key },
+      });
+      const settings = await settingsRes.json();
+      const googleEnabled = settings?.external?.google;
+      if (!googleEnabled) {
+        throw new Error('Google provider not enabled in Supabase — go to Authentication → Providers → Google and save your credentials');
+      }
+    } catch (err) {
+      if (err.message.includes('Google provider')) throw err;
+      // network error — proceed anyway
+    }
 
-      // Supabase's OAuth authorize URL — it redirects to Google, then back to redirectUrl
+    // ── Step 2: build auth URL and launch popup ───────────────────────────────
+    return new Promise((resolve, reject) => {
+      const redirectUrl = chrome.identity.getRedirectURL();
       const authUrl =
         `${this.url}/auth/v1/authorize` +
         `?provider=google` +
         `&redirect_to=${encodeURIComponent(redirectUrl)}`;
 
+      console.log('[Annotated] Auth URL:', authUrl);
+      console.log('[Annotated] Redirect URL:', redirectUrl);
+
       chrome.identity.launchWebAuthFlow(
         { url: authUrl, interactive: true },
         async (responseUrl) => {
           if (chrome.runtime.lastError || !responseUrl) {
-            reject(chrome.runtime.lastError?.message || 'Auth cancelled');
+            const msg = chrome.runtime.lastError?.message || 'Auth cancelled';
+            if (msg.includes('not be loaded') || msg.includes('closed')) {
+              reject(
+                'Popup failed. Check:\n' +
+                '1. Supabase → Auth → Providers → Google → Enable + Save\n' +
+                '2. Supabase → Auth → URL Config → add https://*.chromiumapp.org/**'
+              );
+            } else {
+              reject(msg);
+            }
             return;
           }
           try {
-            // Supabase returns tokens in the URL fragment: #access_token=...&refresh_token=...
             const url = new URL(responseUrl);
             const params = new URLSearchParams(
               url.hash ? url.hash.slice(1) : url.search.slice(1)
@@ -76,9 +100,11 @@ class SupabaseClient {
             const access_token  = params.get('access_token');
             const refresh_token = params.get('refresh_token');
             const expires_in    = parseInt(params.get('expires_in') || '3600', 10);
+            const error         = params.get('error_description') || params.get('error');
 
+            if (error) { reject(error); return; }
             if (!access_token) {
-              reject('No access token returned — check Supabase Google provider config');
+              reject('No token returned. Ensure:\n1. Supabase Google provider saved\n2. https://*.chromiumapp.org/** in Supabase redirect URLs');
               return;
             }
 
@@ -87,7 +113,6 @@ class SupabaseClient {
               refresh_token,
               expires_at: Math.floor(Date.now() / 1000) + expires_in,
             };
-
             this.token = access_token;
             await chrome.storage.local.set({ supabase_session: session });
             resolve(session);
