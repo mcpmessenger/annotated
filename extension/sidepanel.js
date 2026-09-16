@@ -1,7 +1,8 @@
 // ─── State ───────────────────────────────────────────────────────────────────
 const $ = (sel) => document.querySelector(sel);
 let page = { title: 'Current page', url: '', hostname: 'Current page' };
-let quote = '', intent = '', clip = false;
+let quote = '', intent = '';
+let mediaDataUrl = null, mediaType = null, mediaFileName = null;
 let currentUser = null;
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -47,6 +48,7 @@ function showApp(user) {
 $('#signInBtn').addEventListener('click', async () => {
   $('#signInBtn').disabled = true;
   $('#signInBtn').textContent = 'Signing in…';
+  $('#authError').classList.add('hidden');
   try {
     const session = await supabase.signInWithGoogle();
     const user = supabase.userFromSession(session);
@@ -56,7 +58,7 @@ $('#signInBtn').addEventListener('click', async () => {
     $('#authError').classList.remove('hidden');
   } finally {
     $('#signInBtn').disabled = false;
-    $('#signInBtn').innerHTML = `<svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M17.64 9.205c0-.638-.057-1.252-.164-1.841H9v3.481h4.844a4.14 4.14 0 01-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z" fill="#4285F4"/><path d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 009 18z" fill="#34A853"/><path d="M3.964 10.71A5.41 5.41 0 013.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 000 9c0 1.452.348 2.827.957 4.042l3.007-2.332z" fill="#FBBC05"/><path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 00.957 4.958L3.964 6.29C4.672 4.163 6.656 3.58 9 3.58z" fill="#EA4335"/></svg> Sign in with Google`;
+    $('#signInBtn').innerHTML = `<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M17.64 9.205c0-.638-.057-1.252-.164-1.841H9v3.481h4.844a4.14 4.14 0 01-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z" fill="#4285F4"/><path d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 009 18z" fill="#34A853"/><path d="M3.964 10.71A5.41 5.41 0 013.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 000 9c0 1.452.348 2.827.957 4.042l3.007-2.332z" fill="#FBBC05"/><path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 00.957 4.958L3.964 6.29C4.672 4.163 6.656 3.58 9 3.58z" fill="#EA4335"/></svg> Sign in with Google`;
   }
 });
 
@@ -83,7 +85,6 @@ async function loadAnnotationCount() {
     const name = currentUser.email?.split('@')[0] || 'user';
     $('#profileMeta').textContent = `@${name} · ${count} annotation${count !== 1 ? 's' : ''}`;
   } catch (_) {
-    // Supabase not configured yet — fall back gracefully
     const name = currentUser.email?.split('@')[0] || 'user';
     $('#profileMeta').textContent = `@${name}`;
   }
@@ -96,6 +97,13 @@ function renderFeed(items) {
     ? items.slice().reverse().map(a => `
         <article class="annotation">
           <div class="aquote">"${escapeHtml(a.quote)}"</div>
+          ${a.media_url ? `
+            <div class="feed-media-wrap">
+              ${a.media_type === 'video'
+                ? `<video class="feed-media" src="${escapeHtml(a.media_url)}" controls playsinline></video>`
+                : `<img class="feed-media" src="${escapeHtml(a.media_url)}" alt="Annotation media" loading="lazy">`
+              }
+            </div>` : ''}
           <div class="acomment">${escapeHtml(a.comment)}</div>
           <div class="meta">
             <span>${escapeHtml(a.intent)} · ${new Date(a.created_at || Date.now()).toLocaleDateString()}</span>
@@ -112,7 +120,6 @@ async function loadFeedFromSupabase() {
     const items = await db.select('*').eq('url', page.url).execute();
     if (Array.isArray(items)) { renderFeed(items); return; }
   } catch (_) {}
-  // Fallback to local storage
   chrome.storage.local.get(pageKey(), data => renderFeed(data[pageKey()] || []));
 }
 
@@ -155,18 +162,103 @@ function loadPage() {
   });
 }
 
+// ─── Media: Screenshot ────────────────────────────────────────────────────────
+$('#screenshotBtn').addEventListener('click', () => {
+  $('#screenshotBtn').disabled = true;
+  $('#screenshotBtn').textContent = '⏳ Capturing…';
+  chrome.runtime.sendMessage({ type: 'captureScreenshot' }, (response) => {
+    $('#screenshotBtn').disabled = false;
+    $('#screenshotBtn').textContent = '📷 Screenshot';
+    if (response?.dataUrl) {
+      setMedia(response.dataUrl, 'screenshot', 'screenshot.png');
+    } else {
+      $('#status').textContent = '📷 Failed: ' + (response?.error || 'Unknown error');
+      setTimeout(() => $('#status').textContent = '', 3000);
+    }
+  });
+});
+
+// ─── Media: File Upload ───────────────────────────────────────────────────────
+$('#uploadBtn').addEventListener('click', () => $('#mediaInput').click());
+$('#mediaInput').addEventListener('change', (e) => {
+  const file = e.target.files?.[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    const type = file.type.startsWith('video/') ? 'video' : 'image';
+    setMedia(ev.target.result, type, file.name);
+  };
+  reader.readAsDataURL(file);
+});
+
+function setMedia(dataUrl, type, name) {
+  mediaDataUrl = dataUrl;
+  mediaType = type;
+  mediaFileName = name;
+
+  // Show correct preview element
+  $('#previewImg').classList.add('hidden');
+  $('#previewVideo').classList.add('hidden');
+  if (type === 'video') {
+    $('#previewVideo').src = dataUrl;
+    $('#previewVideo').classList.remove('hidden');
+  } else {
+    $('#previewImg').src = dataUrl;
+    $('#previewImg').classList.remove('hidden');
+  }
+
+  $('#previewName').textContent = name.length > 28 ? name.slice(0, 25) + '…' : name;
+  $('#mediaPreview').classList.remove('hidden');
+  updateButton();
+}
+
+$('#removeMedia').addEventListener('click', () => {
+  mediaDataUrl = null; mediaType = null; mediaFileName = null;
+  $('#previewImg').src = '';
+  $('#previewVideo').src = '';
+  $('#mediaInput').value = '';
+  $('#mediaPreview').classList.add('hidden');
+  updateButton();
+});
+
 // ─── Publish ──────────────────────────────────────────────────────────────────
 $('#publishBtn').addEventListener('click', () => {
   if (!currentUser) return;
+
   chrome.tabs.query({ active: true, currentWindow: true }, async tabs => {
     const tabId = tabs?.[0]?.id;
     if (!tabId) return;
+
+    $('#publishBtn').disabled = true;
+    $('#publishBtn').textContent = 'Publishing…';
+
+    // Upload media first if attached
+    let media_url = null;
+    if (mediaDataUrl) {
+      try {
+        $('#uploadProgress').classList.remove('hidden');
+        $('#progressLabel').textContent = 'Uploading media…';
+        $('#progressFill').style.width = '40%';
+        media_url = await supabase.uploadMedia(mediaDataUrl, mediaFileName || 'media');
+        $('#progressFill').style.width = '100%';
+        await new Promise(r => setTimeout(r, 300));
+        $('#uploadProgress').classList.add('hidden');
+      } catch (err) {
+        $('#uploadProgress').classList.add('hidden');
+        $('#status').textContent = `Media upload failed: ${err.message}`;
+        $('#publishBtn').disabled = false;
+        $('#publishBtn').innerHTML = 'Publish annotation <span>→</span>';
+        setTimeout(() => $('#status').textContent = '', 4000);
+        return;
+      }
+    }
 
     const annotation = {
       quote,
       comment: $('#comment').value.trim(),
       intent,
-      clip,
+      media_url,
+      media_type: media_url ? mediaType : null,
       page_title: page.title,
       url: page.url,
       hostname: page.hostname,
@@ -187,14 +279,22 @@ $('#publishBtn').addEventListener('click', () => {
       chrome.storage.local.get(key, data => {
         const items = [...(data[key] || []), localAnnotation];
         chrome.storage.local.set({ [key]: items }, () => {
-          loadFeedFromSupabase();
-          $('#status').textContent = 'Published to your annotation layer ✓';
+          // Reset form
           $('#comment').value = ''; $('#counter').textContent = '0';
-          setQuote(''); intent = ''; clip = false;
+          setQuote(''); intent = '';
+          mediaDataUrl = null; mediaType = null; mediaFileName = null;
+          $('#previewImg').src = ''; $('#previewVideo').src = '';
+          $('#mediaInput').value = '';
+          $('#mediaPreview').classList.add('hidden');
           document.querySelectorAll('[data-intent]').forEach(b => b.classList.remove('active'));
-          $('#clipEditor').classList.add('hidden'); $('#clipBtn').textContent = 'Add clip';
+          $('#publishBtn').innerHTML = 'Publish annotation <span>→</span>';
           updateButton();
+
+          loadFeedFromSupabase();
           loadAnnotationCount();
+          $('#status').textContent = media_url
+            ? 'Published with media ✓'
+            : 'Published to your annotation layer ✓';
           setTimeout(() => $('#status').textContent = '', 3000);
         });
       });
@@ -208,8 +308,6 @@ document.querySelectorAll('[data-intent]').forEach(btn => btn.addEventListener('
   document.querySelectorAll('[data-intent]').forEach(b => b.classList.remove('active'));
   btn.classList.add('active'); intent = btn.dataset.intent; updateButton();
 }));
-$('#clipBtn').addEventListener('click', () => { clip = true; $('#clipEditor').classList.remove('hidden'); $('#clipBtn').textContent = 'Added'; });
-$('#removeClip').addEventListener('click', () => { clip = false; $('#clipEditor').classList.add('hidden'); $('#clipBtn').textContent = 'Add clip'; });
 $('#themeBtn').addEventListener('click', () => setTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'));
 $('#refreshBtn').addEventListener('click', loadPage);
 $('#closeBtn').addEventListener('click', () => window.close());
@@ -221,7 +319,7 @@ function setTheme(theme) {
   chrome.storage.local.set({ theme });
 }
 
-// ─── Message listener for live selection relay ────────────────────────────────
+// ─── Message listener ─────────────────────────────────────────────────────────
 chrome.runtime.onMessage.addListener(message => {
   if (message.type === 'selection') applySelection(message);
 });
@@ -229,8 +327,6 @@ chrome.runtime.onMessage.addListener(message => {
 // ─── Boot ─────────────────────────────────────────────────────────────────────
 (async () => {
   chrome.storage.local.get('theme', data => setTheme(data.theme || 'light'));
-
-  // Try restoring an existing Supabase session
   const session = await supabase.restoreSession();
   if (session) {
     const user = supabase.userFromSession(session);

@@ -2,12 +2,12 @@
 const SUPABASE_URL = 'https://dajadbvlldrmgzztdksn.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRhamFkYnZsbGRybWd6enRka3NuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk1ODYwMTcsImV4cCI6MjEwNTE2MjAxN30.ZGteNtShkBErPckuMGX4tWMn0AtgU_THFSI37Wgd-eU';
 
-// ─── Lightweight Supabase REST client (no external bundle needed) ─────────────
+// ─── Lightweight Supabase REST client ─────────────────────────────────────────
 class SupabaseClient {
   constructor(url, key) {
     this.url = url;
     this.key = key;
-    this.token = null; // JWT from Google OAuth → Supabase
+    this.token = null;
   }
 
   headers(extra = {}) {
@@ -40,32 +40,62 @@ class SupabaseClient {
         headers: this.headers({ 'Prefer': 'return=representation' }),
         body: JSON.stringify(data),
       }).then(r => r.json()),
-      rpc: (fn, params) => fetch(`${this.url}/rest/v1/rpc/${fn}`, {
-        method: 'POST',
-        headers: this.headers(),
-        body: JSON.stringify(params),
-      }).then(r => r.json()),
     };
+  }
+
+  // ─── Upload media to Supabase Storage ────────────────────────────────────────
+  async uploadMedia(dataUrl, fileName) {
+    if (!this.token) throw new Error('Not authenticated');
+
+    // Convert base64 dataUrl → Blob
+    const [header, base64] = dataUrl.split(',');
+    const mimeType = header.match(/:(.*?);/)[1];
+    const binary = atob(base64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    const blob = new Blob([bytes], { type: mimeType });
+
+    // Sanitise filename and build storage path
+    const safeName = fileName.replace(/[^a-zA-Z0-9._-]/g, '_');
+    const path = `${Date.now()}_${safeName}`;
+
+    const res = await fetch(
+      `${this.url}/storage/v1/object/annotation-media/${path}`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${this.token}`,
+          'Content-Type': mimeType,
+          'x-upsert': 'false',
+        },
+        body: blob,
+      }
+    );
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || `Upload failed (${res.status})`);
+    }
+
+    // Return the public CDN URL
+    return `${this.url}/storage/v1/object/public/annotation-media/${path}`;
   }
 
   // ─── Auth: Google OAuth via Supabase (launchWebAuthFlow) ────────────────────
   async signInWithGoogle() {
-    // ── Step 1: verify Supabase Google provider is configured ─────────────────
+    // Pre-flight: verify Google provider is enabled
     try {
       const settingsRes = await fetch(`${this.url}/auth/v1/settings`, {
         headers: { apikey: this.key },
       });
       const settings = await settingsRes.json();
-      const googleEnabled = settings?.external?.google;
-      if (!googleEnabled) {
+      if (!settings?.external?.google) {
         throw new Error('Google provider not enabled in Supabase — go to Authentication → Providers → Google and save your credentials');
       }
     } catch (err) {
       if (err.message.includes('Google provider')) throw err;
-      // network error — proceed anyway
     }
 
-    // ── Step 2: build auth URL and launch popup ───────────────────────────────
     return new Promise((resolve, reject) => {
       const redirectUrl = chrome.identity.getRedirectURL();
       const authUrl =
@@ -82,11 +112,7 @@ class SupabaseClient {
           if (chrome.runtime.lastError || !responseUrl) {
             const msg = chrome.runtime.lastError?.message || 'Auth cancelled';
             if (msg.includes('not be loaded') || msg.includes('closed')) {
-              reject(
-                'Popup failed. Check:\n' +
-                '1. Supabase → Auth → Providers → Google → Enable + Save\n' +
-                '2. Supabase → Auth → URL Config → add https://*.chromiumapp.org/**'
-              );
+              reject('Popup failed. Check:\n1. Supabase → Auth → Providers → Google → Enable + Save\n2. Supabase → Auth → URL Config → add https://*.chromiumapp.org/**');
             } else {
               reject(msg);
             }
@@ -94,9 +120,7 @@ class SupabaseClient {
           }
           try {
             const url = new URL(responseUrl);
-            const params = new URLSearchParams(
-              url.hash ? url.hash.slice(1) : url.search.slice(1)
-            );
+            const params = new URLSearchParams(url.hash ? url.hash.slice(1) : url.search.slice(1));
             const access_token  = params.get('access_token');
             const refresh_token = params.get('refresh_token');
             const expires_in    = parseInt(params.get('expires_in') || '3600', 10);
@@ -139,13 +163,11 @@ class SupabaseClient {
     const data = await chrome.storage.local.get('supabase_session');
     const session = data.supabase_session;
     if (session?.access_token) {
-      // Check if token is still valid (expires_in check)
       const issuedAt = session.expires_at || 0;
       if (Date.now() / 1000 < issuedAt) {
         this.token = session.access_token;
         return session;
       }
-      // Token expired — try refresh
       if (session.refresh_token) {
         try {
           const res = await fetch(`${this.url}/auth/v1/token?grant_type=refresh_token`, {
