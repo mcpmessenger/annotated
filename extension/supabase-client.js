@@ -1,8 +1,6 @@
 // ─── Supabase Config ─────────────────────────────────────────────────────────
-// These are filled in by setup.js during first-run, or you can hardcode them here.
 const SUPABASE_URL = 'https://dajadbvlldrmgzztdksn.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRhamFkYnZsbGRybWd6enRka3NuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk1ODYwMTcsImV4cCI6MjEwNTE2MjAxN30.ZGteNtShkBErPckuMGX4tWMn0AtgU_THFSI37Wgd-eU';
-const GOOGLE_CLIENT_ID = '343335882944-fir4aehjgkvnj0r6tdg0mmcc2sjt99vf.apps.googleusercontent.com';
 
 // ─── Lightweight Supabase REST client (no external bundle needed) ─────────────
 class SupabaseClient {
@@ -50,41 +48,54 @@ class SupabaseClient {
     };
   }
 
-  // ─── Auth: Google OAuth via Supabase ────────────────────────────────────────
+  // ─── Auth: Google OAuth via Supabase (launchWebAuthFlow) ────────────────────
   async signInWithGoogle() {
     return new Promise((resolve, reject) => {
-      // Use chrome.identity for the Google OAuth token
-      chrome.identity.getAuthToken({ interactive: true, scopes: ['openid', 'email', 'profile'] }, async (googleToken) => {
-        if (chrome.runtime.lastError || !googleToken) {
-          reject(chrome.runtime.lastError?.message || 'Auth cancelled');
-          return;
-        }
-        try {
-          // Exchange Google token for Supabase session
-          const res = await fetch(`${this.url}/auth/v1/token?grant_type=id_token`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'apikey': this.key,
-            },
-            body: JSON.stringify({
-              provider: 'google',
-              id_token: googleToken,
-              client_id: GOOGLE_CLIENT_ID,
-            }),
-          });
-          const data = await res.json();
-          if (data.access_token) {
-            this.token = data.access_token;
-            await chrome.storage.local.set({ supabase_session: data });
-            resolve(data);
-          } else {
-            reject(data.error_description || 'Sign-in failed');
+      // The redirect URL chrome.identity gives us for this extension
+      const redirectUrl = chrome.identity.getRedirectURL();
+
+      // Supabase's OAuth authorize URL — it redirects to Google, then back to redirectUrl
+      const authUrl =
+        `${this.url}/auth/v1/authorize` +
+        `?provider=google` +
+        `&redirect_to=${encodeURIComponent(redirectUrl)}`;
+
+      chrome.identity.launchWebAuthFlow(
+        { url: authUrl, interactive: true },
+        async (responseUrl) => {
+          if (chrome.runtime.lastError || !responseUrl) {
+            reject(chrome.runtime.lastError?.message || 'Auth cancelled');
+            return;
           }
-        } catch (err) {
-          reject(err.message);
+          try {
+            // Supabase returns tokens in the URL fragment: #access_token=...&refresh_token=...
+            const url = new URL(responseUrl);
+            const params = new URLSearchParams(
+              url.hash ? url.hash.slice(1) : url.search.slice(1)
+            );
+            const access_token  = params.get('access_token');
+            const refresh_token = params.get('refresh_token');
+            const expires_in    = parseInt(params.get('expires_in') || '3600', 10);
+
+            if (!access_token) {
+              reject('No access token returned — check Supabase Google provider config');
+              return;
+            }
+
+            const session = {
+              access_token,
+              refresh_token,
+              expires_at: Math.floor(Date.now() / 1000) + expires_in,
+            };
+
+            this.token = access_token;
+            await chrome.storage.local.set({ supabase_session: session });
+            resolve(session);
+          } catch (err) {
+            reject(err.message);
+          }
         }
-      });
+      );
     });
   }
 
