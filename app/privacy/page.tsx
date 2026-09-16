@@ -93,14 +93,14 @@ export default function PrivacyPage() {
               <li>Opt out of non-essential processing</li>
             </ul>
             <p className="text-base leading-relaxed text-[hsl(var(--foreground))] mt-3">
-              To exercise these rights, contact us at privacy@annotated.com.
+              To exercise these rights, contact us at magnetarsenti@gmail.com.
             </p>
           </section>
 
           <section className="mb-10">
             <h2 className="text-2xl font-bold mb-4">Data Security</h2>
             <p className="text-base leading-relaxed text-[hsl(var(--foreground))]">
-              We use industry-standard encryption and security measures to protect your information. However, no method is completely secure. Please report any security concerns to security@annotated.com.
+              We use industry-standard encryption and security measures to protect your information. However, no method is completely secure. Please report any security concerns to magnetarsenti@gmail.com.
             </p>
           </section>
 
@@ -110,9 +110,9 @@ export default function PrivacyPage() {
               If you have questions about this privacy policy or our practices, contact us at:
             </p>
             <p className="text-base text-[hsl(var(--foreground))] mt-3">
-              Annotated, Inc.
+              Annotated
               <br />
-              privacy@annotated.com
+              magnetarsenti@gmail.com
             </p>
           </section>
         </article>
