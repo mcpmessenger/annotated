@@ -338,8 +338,8 @@ chrome.runtime.onMessage.addListener(message => {
 
 // --- Nordic UI Dropdown & Dictation ---
 
-const avatarEl = #avatarEl;
-const userDropdown = #userDropdown;
+const avatarEl = $('#avatarEl');
+const userDropdown = $('#userDropdown');
 
 if(avatarEl) {
   avatarEl.addEventListener('click', (e) => {
@@ -352,7 +352,7 @@ if(avatarEl) {
 }
 
 // Dictation
-const dictateBtn = #dictateBtn;
+const dictateBtn = $('#dictateBtn');
 let recognition;
 let isRecording = false;
 
@@ -364,7 +364,7 @@ if ('webkitSpeechRecognition' in window) {
   let finalTranscript = '';
   
   recognition.onstart = () => {
-    finalTranscript = #comment.value; // Store existing text
+    finalTranscript = $('#comment').value; // Store existing text
   };
 
   recognition.onresult = (event) => {
@@ -376,9 +376,9 @@ if ('webkitSpeechRecognition' in window) {
         interimTranscript += event.results[i][0].transcript;
       }
     }
-    const commentInput = #comment;
+    const commentInput = $('#comment');
     commentInput.value = finalTranscript + interimTranscript;
-    updateCounter();
+    updateButton(); // Not updateCounter() because updateButton does it
   };
 
   recognition.onerror = (e) => {
