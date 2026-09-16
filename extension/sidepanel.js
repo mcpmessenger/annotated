@@ -19,6 +19,10 @@ function setQuote(value) {
   updateButton();
 }
 function updateButton() {
+  const c = document.querySelector('#comment').value.trim();
+  const canPublish = !!quote && (c.length > 0 || mediaDataUrl);
+  document.querySelector('#publishBtn').disabled = !canPublish;
+  return;
   $('#publishBtn').disabled = !(quote && $('#comment').value.trim() && intent && currentUser);
 }
 function initials(name) {
@@ -293,10 +297,9 @@ $('#publishBtn').addEventListener('click', () => {
 
           loadFeedFromSupabase();
           loadAnnotationCount();
-          $('#status').textContent = media_url
-            ? 'Published with media ✓'
-            : 'Published to your annotation layer ✓';
-          setTimeout(() => $('#status').textContent = '', 3000);
+          
+          const shareUrl = `https://twitter.com/intent/tweet?text=I%20just%20annotated%20this%20page!&url=https://annotated-repo.vercel.app/`;
+          $('#status').innerHTML = `Published! &middot; <a href="${shareUrl}" target="_blank" style="color: #1da1f2; font-weight: bold; text-decoration: underline; pointer-events: auto;">Share on X 🐦</a>`;
         });
       });
     });
@@ -413,3 +416,16 @@ if (dictateBtn) {
     }
   });
 }
+
+
+
+// Emojis
+document.querySelectorAll('.emoji-btn').forEach(btn => {
+  btn.addEventListener('click', (e) => {
+    e.preventDefault();
+    const c = document.querySelector('#comment');
+    c.value = c.value + e.target.dataset.emoji;
+    document.querySelector('#counter').textContent = c.value.length;
+    updateButton();
+  });
+});

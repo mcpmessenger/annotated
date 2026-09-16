@@ -54,15 +54,25 @@
       <div class="composer-title"><span class="highlighter">▰</span> <span>New annotation</span><span class="draft">DRAFT</span></div>
       <div class="quote-box"><div class="quote-mark">"</div><div id="quote" class="quote">Select text on any page to anchor a comment here.</div></div>
       
-      <div class="textarea-wrapper">
+              <div class="emoji-bar">
+          <span class="emoji-label">Quick React:</span>
+          <button class="emoji-btn" data-emoji="??">??</button>
+          <button class="emoji-btn" data-emoji="?">?</button>
+          <button class="emoji-btn" data-emoji="?">?</button>
+          <button class="emoji-btn" data-emoji="??">??</button>
+          <button class="emoji-btn" data-emoji="??">??</button>
+        </div>
         <textarea id="comment" maxlength="1000" placeholder="What do you want people to notice?"></textarea>
-        <button id="dictateBtn" class="dictate-btn" title="Dictate comment">
+      
+      <div class="textarea-footer">
+        <button id="dictateBtn" class="dictate-btn-main" title="Dictate comment">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
+          Voice Type
         </button>
+        <div class="counter"><span id="counter">0</span> / 1,000</div>
       </div>
-      <div class="counter"><span id="counter">0</span> / 1,000</div>
 
-      <div class="field-label">Intent <span class="required">Required</span></div>
+      <div class="field-label">Category <span class="muted">(Optional)</span></div>
       <div id="intentList" class="intent-list">
         <button data-intent="Hot Take">Hot Take</button>
         <button data-intent="Fact Check">Fact Check</button>
@@ -114,3 +124,5 @@
   <script src="sidepanel.js"></script>
 </body>
 </html>
+
+
