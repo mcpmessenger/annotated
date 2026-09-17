@@ -85,14 +85,14 @@
       if (!isDragging) return;
       widgetIframe.style.left = (e.clientX - dragOffset.x) + 'px';
       widgetIframe.style.top = (e.clientY - dragOffset.y) + 'px';
-    });
+    }, { capture: true });
 
     document.addEventListener('mouseup', () => {
       if (isDragging) {
         isDragging = false;
         widgetIframe.style.pointerEvents = 'auto';
       }
-    });
+    }, { capture: true });
 
   function positionWidget(x, y) {
     let left = x + 20;
@@ -105,10 +105,45 @@
     widgetIframe.style.top = top + 'px';
   }
 
-  const recordSelection = () => {
+  // Buffer the latest selection to survive aggressive SPA clears (like X.com)
+  let lastKnownSelection = null;
+  let lastKnownRect = null;
+  
+  document.addEventListener('selectionchange', () => {
     const selection = window.getSelection();
     const quote = selection?.toString().replace(/\s+/g, ' ').trim();
-    if (!quote || quote.length < 2) return;
+    if (quote && quote.length >= 2 && selection.rangeCount > 0) {
+      lastKnownSelection = quote;
+      lastKnownRect = selection.getRangeAt(0).getBoundingClientRect();
+    } else {
+      // Clear if they actually deselected (not just X.com being aggressive on mouseup)
+      // We rely on mousedown to clear it to be safe
+    }
+  });
+
+  document.addEventListener('mousedown', (e) => {
+    // If they click outside the widget, clear the fallback so it doesn't pop up again
+    if (!widgetContainer || !widgetContainer.contains(e.target)) {
+      lastKnownSelection = null;
+      lastKnownRect = null;
+    }
+  }, { capture: true });
+
+  const recordSelection = () => {
+    const selection = window.getSelection();
+    let quote = selection?.toString().replace(/\s+/g, ' ').trim();
+    let rect = null;
+
+    if (quote && quote.length >= 2 && selection.rangeCount > 0) {
+      rect = selection.getRangeAt(0).getBoundingClientRect();
+    } else if (lastKnownSelection) {
+      // Fallback for X.com which might clear selection on mouseup
+      quote = lastKnownSelection;
+      rect = lastKnownRect;
+    }
+
+    if (!quote || quote.length < 2 || !rect) return;
+    
     const payload = {
       quote,
       url: location.href,
@@ -119,15 +154,12 @@
     chrome.storage.local.set({ pendingSelection: payload }, () => {
       chrome.runtime.sendMessage({ type: 'selection', ...payload }).catch(() => {});
     });
-    if (selection.rangeCount > 0) {
-      const range = selection.getRangeAt(0);
-      const rect = range.getBoundingClientRect();
-      createWidget(rect.right, rect.top);
-    }
+    
+    createWidget(rect.right, rect.top);
   };
 
-  document.addEventListener('mouseup', () => setTimeout(recordSelection, 80));
-  document.addEventListener('keyup', (e) => { if (e.key === 'Shift') setTimeout(recordSelection, 80); });
+  document.addEventListener('mouseup', () => setTimeout(recordSelection, 10));
+  document.addEventListener('keyup', (e) => { if (e.key === 'Shift') setTimeout(recordSelection, 10); });
 
   // ─── Message handler ─────────────────────────────────────────────────────────
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
