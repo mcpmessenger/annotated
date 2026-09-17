@@ -52,7 +52,7 @@
       widgetIframe.style.cssText = `
         position: fixed;
         width: 340px;
-        height: 340px;
+        height: 370px;
         border: 1px solid rgba(0,0,0,0.1);
         border-radius: 16px;
         box-shadow: 0 12px 40px rgba(0,0,0,0.15);
@@ -98,7 +98,7 @@
     let left = x + 20;
     let top = y - 30;
     if (left + 340 > window.innerWidth) left = window.innerWidth - 360;
-    if (top + 340 > window.innerHeight) top = window.innerHeight - 360;
+    if (top + 370 > window.innerHeight) top = window.innerHeight - 390;
     if (top < 10) top = 10;
     if (left < 10) left = 10;
     widgetIframe.style.left = left + 'px';
