@@ -278,10 +278,21 @@ $('#publishBtn').addEventListener('click', () => {
     };
 
     // Save to Supabase
-    try {
-      const db = await supabase.from('annotations');
-      await db.insert(annotation);
-    } catch (_) {}
+  try {
+    const db = await supabase.from('annotations');
+    const res = await db.insert(annotation);
+    if (res.code || res.error || res.message) {
+      $('#publishBtn').innerHTML = 'Publish';
+      $('#publishBtn').disabled = false;
+      $('#status').textContent = 'DB Error: ' + (res.message || res.error || JSON.stringify(res));
+      return;
+    }
+  } catch (err) {
+    $('#publishBtn').innerHTML = 'Publish';
+    $('#publishBtn').disabled = false;
+    $('#status').textContent = 'Error: ' + err.message;
+    return;
+  }
 
     // Also save locally for highlight rendering
     const localAnnotation = { ...annotation, id: crypto.randomUUID() };
