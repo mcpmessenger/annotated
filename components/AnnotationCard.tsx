@@ -1,8 +1,13 @@
+"use client";
+
+import { useState } from "react";
 import Link from "next/link";
 import { Annotation } from "@/lib/types";
 import { ReactionRow } from "./ReactionRow";
 
 export function AnnotationCard({ annotation }: { annotation: Annotation }) {
+  const [isExpanded, setIsExpanded] = useState(false);
+
   const detailLink = `/${annotation.username}/${annotation.slug}`;
 
   return (
@@ -40,9 +45,11 @@ export function AnnotationCard({ annotation }: { annotation: Annotation }) {
       </div>
 
       <div className="p-4 rounded my-4 border-l-4 border-[hsl(var(--accent))] bg-[hsl(var(--border))]">
-        <p className="text-sm italic text-[hsl(var(--text-muted))] relative z-10 whitespace-pre-wrap">
-          &ldquo;{annotation.quoteText}&rdquo;
-        </p>
+        <div className="relative z-20">
+          <p className={`text-sm italic text-[hsl(var(--text-muted))] whitespace-pre-wrap ${!isExpanded ? 'line-clamp-3' : ''}`}>
+            &ldquo;{annotation.quoteText}&rdquo;
+          </p>
+        </div>
         <p className="text-xs text-[hsl(var(--text-subtle))] mt-2 relative z-10">
           from{" "}
           <a href={annotation.sourceUrl} target="_blank" rel="noopener noreferrer" className="hover:text-[hsl(var(--accent))] hover:underline font-medium">
@@ -61,9 +68,19 @@ export function AnnotationCard({ annotation }: { annotation: Annotation }) {
         </div>
       )}
 
-      <p className="text-base text-[hsl(var(--foreground))] mb-4 relative z-10 whitespace-pre-wrap">
-        {annotation.commentary}
-      </p>
+      <div className="relative z-20 mb-4">
+        <p className={`text-base text-[hsl(var(--foreground))] whitespace-pre-wrap ${!isExpanded ? 'line-clamp-2' : ''}`}>
+          {annotation.commentary}
+        </p>
+        {(annotation.quoteText.length > 150 || annotation.commentary.length > 100) && (
+          <button 
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); setIsExpanded(!isExpanded); }}
+            className="text-[hsl(var(--accent))] text-sm font-medium hover:underline mt-1"
+          >
+            {isExpanded ? "See less" : "See more"}
+          </button>
+        )}
+      </div>
 
       <ReactionRow annotationId={annotation.id} />
 
