@@ -26,7 +26,7 @@ export default function InstallPage() {
                     Available on the Chrome Web Store. One click to start annotating.
                   </p>
                   <a
-                    href="#"
+                    href="https://github.com/mcpmessenger/annotated" target="_blank"
                     className="inline-flex items-center px-4 py-2 bg-[hsl(var(--foreground))] text-[hsl(var(--background))] rounded font-medium hover:opacity-90 transition-opacity"
                   >
                     Install on Chrome
