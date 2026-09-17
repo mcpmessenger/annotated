@@ -314,7 +314,7 @@ document.querySelectorAll('[data-intent]').forEach(btn => btn.addEventListener('
 }));
 $('#themeBtn').addEventListener('click', () => setTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'));
 $('#refreshBtn').addEventListener('click', loadPage);
-$('// closeBtn logic moved to bottom
+// closeBtn logic moved to bottom
 
 function setTheme(theme) {
   document.documentElement.dataset.theme = theme;
