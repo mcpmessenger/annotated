@@ -121,6 +121,11 @@
 
   // ─── Message handler ─────────────────────────────────────────────────────────
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (message.type === 'openWidget') {
+      createWidget(window.innerWidth - 380, 20);
+      sendResponse({ ok: true });
+      return true;
+    }
     if (message.type === 'saveAnnotation') {
       const annotation = { ...message.annotation, id: crypto.randomUUID(), url: location.href };
       state.annotations.push(annotation);
