@@ -31,7 +31,7 @@ function mapRowToAnnotation(row: any): Annotation {
 export async function getRecentAnnotations(): Promise<Annotation[]> {
   const { data, error } = await supabase
     .from("annotations")
-    .select(`*, profiles(email, full_name, avatar_url)`)
+    .select("*")
     .order("created_at", { ascending: false })
     .limit(50);
 
@@ -39,17 +39,31 @@ export async function getRecentAnnotations(): Promise<Annotation[]> {
     console.error("Error fetching annotations:", error);
     return [];
   }
-  return data.map(mapRowToAnnotation);
+  
+  const userIds = Array.from(new Set(data.map(a => a.user_id).filter(Boolean)));
+  const { data: pData } = await supabase.from("profiles").select("*").in("id", userIds);
+  const profilesMap: Record<string, any> = {};
+  if (pData) pData.forEach(p => { profilesMap[p.id] = p; });
+
+  return data.map(row => {
+    row.profiles = profilesMap[row.user_id] || {};
+    return mapRowToAnnotation(row);
+  });
 }
 
 export async function getAnnotationBySlug(slug: string): Promise<Annotation | undefined> {
   const { data, error } = await supabase
     .from("annotations")
-    .select(`*, profiles(email, full_name, avatar_url)`)
+    .select("*")
     .eq("slug", slug)
     .single();
 
   if (error || !data) return undefined;
+  
+  if (data.user_id) {
+    const { data: pData } = await supabase.from("profiles").select("*").eq("id", data.user_id).single();
+    if (pData) data.profiles = pData;
+  }
   return mapRowToAnnotation(data);
 }
 
@@ -90,12 +104,18 @@ export async function getUserAnnotations(username: string): Promise<Annotation[]
 
   const { data, error } = await supabase
     .from("annotations")
-    .select(`*, profiles(email, full_name, avatar_url)`)
+    .select("*")
     .eq("user_id", user.id)
     .order("created_at", { ascending: false });
 
   if (error || !data) return [];
-  return data.map(mapRowToAnnotation);
+  
+  const { data: pData } = await supabase.from("profiles").select("*").eq("id", user.id).single();
+  
+  return data.map(row => {
+    row.profiles = pData || {};
+    return mapRowToAnnotation(row);
+  });
 }
 
 export async function getAnnotationsByIntent(intent: string): Promise<Annotation[]> {
@@ -106,10 +126,19 @@ export async function getAnnotationsByIntent(intent: string): Promise<Annotation
   
   const { data, error } = await supabase
     .from("annotations")
-    .select(`*, profiles(email, full_name, avatar_url)`)
+    .select("*")
     .ilike("intent", dbIntent)
     .order("created_at", { ascending: false });
 
   if (error || !data) return [];
-  return data.map(mapRowToAnnotation);
+  
+  const userIds = Array.from(new Set(data.map(a => a.user_id).filter(Boolean)));
+  const { data: pData } = await supabase.from("profiles").select("*").in("id", userIds);
+  const profilesMap: Record<string, any> = {};
+  if (pData) pData.forEach(p => { profilesMap[p.id] = p; });
+
+  return data.map(row => {
+    row.profiles = profilesMap[row.user_id] || {};
+    return mapRowToAnnotation(row);
+  });
 }
