@@ -28,13 +28,13 @@ export default async function Home() {
               <div className="flex flex-col sm:flex-row gap-4 pt-4">
                 <Link
                   href="/explore"
-                  className="inline-flex items-center justify-center px-6 py-3 rounded font-medium bg-[hsl(var(--foreground))] text-[hsl(var(--background))] hover:opacity-90 transition-opacity w-full sm:w-auto"
+                  className="inline-flex items-center justify-center px-6 py-3 rounded-[6px] font-medium bg-[hsl(var(--foreground))] text-[hsl(var(--background))] hover:opacity-90 transition-opacity w-full sm:w-auto"
                 >
                   Explore Annotations
                 </Link>
                 <Link
                   href="/install"
-                  className="inline-flex items-center justify-center px-6 py-3 rounded font-medium border border-[hsl(var(--border))] text-[hsl(var(--foreground))] hover:bg-[hsl(var(--border))] transition-colors w-full sm:w-auto"
+                  className="inline-flex items-center justify-center px-6 py-3 rounded-[6px] font-medium border border-[hsl(var(--border))] text-[hsl(var(--foreground))] hover:bg-[hsl(var(--border))] transition-colors w-full sm:w-auto"
                 >
                   Install Extension
                 </Link>
