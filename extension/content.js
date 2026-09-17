@@ -3,11 +3,29 @@
   const getKey = () => `page:${location.origin}${location.pathname}`;
 
   // ─── Load & render existing highlights ───────────────────────────────────────
-  const load = () =>
+  const load = () => {
     chrome.storage.local.get(getKey()).then(data => {
       state.annotations = data[getKey()] || [];
       state.annotations.forEach(renderHighlight);
     });
+
+    const anonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRhamFkYnZsbGRybWd6enRka3NuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk1ODYwMTcsImV4cCI6MjEwNTE2MjAxN30.ZGteNtShkBErPckuMGX4tWMn0AtgU_THFSI37Wgd-eU';
+    fetch(`https://dajadbvlldrmgzztdksn.supabase.co/rest/v1/annotations?url=eq.${encodeURIComponent(location.href)}`, {
+      headers: { 'apikey': anonKey }
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (Array.isArray(data)) {
+        data.forEach(ann => {
+          if (!state.annotations.find(a => a.id === ann.id)) {
+            state.annotations.push(ann);
+            renderHighlight(ann);
+          }
+        });
+      }
+    })
+    .catch(() => {});
+  };
 
   const renderHighlight = (annotation) => {
     if (!annotation.quote || !document.body) return;

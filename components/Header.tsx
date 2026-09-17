@@ -16,7 +16,8 @@ export function Header() {
   return (
     <header className="border-b border-[hsl(var(--border))] bg-white sticky top-0 z-40">
       <div className="editorial-container flex items-center justify-between py-4">
-        <Link href="/" className="text-xl font-bold tracking-tight hover:text-[hsl(var(--text-muted))] transition-colors">
+        <Link href="/" className="flex items-center gap-2 text-xl font-bold tracking-tight hover:text-[hsl(var(--text-muted))] transition-colors">
+          <img src="/logo.png" alt="Annotated Logo" className="w-8 h-8 rounded" />
           Annotated
         </Link>
 
