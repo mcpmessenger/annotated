@@ -250,7 +250,7 @@ $('#publishBtn').addEventListener('click', () => {
         $('#uploadProgress').classList.add('hidden');
         $('#status').textContent = `Media upload failed: ${err.message}`;
         $('#publishBtn').disabled = false;
-        $('#publishBtn').innerHTML = 'Publish annotation <span>→</span>';
+        $('#publishBtn').innerHTML = ('Publish ' + '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>');
         setTimeout(() => $('#status').textContent = '', 4000);
         return;
       }
@@ -290,7 +290,7 @@ $('#publishBtn').addEventListener('click', () => {
           if ($('#mediaInput')) if ($('#mediaInput')) $('#mediaInput').value = '';
           if ($('#mediaPreview')) if ($('#mediaPreview')) $('#mediaPreview').classList.add('hidden');
           if (document.querySelector('[data-intent]')) if (document.querySelector('[data-intent]')) document.querySelectorAll('[data-intent]').forEach(b => b.classList.remove('active'));
-          $('#publishBtn').innerHTML = 'Publish annotation <span>→</span>';
+          $('#publishBtn').innerHTML = ('Publish ' + '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>');
           updateButton();
 
           loadFeedFromSupabase();
@@ -455,6 +455,7 @@ if (closeBtn) {
     window.parent.postMessage({ type: 'CLOSE_WIDGET' }, '*');
   });
 }
+
 
 
 
