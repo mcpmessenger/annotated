@@ -61,7 +61,7 @@ export function Header() {
     <header className="border-b border-[hsl(var(--border))] bg-[hsl(var(--background))] sticky top-0 z-40">
       <div className="editorial-container flex items-center justify-between py-4">
         <Link href="/" className="flex items-center gap-2 text-xl font-bold tracking-tight hover:text-[hsl(var(--text-muted))] transition-colors">
-          <PencilLine size={24} strokeWidth={2.5} className="text-[hsl(var(--accent))]" />
+          <img src="/logo.png" alt="Annotated" className="w-6 h-6 object-contain" />
           Annotated
         </Link>
 
