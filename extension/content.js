@@ -33,43 +33,53 @@
   let isDragging = false;
   let dragOffset = { x: 0, y: 0 };
 
+  let widgetContainer = null;
+  let shadowRoot = null;
+
   function createWidget(x, y) {
-    if (widgetIframe) {
-      widgetIframe.style.display = 'block';
-      positionWidget(x, y);
-      return;
+    if (!widgetContainer || !document.documentElement.contains(widgetContainer)) {
+      widgetContainer = document.createElement('div');
+      widgetContainer.id = 'annotated-layer-' + crypto.randomUUID().split('-')[0];
+      widgetContainer.style.cssText = 'position: fixed; z-index: 2147483647; top: 0; left: 0;';
+      shadowRoot = widgetContainer.attachShadow({ mode: 'closed' });
+      document.documentElement.appendChild(widgetContainer);
     }
 
-    widgetIframe = document.createElement('iframe');
-    widgetIframe.src = chrome.runtime.getURL('widget.html');
-    widgetIframe.id = 'annotated-widget-iframe';
-    widgetIframe.allow = 'microphone';
-    widgetIframe.style.cssText = `
-      position: fixed;
-      z-index: 2147483647;
-      width: 340px;
-      height: 600px;
-      border: 1px solid rgba(0,0,0,0.1);
-      border-radius: 16px;
-      box-shadow: 0 12px 40px rgba(0,0,0,0.15);
-      background: transparent;
-      display: block;
-      color-scheme: light dark;
-    `;
-    document.body.appendChild(widgetIframe);
-    positionWidget(x, y);
+    if (!widgetIframe) {
+      widgetIframe = document.createElement('iframe');
+      widgetIframe.src = chrome.runtime.getURL('widget.html');
+      widgetIframe.allow = 'microphone';
+      widgetIframe.style.cssText = `
+        position: fixed;
+        width: 340px;
+        height: 600px;
+        border: 1px solid rgba(0,0,0,0.1);
+        border-radius: 16px;
+        box-shadow: 0 12px 40px rgba(0,0,0,0.15);
+        background: transparent;
+        display: block;
+        color-scheme: light dark;
+      `;
+      shadowRoot.appendChild(widgetIframe);
 
-    window.addEventListener('message', (e) => {
-      if (e.data?.type === 'DRAG_START') {
-        isDragging = true;
-        const rect = widgetIframe.getBoundingClientRect();
-        dragOffset.x = e.data.clientX - rect.left;
-        dragOffset.y = e.data.clientY - rect.top;
-        widgetIframe.style.pointerEvents = 'none';
-      } else if (e.data?.type === 'CLOSE_WIDGET') {
-        widgetIframe.style.display = 'none';
-      }
-    });
+      window.addEventListener('message', (e) => {
+        if (e.data?.type === 'DRAG_START') {
+          isDragging = true;
+          const rect = widgetIframe.getBoundingClientRect();
+          dragOffset.x = e.data.clientX - rect.left;
+          dragOffset.y = e.data.clientY - rect.top;
+          widgetIframe.style.pointerEvents = 'none';
+        } else if (e.data?.type === 'CLOSE_WIDGET') {
+          widgetIframe.style.display = 'none';
+        }
+      });
+    } else if (!shadowRoot.contains(widgetIframe)) {
+      shadowRoot.appendChild(widgetIframe);
+    }
+
+    widgetIframe.style.display = 'block';
+    positionWidget(x, y);
+  }
 
     document.addEventListener('mousemove', (e) => {
       if (!isDragging) return;
