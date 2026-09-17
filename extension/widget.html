@@ -4,10 +4,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Annotated</title>
-  <link rel="stylesheet" href="sidepanel.css">
+  <link rel="stylesheet" href="widget.css">
 </head>
 <body>
-  <header class="topbar">
+  <header class="topbar" id="dragHandle" style="cursor: grab;">
     <div class="brand"><span class="brand-mark">▰</span><span>annotated<span class="dot">.</span></span></div>
     <div class="top-actions">
       <button id="themeBtn" class="icon-btn theme-btn" title="Switch to dark mode">☾</button>
@@ -121,8 +121,9 @@
   <footer><span>Open-source annotation layer</span><a href="https://annotated-six.vercel.app" target="_blank">annotated.com ↗</a></footer>
 
   <script src="supabase-client.js"></script>
-  <script src="sidepanel.js"></script>
+  <script src="widget.js"></script>
 </body>
 </html>
+
 
 

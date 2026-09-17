@@ -294,3 +294,12 @@
   background: var(--line);
   transform: scale(1.1);
 }
+body {
+  border-radius: 16px;
+  overflow: hidden;
+  margin: 0;
+  border: none;
+}
+.topbar {
+  border-radius: 16px 16px 0 0;
+}

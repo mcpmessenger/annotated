@@ -6,7 +6,7 @@
   "permissions": [
     "storage",
     "activeTab",
-    "sidePanel",
+    
     "contextMenus",
     "identity",
     "tabs"
@@ -25,9 +25,6 @@
   "action": {
     "default_title": "Open Annotated"
   },
-  "side_panel": {
-    "default_path": "sidepanel.html"
-  },
   "background": {
     "service_worker": "background.js"
   },
@@ -45,4 +42,10 @@
     "48": "assets/icon-48.png",
     "128": "assets/icon-128.png"
   }
+,  "web_accessible_resources": [{
+    "resources": ["widget.html", "widget.css", "widget.js", "supabase-js.js", "icons/*", "images/*"],
+    "matches": ["<all_urls>"]
+  }]
 }
+
+

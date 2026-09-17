@@ -29,7 +29,72 @@
     }
   };
 
-  // ─── Selection → storage (does NOT auto-open panel; context menu does that) ──
+  let widgetIframe = null;
+  let isDragging = false;
+  let dragOffset = { x: 0, y: 0 };
+
+  function createWidget(x, y) {
+    if (widgetIframe) {
+      widgetIframe.style.display = 'block';
+      positionWidget(x, y);
+      return;
+    }
+
+    widgetIframe = document.createElement('iframe');
+    widgetIframe.src = chrome.runtime.getURL('widget.html');
+    widgetIframe.id = 'annotated-widget-iframe';
+    widgetIframe.style.cssText = `
+      position: fixed;
+      z-index: 2147483647;
+      width: 340px;
+      height: 600px;
+      border: 1px solid rgba(0,0,0,0.1);
+      border-radius: 16px;
+      box-shadow: 0 12px 40px rgba(0,0,0,0.15);
+      background: transparent;
+      display: block;
+      color-scheme: light dark;
+    `;
+    document.body.appendChild(widgetIframe);
+    positionWidget(x, y);
+
+    window.addEventListener('message', (e) => {
+      if (e.data?.type === 'DRAG_START') {
+        isDragging = true;
+        const rect = widgetIframe.getBoundingClientRect();
+        dragOffset.x = e.data.clientX - rect.left;
+        dragOffset.y = e.data.clientY - rect.top;
+        widgetIframe.style.pointerEvents = 'none';
+      } else if (e.data?.type === 'CLOSE_WIDGET') {
+        widgetIframe.style.display = 'none';
+      }
+    });
+
+    document.addEventListener('mousemove', (e) => {
+      if (!isDragging) return;
+      widgetIframe.style.left = (e.clientX - dragOffset.x) + 'px';
+      widgetIframe.style.top = (e.clientY - dragOffset.y) + 'px';
+    });
+
+    document.addEventListener('mouseup', () => {
+      if (isDragging) {
+        isDragging = false;
+        widgetIframe.style.pointerEvents = 'auto';
+      }
+    });
+  }
+
+  function positionWidget(x, y) {
+    let left = x + 20;
+    let top = y - 30;
+    if (left + 340 > window.innerWidth) left = window.innerWidth - 360;
+    if (top + 600 > window.innerHeight) top = window.innerHeight - 620;
+    if (top < 10) top = 10;
+    if (left < 10) left = 10;
+    widgetIframe.style.left = left + 'px';
+    widgetIframe.style.top = top + 'px';
+  }
+
   const recordSelection = () => {
     const selection = window.getSelection();
     const quote = selection?.toString().replace(/\s+/g, ' ').trim();
@@ -41,11 +106,14 @@
       hostname: location.hostname,
       timestamp: Date.now(),
     };
-    // Write to storage so panel can grab it when already open
     chrome.storage.local.set({ pendingSelection: payload }, () => {
-      // If panel is already open, push the update live
       chrome.runtime.sendMessage({ type: 'selection', ...payload }).catch(() => {});
     });
+    if (selection.rangeCount > 0) {
+      const range = selection.getRangeAt(0);
+      const rect = range.getBoundingClientRect();
+      createWidget(rect.right, rect.top);
+    }
   };
 
   document.addEventListener('mouseup', () => setTimeout(recordSelection, 80));
@@ -74,3 +142,100 @@
 
   load();
 })();
+
+// --- Floating Widget Injection ---
+let widgetIframe = null;
+let isDragging = false;
+let dragOffset = { x: 0, y: 0 };
+
+function createWidget(x, y) {
+  if (widgetIframe) {
+    widgetIframe.style.display = 'block';
+    positionWidget(x, y);
+    return;
+  }
+
+  widgetIframe = document.createElement('iframe');
+  widgetIframe.src = chrome.runtime.getURL('widget.html');
+  widgetIframe.id = 'annotated-widget-iframe';
+  widgetIframe.style.cssText = 
+    position: fixed;
+    z-index: 2147483647;
+    width: 340px;
+    height: 600px;
+    border: 1px solid #eaeaea;
+    border-radius: 16px;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.15);
+    background: transparent;
+    display: block;
+  ;
+  document.body.appendChild(widgetIframe);
+  positionWidget(x, y);
+
+  // Listen for drag messages from iframe
+  window.addEventListener('message', (e) => {
+    if (e.data?.type === 'DRAG_START') {
+      isDragging = true;
+      const rect = widgetIframe.getBoundingClientRect();
+      dragOffset.x = e.data.clientX - rect.left;
+      dragOffset.y = e.data.clientY - rect.top;
+      widgetIframe.style.pointerEvents = 'none'; // allow mousemove on window
+    } else if (e.data?.type === 'CLOSE_WIDGET') {
+      widgetIframe.style.display = 'none';
+    }
+  });
+
+  document.addEventListener('mousemove', (e) => {
+    if (!isDragging) return;
+    widgetIframe.style.left = (e.clientX - dragOffset.x) + 'px';
+    widgetIframe.style.top = (e.clientY - dragOffset.y) + 'px';
+  });
+
+  document.addEventListener('mouseup', () => {
+    if (isDragging) {
+      isDragging = false;
+      widgetIframe.style.pointerEvents = 'auto';
+    }
+  });
+}
+
+function positionWidget(x, y) {
+  // Try to place to the right of the selection
+  let left = x + 20;
+  let top = y - 30;
+  
+  // Keep on screen
+  if (left + 340 > window.innerWidth) left = window.innerWidth - 360;
+  if (top + 600 > window.innerHeight) top = window.innerHeight - 620;
+  if (top < 10) top = 10;
+  if (left < 10) left = 10;
+  
+  widgetIframe.style.left = left + 'px';
+  widgetIframe.style.top = top + 'px';
+}
+
+const originalRecordSelection = recordSelection;
+recordSelection = () => {
+  const selection = window.getSelection();
+  const quote = selection?.toString().replace(/\s+/g, ' ').trim();
+  if (!quote || quote.length < 2) return;
+  
+  const payload = {
+    quote,
+    url: location.href,
+    title: document.title,
+    hostname: location.hostname,
+    timestamp: Date.now(),
+  };
+
+  chrome.storage.local.set({ pendingSelection: payload }, () => {
+    chrome.runtime.sendMessage({ type: 'selection', ...payload }).catch(() => {});
+  });
+
+  // Get selection coordinates to spawn widget
+  if (selection.rangeCount > 0) {
+    const range = selection.getRangeAt(0);
+    const rect = range.getBoundingClientRect();
+    createWidget(rect.right, rect.top);
+  }
+};

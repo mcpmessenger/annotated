@@ -314,7 +314,7 @@ document.querySelectorAll('[data-intent]').forEach(btn => btn.addEventListener('
 }));
 $('#themeBtn').addEventListener('click', () => setTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'));
 $('#refreshBtn').addEventListener('click', loadPage);
-$('#closeBtn').addEventListener('click', () => window.close());
+$('// closeBtn logic moved to bottom
 
 function setTheme(theme) {
   document.documentElement.dataset.theme = theme;
@@ -429,3 +429,26 @@ document.querySelectorAll('.emoji-btn').forEach(btn => {
     updateButton();
   });
 });
+
+// --- Widget Dragging & Closing ---
+const dragHandle = document.getElementById('dragHandle');
+if (dragHandle) {
+  dragHandle.addEventListener('mousedown', (e) => {
+    // Tell parent frame to start dragging
+    window.parent.postMessage({
+      type: 'DRAG_START',
+      clientX: e.clientX,
+      clientY: e.clientY
+    }, '*');
+  });
+}
+
+const closeBtn = document.getElementById('closeBtn');
+if (closeBtn) {
+  // Override window.close() behavior for iframe
+  closeBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    window.parent.postMessage({ type: 'CLOSE_WIDGET' }, '*');
+  });
+}
+

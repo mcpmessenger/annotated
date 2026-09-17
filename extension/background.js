@@ -1,5 +1,5 @@
 // ─── Side Panel ─────────────────────────────────────────────────────────────
-chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch(() => {});
+// sidePanel removed
 
 // ─── Context Menu ─────────────────────────────────────────────────────────────
 chrome.runtime.onInstalled.addListener(() => {
@@ -20,7 +20,7 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
     timestamp: Date.now(),
   };
   chrome.storage.local.set({ pendingSelection: payload }, () => {
-    chrome.sidePanel.open({ tabId: tab.id }).catch(() => {});
+    // sidePanel removed
   });
 });
 
@@ -29,7 +29,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   // Relay selection updates to the side panel when it's already open
   if (message.type === 'selection') {
     chrome.runtime.sendMessage(message).catch(() => {});
-    if (sender && sender.tab) chrome.sidePanel.open({ windowId: sender.tab.windowId }).catch(() => {});
+    if (sender && sender.tab) // sidePanel removed
     sendResponse({ ok: true });
     return true;
   }
@@ -54,4 +54,5 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true; // keep channel open for async response
   }
 });
+
 
