@@ -3,6 +3,27 @@
   const getKey = () => `page:${location.origin}${location.pathname}`;
 
   // ─── Load & render existing highlights ───────────────────────────────────────
+    const getExactSourceUrl = () => {
+    try {
+      const selection = window.getSelection();
+      if (selection && selection.rangeCount > 0) {
+        const anchorNode = selection.anchorNode;
+        const element = anchorNode?.nodeType === Node.ELEMENT_NODE ? anchorNode : anchorNode?.parentElement;
+        const tweetArticle = element?.closest('article[data-testid="tweet"]');
+        if (tweetArticle) {
+          const statusLink = tweetArticle.querySelector('a[href*="/status/"]');
+          if (statusLink) {
+            const href = statusLink.getAttribute('href');
+            if (href) return href.startsWith('http') ? href : `https://x.com${href}`;
+          }
+        }
+      }
+      const canonical = document.querySelector('link[rel="canonical"]');
+      if (canonical && canonical.href) return canonical.href;
+    } catch (_) {}
+    return location.href;
+  };
+
   const load = () => {
     chrome.storage.local.get(getKey()).then(data => {
       state.annotations = data[getKey()] || [];
@@ -173,7 +194,7 @@
     
     const payload = {
       quote,
-      url: location.href,
+      url: getExactSourceUrl(),
       title: document.title,
       hostname: location.hostname,
       timestamp: Date.now(),
@@ -207,7 +228,7 @@
     if (message.type === 'getPageInfo') {
       sendResponse({
         title: document.title,
-        url: location.href,
+        url: getExactSourceUrl(),
         hostname: location.hostname,
         selectedText: window.getSelection()?.toString().replace(/\s+/g, ' ').trim() || '',
       });
