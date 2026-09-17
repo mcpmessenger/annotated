@@ -15,7 +15,7 @@ export default async function Home() {
 
       <main className="flex-1">
         {/* Hero */}
-        <section className="border-b border-[hsl(var(--border))] bg-white">
+        <section className="border-b border-[hsl(var(--border))] bg-[hsl(var(--background))]">
           <div className="editorial-container">
             <div className="py-20 space-y-6">
               <h1 className="editorial-heading">
@@ -28,13 +28,13 @@ export default async function Home() {
               <div className="flex flex-col sm:flex-row gap-4 pt-4">
                 <Link
                   href="/explore"
-                  className="inline-flex items-center justify-center px-6 py-3 rounded font-medium bg-[hsl(var(--foreground))] text-white hover:shadow-md transition-shadow w-full sm:w-auto"
+                  className="inline-flex items-center justify-center px-6 py-3 rounded font-medium bg-[hsl(var(--foreground))] text-[hsl(var(--background))] hover:opacity-90 transition-opacity w-full sm:w-auto"
                 >
                   Explore Annotations
                 </Link>
                 <Link
                   href="/install"
-                  className="inline-flex items-center justify-center px-6 py-3 rounded font-medium border border-[hsl(var(--border))] text-[hsl(var(--foreground))] hover:bg-gray-50 transition-colors w-full sm:w-auto"
+                  className="inline-flex items-center justify-center px-6 py-3 rounded font-medium border border-[hsl(var(--border))] text-[hsl(var(--foreground))] hover:bg-[hsl(var(--border))] transition-colors w-full sm:w-auto"
                 >
                   Install Extension
                 </Link>
@@ -44,7 +44,7 @@ export default async function Home() {
         </section>
 
         {/* Featured Annotations */}
-        <section className="editorial-container">
+        <section className="editorial-container bg-[hsl(var(--background))]">
           <div className="py-16">
             <h2 className="text-2xl font-bold mb-8">Recently Shared</h2>
             <div className="grid gap-6 sm:grid-cols-1 lg:grid-cols-1">
@@ -57,24 +57,16 @@ export default async function Home() {
                 href="/explore"
                 className="inline-flex items-center text-[hsl(var(--accent))] font-medium hover:underline"
               >
-                View all annotations →
+                View all annotations ?
               </Link>
             </div>
           </div>
         </section>
 
         {/* Info Section */}
-        <section className="border-t border-[hsl(var(--border))] bg-gray-50">
+        <section className="border-t border-[hsl(var(--border))] bg-[hsl(var(--background))]">
           <div className="editorial-container py-16">
             <div className="grid sm:grid-cols-2 gap-12">
-              <div>
-                <h3 className="text-lg font-bold mb-3">Why Annotate?</h3>
-                <p className="text-[hsl(var(--text-muted))] leading-relaxed">
-                  Reading alone is consumption. Annotation transforms it into dialogue. When you
-                  annotate, you add your voice to the conversation, creating a layer of collective
-                  thinking on top of published text.
-                </p>
-              </div>
               <div>
                 <h3 className="text-lg font-bold mb-3">How It Works</h3>
                 <p className="text-[hsl(var(--text-muted))] leading-relaxed">

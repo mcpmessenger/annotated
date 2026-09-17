@@ -1,43 +1,18 @@
 import Link from "next/link";
 import { Annotation } from "@/lib/types";
 
-const intentColors: Record<string, string> = {
-  highlight: "bg-yellow-100 text-yellow-900",
-  question: "bg-blue-100 text-blue-900",
-  critique: "bg-red-100 text-red-900",
-  expand: "bg-green-100 text-green-900",
-  "hot-take": "bg-orange-100 text-orange-900",
-  "fact-check": "bg-purple-100 text-purple-900",
-  steelmanning: "bg-indigo-100 text-indigo-900",
-  receipts: "bg-pink-100 text-pink-900",
-  explainer: "bg-teal-100 text-teal-900",
-};
-
-const intentLabels: Record<string, string> = {
-  highlight: "Highlight",
-  question: "Question",
-  critique: "Critique",
-  expand: "Expand",
-  "hot-take": "Hot Take",
-  "fact-check": "Fact Check",
-  steelmanning: "Steelmanning",
-  receipts: "Receipts",
-  explainer: "Explainer",
-};
-
 export function AnnotationCard({ annotation }: { annotation: Annotation }) {
   const link = `/${annotation.username}/${annotation.slug}`;
-  const intentStr = annotation.intent || "highlight";
 
   return (
     <Link href={link}>
-      <article className="annotation-card cursor-pointer group">
+      <article className="annotation-card cursor-pointer group hover:-translate-y-1 transition-transform">
         <div className="flex items-start justify-between gap-4 mb-4">
           <div className="flex-1 flex items-center gap-3">
             {annotation.avatar_url ? (
               <img src={annotation.avatar_url} alt={annotation.userDisplayName} className="w-10 h-10 rounded-full" />
             ) : (
-              <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center font-bold text-gray-500">
+              <div className="w-10 h-10 rounded-full bg-[hsl(var(--border))] flex items-center justify-center font-bold text-[hsl(var(--text-muted))]">
                 {annotation.userDisplayName.charAt(0).toUpperCase()}
               </div>
             )}
@@ -53,16 +28,9 @@ export function AnnotationCard({ annotation }: { annotation: Annotation }) {
               </p>
             </div>
           </div>
-          <span
-            className={`px-3 py-1 rounded text-xs font-medium whitespace-nowrap ${
-              intentColors[intentStr] || "bg-gray-100 text-gray-900"
-            }`}
-          >
-            {intentLabels[intentStr] || intentStr}
-          </span>
         </div>
 
-        <div className="bg-gray-50 p-4 rounded my-4 border-l-4 border-[hsl(var(--accent))]">
+        <div className="p-4 rounded my-4 border-l-4 border-[hsl(var(--accent))] bg-[hsl(var(--border))]">
           <p className="text-sm italic text-[hsl(var(--text-muted))] line-clamp-3">
             &ldquo;{annotation.quoteText}&rdquo;
           </p>

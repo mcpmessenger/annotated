@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useState, useEffect } from "react";
 
 const navItems = [
   { label: "Explore", href: "/explore" },
@@ -12,16 +13,34 @@ const navItems = [
 
 export function Header() {
   const pathname = usePathname();
+  const [theme, setTheme] = useState("light");
+
+  useEffect(() => {
+    // Check initial theme from document class
+    if (document.documentElement.classList.contains("dark")) {
+      setTheme("dark");
+    }
+  }, []);
+
+  const toggleTheme = () => {
+    const newTheme = theme === "dark" ? "light" : "dark";
+    if (newTheme === "dark") {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
+    setTheme(newTheme);
+  };
 
   return (
-    <header className="border-b border-[hsl(var(--border))] bg-white sticky top-0 z-40">
+    <header className="border-b border-[hsl(var(--border))] bg-[hsl(var(--background))] sticky top-0 z-40">
       <div className="editorial-container flex items-center justify-between py-4">
         <Link href="/" className="flex items-center gap-2 text-xl font-bold tracking-tight hover:text-[hsl(var(--text-muted))] transition-colors">
           <img src="/logo.png" alt="Annotated Logo" className="w-8 h-8 rounded" />
           Annotated
         </Link>
 
-        <nav className="hidden sm:flex gap-6">
+        <nav className="hidden sm:flex gap-6 items-center">
           {navItems.map((item) => (
             <Link
               key={item.href}
@@ -35,9 +54,19 @@ export function Header() {
               {item.label}
             </Link>
           ))}
+          <button 
+            onClick={toggleTheme}
+            className="ml-4 text-sm w-8 h-8 flex items-center justify-center rounded-full hover:bg-[hsl(var(--border))] text-[hsl(var(--text-muted))] transition-colors"
+            title="Toggle theme"
+          >
+            {theme === "dark" ? "??" : "??"}
+          </button>
         </nav>
 
-        <div className="sm:hidden">
+        <div className="sm:hidden flex items-center gap-4">
+          <button onClick={toggleTheme} className="text-sm">
+            {theme === "dark" ? "??" : "??"}
+          </button>
           <button className="text-sm text-[hsl(var(--text-muted))] hover:text-[hsl(var(--foreground))]">
             Menu
           </button>
