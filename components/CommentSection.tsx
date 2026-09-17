@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
 
+const QUICK_EMOJIS = ["🔥", "🤔", "💡", "💯", "👎"];
+
 export function CommentSection({ annotationId }: { annotationId: string }) {
   const [comments, setComments] = useState<any[]>([]);
   const [newText, setNewText] = useState("");
@@ -25,6 +27,10 @@ export function CommentSection({ annotationId }: { annotationId: string }) {
 
     return () => subscription.unsubscribe();
   }, [annotationId]);
+
+  const insertEmoji = (emoji: string) => {
+    setNewText((prev) => (prev ? `${prev} ${emoji}` : emoji));
+  };
 
   const fetchComments = async () => {
     setLoading(true);
@@ -146,17 +152,32 @@ export function CommentSection({ annotationId }: { annotationId: string }) {
 
       {user ? (
         <form onSubmit={submitComment} className="mt-6">
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-xs text-[hsl(var(--text-subtle))] font-medium">Quick React:</span>
+            {QUICK_EMOJIS.map((emoji) => (
+              <button
+                key={emoji}
+                type="button"
+                onClick={() => insertEmoji(emoji)}
+                className="text-lg hover:scale-125 transition-transform p-1 rounded hover:bg-[hsl(var(--border))]"
+                title={`Insert ${emoji}`}
+              >
+                {emoji}
+              </button>
+            ))}
+          </div>
+
           <textarea
             value={newText}
             onChange={(e) => setNewText(e.target.value)}
             placeholder="Add your thoughts..."
-            className="w-full bg-[hsl(var(--background))] border border-[hsl(var(--border))] rounded-lg p-3 text-[hsl(var(--foreground))] focus:outline-none focus:border-[hsl(var(--accent))] resize-y min-h-[100px]"
+            className="w-full bg-[hsl(var(--background))] border border-[hsl(var(--border))] rounded-[6px] p-3 text-[hsl(var(--foreground))] focus:outline-none focus:border-[hsl(var(--accent))] resize-y min-h-[100px]"
           />
           <div className="flex justify-end mt-2">
             <button
               type="submit"
               disabled={!newText.trim()}
-              className="px-6 py-2 bg-[hsl(var(--foreground))] text-[hsl(var(--background))] font-bold rounded-full disabled:opacity-50 transition-opacity hover:opacity-90 cursor-pointer"
+              className="px-4 py-2 rounded-[6px] text-sm font-medium bg-[hsl(var(--foreground))] text-[hsl(var(--background))] disabled:opacity-50 hover:opacity-90 transition-opacity cursor-pointer"
             >
               Post Comment
             </button>
@@ -167,7 +188,7 @@ export function CommentSection({ annotationId }: { annotationId: string }) {
           <p className="text-[hsl(var(--text-muted))] mb-4">You must be logged in to leave a comment.</p>
           <button
             onClick={handleLogin}
-            className="px-6 py-2 bg-[hsl(var(--foreground))] text-[hsl(var(--background))] font-bold rounded-full hover:opacity-90 transition-opacity"
+            className="px-4 py-2 rounded-[6px] text-sm font-medium bg-[hsl(var(--foreground))] text-[hsl(var(--background))] hover:opacity-90 transition-opacity cursor-pointer"
           >
             Sign In to Comment
           </button>
