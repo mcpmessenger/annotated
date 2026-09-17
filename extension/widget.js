@@ -494,3 +494,7 @@ if (closeBtn) {
 
 
 
+
+  // Open website on logo click
+  if ($('#brandLogo')) $('#brandLogo').addEventListener('click', () => window.open('https://annotated-repo.vercel.app', '_blank'));
+  if ($('#authBrandLogo')) $('#authBrandLogo').addEventListener('click', () => window.open('https://annotated-repo.vercel.app', '_blank'));
