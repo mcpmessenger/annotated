@@ -22,8 +22,6 @@ function updateButton() {
   const c = document.querySelector('#comment').value.trim();
   const canPublish = !!quote && (c.length > 0 || mediaDataUrl);
   document.querySelector('#publishBtn').disabled = !canPublish;
-  return;
-  $('#publishBtn').disabled = !(quote && $('#comment').value.trim() && intent && currentUser);
 }
 function initials(name) {
   return (name || '?').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
@@ -168,7 +166,7 @@ function loadPage() {
 }
 
 // ─── Media: Screenshot ────────────────────────────────────────────────────────
-$('#screenshotBtn').addEventListener('click', () => {
+if ($('#screenshotBtn')) $('#screenshotBtn').addEventListener('click', () => {
   $('#screenshotBtn').disabled = true;
   $('#screenshotBtn').textContent = '⏳ Capturing…';
   chrome.runtime.sendMessage({ type: 'captureScreenshot' }, (response) => {
@@ -184,8 +182,8 @@ $('#screenshotBtn').addEventListener('click', () => {
 });
 
 // ─── Media: File Upload ───────────────────────────────────────────────────────
-$('#uploadBtn').addEventListener('click', () => $('#mediaInput').click());
-$('#mediaInput').addEventListener('change', (e) => {
+if ($('#uploadBtn')) $('#uploadBtn').addEventListener('click', () => $('#mediaInput').click());
+if ($('#mediaInput')) $('#mediaInput').addEventListener('change', (e) => {
   const file = e.target.files?.[0];
   if (!file) return;
   const reader = new FileReader();
@@ -217,12 +215,12 @@ function setMedia(dataUrl, type, name) {
   updateButton();
 }
 
-$('#removeMedia').addEventListener('click', () => {
+if ($('#removeMedia')) $('#removeMedia').addEventListener('click', () => {
   mediaDataUrl = null; mediaType = null; mediaFileName = null;
-  $('#previewImg').src = '';
-  $('#previewVideo').src = '';
-  $('#mediaInput').value = '';
-  $('#mediaPreview').classList.add('hidden');
+  if ($('#previewImg')) $('#previewImg').src = '';
+  if ($('#previewVideo')) $('#previewVideo').src = '';
+  if ($('#mediaInput')) $('#mediaInput').value = '';
+  if ($('#mediaPreview')) $('#mediaPreview').classList.add('hidden');
   updateButton();
 });
 
@@ -288,10 +286,10 @@ $('#publishBtn').addEventListener('click', () => {
           $('#comment').value = ''; $('#counter').textContent = '0';
           setQuote(''); intent = '';
           mediaDataUrl = null; mediaType = null; mediaFileName = null;
-          $('#previewImg').src = ''; $('#previewVideo').src = '';
-          $('#mediaInput').value = '';
-          $('#mediaPreview').classList.add('hidden');
-          document.querySelectorAll('[data-intent]').forEach(b => b.classList.remove('active'));
+          if ($('#previewImg')) $('#previewImg').src = ''; if ($('#previewVideo')) $('#previewVideo').src = '';
+          if ($('#mediaInput')) $('#mediaInput').value = '';
+          if ($('#mediaPreview')) $('#mediaPreview').classList.add('hidden');
+          if (document.querySelector('[data-intent]')) document.querySelectorAll('[data-intent]').forEach(b => b.classList.remove('active'));
           $('#publishBtn').innerHTML = 'Publish annotation <span>→</span>';
           updateButton();
 
@@ -308,12 +306,12 @@ $('#publishBtn').addEventListener('click', () => {
 
 // ─── UI Controls ─────────────────────────────────────────────────────────────
 $('#comment').addEventListener('input', e => { $('#counter').textContent = e.target.value.length; updateButton(); });
-document.querySelectorAll('[data-intent]').forEach(btn => btn.addEventListener('click', () => {
-  document.querySelectorAll('[data-intent]').forEach(b => b.classList.remove('active'));
+if (document.querySelector('[data-intent]')) document.querySelectorAll('[data-intent]').forEach(btn => btn.addEventListener('click', () => {
+  if (document.querySelector('[data-intent]')) document.querySelectorAll('[data-intent]').forEach(b => b.classList.remove('active'));
   btn.classList.add('active'); intent = btn.dataset.intent; updateButton();
 }));
 $('#themeBtn').addEventListener('click', () => setTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'));
-$('#refreshBtn').addEventListener('click', loadPage);
+if ($('#refreshBtn')) $('#refreshBtn').addEventListener('click', loadPage);
 // closeBtn logic moved to bottom
 
 function setTheme(theme) {
@@ -451,4 +449,5 @@ if (closeBtn) {
     window.parent.postMessage({ type: 'CLOSE_WIDGET' }, '*');
   });
 }
+
 

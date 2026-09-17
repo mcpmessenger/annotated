@@ -64,66 +64,29 @@
         </div>
         <textarea id="comment" maxlength="1000" placeholder="What do you want people to notice?"></textarea>
       
-      <div class="textarea-footer">
-        <button id="dictateBtn" class="dictate-btn-main" title="Dictate comment">
+            <div class="textarea-footer" style="display: flex; gap: 8px; justify-content: space-between; align-items: center; border-top: 1px solid var(--border); padding-top: 12px; margin-top: 12px;">
+        <button id="dictateBtn" class="dictate-btn-main" title="Dictate comment" style="flex: 1;">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
           Voice Type
         </button>
-        <div class="counter"><span id="counter">0</span> / 1,000</div>
+        <button id="publishBtn" class="publish-btn" disabled style="flex: 1; margin: 0; padding: 10px;">Publish <span>+'</span></button>
       </div>
-
-      <div class="field-label">Category</div>
-      <div id="intentList" class="intent-list">
-        <button data-intent="Hot Take">Hot Take</button>
-        <button data-intent="Fact Check">Fact Check</button>
-        <button data-intent="Steelmanning">Steelmanning</button>
-        <button data-intent="Receipts">Receipts</button>
-        <button data-intent="Explainer">Explainer</button>
-      </div>
-
-      <!-- ── MEDIA ATTACH ─────────────────────────────────────────────────── -->
-      <div class="media-row">
-        <div class="media-label">
-          <span class="clip-icon">◉</span>
-          <strong> Attach media</strong>
-          <div class="muted">Screenshot or image / video file</div>
-        </div>
-        <div class="media-btns">
-          <button id="screenshotBtn" class="outline-btn media-btn" title="Capture visible tab">📷 Screenshot</button>
-          <!-- Video/Audio recording coming soon -->
-          <button id="uploadBtn" class="outline-btn media-btn hidden" title="Upload image or video">📎 Upload</button>
-          <input type="file" id="mediaInput" accept="image/*,video/*" class="hidden">
-        </div>
-      </div>
-
-      <!-- ── MEDIA PREVIEW ────────────────────────────────────────────────── -->
-      <div id="mediaPreview" class="media-preview hidden">
-        <img    id="previewImg"   class="preview-thumb hidden" alt="Screenshot preview">
-        <video  id="previewVideo" class="preview-thumb hidden" controls playsinline></video>
-        <div class="preview-meta">
-          <span id="previewName" class="preview-name">screenshot.png</span>
-          <button id="removeMedia" class="remove-media-btn">✕ Remove</button>
-        </div>
-        <div id="uploadProgress" class="upload-progress hidden">
-          <div class="progress-bar"><div id="progressFill" class="progress-fill"></div></div>
-          <span id="progressLabel">Uploading…</span>
-        </div>
-      </div>
-
-      <button id="publishBtn" class="publish-btn" disabled>Publish annotation <span>→</span></button>
       <div id="status" class="status"></div>
     </section>
-
-    <section class="section-head"><h2>On this page</h2><button id="refreshBtn" class="muted-btn">Refresh</button></section>
-    <section id="feed" class="feed"><div class="empty">Your annotations on this page will appear here.</div></section>
   </main>
 
-  <footer><span>Open-source annotation layer</span><a href="https://annotated-six.vercel.app" target="_blank">annotated.com ↗</a></footer>
+  <!-- <footer style="display:none">...</footer> -->
 
   <script src="supabase-client.js"></script>
   <script src="widget.js"></script>
 </body>
 </html>
+
+  <script src="supabase-client.js"></script>
+  <script src="widget.js"></script>
+</body>
+</html>
+
 
 
 
