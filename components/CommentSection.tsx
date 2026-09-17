@@ -1,4 +1,5 @@
 'use client';
+import { CommentReactionRow } from "./CommentReactionRow";
 
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
@@ -142,6 +143,7 @@ export function CommentSection({ annotationId }: { annotationId: string }) {
               </span>
             </div>
             <p className="text-sm text-[hsl(var(--foreground))] whitespace-pre-wrap pl-8">{comment.text}</p>
+            <CommentReactionRow commentId={comment.id} />
           </div>
         ))}
 
