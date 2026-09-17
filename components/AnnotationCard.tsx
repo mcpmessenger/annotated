@@ -10,6 +10,10 @@ export function AnnotationCard({ annotation }: { annotation: Annotation }) {
 
   const detailLink = `/${annotation.username}/${annotation.slug}`;
 
+  const isLongQuote = annotation.quoteText.length > 150;
+  const isLongCommentary = annotation.commentary.length > 150;
+  const showToggle = isLongQuote || isLongCommentary;
+
   return (
     <article className="annotation-card group hover:-translate-y-1 transition-transform relative">
       <div className="flex items-start justify-between gap-4 mb-4">
@@ -44,18 +48,29 @@ export function AnnotationCard({ annotation }: { annotation: Annotation }) {
         </div>
       </div>
 
-      <div className="p-4 rounded my-4 border-l-4 border-[hsl(var(--accent))] bg-[hsl(var(--border))]">
-        <div className="relative z-20">
-          <p className={`text-sm italic text-[hsl(var(--text-muted))] whitespace-pre-wrap ${!isExpanded ? 'line-clamp-3' : ''}`}>
-            &ldquo;{annotation.quoteText}&rdquo;
-          </p>
-        </div>
-        <p className="text-xs text-[hsl(var(--text-subtle))] mt-2 relative z-10">
-          from{" "}
-          <a href={annotation.sourceUrl} target="_blank" rel="noopener noreferrer" className="hover:text-[hsl(var(--accent))] hover:underline font-medium">
-            {annotation.sourceTitle}
-          </a>
+      {/* Quoted Box */}
+      <div className="p-4 rounded my-4 border-l-4 border-[hsl(var(--accent))] bg-[hsl(var(--border))] relative z-20">
+        <p className={`text-sm italic text-[hsl(var(--text-muted))] whitespace-pre-wrap ${!isExpanded ? 'line-clamp-3' : ''}`}>
+          &ldquo;{annotation.quoteText}&rdquo;
         </p>
+        
+        <div className="flex items-center justify-between mt-2 pt-2 border-t border-[hsl(var(--border))]/50">
+          <p className="text-xs text-[hsl(var(--text-subtle))]">
+            from{" "}
+            <a href={annotation.sourceUrl} target="_blank" rel="noopener noreferrer" className="hover:text-[hsl(var(--accent))] hover:underline font-medium relative z-30">
+              {annotation.sourceTitle}
+            </a>
+          </p>
+
+          {showToggle && (
+            <button 
+              onClick={(e) => { e.preventDefault(); e.stopPropagation(); setIsExpanded(!isExpanded); }}
+              className="text-[hsl(var(--accent))] text-xs font-semibold hover:underline relative z-30 ml-auto"
+            >
+              {isExpanded ? "See less" : "See more"}
+            </button>
+          )}
+        </div>
       </div>
       
       {annotation.media_url && (
@@ -68,18 +83,11 @@ export function AnnotationCard({ annotation }: { annotation: Annotation }) {
         </div>
       )}
 
-      <div className="relative z-20 mb-4">
-        <p className={`text-base text-[hsl(var(--foreground))] whitespace-pre-wrap ${!isExpanded ? 'line-clamp-2' : ''}`}>
+      {/* Commentary */}
+      <div className="relative z-10 mb-4">
+        <p className={`text-base text-[hsl(var(--foreground))] whitespace-pre-wrap ${!isExpanded ? 'line-clamp-3' : ''}`}>
           {annotation.commentary}
         </p>
-        {(annotation.quoteText.length > 150 || annotation.commentary.length > 100) && (
-          <button 
-            onClick={(e) => { e.preventDefault(); e.stopPropagation(); setIsExpanded(!isExpanded); }}
-            className="text-[hsl(var(--accent))] text-sm font-medium hover:underline mt-1"
-          >
-            {isExpanded ? "See less" : "See more"}
-          </button>
-        )}
       </div>
 
       <ReactionRow annotationId={annotation.id} />
