@@ -43,6 +43,7 @@
     widgetIframe = document.createElement('iframe');
     widgetIframe.src = chrome.runtime.getURL('widget.html');
     widgetIframe.id = 'annotated-widget-iframe';
+    widgetIframe.allow = 'microphone';
     widgetIframe.style.cssText = `
       position: fixed;
       z-index: 2147483647;
@@ -147,5 +148,6 @@
 
   load();
 })();
+
 
 

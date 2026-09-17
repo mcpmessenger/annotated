@@ -29,7 +29,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   // Relay selection updates to the side panel when it's already open
   if (message.type === 'selection') {
     chrome.runtime.sendMessage(message).catch(() => {});
-    if (sender && sender.tab) // sidePanel removed
+    
     sendResponse({ ok: true });
     return true;
   }
@@ -63,3 +63,5 @@ chrome.action.onClicked.addListener((tab) => {
     chrome.tabs.sendMessage(tab.id, { type: 'openWidget' }).catch(() => {});
   }
 });
+
+
