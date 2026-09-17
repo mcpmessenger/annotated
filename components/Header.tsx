@@ -60,9 +60,9 @@ export function Header() {
   return (
     <header className="border-b border-[hsl(var(--border))] bg-[hsl(var(--background))] sticky top-0 z-40">
       <div className="editorial-container flex items-center justify-between py-4">
-        <Link href="/" className="flex items-center gap-2 text-xl font-bold tracking-tight hover:text-[hsl(var(--text-muted))] transition-colors">
-          <img src="/logo.png" alt="Annotated" className="w-6 h-6 object-contain" />
-          Annotated
+        <Link href="/" className="flex items-center gap-2 text-xl font-extrabold tracking-tight hover:opacity-80 transition-opacity">
+          <img src="/logo.png" alt="annotated." className="w-6 h-6 object-contain" />
+          <span>annotated<span className="text-[hsl(var(--accent))] font-black">.</span></span>
         </Link>
 
         <nav className="hidden sm:flex gap-6 items-center">
