@@ -303,3 +303,19 @@ body {
 .topbar {
   border-radius: 16px 16px 0 0;
 }
+
+.tweet-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #000;
+  color: #fff;
+  padding: 6px 12px;
+  border-radius: 20px;
+  text-decoration: none;
+  font-weight: bold;
+  font-size: 12px;
+  pointer-events: auto;
+  margin-top: 8px;
+}
+.tweet-btn:hover { background: #222; color: #fff; }

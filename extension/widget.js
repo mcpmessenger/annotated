@@ -297,7 +297,13 @@ $('#publishBtn').addEventListener('click', () => {
           loadAnnotationCount();
           
           const shareUrl = `https://twitter.com/intent/tweet?text=I%20just%20annotated%20this%20page!&url=https://annotated-repo.vercel.app/`;
-          $('#status').innerHTML = `Published! <br/> <a href="${shareUrl}" target="_blank" style="display:inline-flex; align-items:center; gap:6px; background:#000; color:#fff; padding:6px 12px; border-radius:20px; text-decoration:none; font-weight:bold; font-size:12px; pointer-events:auto; margin-top:8px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="white"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg> Tweet Annotation</a>`;
+          $('#status').innerHTML = `Published! <br/>`;
+          const shareBtn = document.createElement('a');
+          shareBtn.href = shareUrl;
+          shareBtn.target = '_blank';
+          shareBtn.className = 'tweet-btn';
+          shareBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="white"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg> Tweet Annotation`;
+          $('#status').appendChild(shareBtn);
         });
       });
     });
