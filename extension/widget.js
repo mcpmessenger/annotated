@@ -224,6 +224,14 @@ if ($('#removeMedia')) if ($('#removeMedia')) $('#removeMedia').addEventListener
   updateButton();
 });
 
+let shouldTweetOnPublish = false;
+if ($('#tweetBtn')) {
+  $('#tweetBtn').addEventListener('click', () => {
+    shouldTweetOnPublish = true;
+    $('#publishBtn').click();
+  });
+}
+
 // ─── Publish ──────────────────────────────────────────────────────────────────
 $('#publishBtn').addEventListener('click', () => {
   if (!currentUser) return;
@@ -297,6 +305,10 @@ $('#publishBtn').addEventListener('click', () => {
           loadAnnotationCount();
           
           const shareUrl = `https://twitter.com/intent/tweet?text=I%20just%20annotated%20this%20page!&url=https://annotated-repo.vercel.app/`;
+          if (shouldTweetOnPublish) {
+            window.open(shareUrl, '_blank');
+            shouldTweetOnPublish = false;
+          }
           $('#status').innerHTML = `Published! <br/>`;
           const shareBtn = document.createElement('a');
           shareBtn.href = shareUrl;
@@ -455,6 +467,8 @@ if (closeBtn) {
     window.parent.postMessage({ type: 'CLOSE_WIDGET' }, '*');
   });
 }
+
+
 
 
 
