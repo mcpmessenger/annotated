@@ -166,7 +166,7 @@ function loadPage() {
 }
 
 // ─── Media: Screenshot ────────────────────────────────────────────────────────
-if ($('#screenshotBtn')) $('#screenshotBtn').addEventListener('click', () => {
+if ($('#screenshotBtn')) if ($('#screenshotBtn')) $('#screenshotBtn').addEventListener('click', () => {
   $('#screenshotBtn').disabled = true;
   $('#screenshotBtn').textContent = '⏳ Capturing…';
   chrome.runtime.sendMessage({ type: 'captureScreenshot' }, (response) => {
@@ -182,8 +182,8 @@ if ($('#screenshotBtn')) $('#screenshotBtn').addEventListener('click', () => {
 });
 
 // ─── Media: File Upload ───────────────────────────────────────────────────────
-if ($('#uploadBtn')) $('#uploadBtn').addEventListener('click', () => $('#mediaInput').click());
-if ($('#mediaInput')) $('#mediaInput').addEventListener('change', (e) => {
+if ($('#uploadBtn')) if ($('#uploadBtn')) $('#uploadBtn').addEventListener('click', () => $('#mediaInput').click());
+if ($('#mediaInput')) if ($('#mediaInput')) $('#mediaInput').addEventListener('change', (e) => {
   const file = e.target.files?.[0];
   if (!file) return;
   const reader = new FileReader();
@@ -215,12 +215,12 @@ function setMedia(dataUrl, type, name) {
   updateButton();
 }
 
-if ($('#removeMedia')) $('#removeMedia').addEventListener('click', () => {
+if ($('#removeMedia')) if ($('#removeMedia')) $('#removeMedia').addEventListener('click', () => {
   mediaDataUrl = null; mediaType = null; mediaFileName = null;
-  if ($('#previewImg')) $('#previewImg').src = '';
-  if ($('#previewVideo')) $('#previewVideo').src = '';
-  if ($('#mediaInput')) $('#mediaInput').value = '';
-  if ($('#mediaPreview')) $('#mediaPreview').classList.add('hidden');
+  if ($('#previewImg')) if ($('#previewImg')) $('#previewImg').src = '';
+  if ($('#previewVideo')) if ($('#previewVideo')) $('#previewVideo').src = '';
+  if ($('#mediaInput')) if ($('#mediaInput')) $('#mediaInput').value = '';
+  if ($('#mediaPreview')) if ($('#mediaPreview')) $('#mediaPreview').classList.add('hidden');
   updateButton();
 });
 
@@ -286,10 +286,10 @@ $('#publishBtn').addEventListener('click', () => {
           $('#comment').value = ''; $('#counter').textContent = '0';
           setQuote(''); intent = '';
           mediaDataUrl = null; mediaType = null; mediaFileName = null;
-          if ($('#previewImg')) $('#previewImg').src = ''; if ($('#previewVideo')) $('#previewVideo').src = '';
-          if ($('#mediaInput')) $('#mediaInput').value = '';
-          if ($('#mediaPreview')) $('#mediaPreview').classList.add('hidden');
-          if (document.querySelector('[data-intent]')) document.querySelectorAll('[data-intent]').forEach(b => b.classList.remove('active'));
+          if ($('#previewImg')) if ($('#previewImg')) $('#previewImg').src = ''; if ($('#previewVideo')) if ($('#previewVideo')) $('#previewVideo').src = '';
+          if ($('#mediaInput')) if ($('#mediaInput')) $('#mediaInput').value = '';
+          if ($('#mediaPreview')) if ($('#mediaPreview')) $('#mediaPreview').classList.add('hidden');
+          if (document.querySelector('[data-intent]')) if (document.querySelector('[data-intent]')) document.querySelectorAll('[data-intent]').forEach(b => b.classList.remove('active'));
           $('#publishBtn').innerHTML = 'Publish annotation <span>→</span>';
           updateButton();
 
@@ -297,7 +297,7 @@ $('#publishBtn').addEventListener('click', () => {
           loadAnnotationCount();
           
           const shareUrl = `https://twitter.com/intent/tweet?text=I%20just%20annotated%20this%20page!&url=https://annotated-repo.vercel.app/`;
-          $('#status').innerHTML = `Published! &middot; <a href="${shareUrl}" target="_blank" style="color: #1da1f2; font-weight: bold; text-decoration: underline; pointer-events: auto;">Share on X 🐦</a>`;
+          $('#status').innerHTML = `Published! <br/> <a href="${shareUrl}" target="_blank" style="display:inline-flex; align-items:center; gap:6px; background:#000; color:#fff; padding:6px 12px; border-radius:20px; text-decoration:none; font-weight:bold; font-size:12px; pointer-events:auto; margin-top:8px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="white"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg> Tweet Annotation</a>`;
         });
       });
     });
@@ -306,12 +306,12 @@ $('#publishBtn').addEventListener('click', () => {
 
 // ─── UI Controls ─────────────────────────────────────────────────────────────
 $('#comment').addEventListener('input', e => { $('#counter').textContent = e.target.value.length; updateButton(); });
-if (document.querySelector('[data-intent]')) document.querySelectorAll('[data-intent]').forEach(btn => btn.addEventListener('click', () => {
-  if (document.querySelector('[data-intent]')) document.querySelectorAll('[data-intent]').forEach(b => b.classList.remove('active'));
+if (document.querySelector('[data-intent]')) if (document.querySelector('[data-intent]')) document.querySelectorAll('[data-intent]').forEach(btn => btn.addEventListener('click', () => {
+  if (document.querySelector('[data-intent]')) if (document.querySelector('[data-intent]')) document.querySelectorAll('[data-intent]').forEach(b => b.classList.remove('active'));
   btn.classList.add('active'); intent = btn.dataset.intent; updateButton();
 }));
 $('#themeBtn').addEventListener('click', () => setTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'));
-if ($('#refreshBtn')) $('#refreshBtn').addEventListener('click', loadPage);
+if ($('#refreshBtn')) if ($('#refreshBtn')) $('#refreshBtn').addEventListener('click', loadPage);
 // closeBtn logic moved to bottom
 
 function setTheme(theme) {
@@ -449,5 +449,6 @@ if (closeBtn) {
     window.parent.postMessage({ type: 'CLOSE_WIDGET' }, '*');
   });
 }
+
 
 
