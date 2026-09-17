@@ -28,24 +28,33 @@
   };
 
   const renderHighlight = (annotation) => {
-    if (!annotation.quote || !document.body) return;
+    const quote = annotation.quote || annotation.quote_text;
+    if (!quote || !document.body) return false;
+    if (document.querySelector(`[data-annotated-highlight="${annotation.id}"]`)) return true;
+
     const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
     let node;
+    let found = false;
     while ((node = walker.nextNode())) {
-      const index = node.nodeValue.indexOf(annotation.quote);
+      const index = node.nodeValue.indexOf(quote);
       if (index !== -1 && !node.parentElement?.closest('[data-annotated-highlight]')) {
         const range = document.createRange();
         range.setStart(node, index);
-        range.setEnd(node, index + annotation.quote.length);
+        range.setEnd(node, index + quote.length);
         const mark = document.createElement('mark');
         mark.dataset.annotatedHighlight = annotation.id;
         mark.className = 'annotated-highlight';
-        mark.title = `${annotation.intent || 'Annotation'} · ${annotation.comment || ''}`;
-        try { range.surroundContents(mark); } catch (_) {}
+        mark.title = `${annotation.intent || 'Annotation'} - ${annotation.commentary || annotation.comment || ''}`;
+        try { range.surroundContents(mark); found = true; } catch (_) {}
         break;
       }
     }
+    return found;
   };
+
+  setInterval(() => {
+    state.annotations.forEach(ann => renderHighlight(ann));
+  }, 1000);
 
   let widgetIframe = null;
   let isDragging = false;
