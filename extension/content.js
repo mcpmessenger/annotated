@@ -65,9 +65,9 @@
       window.addEventListener('message', (e) => {
         if (e.data?.type === 'DRAG_START') {
           isDragging = true;
-          const rect = widgetIframe.getBoundingClientRect();
-          dragOffset.x = e.data.clientX - rect.left;
-          dragOffset.y = e.data.clientY - rect.top;
+          // clientX from the iframe is already relative to the iframe's top-left corner
+          dragOffset.x = e.data.clientX;
+          dragOffset.y = e.data.clientY;
           widgetIframe.style.pointerEvents = 'none';
         } else if (e.data?.type === 'CLOSE_WIDGET') {
           widgetIframe.style.display = 'none';
