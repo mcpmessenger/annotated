@@ -1,55 +1,57 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, use } from "react";
 import Link from "next/link";
-import { notFound } from "next/navigation";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { getAnnotationBySlug } from "@/lib/data";
 import { CommentSection } from "@/components/CommentSection";
 import { ReactionRow } from "@/components/ReactionRow";
 
-const intentLabels: Record<string, string> = {
-  highlight: "Highlight",
-  question: "Question",
-  critique: "Critique",
-  expand: "Expansion",
-};
-
-const intentColors: Record<string, string> = {
-  highlight: "bg-yellow-100 text-yellow-900",
-  question: "bg-blue-100 text-blue-900",
-  critique: "bg-red-100 text-red-900",
-  expand: "bg-green-100 text-green-900",
-};
-
 export default function AnnotationPage({
   params,
 }: {
-  params: { username: string; slug: string };
+  params: Promise<{ username: string; slug: string }> | { username: string; slug: string };
 }) {
+  const unwrappedParams = (params instanceof Promise) ? use(params) : params;
   const [annotation, setAnnotation] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
 
-  import("react").then((React) => {
-    React.useEffect(() => {
-      getAnnotationBySlug(params.slug).then((data) => {
+  useEffect(() => {
+    if (unwrappedParams?.slug) {
+      getAnnotationBySlug(unwrappedParams.slug).then((data) => {
         setAnnotation(data);
         setLoading(false);
       });
-    }, [params.slug]);
-  });
+    }
+  }, [unwrappedParams?.slug]);
 
   if (loading) {
-    return <div className="p-12 text-center">Loading...</div>;
+    return (
+      <div className="flex flex-col min-h-screen">
+        <Header />
+        <main className="flex-1 flex items-center justify-center p-12 text-center text-[hsl(var(--text-muted))]">
+          Loading annotation...
+        </main>
+        <Footer />
+      </div>
+    );
   }
 
   if (!annotation) {
-    return <div className="p-12 text-center">Annotation not found</div>;
+    return (
+      <div className="flex flex-col min-h-screen">
+        <Header />
+        <main className="flex-1 flex items-center justify-center p-12 text-center text-[hsl(var(--text-muted))]">
+          Annotation not found
+        </main>
+        <Footer />
+      </div>
+    );
   }
 
-  const shareUrl = `${typeof window !== "undefined" ? window.location.origin : ""}/${params.username}/${params.slug}`;
+  const shareUrl = typeof window !== "undefined" ? window.location.href : "";
 
   const handleCopyLink = async () => {
     try {
@@ -57,7 +59,7 @@ export default function AnnotationPage({
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
-      console.error("[v0] Failed to copy:", err);
+      console.error("Failed to copy:", err);
     }
   };
 
@@ -84,7 +86,7 @@ export default function AnnotationPage({
           </div>
 
           {/* Header */}
-          <header className="mb-12 pb-8 border-b border-[hsl(var(--border))]">
+          <header className="mb-8 pb-6 border-b border-[hsl(var(--border))]">
             <h1 className="editorial-heading mb-4">{annotation.title}</h1>
 
             <div className="flex flex-col sm:flex-row sm:items-center gap-4 justify-between">
@@ -107,59 +109,61 @@ export default function AnnotationPage({
                 </p>
               </div>
               {annotation.intent && (
-              <span className="text-2xl bg-[hsl(var(--border))] rounded-full w-10 h-10 flex items-center justify-center shadow-sm">
-                {annotation.intent}
-              </span>
-            )}
+                <span className="text-2xl bg-[hsl(var(--border))] rounded-full w-10 h-10 flex items-center justify-center shadow-sm">
+                  {annotation.intent}
+                </span>
+              )}
             </div>
           </header>
 
           {/* Source Context */}
-          <section className="mb-12 p-6 bg-gray-50 rounded border-l-4 border-[hsl(var(--accent))]">
-            <p className="text-xs text-[hsl(var(--text-subtle))] uppercase tracking-wide mb-2">
+          <section className="mb-8 p-6 bg-[hsl(var(--border))] rounded border-l-4 border-[hsl(var(--accent))]">
+            <p className="text-xs text-[hsl(var(--text-subtle))] uppercase tracking-wide mb-2 font-bold">
               Annotating
             </p>
-            <h3 className="font-bold mb-2">{annotation.sourceTitle}</h3>
-            <p className="text-sm text-[hsl(var(--text-muted))] mb-3">
+            <h3 className="font-bold text-lg mb-2">{annotation.sourceTitle}</h3>
+            <p className="text-sm text-[hsl(var(--text-muted))]">
               <a
                 href={annotation.sourceUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-[hsl(var(--accent))] hover:underline"
+                className="text-[hsl(var(--accent))] hover:underline font-medium"
               >
-                {annotation.sourceDomain} →
+                {annotation.sourceDomain || annotation.sourceUrl} →
               </a>
             </p>
           </section>
 
           {/* Quote */}
-          <section className="mb-12">
-            <p className="text-xs text-[hsl(var(--text-subtle))] uppercase tracking-wide mb-3">
+          <section className="mb-8">
+            <p className="text-xs text-[hsl(var(--text-subtle))] uppercase tracking-wide mb-3 font-bold">
               Quoted text
             </p>
-            <blockquote className="pl-6 border-l-2 border-[hsl(var(--accent))] italic text-lg">
+            <blockquote className="pl-6 border-l-2 border-[hsl(var(--accent))] italic text-lg text-[hsl(var(--foreground))]">
               &ldquo;{annotation.quoteText}&rdquo;
             </blockquote>
           </section>
 
           {/* Commentary */}
-          <div className="mb-8">
-            <ReactionRow annotationId={annotation.id} />
-          </div>
-          <section className="mb-12">
-            <p className="text-xs text-[hsl(var(--text-subtle))] uppercase tracking-wide mb-3">
+          <section className="mb-8">
+            <p className="text-xs text-[hsl(var(--text-subtle))] uppercase tracking-wide mb-3 font-bold">
               Commentary
             </p>
-            <div className="prose prose-sm max-w-none text-base leading-relaxed">
+            <div className="text-base leading-relaxed text-[hsl(var(--foreground))] whitespace-pre-wrap">
               <p>{annotation.commentary}</p>
             </div>
           </section>
 
+          {/* Reactions */}
+          <div className="mb-8">
+            <ReactionRow annotationId={annotation.id} />
+          </div>
+
           {/* Metadata and Actions */}
-          <footer className="border-t border-[hsl(var(--border))] pt-8">
+          <footer className="border-t border-[hsl(var(--border))] pt-6 mb-8">
             <div className="flex flex-col sm:flex-row gap-6 justify-between items-start sm:items-center">
               <div className="text-sm text-[hsl(var(--text-subtle))]">
-                <p>{annotation.views} views · {annotation.shares} shares</p>
+                <p>{annotation.views || 0} views</p>
               </div>
 
               <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
@@ -168,7 +172,7 @@ export default function AnnotationPage({
                   className={`px-4 py-2 rounded text-sm font-medium transition-colors w-full sm:w-auto ${
                     copied
                       ? "bg-green-100 text-green-900"
-                      : "border border-[hsl(var(--border))] text-[hsl(var(--foreground))] hover:bg-gray-50"
+                      : "border border-[hsl(var(--border))] text-[hsl(var(--foreground))] hover:bg-[hsl(var(--border))]"
                   }`}
                 >
                   {copied ? "Copied!" : "Copy Link"}
@@ -177,13 +181,15 @@ export default function AnnotationPage({
                   href={annotation.sourceUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="px-4 py-2 rounded text-sm font-medium bg-[hsl(var(--foreground))] text-white hover:shadow-md transition-shadow text-center w-full sm:w-auto"
+                  className="px-4 py-2 rounded text-sm font-medium bg-[hsl(var(--foreground))] text-[hsl(var(--background))] hover:opacity-90 transition-opacity text-center w-full sm:w-auto"
                 >
                   Read Source
                 </a>
               </div>
             </div>
           </footer>
+
+          {/* Comment Section */}
           <CommentSection annotationId={annotation.id} />
         </article>
       </main>
