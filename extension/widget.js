@@ -283,7 +283,7 @@ $('#publishBtn').addEventListener('click', () => {
         const items = [...(data[key] || []), localAnnotation];
         chrome.storage.local.set({ [key]: items }, () => {
           // Reset form
-          $('#comment').value = ''; $('#counter').textContent = '0';
+          $('#comment').value = ''; if ($('#counter')) $('#counter').textContent = '0';
           setQuote(''); intent = '';
           mediaDataUrl = null; mediaType = null; mediaFileName = null;
           if ($('#previewImg')) if ($('#previewImg')) $('#previewImg').src = ''; if ($('#previewVideo')) if ($('#previewVideo')) $('#previewVideo').src = '';
@@ -305,7 +305,7 @@ $('#publishBtn').addEventListener('click', () => {
 });
 
 // ─── UI Controls ─────────────────────────────────────────────────────────────
-$('#comment').addEventListener('input', e => { $('#counter').textContent = e.target.value.length; updateButton(); });
+$('#comment').addEventListener('input', e => { if ($('#counter')) $('#counter').textContent = e.target.value.length; updateButton(); });
 if (document.querySelector('[data-intent]')) if (document.querySelector('[data-intent]')) document.querySelectorAll('[data-intent]').forEach(btn => btn.addEventListener('click', () => {
   if (document.querySelector('[data-intent]')) if (document.querySelector('[data-intent]')) document.querySelectorAll('[data-intent]').forEach(b => b.classList.remove('active'));
   btn.classList.add('active'); intent = btn.dataset.intent; updateButton();
@@ -423,7 +423,7 @@ document.querySelectorAll('.emoji-btn').forEach(btn => {
     e.preventDefault();
     const c = document.querySelector('#comment');
     c.value = c.value + e.target.dataset.emoji;
-    document.querySelector('#counter').textContent = c.value.length;
+    if (document.querySelector('#counter')) document.querySelector('#counter').textContent = c.value.length;
     updateButton();
   });
 });
@@ -449,6 +449,7 @@ if (closeBtn) {
     window.parent.postMessage({ type: 'CLOSE_WIDGET' }, '*');
   });
 }
+
 
 
 
