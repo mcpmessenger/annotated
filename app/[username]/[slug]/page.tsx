@@ -106,13 +106,11 @@ export default function AnnotationPage({
                   })}
                 </p>
               </div>
-              <span
-                className={`px-3 py-1 rounded text-sm font-medium whitespace-nowrap ${
-                  intentColors[annotation.intent]
-                }`}
-              >
-                {intentLabels[annotation.intent]}
+              {annotation.intent && (
+              <span className="text-2xl bg-[hsl(var(--border))] rounded-full w-10 h-10 flex items-center justify-center shadow-sm">
+                {annotation.intent}
               </span>
+            )}
             </div>
           </header>
 
@@ -145,6 +143,9 @@ export default function AnnotationPage({
           </section>
 
           {/* Commentary */}
+          <div className="mb-8">
+            <ReactionRow annotationId={annotation.id} />
+          </div>
           <section className="mb-12">
             <p className="text-xs text-[hsl(var(--text-subtle))] uppercase tracking-wide mb-3">
               Commentary
@@ -183,6 +184,7 @@ export default function AnnotationPage({
               </div>
             </div>
           </footer>
+          <CommentSection annotationId={annotation.id} />
         </article>
       </main>
 

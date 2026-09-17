@@ -40,7 +40,7 @@ export function AnnotationCard({ annotation }: { annotation: Annotation }) {
       </div>
 
       <div className="p-4 rounded my-4 border-l-4 border-[hsl(var(--accent))] bg-[hsl(var(--border))]">
-        <p className="text-sm italic text-[hsl(var(--text-muted))] line-clamp-3 relative z-10">
+        <p className="text-sm italic text-[hsl(var(--text-muted))] relative z-10 whitespace-pre-wrap">
           &ldquo;{annotation.quoteText}&rdquo;
         </p>
         <p className="text-xs text-[hsl(var(--text-subtle))] mt-2 relative z-10">
@@ -61,7 +61,7 @@ export function AnnotationCard({ annotation }: { annotation: Annotation }) {
         </div>
       )}
 
-      <p className="text-base text-[hsl(var(--foreground))] line-clamp-2 mb-4 relative z-10">
+      <p className="text-base text-[hsl(var(--foreground))] mb-4 relative z-10 whitespace-pre-wrap">
         {annotation.commentary}
       </p>
 
