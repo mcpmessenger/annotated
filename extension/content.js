@@ -37,12 +37,12 @@
   let shadowRoot = null;
 
   function createWidget(x, y) {
-    if (!widgetContainer || !document.documentElement.contains(widgetContainer)) {
+    if (!widgetContainer || !document.body.contains(widgetContainer)) {
       widgetContainer = document.createElement('div');
       widgetContainer.id = 'annotated-layer-' + crypto.randomUUID().split('-')[0];
       widgetContainer.style.cssText = 'position: fixed; z-index: 2147483647; top: 0; left: 0;';
       shadowRoot = widgetContainer.attachShadow({ mode: 'closed' });
-      document.documentElement.appendChild(widgetContainer);
+      document.body.appendChild(widgetContainer);
     }
 
     if (!widgetIframe) {
