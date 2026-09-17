@@ -27,7 +27,7 @@ export default function InstallPage() {
                   </p>
                   <a
                     href="#"
-                    className="inline-flex items-center px-4 py-2 bg-[hsl(var(--foreground))] text-white rounded font-medium hover:shadow-md transition-shadow"
+                    className="inline-flex items-center px-4 py-2 bg-[hsl(var(--foreground))] text-[hsl(var(--background))] rounded font-medium hover:opacity-90 transition-opacity"
                   >
                     Install on Chrome
                   </a>
@@ -41,7 +41,7 @@ export default function InstallPage() {
 
               <div className="space-y-6">
                 <div className="flex gap-4">
-                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-[hsl(var(--accent))] flex items-center justify-center text-white font-bold text-sm">
+                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-[hsl(var(--accent))] flex items-center justify-center text-[hsl(var(--background))] font-bold text-sm">
                     1
                   </div>
                   <div>
@@ -53,7 +53,7 @@ export default function InstallPage() {
                 </div>
 
                 <div className="flex gap-4">
-                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-[hsl(var(--accent))] flex items-center justify-center text-white font-bold text-sm">
+                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-[hsl(var(--accent))] flex items-center justify-center text-[hsl(var(--background))] font-bold text-sm">
                     2
                   </div>
                   <div>
@@ -65,7 +65,7 @@ export default function InstallPage() {
                 </div>
 
                 <div className="flex gap-4">
-                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-[hsl(var(--accent))] flex items-center justify-center text-white font-bold text-sm">
+                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-[hsl(var(--accent))] flex items-center justify-center text-[hsl(var(--background))] font-bold text-sm">
                     3
                   </div>
                   <div>
@@ -77,7 +77,7 @@ export default function InstallPage() {
                 </div>
 
                 <div className="flex gap-4">
-                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-[hsl(var(--accent))] flex items-center justify-center text-white font-bold text-sm">
+                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-[hsl(var(--accent))] flex items-center justify-center text-[hsl(var(--background))] font-bold text-sm">
                     4
                   </div>
                   <div>
@@ -98,9 +98,6 @@ export default function InstallPage() {
                   <strong>Be specific:</strong> The best annotations quote the exact text they respond to.
                 </li>
                 <li>
-                  <strong>Choose your intent:</strong> Is this a highlight, question, critique, or expansion? The label helps others find what they&apos;re looking for.
-                </li>
-                <li>
                   <strong>Build in public:</strong> Your annotations are visible immediately. That&apos;s the point.
                 </li>
                 <li>
@@ -113,15 +110,10 @@ export default function InstallPage() {
             <section className="border-t border-[hsl(var(--border))] pt-12">
               <h2 className="text-2xl font-bold mb-4">Questions?</h2>
               <p className="text-base leading-relaxed text-[hsl(var(--foreground))] mb-4">
-                Check out our{" "}
-                <a href="#" className="text-[hsl(var(--accent))] hover:underline">
-                  FAQ
-                </a>{" "}
-                or{" "}
-                <a href="#" className="text-[hsl(var(--accent))] hover:underline">
-                  contact us
+                Have questions, feature requests, or bug reports? Reach out to us at{" "}
+                <a href="mailto:magnetarsenti@gmail.com" className="text-[hsl(var(--accent))] font-medium hover:underline">
+                  magnetarsenti@gmail.com
                 </a>
-                .
               </p>
             </section>
           </div>
