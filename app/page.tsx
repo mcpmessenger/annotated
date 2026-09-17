@@ -57,7 +57,7 @@ export default async function Home() {
                 href="/explore"
                 className="inline-flex items-center text-[hsl(var(--accent))] font-medium hover:underline"
               >
-                View all annotations ?
+                View all annotations ->
               </Link>
             </div>
           </div>

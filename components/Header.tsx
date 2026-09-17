@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
+import { Sun, Moon, PencilLine } from "lucide-react";
 
 const navItems = [
   { label: "Explore", href: "/explore" },
@@ -36,7 +37,7 @@ export function Header() {
     <header className="border-b border-[hsl(var(--border))] bg-[hsl(var(--background))] sticky top-0 z-40">
       <div className="editorial-container flex items-center justify-between py-4">
         <Link href="/" className="flex items-center gap-2 text-xl font-bold tracking-tight hover:text-[hsl(var(--text-muted))] transition-colors">
-          <img src="/logo.png" alt="Annotated Logo" className="w-8 h-8 rounded" />
+          <PencilLine size={24} strokeWidth={2.5} className="text-[hsl(var(--accent))]" />
           Annotated
         </Link>
 
@@ -59,13 +60,13 @@ export function Header() {
             className="ml-4 text-sm w-8 h-8 flex items-center justify-center rounded-full hover:bg-[hsl(var(--border))] text-[hsl(var(--text-muted))] transition-colors"
             title="Toggle theme"
           >
-            {theme === "dark" ? "??" : "??"}
+            {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
           </button>
         </nav>
 
         <div className="sm:hidden flex items-center gap-4">
           <button onClick={toggleTheme} className="text-sm">
-            {theme === "dark" ? "??" : "??"}
+            {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
           </button>
           <button className="text-sm text-[hsl(var(--text-muted))] hover:text-[hsl(var(--foreground))]">
             Menu
