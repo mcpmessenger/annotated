@@ -1,7 +1,7 @@
 // ─── State ───────────────────────────────────────────────────────────────────
 const $ = (sel) => document.querySelector(sel);
 let page = { title: 'Current page', url: '', hostname: 'Current page' };
-let quote = '', intent = '';
+let quote = '', intent = 'Hot Take';
 let mediaDataUrl = null, mediaType = null, mediaFileName = null;
 let currentUser = null;
 
