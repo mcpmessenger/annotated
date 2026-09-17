@@ -285,7 +285,7 @@ $('#publishBtn').addEventListener('click', () => {
 
     // Also save locally for highlight rendering
     const localAnnotation = { ...annotation, id: crypto.randomUUID() };
-    chrome.tabs.sendMessage(tabId, { type: 'saveAnnotation', annotation: localAnnotation }, () => {
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => { const tabId = tabs[0]?.id; if (!tabId) return; chrome.tabs.sendMessage(tabId, { type: 'saveAnnotation', annotation: localAnnotation }, () => {
       const key = pageKey();
       chrome.storage.local.get(key, data => {
         const items = [...(data[key] || []), localAnnotation];
@@ -320,6 +320,8 @@ $('#publishBtn').addEventListener('click', () => {
       });
     });
   });
+});
+
 });
 
 // ─── UI Controls ─────────────────────────────────────────────────────────────
