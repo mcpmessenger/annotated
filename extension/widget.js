@@ -134,7 +134,7 @@ function applySelection(selection) {
     url: selection.url || page.url,
     hostname: selection.hostname || page.hostname,
   };
-  $('#pageHost').textContent = page.hostname.replace(/^www\./, '');
+  if ($('#pageHost')) $('#pageHost').textContent = page.hostname.replace(/^www\./, '');
   setQuote(selection.quote);
   loadFeedFromSupabase();
 }
@@ -148,7 +148,7 @@ function loadPage() {
       url: tab.url || 'https://annotated.com',
       hostname: (() => { try { return new URL(tab.url || '').hostname; } catch (_) { return 'Current page'; } })(),
     };
-    $('#pageHost').textContent = page.hostname.replace(/^www\./, '');
+    if ($('#pageHost')) $('#pageHost').textContent = page.hostname.replace(/^www\./, '');
     chrome.storage.local.get(['pendingSelection', pageKey()], data => {
       if (data.pendingSelection && Date.now() - data.pendingSelection.timestamp < 120000) {
         applySelection(data.pendingSelection);
@@ -449,6 +449,7 @@ if (closeBtn) {
     window.parent.postMessage({ type: 'CLOSE_WIDGET' }, '*');
   });
 }
+
 
 
 
