@@ -93,7 +93,6 @@
         widgetIframe.style.pointerEvents = 'auto';
       }
     });
-  }
 
   function positionWidget(x, y) {
     let left = x + 20;
