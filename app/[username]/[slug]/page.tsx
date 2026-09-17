@@ -6,6 +6,8 @@ import { notFound } from "next/navigation";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { getAnnotationBySlug } from "@/lib/data";
+import { CommentSection } from "@/components/CommentSection";
+import { ReactionRow } from "@/components/ReactionRow";
 
 const intentLabels: Record<string, string> = {
   highlight: "Highlight",

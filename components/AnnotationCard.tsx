@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Annotation } from "@/lib/types";
+import { ReactionRow } from "./ReactionRow";
 
 export function AnnotationCard({ annotation }: { annotation: Annotation }) {
   const detailLink = `/${annotation.username}/${annotation.slug}`;
@@ -16,11 +17,18 @@ export function AnnotationCard({ annotation }: { annotation: Annotation }) {
             </div>
           )}
           <div>
-            <h3 className="font-bold text-lg group-hover:text-[hsl(var(--accent))] transition-colors line-clamp-1">
-              <Link href={detailLink} className="before:absolute before:inset-0">
-                {annotation.title}
-              </Link>
-            </h3>
+            <div className="flex items-center gap-2">
+              <h3 className="font-bold text-lg group-hover:text-[hsl(var(--accent))] transition-colors line-clamp-1">
+                <Link href={detailLink} className="before:absolute before:inset-0">
+                  {annotation.title}
+                </Link>
+              </h3>
+              {annotation.intent && (
+                <span className="text-xl bg-[hsl(var(--border))] rounded-full w-8 h-8 flex items-center justify-center shadow-sm">
+                  {annotation.intent}
+                </span>
+              )}
+            </div>
             <p className="text-sm text-[hsl(var(--text-subtle))] mt-1">
               by{" "}
               <Link href={`/u/${annotation.username}`} className="font-medium text-[hsl(var(--foreground))] hover:underline relative z-10">
@@ -57,7 +65,9 @@ export function AnnotationCard({ annotation }: { annotation: Annotation }) {
         {annotation.commentary}
       </p>
 
-      <div className="flex items-center justify-between text-xs text-[hsl(var(--text-subtle))] relative z-10">
+      <ReactionRow annotationId={annotation.id} />
+
+      <div className="flex items-center justify-between text-xs text-[hsl(var(--text-subtle))] relative z-10 mt-4 pt-4 border-t border-[hsl(var(--border))]">
         <span>
           {annotation.createdAt.toLocaleDateString("en-US", {
             year: "numeric",

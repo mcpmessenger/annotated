@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
-import { Sun, Moon, PencilLine } from "lucide-react";
+import { Sun, Moon, PencilLine, LogIn, LogOut } from "lucide-react";
+import { supabase } from "@/lib/supabaseClient";
 
 const navItems = [
   { label: "Explore", href: "/explore" },
@@ -22,6 +23,29 @@ export function Header() {
       setTheme("dark");
     }
   }, []);
+
+  const [user, setUser] = useState<any>(null);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+    });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const handleLogin = async () => {
+    await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo: window.location.origin }
+    });
+  };
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+  };
 
   const toggleTheme = () => {
     const newTheme = theme === "dark" ? "light" : "dark";
@@ -62,6 +86,19 @@ export function Header() {
           >
             {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
           </button>
+          
+          {user ? (
+            <div className="flex items-center gap-3 ml-2 pl-4 border-l border-[hsl(var(--border))]">
+              <img src={user.user_metadata?.avatar_url} alt="Avatar" className="w-8 h-8 rounded-full border border-[hsl(var(--border))]" />
+              <button onClick={handleLogout} className="text-sm font-medium text-[hsl(var(--text-muted))] hover:text-[hsl(var(--foreground))] transition-colors flex items-center gap-1">
+                <LogOut size={16} /> Logout
+              </button>
+            </div>
+          ) : (
+            <button onClick={handleLogin} className="ml-2 px-4 py-1.5 rounded-full bg-[hsl(var(--foreground))] text-[hsl(var(--background))] text-sm font-bold hover:opacity-90 transition-opacity flex items-center gap-2">
+              <LogIn size={16} /> Sign In
+            </button>
+          )}
         </nav>
 
         <div className="sm:hidden flex items-center gap-4">
