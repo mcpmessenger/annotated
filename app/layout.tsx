@@ -3,11 +3,11 @@ import type { Metadata, Viewport } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: "Annotated — Editorial annotations for the web",
+  title: "Annotated - Editorial annotations for the web",
   description: "Explore, share, and discuss annotations across the internet. A companion site for Annotated.",
   robots: "index, follow",
   openGraph: {
-    title: "Annotated — Editorial annotations for the web",
+    title: "Annotated - Editorial annotations for the web",
     description: "Explore, share, and discuss annotations across the internet.",
     type: "website",
     url: "https://annotated-repo.vercel.app",
@@ -22,7 +22,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary",
-    title: "Annotated — Editorial annotations for the web",
+    title: "Annotated - Editorial annotations for the web",
     description: "Explore, share, and discuss annotations across the internet.",
     images: ["https://annotated-repo.vercel.app/logo.png"],
   },
