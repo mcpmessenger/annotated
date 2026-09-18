@@ -338,6 +338,22 @@
               stream.addTrack(tabTrack);
               audioTrackAdded = true;
             }
+
+            // Restore live speaker playback while recording
+            try {
+              const AudioCtxClass = window.AudioContext || window.webkitAudioContext;
+              if (AudioCtxClass) {
+                const audioCtx = new AudioCtxClass({ latencyHint: 'playback' });
+                if (audioCtx.state === 'suspended') {
+                  audioCtx.resume();
+                }
+                const source = audioCtx.createMediaStreamSource(tabAudioStream);
+                source.connect(audioCtx.destination);
+                activeAudioCtx = audioCtx;
+              }
+            } catch (playErr) {
+              console.warn('[Annotated] Speaker unmute error:', playErr);
+            }
           }
         } catch (err) {
           console.warn('[Annotated] Tab audio getUserMedia error:', err);
@@ -415,6 +431,10 @@
         try {
           stream.getTracks().forEach(t => t.stop());
         } catch (_) {}
+        if (activeAudioCtx) {
+          try { activeAudioCtx.close(); } catch (_) {}
+          activeAudioCtx = null;
+        }
         if (activeAudioStream) {
           try {
             activeAudioStream.getTracks().forEach(t => t.stop());
