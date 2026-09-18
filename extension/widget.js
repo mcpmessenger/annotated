@@ -3,6 +3,7 @@ const $ = (sel) => document.querySelector(sel);
 let page = { title: 'Current page', url: '', hostname: 'Current page' };
 let quote = '', intent = null;
 let mediaDataUrl = null, mediaType = null, mediaFileName = null;
+let videoClipBlob = null;
 
 let recordedAudioBlob = null;
 let mediaRecorder = null;
@@ -24,9 +25,13 @@ function setQuote(value) {
   updateButton();
 }
 function updateButton() {
-  const c = document.querySelector('#comment').value.trim();
-  const canPublish = !!quote && (c.length > 0 || mediaDataUrl);
-  document.querySelector('#publishBtn').disabled = !canPublish;
+  const commentEl = document.querySelector('#comment');
+  const c = commentEl ? commentEl.value.trim() : '';
+  const canPublish = (c.length > 0) || !!videoClipBlob || !!mediaDataUrl || !!recordedAudioBlob || !!quote;
+  const pubBtn = document.querySelector('#publishBtn');
+  if (pubBtn) {
+    pubBtn.disabled = !canPublish;
+  }
 }
 function initials(name) {
   return (name || '?').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
@@ -312,21 +317,23 @@ $('#publishBtn').addEventListener('click', () => {
         }
       }
 
+      const safeQuote = (quote && quote.trim()) || (videoClipBlob ? `🎬 Video Clip (${page.title || 'Video'})` : (media_url ? `Attachment: ${page.title || 'Media'}` : (page.title || 'Page Annotation')));
+      const safeComment = ($('#comment') ? $('#comment').value.trim() : '') || (videoClipBlob ? 'Shared a video clip' : 'Annotation');
+      const safeIntent = intent || 'Explainer';
+
       const annotation = {
         audio_url,
         media_url,
-        media_type,
-      quote,
-      comment: $('#comment').value.trim(),
-      intent,
-      media_url,
-      media_type: media_url ? mediaType : null,
-      page_title: page.title,
-      url: page.url,
-      hostname: page.hostname,
-      user_id: currentUser.id,
-      created_at: new Date().toISOString(),
-    };
+        media_type: media_type || (media_url ? mediaType : null),
+        quote: safeQuote,
+        comment: safeComment,
+        intent: safeIntent,
+        page_title: page.title,
+        url: page.url,
+        hostname: page.hostname,
+        user_id: currentUser.id,
+        created_at: new Date().toISOString(),
+      };
 
     // Save to Supabase
   try {
@@ -356,6 +363,11 @@ $('#publishBtn').addEventListener('click', () => {
           $('#comment').value = ''; if ($('#counter')) $('#counter').textContent = '0';
           setQuote(''); intent = null;
           mediaDataUrl = null; mediaType = null; mediaFileName = null;
+          videoClipBlob = null;
+          if ($('#videoTrimmerBox')) $('#videoTrimmerBox').classList.add('hidden');
+          if ($('#videoPreviewEl')) $('#videoPreviewEl').src = '';
+          if ($('#clipVideoBtn')) $('#clipVideoBtn').innerText = '🎥 Clip Video';
+          resizeWidget(450);
           if ($('#previewImg')) if ($('#previewImg')) $('#previewImg').src = ''; if ($('#previewVideo')) if ($('#previewVideo')) $('#previewVideo').src = '';
           if ($('#mediaInput')) if ($('#mediaInput')) $('#mediaInput').value = '';
           if ($('#mediaPreview')) if ($('#mediaPreview')) $('#mediaPreview').classList.add('hidden');
@@ -442,7 +454,6 @@ if(avatarEl) {
 
 // Dictation
 
-  let videoClipBlob = null;
     // 🎬 Video Preview, Trimmer & Dynamic Widget Resizing
   const trimStartInput = $('#trimStartInput');
   const trimEndInput = $('#trimEndInput');
@@ -532,6 +543,7 @@ if(avatarEl) {
                     if (trimEndInput) trimEndInput.value = clipDuration;
                     if (trimDurationLabel) trimDurationLabel.innerText = `${clipDuration}s clip (90s max)`;
                     resizeWidget(640);
+                    updateButton();
                   });
               } else if (res && res.error) {
                 alert(res.error);
@@ -568,6 +580,7 @@ if(avatarEl) {
       if (videoPreviewEl) videoPreviewEl.src = '';
       if (clipVideoBtn) clipVideoBtn.innerText = '🎥 Clip Video';
       resizeWidget(450); // Reset widget height
+      updateButton();
     });
   }
 
