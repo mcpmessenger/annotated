@@ -56,7 +56,10 @@
       <div id="videoTrimmerBox" class="video-trimmer-box hidden" style="margin-top: 10px; padding: 10px; background: var(--soft); border: 1px solid var(--line); border-radius: 8px;">
         <div style="font-size: 11px; font-weight: 750; margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center;">
           <span>🎬 Preview</span>
-          <span id="trimDurationLabel" style="color: var(--muted); font-size: 10px;">15s</span>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span id="trimDurationLabel" style="color: var(--muted); font-size: 10px;">15s</span>
+            <button id="clearVideoBtn" title="Clear video clip" style="background: none; border: none; color: var(--muted); cursor: pointer; font-size: 12px; font-weight: bold; padding: 0 4px; line-height: 1; border-radius: 3px; display: inline-flex; align-items: center; justify-content: center;">✕</button>
+          </div>
         </div>
         <video id="videoPreviewEl" controls style="width: 100%; max-height: 140px; border-radius: 6px; background: #000;" playsinline></video>
         <div style="display: flex; gap: 8px; align-items: center; margin-top: 8px; font-size: 11px;">

@@ -583,17 +583,27 @@ if(avatarEl) {
     });
   }
 
-  if ($('#removeMediaBtn')) {
-    $('#removeMediaBtn').addEventListener('click', (e) => {
+  const clearVideo = (e) => {
+    if (e) {
       e.preventDefault();
-      videoClipBlob = null;
-      if (videoTrimmerBox) videoTrimmerBox.classList.add('hidden');
-      if (videoPreviewEl) videoPreviewEl.src = '';
-      if (clipVideoBtn) clipVideoBtn.innerText = '🎥';
-      resizeWidget(390); // Reset widget height
-      updateButton();
-    });
-  }
+      e.stopPropagation();
+    }
+    videoClipBlob = null;
+    if (videoTrimmerBox) videoTrimmerBox.classList.add('hidden');
+    if (videoPreviewEl) {
+      videoPreviewEl.pause();
+      videoPreviewEl.src = '';
+    }
+    if (clipVideoBtn) {
+      clipVideoBtn.innerText = '🎥';
+      clipVideoBtn.classList.remove('recording');
+    }
+    resizeWidget(390); // Reset widget height to compact
+    updateButton();
+  };
+
+  if ($('#clearVideoBtn')) $('#clearVideoBtn').addEventListener('click', clearVideo);
+  if ($('#removeMediaBtn')) $('#removeMediaBtn').addEventListener('click', clearVideo);
 
   const dictateBtn = $('#dictateBtn');
 let recognition;
