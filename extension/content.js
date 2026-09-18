@@ -333,32 +333,9 @@
           });
           if (tabAudioStream && tabAudioStream.getAudioTracks().length > 0) {
             activeAudioStream = tabAudioStream;
-
-            try {
-              const AudioCtxClass = window.AudioContext || window.webkitAudioContext;
-              const audioCtx = new AudioCtxClass();
-              if (audioCtx.state === 'suspended') {
-                await audioCtx.resume();
-              }
-              activeAudioCtx = audioCtx;
-
-              const source = audioCtx.createMediaStreamSource(tabAudioStream);
-
-              // 1. Unmute speakers: Route captured tab audio back to user speakers
-              source.connect(audioCtx.destination);
-
-              // 2. Dedicated clean stream destination for MediaRecorder to prevent stutter
-              const recorderDest = audioCtx.createMediaStreamDestination();
-              source.connect(recorderDest);
-
-              const recTrack = recorderDest.stream.getAudioTracks()[0];
-              if (recTrack) {
-                stream.addTrack(recTrack);
-                audioTrackAdded = true;
-              }
-            } catch (e) {
-              console.warn('[Annotated] Audio playback route warning:', e);
-              stream.addTrack(tabAudioStream.getAudioTracks()[0]);
+            const tabTrack = tabAudioStream.getAudioTracks()[0];
+            if (tabTrack) {
+              stream.addTrack(tabTrack);
               audioTrackAdded = true;
             }
           }
@@ -412,7 +389,11 @@
         }
       }
 
-      const recorder = new MediaRecorder(stream, { mimeType });
+      const recorder = new MediaRecorder(stream, {
+        mimeType,
+        audioBitsPerSecond: 128000,
+        videoBitsPerSecond: 800000
+      });
       activeVideoRecorder = recorder;
       const chunks = [];
       const recordStartTime = Date.now();
@@ -430,10 +411,6 @@
           }
           cancelAnimationFrame(activeAnimFrameId);
           activeAnimFrameId = null;
-        }
-        if (activeAudioCtx) {
-          try { activeAudioCtx.close(); } catch (_) {}
-          activeAudioCtx = null;
         }
         try {
           stream.getTracks().forEach(t => t.stop());
@@ -471,6 +448,11 @@
           finalize(rawBlob);
         }
       };
+
+      // Draw initial frame before starting recorder
+      try {
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      } catch (_) {}
 
       // Continuous recording without 100ms micro-chunking prevents audio stutter
       recorder.start(1000);
