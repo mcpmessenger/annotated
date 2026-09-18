@@ -1,3 +1,27 @@
+
+// Tab Audio Stream ID generator for MV3
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message.type === 'getTabAudioStreamId') {
+    const tabId = sender.tab?.id;
+    if (!tabId) {
+      sendResponse({ error: 'No target tab found' });
+      return true;
+    }
+    if (chrome.tabCapture && chrome.tabCapture.getMediaStreamId) {
+      chrome.tabCapture.getMediaStreamId({ targetTabId: tabId }, (streamId) => {
+        if (chrome.runtime.lastError) {
+          sendResponse({ error: chrome.runtime.lastError.message });
+        } else {
+          sendResponse({ streamId });
+        }
+      });
+    } else {
+      sendResponse({ error: 'tabCapture API unavailable' });
+    }
+    return true;
+  }
+});
+
 // Enable side panel on action click
 if (chrome.sidePanel) {
   // Keep sidePanel in manifest for contest compliance, but use floating overlay as default
