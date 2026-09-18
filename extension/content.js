@@ -608,15 +608,16 @@
     // Clean up previous without firing ENDED
     cleanupSTT(false);
 
-    // Acquire and hold microphone stream so mic hardware is open and permitted by browser
+    // Verify/request microphone permission on host page, then release so SpeechRecognition has sole device access
     sendDictationEvent({ type: 'DICTATION_STATUS', status: 'Requesting mic permission…' });
     try {
       if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-        console.log('[Content STT] Requesting getUserMedia({ audio: true })...');
-        activeMicStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        console.log('[Content STT] getUserMedia granted! Active audio tracks:', 
-          activeMicStream.getAudioTracks().map(t => ({ label: t.label, enabled: t.enabled, readyState: t.readyState }))
-        );
+        console.log('[Content STT] Requesting getUserMedia({ audio: true }) to verify site permission...');
+        const tempStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        console.log('[Content STT] getUserMedia granted! Releasing temporary lock for SpeechRecognition...');
+        tempStream.getTracks().forEach(t => t.stop());
+        // Wait 150ms for Windows audio hardware to release exclusive lock
+        await new Promise(r => setTimeout(r, 150));
       }
     } catch (err) {
       console.warn('[Content STT] getUserMedia error:', err);
@@ -632,6 +633,8 @@
       const recognition = new SpeechRec();
       activeSpeechRecognition = recognition;
       isDictating = true;
+      let recognitionFailed = false;
+
       recognition.continuous = true;
       recognition.interimResults = true;
       recognition.lang = navigator.language || 'en-US';
@@ -694,10 +697,16 @@
           console.log(`[Content STT] Ignored normal lifecycle event: ${event.error}`);
           return;
         }
+        recognitionFailed = true;
         if (event.error === 'not-allowed') {
           sendDictationEvent({
             type: 'DICTATION_ERROR',
             error: 'Microphone permission blocked. Please allow mic access.'
+          });
+        } else if (event.error === 'audio-capture') {
+          sendDictationEvent({
+            type: 'DICTATION_ERROR',
+            error: 'Microphone not available or busy in another app.'
           });
         } else if (event.error === 'network') {
           sendDictationEvent({
@@ -713,15 +722,19 @@
       };
 
       recognition.onend = () => {
-        console.log('[Content STT] Event: onend');
-        cleanupSTT(true);
+        console.log('[Content STT] Event: onend. recognitionFailed:', recognitionFailed);
+        if (!recognitionFailed) {
+          cleanupSTT(true);
+        } else {
+          cleanupSTT(false);
+        }
       };
 
       console.log('[Content STT] Calling recognition.start()...');
       recognition.start();
     } catch (err) {
       console.error('[Content STT] Failed to initialize recognition:', err);
-      cleanupSTT(true);
+      cleanupSTT(false);
       sendDictationEvent({
         type: 'DICTATION_ERROR',
         error: err.message || 'Failed to start dictation.'
@@ -732,12 +745,6 @@
   function cleanupSTT(notifyEnded = true) {
     console.log('[Content STT] cleanupSTT called. notifyEnded:', notifyEnded);
     isDictating = false;
-    if (activeMicStream) {
-      try {
-        activeMicStream.getTracks().forEach(t => t.stop());
-      } catch (_) {}
-      activeMicStream = null;
-    }
     if (activeSpeechRecognition) {
       const rec = activeSpeechRecognition;
       activeSpeechRecognition = null;

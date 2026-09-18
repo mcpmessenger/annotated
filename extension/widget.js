@@ -608,6 +608,7 @@ if(avatarEl) {
   const dictateBtn = $('#dictateBtn');
   let isDictating = false;
   let baseComment = '';
+  let hasLastError = false;
 
   function setSttStatus(msg, isError = false) {
     const st = $('#status');
@@ -633,6 +634,7 @@ if(avatarEl) {
         });
       } catch (_) {}
     } else {
+      hasLastError = false;
       const commentEl = $('#comment');
       baseComment = commentEl ? commentEl.value : '';
       if (baseComment && !baseComment.endsWith(' ') && !baseComment.endsWith('\n')) {
@@ -674,12 +676,16 @@ if(avatarEl) {
     }
 
     if (data.type === 'DICTATION_STATUS') {
-      setSttStatus(data.status || '');
+      if (!hasLastError) {
+        setSttStatus(data.status || '');
+      }
     } else if (data.type === 'DICTATION_STARTED') {
+      hasLastError = false;
       isDictating = true;
       if (dictateBtn) dictateBtn.classList.add('recording');
       setSttStatus('🎙️ Listening… speak now');
     } else if (data.type === 'DICTATION_RESULT') {
+      hasLastError = false;
       const commentEl = $('#comment');
       if (commentEl) {
         const finalPart = data.finalTranscript || '';
@@ -695,18 +701,22 @@ if(avatarEl) {
     } else if (data.type === 'DICTATION_ENDED') {
       console.log('[Widget STT] Dictation ended cleanly.');
       stopDictationUI();
-      setSttStatus('');
+      if (!hasLastError) {
+        setSttStatus('');
+      }
     } else if (data.type === 'DICTATION_ERROR') {
       console.warn('[Widget STT] Dictation error received:', data.error);
+      hasLastError = true;
       stopDictationUI();
       setSttStatus(data.error || 'Dictation failed', true);
       setTimeout(() => {
+        hasLastError = false;
         const st = $('#status');
         if (st && st.textContent === data.error) {
           st.textContent = '';
           st.className = 'status';
         }
-      }, 5000);
+      }, 7000);
     }
   }
 
