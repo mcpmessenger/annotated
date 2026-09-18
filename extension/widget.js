@@ -443,6 +443,34 @@ if(avatarEl) {
 // Dictation
 
   let videoClipBlob = null;
+    // 🎬 Video Preview, Trimmer & Dynamic Widget Resizing
+  const trimStartInput = $('#trimStartInput');
+  const trimEndInput = $('#trimEndInput');
+  const videoPreviewEl = $('#videoPreviewEl');
+  const videoTrimmerBox = $('#videoTrimmerBox');
+  const trimDurationLabel = $('#trimDurationLabel');
+
+  function resizeWidget(height) {
+    try {
+      if (window.parent) {
+        window.parent.postMessage({ type: 'RESIZE_WIDGET', height }, '*');
+      }
+    } catch (_) {}
+  }
+
+  const updateTrim = () => {
+    if (!trimStartInput || !trimEndInput || !trimDurationLabel) return;
+    let start = parseInt(trimStartInput.value) || 0;
+    let end = parseInt(trimEndInput.value) || 15;
+    if (end - start > 90) end = start + 90;
+    if (end <= start) end = start + 1;
+    trimEndInput.value = end;
+    trimDurationLabel.innerText = `${end - start}s clip (90s max)`;
+  };
+
+  if (trimStartInput) trimStartInput.addEventListener('change', updateTrim);
+  if (trimEndInput) trimEndInput.addEventListener('change', updateTrim);
+
   const clipVideoBtn = $('#clipVideoBtn');
 
   if (clipVideoBtn) {
@@ -455,17 +483,16 @@ if(avatarEl) {
           clipVideoBtn.innerText = '🎥 Clip Video';
           return;
         }
-        chrome.tabs.sendMessage(tabId, { type: 'captureVideo', duration: 15 }, (res) => {
+        chrome.tabs.sendMessage(tabId, { type: 'captureVideo', duration: 30 }, (res) => {
           if (res && res.dataUrl) {
             fetch(res.dataUrl)
               .then(r => r.blob())
               .then(blob => {
                 videoClipBlob = blob;
-                const box = $('#mediaAttachmentBox');
-                const label = $('#mediaAttachmentLabel');
-                if (box) box.classList.remove('hidden');
-                if (label) label.innerText = '🎬 240p Video Clip (15s / 90s max)';
+                if (videoPreviewEl) videoPreviewEl.src = URL.createObjectURL(blob);
+                if (videoTrimmerBox) videoTrimmerBox.classList.remove('hidden');
                 clipVideoBtn.innerText = '🎥 Video Captured!';
+                resizeWidget(540); // Dynamically expand floating widget height
               });
           } else {
             alert(res?.error || 'Could not find a playing video element on this page.');
@@ -480,9 +507,10 @@ if(avatarEl) {
     $('#removeMediaBtn').addEventListener('click', (e) => {
       e.preventDefault();
       videoClipBlob = null;
-      const box = $('#mediaAttachmentBox');
-      if (box) box.classList.add('hidden');
+      if (videoTrimmerBox) videoTrimmerBox.classList.add('hidden');
+      if (videoPreviewEl) videoPreviewEl.src = '';
       if (clipVideoBtn) clipVideoBtn.innerText = '🎥 Clip Video';
+      resizeWidget(370); // Reset widget height
     });
   }
 
