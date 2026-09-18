@@ -318,8 +318,9 @@ $('#publishBtn').addEventListener('click', () => {
       }
 
       const safeQuote = (quote && quote.trim()) || (videoClipBlob ? `🎬 Video Clip (${page.title || 'Video'})` : (media_url ? `Attachment: ${page.title || 'Media'}` : (page.title || 'Page Annotation')));
+      const allowedIntents = ['🔥', '🤔', '💡', '💯', '👎'];
+      const safeIntent = (intent && allowedIntents.includes(intent)) ? intent : '💡';
       const safeComment = ($('#comment') ? $('#comment').value.trim() : '') || (videoClipBlob ? 'Shared a video clip' : 'Annotation');
-      const safeIntent = intent || 'Explainer';
 
       const annotation = {
         audio_url,
@@ -652,9 +653,15 @@ if (dictateBtn) {
 document.querySelectorAll('.emoji-btn').forEach(btn => {
   btn.addEventListener('click', (e) => {
     e.preventDefault();
+    const em = btn.dataset.emoji || e.target.dataset.emoji;
+    document.querySelectorAll('.emoji-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    intent = em;
     const c = document.querySelector('#comment');
-    c.value = c.value + e.target.dataset.emoji;
-    if (document.querySelector('#counter')) document.querySelector('#counter').textContent = c.value.length;
+    if (c) {
+      c.value = c.value ? `${c.value} ${em}` : em;
+      if (document.querySelector('#counter')) document.querySelector('#counter').textContent = c.value.length;
+    }
     updateButton();
   });
 });
