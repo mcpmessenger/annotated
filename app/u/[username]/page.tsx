@@ -8,14 +8,20 @@ import { getUserProfile, getUserAnnotations } from "@/lib/data";
 
 export const revalidate = 0;
 
-export default async function ProfilePage({ params }: { params: { username: string } }) {
-  const user = await getUserProfile(params.username);
+export default async function ProfilePage({
+  params,
+}: {
+  params: Promise<{ username: string }> | { username: string };
+}) {
+  const resolvedParams = await Promise.resolve(params);
+  const username = decodeURIComponent(resolvedParams?.username || "").trim();
+  const user = await getUserProfile(username);
 
   if (!user) {
     notFound();
   }
 
-  const annotations = await getUserAnnotations(params.username);
+  const annotations = await getUserAnnotations(username);
 
   return (
     <div className="flex flex-col min-h-screen">

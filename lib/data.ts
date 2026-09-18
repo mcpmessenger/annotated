@@ -69,14 +69,37 @@ export async function getAnnotationBySlug(slug: string): Promise<Annotation | un
 }
 
 export async function getUserProfile(username: string): Promise<User | undefined> {
-  // Since we don't have usernames natively yet, we do a wildcard search on email
-  const { data, error } = await supabase
+  const cleanUsername = decodeURIComponent(username || "").trim();
+  if (!cleanUsername) return undefined;
+
+  // 1. Try matching by email prefix
+  let { data } = await supabase
     .from("profiles")
     .select("*")
-    .ilike("email", `${username}@%`)
-    .single();
+    .ilike("email", `${cleanUsername}@%`)
+    .maybeSingle();
 
-  if (error || !data) return undefined;
+  // 2. Try matching by full_name
+  if (!data) {
+    const res = await supabase
+      .from("profiles")
+      .select("*")
+      .ilike("full_name", cleanUsername)
+      .maybeSingle();
+    data = res.data;
+  }
+
+  // 3. Try matching by exact user id
+  if (!data) {
+    const res = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", cleanUsername)
+      .maybeSingle();
+    data = res.data;
+  }
+
+  if (!data) return undefined;
   
   // get annotation count
   const { count } = await supabase
@@ -96,10 +119,12 @@ export async function getUserProfile(username: string): Promise<User | undefined
     .select("*", { count: "exact", head: true })
     .eq("follower_id", data.id);
 
+  const resolvedUsername = data.email ? data.email.split("@")[0] : cleanUsername;
+
   return {
     id: data.id,
-    username,
-    displayName: data.full_name || username,
+    username: resolvedUsername,
+    displayName: data.full_name || resolvedUsername,
     bio: "Annotated community member.",
     annotationCount: count || 0,
     followerCount: followerCount || 0,
@@ -109,12 +134,33 @@ export async function getUserProfile(username: string): Promise<User | undefined
 }
 
 export async function getUserAnnotations(username: string): Promise<Annotation[]> {
+  const cleanUsername = decodeURIComponent(username || "").trim();
+  if (!cleanUsername) return [];
+
   // First get the user id
-  const { data: user } = await supabase
+  let { data: user } = await supabase
     .from("profiles")
     .select("id")
-    .ilike("email", `${username}@%`)
-    .single();
+    .ilike("email", `${cleanUsername}@%`)
+    .maybeSingle();
+
+  if (!user) {
+    const res = await supabase
+      .from("profiles")
+      .select("id")
+      .ilike("full_name", cleanUsername)
+      .maybeSingle();
+    user = res.data;
+  }
+
+  if (!user) {
+    const res = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("id", cleanUsername)
+      .maybeSingle();
+    user = res.data;
+  }
 
   if (!user) return [];
 
@@ -126,7 +172,7 @@ export async function getUserAnnotations(username: string): Promise<Annotation[]
 
   if (error || !data) return [];
   
-  const { data: pData } = await supabase.from("profiles").select("*").eq("id", user.id).single();
+  const { data: pData } = await supabase.from("profiles").select("*").eq("id", user.id).maybeSingle();
   
   return data.map(row => {
     row.profiles = pData || {};
