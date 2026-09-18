@@ -20,6 +20,36 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
     return true;
   }
+
+  if (message.type === 'ENSURE_OFFSCREEN') {
+    (async () => {
+      try {
+        if (chrome.runtime.getContexts) {
+          const contexts = await chrome.runtime.getContexts({
+            contextTypes: ['OFFSCREEN_DOCUMENT']
+          });
+          if (contexts && contexts.length > 0) {
+            sendResponse({ ok: true });
+            return;
+          }
+        }
+        await chrome.offscreen.createDocument({
+          url: 'offscreen.html',
+          reasons: ['AUDIO_PLAYBACK'],
+          justification: 'Playback tab audio to speakers while recording'
+        });
+        sendResponse({ ok: true });
+      } catch (err) {
+        if (err.message && err.message.includes('Only a single offscreen document may be created')) {
+          sendResponse({ ok: true });
+        } else {
+          console.warn('[Annotated Background] Offscreen creation error:', err);
+          sendResponse({ error: err.message });
+        }
+      }
+    })();
+    return true;
+  }
 });
 
 // Enable side panel on action click

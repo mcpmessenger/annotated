@@ -10,7 +10,8 @@
     "identity",
     "tabs",
     "sidePanel",
-    "tabCapture"
+    "tabCapture",
+    "offscreen"
   ],
   "host_permissions": [
     "<all_urls>"
@@ -58,6 +59,8 @@
         "widget.js",
         "fix-webm-duration.js",
         "supabase-js.js",
+        "offscreen.html",
+        "offscreen.js",
         "icons/*",
         "images/*"
       ],

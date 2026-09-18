@@ -247,11 +247,65 @@
   let activeVideoRecorder = null;
   let activeRecordStream = null;
   let activeAudioStream = null;
-  let activeAudioCtx = null;
+  let activeSpeakerBridge = null;
   let activeVideoEl = null;
   let activeAnimFrameId = null;
   let isRecordingVideo = false;
   let pendingSendResponse = null;
+
+  async function startOffscreenSpeakerBridge(audioStream) {
+    try {
+      await new Promise((resolve) => {
+        chrome.runtime.sendMessage({ type: 'ENSURE_OFFSCREEN' }, resolve);
+      });
+
+      const pc = new RTCPeerConnection();
+      activeSpeakerBridge = pc;
+
+      audioStream.getAudioTracks().forEach((track) => {
+        pc.addTrack(track, audioStream);
+      });
+
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+
+      if (pc.iceGatheringState !== 'complete') {
+        await new Promise((resolve) => {
+          const check = () => {
+            if (pc.iceGatheringState === 'complete') {
+              pc.removeEventListener('icegatheringstatechange', check);
+              resolve();
+            }
+          };
+          pc.addEventListener('icegatheringstatechange', check);
+          setTimeout(resolve, 60);
+        });
+      }
+
+      chrome.runtime.sendMessage({
+        type: 'OFFSCREEN_START_AUDIO_BRIDGE',
+        sdp: pc.localDescription.sdp
+      }, async (res) => {
+        if (res && res.sdp && pc.signalingState !== 'closed') {
+          try {
+            await pc.setRemoteDescription({ type: 'answer', sdp: res.sdp });
+          } catch (_) {}
+        }
+      });
+    } catch (err) {
+      console.warn('[Annotated] Live speaker bridge warning:', err);
+    }
+  }
+
+  function stopOffscreenSpeakerBridge() {
+    if (activeSpeakerBridge) {
+      try { activeSpeakerBridge.close(); } catch (_) {}
+      activeSpeakerBridge = null;
+    }
+    try {
+      chrome.runtime.sendMessage({ type: 'OFFSCREEN_STOP_AUDIO_BRIDGE' }).catch(() => {});
+    } catch (_) {}
+  }
 
   function stopRecordingNow() {
     if (!isRecordingVideo && !activeVideoRecorder) return;
@@ -263,10 +317,7 @@
       cancelAnimationFrame(activeAnimFrameId);
       activeAnimFrameId = null;
     }
-    if (activeAudioCtx) {
-      try { activeAudioCtx.close(); } catch (_) {}
-      activeAudioCtx = null;
-    }
+    stopOffscreenSpeakerBridge();
     if (activeVideoRecorder && activeVideoRecorder.state === 'recording') {
       try {
         activeVideoRecorder.stop();
@@ -337,22 +388,7 @@
             if (tabTrack) {
               stream.addTrack(tabTrack);
               audioTrackAdded = true;
-            }
-
-            // Restore live speaker playback while recording
-            try {
-              const AudioCtxClass = window.AudioContext || window.webkitAudioContext;
-              if (AudioCtxClass) {
-                const audioCtx = new AudioCtxClass({ latencyHint: 'playback' });
-                if (audioCtx.state === 'suspended') {
-                  audioCtx.resume();
-                }
-                const source = audioCtx.createMediaStreamSource(tabAudioStream);
-                source.connect(audioCtx.destination);
-                activeAudioCtx = audioCtx;
-              }
-            } catch (playErr) {
-              console.warn('[Annotated] Speaker unmute error:', playErr);
+              startOffscreenSpeakerBridge(tabAudioStream);
             }
           }
         } catch (err) {
@@ -428,13 +464,10 @@
           cancelAnimationFrame(activeAnimFrameId);
           activeAnimFrameId = null;
         }
+        stopOffscreenSpeakerBridge();
         try {
           stream.getTracks().forEach(t => t.stop());
         } catch (_) {}
-        if (activeAudioCtx) {
-          try { activeAudioCtx.close(); } catch (_) {}
-          activeAudioCtx = null;
-        }
         if (activeAudioStream) {
           try {
             activeAudioStream.getTracks().forEach(t => t.stop());
