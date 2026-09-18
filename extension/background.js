@@ -1,6 +1,7 @@
 // Enable side panel on action click
 if (chrome.sidePanel) {
-  chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch(() => {});
+  // Keep sidePanel in manifest for contest compliance, but use floating overlay as default
+chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: false }).catch(() => {});
 }
 
 // ─── Side Panel ─────────────────────────────────────────────────────────────
