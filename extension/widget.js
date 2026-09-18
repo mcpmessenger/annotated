@@ -471,8 +471,21 @@ if(avatarEl) {
   if (trimStartInput) trimStartInput.addEventListener('change', updateTrim);
   if (trimEndInput) trimEndInput.addEventListener('change', updateTrim);
 
-  const clipVideoBtn = $('#clipVideoBtn');
+  if (videoPreviewEl) {
+    videoPreviewEl.addEventListener('timeupdate', () => {
+      const start = parseInt(trimStartInput?.value) || 0;
+      const end = parseInt(trimEndInput?.value) || 90;
+      if (videoPreviewEl.currentTime < start) {
+        videoPreviewEl.currentTime = start;
+      }
+      if (videoPreviewEl.currentTime >= end) {
+        videoPreviewEl.pause();
+        videoPreviewEl.currentTime = start;
+      }
+    });
+  }
 
+  const clipVideoBtn = $('#clipVideoBtn');
   let isVideoRecording = false;
 
   if (clipVideoBtn) {
@@ -493,23 +506,55 @@ if(avatarEl) {
           isVideoRecording = true;
           clipVideoBtn.innerText = '🛑 Stop Capture (Click anytime)';
           clipVideoBtn.classList.add('recording');
-          chrome.tabs.sendMessage(tabId, { type: 'captureVideo', duration: 90 }, (res) => {
-            isVideoRecording = false;
-            clipVideoBtn.classList.remove('recording');
-            clipVideoBtn.innerText = '🎥 Clip Video';
-            if (res && res.dataUrl) {
-              fetch(res.dataUrl)
-                .then(r => r.blob())
-                .then(blob => {
-                  videoClipBlob = blob;
-                  if (videoPreviewEl) videoPreviewEl.src = URL.createObjectURL(blob);
-                  if (videoTrimmerBox) videoTrimmerBox.classList.remove('hidden');
-                  resizeWidget(640);
-                });
-            } else if (res && res.error) {
-              alert(res.error);
+
+          const launchCapture = (streamId) => {
+            chrome.tabs.sendMessage(tabId, {
+              type: 'captureVideo',
+              duration: 90,
+              streamId: streamId || null
+            }, (res) => {
+              isVideoRecording = false;
+              clipVideoBtn.classList.remove('recording');
+              clipVideoBtn.innerText = '🎥 Clip Video';
+              if (res && res.dataUrl) {
+                fetch(res.dataUrl)
+                  .then(r => r.blob())
+                  .then(blob => {
+                    videoClipBlob = blob;
+                    if (videoPreviewEl) {
+                      videoPreviewEl.src = URL.createObjectURL(blob);
+                      videoPreviewEl.muted = false;
+                      videoPreviewEl.volume = 1.0;
+                    }
+                    if (videoTrimmerBox) videoTrimmerBox.classList.remove('hidden');
+                    const clipDuration = res.duration || 15;
+                    if (trimStartInput) trimStartInput.value = 0;
+                    if (trimEndInput) trimEndInput.value = clipDuration;
+                    if (trimDurationLabel) trimDurationLabel.innerText = `${clipDuration}s clip (90s max)`;
+                    resizeWidget(640);
+                  });
+              } else if (res && res.error) {
+                alert(res.error);
+              }
+            });
+          };
+
+          // Try to acquire tab capture streamId with user gesture right here in the extension page
+          if (chrome.tabCapture && chrome.tabCapture.getMediaStreamId) {
+            try {
+              chrome.tabCapture.getMediaStreamId({ targetTabId: tabId, consumerTabId: tabId }, (streamId) => {
+                if (chrome.runtime.lastError || !streamId) {
+                  launchCapture(null);
+                } else {
+                  launchCapture(streamId);
+                }
+              });
+            } catch (_) {
+              launchCapture(null);
             }
-          });
+          } else {
+            launchCapture(null);
+          }
         }
       });
     });

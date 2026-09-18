@@ -128,7 +128,7 @@
     if (!widgetIframe) {
       widgetIframe = document.createElement('iframe');
       widgetIframe.src = chrome.runtime.getURL('widget.html');
-      widgetIframe.allow = 'microphone';
+      widgetIframe.allow = 'microphone; display-capture';
       widgetIframe.style.cssText = `
         position: fixed;
         width: 360px;
@@ -243,8 +243,35 @@
 
   // ─── Message handler ─────────────────────────────────────────────────────────
   
-  // 🎬 Multimodal 240p Video Clipper (Max 90s)
-  function capture240pVideoClip(durationSeconds = 15, sendResponse) {
+  // ─── Multimodal 240p Video Clipper (Max 90s) & Audio Fusion ───────────────
+  let activeVideoRecorder = null;
+  let activeRecordStream = null;
+  let activeAudioStream = null;
+  let activeAnimFrameId = null;
+  let isRecordingVideo = false;
+  let pendingSendResponse = null;
+
+  function stopRecordingNow() {
+    if (!isRecordingVideo && !activeVideoRecorder) return;
+    isRecordingVideo = false;
+    if (activeAnimFrameId) {
+      cancelAnimationFrame(activeAnimFrameId);
+      activeAnimFrameId = null;
+    }
+    if (activeVideoRecorder && activeVideoRecorder.state === 'recording') {
+      try {
+        activeVideoRecorder.stop();
+      } catch (err) {
+        console.warn('[Annotated] Error calling recorder.stop():', err);
+      }
+    }
+  }
+
+  async function capture240pVideoClip(durationSeconds = 15, streamId, sendResponse) {
+    if (isRecordingVideo) {
+      stopRecordingNow();
+    }
+
     const video = document.querySelector('video');
     if (!video) {
       sendResponse({ error: 'No video element found on this page.' });
@@ -252,52 +279,193 @@
     }
 
     try {
+      pendingSendResponse = sendResponse;
+      isRecordingVideo = true;
+
       const canvas = document.createElement('canvas');
       canvas.width = 426;  // 240p width
       canvas.height = 240; // 240p height
       const ctx = canvas.getContext('2d');
 
       const stream = canvas.captureStream(24); // 24 FPS
-      const recorder = new MediaRecorder(stream, { mimeType: 'video/webm;codecs=vp8' });
-      const chunks = [];
+      activeRecordStream = stream;
 
-      recorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
-      recorder.onstop = () => {
-        const blob = new Blob(chunks, { type: 'video/webm' });
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          sendResponse({ dataUrl: reader.result, duration: Math.min(durationSeconds, 90) });
-        };
-        reader.readAsDataURL(blob);
+      // ─── Audio Acquisition (Multi-tier: Tab Capture -> video element -> Silent WebAudio) ───
+      let audioTrackAdded = false;
+
+      // 1. Tab Capture audio via streamId
+      let targetStreamId = streamId;
+      if (!targetStreamId) {
+        try {
+          const bgRes = await new Promise((resolve) => {
+            chrome.runtime.sendMessage({ type: 'getTabAudioStreamId' }, resolve);
+          });
+          if (bgRes && bgRes.streamId) {
+            targetStreamId = bgRes.streamId;
+          }
+        } catch (_) {}
+      }
+
+      if (targetStreamId) {
+        try {
+          const tabAudioStream = await navigator.mediaDevices.getUserMedia({
+            audio: {
+              mandatory: {
+                chromeMediaSource: 'tab',
+                chromeMediaSourceId: targetStreamId
+              }
+            }
+          });
+          if (tabAudioStream && tabAudioStream.getAudioTracks().length > 0) {
+            activeAudioStream = tabAudioStream;
+            stream.addTrack(tabAudioStream.getAudioTracks()[0]);
+            audioTrackAdded = true;
+
+            // Route audio back to speakers so the user can continue hearing the page
+            try {
+              const AudioCtxClass = window.AudioContext || window.webkitAudioContext;
+              const audioCtx = new AudioCtxClass();
+              const source = audioCtx.createMediaStreamSource(tabAudioStream);
+              source.connect(audioCtx.destination);
+            } catch (e) {
+              console.warn('[Annotated] Audio playback route warning:', e);
+            }
+          }
+        } catch (err) {
+          console.warn('[Annotated] Tab audio getUserMedia error:', err);
+        }
+      }
+
+      // 2. Video element captureStream fallback (works on non-CORS videos)
+      if (!audioTrackAdded) {
+        try {
+          const vidStream = (video.captureStream && video.captureStream()) || (video.mozCaptureStream && video.mozCaptureStream());
+          if (vidStream && vidStream.getAudioTracks().length > 0) {
+            stream.addTrack(vidStream.getAudioTracks()[0]);
+            audioTrackAdded = true;
+          }
+        } catch (_) {}
+      }
+
+      // 3. Silent Web Audio fallback (Ensures container ALWAYS has Opus track so player speaker icon is never disabled)
+      if (!audioTrackAdded) {
+        try {
+          const AudioCtxClass = window.AudioContext || window.webkitAudioContext;
+          const audioCtx = new AudioCtxClass();
+          const dest = audioCtx.createMediaStreamDestination();
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          gain.gain.value = 0; // Silent
+          osc.connect(gain);
+          gain.connect(dest);
+          osc.start();
+          const silentTrack = dest.stream.getAudioTracks()[0];
+          if (silentTrack) {
+            stream.addTrack(silentTrack);
+            audioTrackAdded = true;
+          }
+        } catch (e) {
+          console.warn('[Annotated] Silent audio creation fallback failed:', e);
+        }
+      }
+
+      // Codecs negotiation
+      let mimeType = 'video/webm;codecs=vp8,opus';
+      if (!MediaRecorder.isTypeSupported(mimeType)) {
+        mimeType = 'video/webm;codecs=vp8';
+        if (!MediaRecorder.isTypeSupported(mimeType)) {
+          mimeType = 'video/webm';
+        }
+      }
+
+      const recorder = new MediaRecorder(stream, { mimeType });
+      activeVideoRecorder = recorder;
+      const chunks = [];
+      const recordStartTime = Date.now();
+      const maxDurationMs = Math.min(durationSeconds, 90) * 1000;
+
+      recorder.ondataavailable = (e) => {
+        if (e.data && e.data.size > 0) chunks.push(e.data);
       };
 
-      recorder.start();
-      const startTime = Date.now();
+      recorder.onstop = () => {
+        isRecordingVideo = false;
+        if (activeAnimFrameId) {
+          cancelAnimationFrame(activeAnimFrameId);
+          activeAnimFrameId = null;
+        }
+        try {
+          stream.getTracks().forEach(t => t.stop());
+        } catch (_) {}
+        if (activeAudioStream) {
+          try {
+            activeAudioStream.getTracks().forEach(t => t.stop());
+          } catch (_) {}
+          activeAudioStream = null;
+        }
 
-      const drawFrame = () => {
-        if (recorder.state === 'recording') {
-          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-          if ((Date.now() - startTime) / 1000 >= Math.min(durationSeconds, 90)) {
-            recorder.stop();
-          } else {
-            requestAnimationFrame(drawFrame);
-          }
+        const rawBlob = new Blob(chunks, { type: 'video/webm' });
+        const actualDurationMs = Math.max(Date.now() - recordStartTime, 500);
+
+        const finalize = (finalBlob) => {
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            if (pendingSendResponse) {
+              pendingSendResponse({
+                dataUrl: reader.result,
+                duration: Math.round(actualDurationMs / 1000)
+              });
+              pendingSendResponse = null;
+            }
+          };
+          reader.readAsDataURL(finalBlob);
+        };
+
+        const fixFn = typeof ysFixWebmDuration === 'function' ? ysFixWebmDuration : (window.ysFixWebmDuration || null);
+        if (fixFn) {
+          fixFn(rawBlob, actualDurationMs, (fixedBlob) => {
+            finalize(fixedBlob);
+          });
+        } else {
+          finalize(rawBlob);
         }
       };
+
+      recorder.start(100);
+
+      const drawFrame = () => {
+        if (!isRecordingVideo || !activeVideoRecorder || activeVideoRecorder.state !== 'recording') {
+          return;
+        }
+        try {
+          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        } catch (_) {}
+
+        if (Date.now() - recordStartTime >= maxDurationMs) {
+          stopRecordingNow();
+        } else {
+          activeAnimFrameId = requestAnimationFrame(drawFrame);
+        }
+      };
+
       drawFrame();
     } catch (err) {
-      sendResponse({ error: err.message || 'Failed to capture video clip.' });
+      isRecordingVideo = false;
+      if (pendingSendResponse) {
+        pendingSendResponse({ error: err.message || 'Failed to capture video clip.' });
+        pendingSendResponse = null;
+      }
     }
   }
 
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-        if (message.type === 'stopVideo') {
-      if (activeVideoRecorder && activeVideoRecorder.state === 'recording') activeVideoRecorder.stop();
+    if (message.type === 'stopVideo') {
+      stopRecordingNow();
       sendResponse({ ok: true });
       return true;
     }
     if (message.type === 'captureVideo') {
-      capture240pVideoClip(message.duration || 15, sendResponse);
+      capture240pVideoClip(message.duration || 90, message.streamId, sendResponse);
       return true;
     }
     if (message.type === 'openWidget') {

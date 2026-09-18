@@ -2,13 +2,13 @@
 // Tab Audio Stream ID generator for MV3
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'getTabAudioStreamId') {
-    const tabId = sender.tab?.id;
+    const tabId = message.tabId || sender.tab?.id;
     if (!tabId) {
       sendResponse({ error: 'No target tab found' });
       return true;
     }
     if (chrome.tabCapture && chrome.tabCapture.getMediaStreamId) {
-      chrome.tabCapture.getMediaStreamId({ targetTabId: tabId }, (streamId) => {
+      chrome.tabCapture.getMediaStreamId({ targetTabId: tabId, consumerTabId: tabId }, (streamId) => {
         if (chrome.runtime.lastError) {
           sendResponse({ error: chrome.runtime.lastError.message });
         } else {
