@@ -269,7 +269,29 @@ $('#publishBtn').addEventListener('click', () => {
       }
     }
 
-          let audio_url = null;
+                let media_type = null;
+      if (videoClipBlob) {
+        try {
+          const fileName = `video_${Date.now()}.webm`;
+          const uploadRes = await fetch(`${supabase.url}/storage/v1/object/annotation-media/${fileName}`, {
+            method: 'POST',
+            headers: {
+              'apikey': supabase.key,
+              'Authorization': `Bearer ${supabase.token || supabase.key}`,
+              'Content-Type': 'video/webm'
+            },
+            body: videoClipBlob
+          });
+          if (uploadRes.ok) {
+            media_url = `${supabase.url}/storage/v1/object/public/annotation-media/${fileName}`;
+            media_type = 'video';
+          }
+        } catch (err) {
+          console.error('[VideoUpload] Error:', err);
+        }
+      }
+
+      let audio_url = null;
       if (recordedAudioBlob) {
         try {
           const fileName = `audio_${Date.now()}.webm`;
@@ -292,6 +314,8 @@ $('#publishBtn').addEventListener('click', () => {
 
       const annotation = {
         audio_url,
+        media_url,
+        media_type,
       quote,
       comment: $('#comment').value.trim(),
       intent,
@@ -417,7 +441,52 @@ if(avatarEl) {
 }
 
 // Dictation
-const dictateBtn = $('#dictateBtn');
+
+  let videoClipBlob = null;
+  const clipVideoBtn = $('#clipVideoBtn');
+
+  if (clipVideoBtn) {
+    clipVideoBtn.addEventListener('click', async (e) => {
+      e.preventDefault();
+      clipVideoBtn.innerText = '🎥 Capturing (240p)...';
+      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        const tabId = tabs[0]?.id;
+        if (!tabId) {
+          clipVideoBtn.innerText = '🎥 Clip Video';
+          return;
+        }
+        chrome.tabs.sendMessage(tabId, { type: 'captureVideo', duration: 15 }, (res) => {
+          if (res && res.dataUrl) {
+            fetch(res.dataUrl)
+              .then(r => r.blob())
+              .then(blob => {
+                videoClipBlob = blob;
+                const box = $('#mediaAttachmentBox');
+                const label = $('#mediaAttachmentLabel');
+                if (box) box.classList.remove('hidden');
+                if (label) label.innerText = '🎬 240p Video Clip (15s / 90s max)';
+                clipVideoBtn.innerText = '🎥 Video Captured!';
+              });
+          } else {
+            alert(res?.error || 'Could not find a playing video element on this page.');
+            clipVideoBtn.innerText = '🎥 Clip Video';
+          }
+        });
+      });
+    });
+  }
+
+  if ($('#removeMediaBtn')) {
+    $('#removeMediaBtn').addEventListener('click', (e) => {
+      e.preventDefault();
+      videoClipBlob = null;
+      const box = $('#mediaAttachmentBox');
+      if (box) box.classList.add('hidden');
+      if (clipVideoBtn) clipVideoBtn.innerText = '🎥 Clip Video';
+    });
+  }
+
+  const dictateBtn = $('#dictateBtn');
 let recognition;
 let isRecording = false;
 
