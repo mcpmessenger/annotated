@@ -24,6 +24,28 @@
     return location.href;
   };
 
+  
+  // Inject custom highlight styles into document
+  if (!document.getElementById('annotated-highlight-style')) {
+    const styleEl = document.createElement('style');
+    styleEl.id = 'annotated-highlight-style';
+    styleEl.textContent = `
+      .annotated-highlight {
+        background-color: #ffd21a !important;
+        color: #000 !important;
+        cursor: pointer !important;
+        border-radius: 3px;
+        padding: 0 2px;
+        transition: all 0.2s ease;
+      }
+      .annotated-highlight:hover {
+        background-color: #f0c400 !important;
+        box-shadow: 0 0 10px rgba(255, 210, 26, 0.8);
+      }
+    `;
+    (document.head || document.documentElement).appendChild(styleEl);
+  }
+
   const load = () => {
     chrome.storage.local.get(getKey()).then(data => {
       state.annotations = data[getKey()] || [];
