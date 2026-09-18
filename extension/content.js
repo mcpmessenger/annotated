@@ -247,6 +247,8 @@
   let activeVideoRecorder = null;
   let activeRecordStream = null;
   let activeAudioStream = null;
+  let activeAudioCtx = null;
+  let activeVideoEl = null;
   let activeAnimFrameId = null;
   let isRecordingVideo = false;
   let pendingSendResponse = null;
@@ -255,8 +257,15 @@
     if (!isRecordingVideo && !activeVideoRecorder) return;
     isRecordingVideo = false;
     if (activeAnimFrameId) {
+      if (activeVideoEl && 'cancelVideoFrameCallback' in activeVideoEl) {
+        try { activeVideoEl.cancelVideoFrameCallback(activeAnimFrameId); } catch (_) {}
+      }
       cancelAnimationFrame(activeAnimFrameId);
       activeAnimFrameId = null;
+    }
+    if (activeAudioCtx) {
+      try { activeAudioCtx.close(); } catch (_) {}
+      activeAudioCtx = null;
     }
     if (activeVideoRecorder && activeVideoRecorder.state === 'recording') {
       try {
@@ -281,6 +290,7 @@
     try {
       pendingSendResponse = sendResponse;
       isRecordingVideo = true;
+      activeVideoEl = video;
 
       const canvas = document.createElement('canvas');
       canvas.width = 426;  // 240p width
@@ -313,22 +323,43 @@
               mandatory: {
                 chromeMediaSource: 'tab',
                 chromeMediaSourceId: targetStreamId
-              }
+              },
+              optional: [
+                { echoCancellation: false },
+                { autoGainControl: false },
+                { noiseSuppression: false }
+              ]
             }
           });
           if (tabAudioStream && tabAudioStream.getAudioTracks().length > 0) {
             activeAudioStream = tabAudioStream;
-            stream.addTrack(tabAudioStream.getAudioTracks()[0]);
-            audioTrackAdded = true;
 
-            // Route audio back to speakers so the user can continue hearing the page
             try {
               const AudioCtxClass = window.AudioContext || window.webkitAudioContext;
               const audioCtx = new AudioCtxClass();
+              if (audioCtx.state === 'suspended') {
+                await audioCtx.resume();
+              }
+              activeAudioCtx = audioCtx;
+
               const source = audioCtx.createMediaStreamSource(tabAudioStream);
+
+              // 1. Unmute speakers: Route captured tab audio back to user speakers
               source.connect(audioCtx.destination);
+
+              // 2. Dedicated clean stream destination for MediaRecorder to prevent stutter
+              const recorderDest = audioCtx.createMediaStreamDestination();
+              source.connect(recorderDest);
+
+              const recTrack = recorderDest.stream.getAudioTracks()[0];
+              if (recTrack) {
+                stream.addTrack(recTrack);
+                audioTrackAdded = true;
+              }
             } catch (e) {
               console.warn('[Annotated] Audio playback route warning:', e);
+              stream.addTrack(tabAudioStream.getAudioTracks()[0]);
+              audioTrackAdded = true;
             }
           }
         } catch (err) {
@@ -352,6 +383,9 @@
         try {
           const AudioCtxClass = window.AudioContext || window.webkitAudioContext;
           const audioCtx = new AudioCtxClass();
+          if (audioCtx.state === 'suspended') {
+            await audioCtx.resume();
+          }
           const dest = audioCtx.createMediaStreamDestination();
           const osc = audioCtx.createOscillator();
           const gain = audioCtx.createGain();
@@ -391,8 +425,15 @@
       recorder.onstop = () => {
         isRecordingVideo = false;
         if (activeAnimFrameId) {
+          if (activeVideoEl && 'cancelVideoFrameCallback' in activeVideoEl) {
+            try { activeVideoEl.cancelVideoFrameCallback(activeAnimFrameId); } catch (_) {}
+          }
           cancelAnimationFrame(activeAnimFrameId);
           activeAnimFrameId = null;
+        }
+        if (activeAudioCtx) {
+          try { activeAudioCtx.close(); } catch (_) {}
+          activeAudioCtx = null;
         }
         try {
           stream.getTracks().forEach(t => t.stop());
@@ -431,9 +472,10 @@
         }
       };
 
-      recorder.start(100);
+      // Continuous recording without 100ms micro-chunking prevents audio stutter
+      recorder.start(1000);
 
-      const drawFrame = () => {
+      const renderFrame = () => {
         if (!isRecordingVideo || !activeVideoRecorder || activeVideoRecorder.state !== 'recording') {
           return;
         }
@@ -444,11 +486,19 @@
         if (Date.now() - recordStartTime >= maxDurationMs) {
           stopRecordingNow();
         } else {
-          activeAnimFrameId = requestAnimationFrame(drawFrame);
+          if ('requestVideoFrameCallback' in video) {
+            activeAnimFrameId = video.requestVideoFrameCallback(renderFrame);
+          } else {
+            activeAnimFrameId = requestAnimationFrame(renderFrame);
+          }
         }
       };
 
-      drawFrame();
+      if ('requestVideoFrameCallback' in video) {
+        activeAnimFrameId = video.requestVideoFrameCallback(renderFrame);
+      } else {
+        activeAnimFrameId = requestAnimationFrame(renderFrame);
+      }
     } catch (err) {
       isRecordingVideo = false;
       if (pendingSendResponse) {
