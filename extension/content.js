@@ -569,6 +569,7 @@
 
   // ─── Speech-to-Text (STT) Engine ───────────────────────────────────────────
   let activeSpeechRecognition = null;
+  let activeMicStream = null;
   let isDictating = false;
 
   function sendDictationEvent(payload) {
@@ -576,10 +577,11 @@
       try {
         widgetIframe.contentWindow.postMessage(payload, '*');
       } catch (_) {}
+    } else {
+      try {
+        chrome.runtime.sendMessage(payload).catch(() => {});
+      } catch (_) {}
     }
-    try {
-      chrome.runtime.sendMessage(payload).catch(() => {});
-    } catch (_) {}
   }
 
   async function startDictation() {
@@ -597,23 +599,20 @@
       return;
     }
 
-    if (activeSpeechRecognition) {
-      try { activeSpeechRecognition.abort(); } catch (_) {}
-      activeSpeechRecognition = null;
-    }
+    cleanupSTT();
 
-    // Check if microphone permission is explicitly denied
-    if (navigator.permissions && navigator.permissions.query) {
-      try {
-        const perm = await navigator.permissions.query({ name: 'microphone' });
-        if (perm.state === 'denied') {
-          sendDictationEvent({
-            type: 'DICTATION_ERROR',
-            error: 'Microphone is blocked for this site. Click lock icon in address bar to allow.'
-          });
-          return;
-        }
-      } catch (_) {}
+    // Acquire and hold microphone stream so mic hardware is open and permitted by browser
+    try {
+      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        activeMicStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      }
+    } catch (err) {
+      console.warn('[Annotated STT] getUserMedia error:', err);
+      sendDictationEvent({
+        type: 'DICTATION_ERROR',
+        error: 'Microphone permission required. Please allow microphone access.'
+      });
+      return;
     }
 
     try {
@@ -671,16 +670,14 @@
       };
 
       recognition.onend = () => {
-        isDictating = false;
-        activeSpeechRecognition = null;
+        cleanupSTT();
         sendDictationEvent({ type: 'DICTATION_ENDED' });
       };
 
       recognition.start();
     } catch (err) {
       console.error('[Annotated STT] Failed to initialize recognition:', err);
-      isDictating = false;
-      activeSpeechRecognition = null;
+      cleanupSTT();
       sendDictationEvent({
         type: 'DICTATION_ERROR',
         error: err.message || 'Failed to start dictation.'
@@ -688,8 +685,14 @@
     }
   }
 
-  function stopDictation() {
+  function cleanupSTT() {
     isDictating = false;
+    if (activeMicStream) {
+      try {
+        activeMicStream.getTracks().forEach(t => t.stop());
+      } catch (_) {}
+      activeMicStream = null;
+    }
     if (activeSpeechRecognition) {
       const rec = activeSpeechRecognition;
       activeSpeechRecognition = null;
