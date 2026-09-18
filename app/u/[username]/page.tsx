@@ -32,9 +32,17 @@ export default async function ProfilePage({
         <section className="border-b border-[hsl(var(--border))] bg-white">
           <div className="editorial-container py-12">
             <div className="mb-6">
-              <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[hsl(var(--accent))] to-[hsl(var(--accent-muted))] mb-4 flex items-center justify-center text-white font-bold text-2xl">
-                {user.displayName.charAt(0).toUpperCase()}
-              </div>
+              {user.avatar ? (
+                <img
+                  src={user.avatar}
+                  alt={user.displayName}
+                  className="w-16 h-16 rounded-full object-cover border border-[hsl(var(--border))] mb-4 shadow-sm"
+                />
+              ) : (
+                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[hsl(var(--accent))] to-[hsl(var(--accent-muted))] mb-4 flex items-center justify-center text-white font-bold text-2xl">
+                  {user.displayName.charAt(0).toUpperCase()}
+                </div>
+              )}
             </div>
             <div className="flex items-center justify-between gap-4 mb-2 flex-wrap">
               <h1 className="editorial-heading">{user.displayName}</h1>
