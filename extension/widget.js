@@ -483,14 +483,15 @@ if(avatarEl) {
         if (!tabId) return;
 
         if (isVideoRecording) {
-          // Stop recording manually
+          // Send stop message to content.js
           isVideoRecording = false;
-          clipVideoBtn.innerText = '🎥 Processing...';
+          clipVideoBtn.innerText = '🎥 Finalizing 240p Clip...';
+          clipVideoBtn.classList.remove('recording');
           chrome.tabs.sendMessage(tabId, { type: 'stopVideo' }, () => {});
         } else {
           // Start recording
           isVideoRecording = true;
-          clipVideoBtn.innerText = '🛑 Stop Video Capture';
+          clipVideoBtn.innerText = '🛑 Stop Capture (Click anytime)';
           clipVideoBtn.classList.add('recording');
           chrome.tabs.sendMessage(tabId, { type: 'captureVideo', duration: 90 }, (res) => {
             isVideoRecording = false;
@@ -503,7 +504,7 @@ if(avatarEl) {
                   videoClipBlob = blob;
                   if (videoPreviewEl) videoPreviewEl.src = URL.createObjectURL(blob);
                   if (videoTrimmerBox) videoTrimmerBox.classList.remove('hidden');
-                  resizeWidget(580);
+                  resizeWidget(640);
                 });
             } else if (res && res.error) {
               alert(res.error);
