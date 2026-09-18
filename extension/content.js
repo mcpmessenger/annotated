@@ -132,7 +132,7 @@
       widgetIframe.style.cssText = `
         position: fixed;
         width: 360px;
-        height: 450px;
+        height: 680px; max-height: 90vh;
         border: 1px solid rgba(0,0,0,0.1);
         border-radius: 16px;
         box-shadow: 0 12px 40px rgba(0,0,0,0.15);
