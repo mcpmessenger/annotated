@@ -614,14 +614,15 @@ if(avatarEl) {
       stopDictationUI();
       if (window.parent !== window) {
         window.parent.postMessage({ type: 'STOP_DICTATION' }, '*');
+      } else {
+        try {
+          chrome.tabs?.query({ active: true, currentWindow: true }, (tabs) => {
+            if (tabs?.[0]?.id) {
+              chrome.tabs.sendMessage(tabs[0].id, { type: 'STOP_DICTATION' }).catch(() => {});
+            }
+          });
+        } catch (_) {}
       }
-      try {
-        chrome.tabs?.query({ active: true, currentWindow: true }, (tabs) => {
-          if (tabs?.[0]?.id) {
-            chrome.tabs.sendMessage(tabs[0].id, { type: 'STOP_DICTATION' }).catch(() => {});
-          }
-        });
-      } catch (_) {}
     } else {
       const commentEl = $('#comment');
       baseComment = commentEl ? commentEl.value : '';
@@ -633,14 +634,15 @@ if(avatarEl) {
 
       if (window.parent !== window) {
         window.parent.postMessage({ type: 'START_DICTATION' }, '*');
+      } else {
+        try {
+          chrome.tabs?.query({ active: true, currentWindow: true }, (tabs) => {
+            if (tabs?.[0]?.id) {
+              chrome.tabs.sendMessage(tabs[0].id, { type: 'START_DICTATION' }).catch(() => {});
+            }
+          });
+        } catch (_) {}
       }
-      try {
-        chrome.tabs?.query({ active: true, currentWindow: true }, (tabs) => {
-          if (tabs?.[0]?.id) {
-            chrome.tabs.sendMessage(tabs[0].id, { type: 'START_DICTATION' }).catch(() => {});
-          }
-        });
-      } catch (_) {}
     }
   }
 

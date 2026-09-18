@@ -592,24 +592,28 @@
       return;
     }
 
+    // If already active and dictating, do not re-trigger
+    if (isDictating && activeSpeechRecognition) {
+      return;
+    }
+
     if (activeSpeechRecognition) {
-      try { activeSpeechRecognition.stop(); } catch (_) {}
+      try { activeSpeechRecognition.abort(); } catch (_) {}
       activeSpeechRecognition = null;
     }
 
-    // Ensure mic permission prompt is triggered on host page if needed
-    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+    // Check if microphone permission is explicitly denied
+    if (navigator.permissions && navigator.permissions.query) {
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        stream.getTracks().forEach(t => t.stop());
-      } catch (err) {
-        console.warn('[Annotated STT] Mic permission check:', err);
-        sendDictationEvent({
-          type: 'DICTATION_ERROR',
-          error: 'Microphone permission denied. Allow mic access to dictate.'
-        });
-        return;
-      }
+        const perm = await navigator.permissions.query({ name: 'microphone' });
+        if (perm.state === 'denied') {
+          sendDictationEvent({
+            type: 'DICTATION_ERROR',
+            error: 'Microphone is blocked for this site. Click lock icon in address bar to allow.'
+          });
+          return;
+        }
+      } catch (_) {}
     }
 
     try {
@@ -644,17 +648,21 @@
 
       recognition.onerror = (event) => {
         console.warn('[Annotated STT] Recognition error:', event.error);
+        if (event.error === 'aborted' || event.error === 'no-speech') {
+          // Normal lifecycle events: aborted occurs on user stop/reset, no-speech on silence
+          return;
+        }
         if (event.error === 'not-allowed') {
           sendDictationEvent({
             type: 'DICTATION_ERROR',
-            error: 'Microphone access blocked. Check site permissions.'
+            error: 'Microphone permission blocked. Please allow mic access.'
           });
         } else if (event.error === 'network') {
           sendDictationEvent({
             type: 'DICTATION_ERROR',
             error: 'Speech recognition network error.'
           });
-        } else if (event.error !== 'no-speech') {
+        } else {
           sendDictationEvent({
             type: 'DICTATION_ERROR',
             error: `Dictation error: ${event.error}`
@@ -683,8 +691,9 @@
   function stopDictation() {
     isDictating = false;
     if (activeSpeechRecognition) {
-      try { activeSpeechRecognition.stop(); } catch (_) {}
+      const rec = activeSpeechRecognition;
       activeSpeechRecognition = null;
+      try { rec.abort(); } catch (_) {}
     }
     sendDictationEvent({ type: 'DICTATION_ENDED' });
   }
