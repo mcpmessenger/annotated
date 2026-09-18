@@ -131,8 +131,8 @@
       widgetIframe.allow = 'microphone';
       widgetIframe.style.cssText = `
         position: fixed;
-        width: 340px;
-        height: 370px;
+        width: 360px;
+        height: 450px;
         border: 1px solid rgba(0,0,0,0.1);
         border-radius: 16px;
         box-shadow: 0 12px 40px rgba(0,0,0,0.15);
@@ -291,7 +291,12 @@
   }
 
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-        if (message.type === 'captureVideo') {
+        if (message.type === 'stopVideo') {
+      if (activeVideoRecorder && activeVideoRecorder.state === 'recording') activeVideoRecorder.stop();
+      sendResponse({ ok: true });
+      return true;
+    }
+    if (message.type === 'captureVideo') {
       capture240pVideoClip(message.duration || 15, sendResponse);
       return true;
     }

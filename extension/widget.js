@@ -473,32 +473,43 @@ if(avatarEl) {
 
   const clipVideoBtn = $('#clipVideoBtn');
 
+  let isVideoRecording = false;
+
   if (clipVideoBtn) {
     clipVideoBtn.addEventListener('click', async (e) => {
       e.preventDefault();
-      clipVideoBtn.innerText = '🎥 Capturing (240p)...';
       chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
         const tabId = tabs[0]?.id;
-        if (!tabId) {
-          clipVideoBtn.innerText = '🎥 Clip Video';
-          return;
-        }
-        chrome.tabs.sendMessage(tabId, { type: 'captureVideo', duration: 30 }, (res) => {
-          if (res && res.dataUrl) {
-            fetch(res.dataUrl)
-              .then(r => r.blob())
-              .then(blob => {
-                videoClipBlob = blob;
-                if (videoPreviewEl) videoPreviewEl.src = URL.createObjectURL(blob);
-                if (videoTrimmerBox) videoTrimmerBox.classList.remove('hidden');
-                clipVideoBtn.innerText = '🎥 Video Captured!';
-                resizeWidget(540); // Dynamically expand floating widget height
-              });
-          } else {
-            alert(res?.error || 'Could not find a playing video element on this page.');
+        if (!tabId) return;
+
+        if (isVideoRecording) {
+          // Stop recording manually
+          isVideoRecording = false;
+          clipVideoBtn.innerText = '🎥 Processing...';
+          chrome.tabs.sendMessage(tabId, { type: 'stopVideo' }, () => {});
+        } else {
+          // Start recording
+          isVideoRecording = true;
+          clipVideoBtn.innerText = '🛑 Stop Video Capture';
+          clipVideoBtn.classList.add('recording');
+          chrome.tabs.sendMessage(tabId, { type: 'captureVideo', duration: 90 }, (res) => {
+            isVideoRecording = false;
+            clipVideoBtn.classList.remove('recording');
             clipVideoBtn.innerText = '🎥 Clip Video';
-          }
-        });
+            if (res && res.dataUrl) {
+              fetch(res.dataUrl)
+                .then(r => r.blob())
+                .then(blob => {
+                  videoClipBlob = blob;
+                  if (videoPreviewEl) videoPreviewEl.src = URL.createObjectURL(blob);
+                  if (videoTrimmerBox) videoTrimmerBox.classList.remove('hidden');
+                  resizeWidget(580);
+                });
+            } else if (res && res.error) {
+              alert(res.error);
+            }
+          });
+        }
       });
     });
   }
@@ -510,7 +521,7 @@ if(avatarEl) {
       if (videoTrimmerBox) videoTrimmerBox.classList.add('hidden');
       if (videoPreviewEl) videoPreviewEl.src = '';
       if (clipVideoBtn) clipVideoBtn.innerText = '🎥 Clip Video';
-      resizeWidget(370); // Reset widget height
+      resizeWidget(450); // Reset widget height
     });
   }
 
