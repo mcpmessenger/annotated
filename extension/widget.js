@@ -487,7 +487,7 @@ if(avatarEl) {
     if (end - start > 90) end = start + 90;
     if (end <= start) end = start + 1;
     trimEndInput.value = end;
-    trimDurationLabel.innerText = `${end - start}s clip (90s max)`;
+    trimDurationLabel.innerText = `${end - start}s`;
   };
 
   if (trimStartInput) trimStartInput.addEventListener('change', updateTrim);
@@ -552,7 +552,7 @@ if(avatarEl) {
                     const clipDuration = res.duration || 15;
                     if (trimStartInput) trimStartInput.value = 0;
                     if (trimEndInput) trimEndInput.value = clipDuration;
-                    if (trimDurationLabel) trimDurationLabel.innerText = `${clipDuration}s clip (90s max)`;
+                    if (trimDurationLabel) trimDurationLabel.innerText = `${clipDuration}s`;
                     resizeWidget(630);
                     updateButton();
                   });

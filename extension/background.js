@@ -118,9 +118,37 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
 
 // --- Action Button ---
-chrome.action.onClicked.addListener((tab) => {
-  if (tab.id) {
-    chrome.tabs.sendMessage(tab.id, { type: 'openWidget' }).catch(() => {});
+chrome.action.onClicked.addListener(async (tab) => {
+  if (!tab?.id) return;
+  if (tab.url?.startsWith('chrome://') || tab.url?.startsWith('edge://') || tab.url?.startsWith('about:')) {
+    if (chrome.sidePanel) chrome.sidePanel.open({ tabId: tab.id }).catch(() => {});
+    return;
+  }
+
+  try {
+    await chrome.tabs.sendMessage(tab.id, { type: 'openWidget' });
+  } catch (_) {
+    // If receiving end is missing or disconnected (e.g. extension was refreshed), inject content script dynamically
+    try {
+      if (chrome.scripting) {
+        await chrome.scripting.executeScript({
+          target: { tabId: tab.id },
+          files: ['fix-webm-duration.js', 'content.js']
+        });
+        await chrome.scripting.insertCSS({
+          target: { tabId: tab.id },
+          files: ['content.css']
+        });
+        setTimeout(() => {
+          chrome.tabs.sendMessage(tab.id, { type: 'openWidget' }).catch(() => {});
+        }, 120);
+      }
+    } catch (err) {
+      console.warn('[Annotated Action] Fallback injection failed:', err);
+      if (chrome.sidePanel) {
+        chrome.sidePanel.open({ tabId: tab.id }).catch(() => {});
+      }
+    }
   }
 });
 

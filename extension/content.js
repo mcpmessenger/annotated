@@ -117,11 +117,12 @@
   let shadowRoot = null;
 
   function createWidget(x, y) {
+    if (!document.body) return;
     if (!widgetContainer || !document.body.contains(widgetContainer)) {
       widgetContainer = document.createElement('div');
       widgetContainer.id = 'annotated-layer-' + crypto.randomUUID().split('-')[0];
       widgetContainer.style.cssText = 'position: fixed; z-index: 2147483647; top: 0; left: 0;';
-      shadowRoot = widgetContainer.attachShadow({ mode: 'closed' });
+      shadowRoot = widgetContainer.attachShadow({ mode: 'open' });
       document.body.appendChild(widgetContainer);
     }
 
@@ -181,8 +182,10 @@
     }, { capture: true });
 
   function positionWidget(x, y) {
-    let left = x + 20;
-    let top = y - 30;
+    let posX = (typeof x === 'number' && !isNaN(x)) ? x : (window.innerWidth - 380);
+    let posY = (typeof y === 'number' && !isNaN(y)) ? y : 20;
+    let left = posX + 20;
+    let top = posY - 30;
     if (left + 340 > window.innerWidth) left = window.innerWidth - 360;
     if (top + 370 > window.innerHeight) top = window.innerHeight - 390;
     if (top < 10) top = 10;
@@ -230,6 +233,13 @@
 
     if (!quote || quote.length < 2 || !rect) return;
     
+    // Always open widget immediately
+    try {
+      createWidget(rect.right, rect.top);
+    } catch (err) {
+      console.warn('[Annotated] createWidget error:', err);
+    }
+
     const payload = {
       quote,
       url: getExactSourceUrl(),
@@ -237,11 +247,14 @@
       hostname: location.hostname,
       timestamp: Date.now(),
     };
-    chrome.storage.local.set({ pendingSelection: payload }, () => {
-      chrome.runtime.sendMessage({ type: 'selection', ...payload }).catch(() => {});
-    });
-    
-    createWidget(rect.right, rect.top);
+
+    try {
+      if (chrome.storage && chrome.storage.local) {
+        chrome.storage.local.set({ pendingSelection: payload }, () => {
+          chrome.runtime.sendMessage({ type: 'selection', ...payload }).catch(() => {});
+        });
+      }
+    } catch (_) {}
   };
 
   document.addEventListener('mouseup', () => setTimeout(recordSelection, 10));

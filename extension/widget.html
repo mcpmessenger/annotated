@@ -55,8 +55,8 @@
       <!-- 🎬 Video Trimmer & Preview Box -->
       <div id="videoTrimmerBox" class="video-trimmer-box hidden" style="margin-top: 10px; padding: 10px; background: var(--soft); border: 1px solid var(--line); border-radius: 8px;">
         <div style="font-size: 11px; font-weight: 750; margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center;">
-          <span>🎬 240p Video Preview</span>
-          <span id="trimDurationLabel" style="color: var(--yellow-dark); font-size: 10px;">15s clip (90s max)</span>
+          <span>🎬 Preview</span>
+          <span id="trimDurationLabel" style="color: var(--muted); font-size: 10px;">15s</span>
         </div>
         <video id="videoPreviewEl" controls style="width: 100%; max-height: 140px; border-radius: 6px; background: #000;" playsinline></video>
         <div style="display: flex; gap: 8px; align-items: center; margin-top: 8px; font-size: 11px;">
@@ -72,7 +72,7 @@
       </div>
 
       <div id="mediaAttachmentBox" class="media-attachment-box hidden" style="margin-bottom: 8px; padding: 6px 10px; background: var(--soft); border: 1px solid var(--line); border-radius: 6px; display: flex; items-center; justify-content: space-between; font-size: 11px;">
-        <span id="mediaAttachmentLabel">🎬 240p Video Clip (0:15 / 90s max)</span>
+        <span id="mediaAttachmentLabel">🎬 Video Clip</span>
         <button id="removeMediaBtn" style="background:none; border:none; color:var(--muted); cursor:pointer; font-weight:bold;">✕</button>
       </div>
 
@@ -87,10 +87,10 @@
         <textarea id="comment" maxlength="1000" placeholder="What do you want people to notice?"></textarea>
       
         <div class="textarea-footer" style="display: flex; gap: 8px; justify-content: space-between; align-items: center; border-top: 1px solid var(--border); padding-top: 12px; margin-top: 12px;">
-        <button id="dictateBtn" class="dictate-btn-main" title="Record Audio Commentary" style="flex: 1;">
-          🎙️ Voice
+        <button id="dictateBtn" class="dictate-btn-main" title="Record Audio Commentary" style="padding: 0 14px; font-size: 16px; flex: 0 0 auto;">
+          🎙️
         </button>
-        <button id="clipVideoBtn" class="dictate-btn-main" title="Clip Video (Max 90s)" style="padding: 0 14px; font-size: 16px; flex: 0 0 auto;">
+        <button id="clipVideoBtn" class="dictate-btn-main" title="Clip Video" style="padding: 0 14px; font-size: 16px; flex: 0 0 auto;">
           🎥
         </button>
         <button id="publishBtn" class="publish-btn" disabled style="flex: 1; margin: 0; padding: 10px;">Publish</button>
