@@ -1,15 +1,15 @@
 {
   "manifest_version": 3,
-  "name": "Annotated — Web Annotation Layer",
+  "name": "Annotated \u2014 Web Annotation Layer",
   "version": "2.0.0",
   "description": "Highlight, contextualize, and share the web.",
   "permissions": [
     "storage",
     "activeTab",
-    
     "contextMenus",
     "identity",
-    "tabs"
+    "tabs",
+    "sidePanel"
   ],
   "host_permissions": [
     "<all_urls>"
@@ -30,9 +30,15 @@
   },
   "content_scripts": [
     {
-      "matches": ["<all_urls>"],
-      "js": ["content.js"],
-      "css": ["content.css"],
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "css": [
+        "content.css"
+      ],
       "run_at": "document_idle"
     }
   ],
@@ -41,11 +47,23 @@
     "32": "assets/icon-32.png",
     "48": "assets/icon-48.png",
     "128": "assets/icon-128.png"
+  },
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "widget.html",
+        "widget.css",
+        "widget.js",
+        "supabase-js.js",
+        "icons/*",
+        "images/*"
+      ],
+      "matches": [
+        "<all_urls>"
+      ]
+    }
+  ],
+  "side_panel": {
+    "default_path": "widget.html"
   }
-,  "web_accessible_resources": [{
-    "resources": ["widget.html", "widget.css", "widget.js", "supabase-js.js", "icons/*", "images/*"],
-    "matches": ["<all_urls>"]
-  }]
 }
-
-

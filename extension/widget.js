@@ -3,6 +3,11 @@ const $ = (sel) => document.querySelector(sel);
 let page = { title: 'Current page', url: '', hostname: 'Current page' };
 let quote = '', intent = null;
 let mediaDataUrl = null, mediaType = null, mediaFileName = null;
+
+let recordedAudioBlob = null;
+let mediaRecorder = null;
+let audioChunks = [];
+
 let currentUser = null;
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -264,7 +269,29 @@ $('#publishBtn').addEventListener('click', () => {
       }
     }
 
-    const annotation = {
+          let audio_url = null;
+      if (recordedAudioBlob) {
+        try {
+          const fileName = `audio_${Date.now()}.webm`;
+          const uploadRes = await fetch(`${supabase.url}/storage/v1/object/annotation-media/${fileName}`, {
+            method: 'POST',
+            headers: {
+              'apikey': supabase.key,
+              'Authorization': `Bearer ${supabase.token || supabase.key}`,
+              'Content-Type': 'audio/webm'
+            },
+            body: recordedAudioBlob
+          });
+          if (uploadRes.ok) {
+            audio_url = `${supabase.url}/storage/v1/object/public/annotation-media/${fileName}`;
+          }
+        } catch (err) {
+          console.error('[AudioUpload] Error:', err);
+        }
+      }
+
+      const annotation = {
+        audio_url,
       quote,
       comment: $('#comment').value.trim(),
       intent,

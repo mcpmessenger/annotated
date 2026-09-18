@@ -14,6 +14,7 @@ export interface Annotation {
   views: number;
   shares: number;
   media_url?: string | null;
+  audio_url?: string | null;
   media_type?: string | null;
   avatar_url?: string | null;
 }

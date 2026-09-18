@@ -96,6 +96,13 @@ export function AnnotationCard({ annotation }: { annotation: Annotation }) {
         <p className={`text-base text-[hsl(var(--foreground))] whitespace-pre-wrap ${!isExpanded ? 'line-clamp-3' : ''}`}>
           {annotation.commentary}
         </p>
+
+        {annotation.audio_url && (
+          <div className="mt-3 p-2 rounded bg-[hsl(var(--border))] border border-[hsl(var(--border))] relative z-20">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-[hsl(var(--text-subtle))] mb-1">🎙️ Audio Commentary</p>
+            <audio controls src={annotation.audio_url} className="w-full h-8" />
+          </div>
+        )}
       </div>
 
       <ReactionRow annotationId={annotation.id} />
@@ -109,13 +116,24 @@ export function AnnotationCard({ annotation }: { annotation: Annotation }) {
           })}
         </span>
 
-        <Link
-          href={`${detailLink}#comments`}
-          className="flex items-center gap-1.5 font-medium text-[hsl(var(--text-muted))] hover:text-[hsl(var(--foreground))] transition-colors relative z-20"
-        >
-          <MessageSquare size={14} />
-          <span>Comments</span>
-        </Link>
+        <div className="flex items-center gap-4 relative z-20">
+          <a
+            href={`mailto:magnetarsenti@gmail.com?subject=Fair Use Claim for Annotation ${annotation.id}`}
+            onClick={(e) => e.stopPropagation()}
+            className="text-[11px] text-[hsl(var(--text-subtle))] hover:text-red-500 underline transition-colors"
+            title="File a DMCA / Fair Use dispute for this content"
+          >
+            File a claim
+          </a>
+
+          <Link
+            href={`${detailLink}#comments`}
+            className="flex items-center gap-1.5 font-medium text-[hsl(var(--text-muted))] hover:text-[hsl(var(--foreground))] transition-colors"
+          >
+            <MessageSquare size={14} />
+            <span>Comments</span>
+          </Link>
+        </div>
       </div>
     </article>
   );

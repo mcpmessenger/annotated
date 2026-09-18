@@ -1,30 +1,60 @@
-﻿# Implementation Plan: Fix Card Navigation, "See More" Logic & Comment Accessibility
+﻿# Implementation Plan: v3 Multimodal Video Clipping & $5,000 Bounty Specs
 
-## Problem Analysis
-1. **"See More / See Less" showing on short text:**
-   - The character threshold in `AnnotationCard.tsx` was set too low (150 chars), causing "See more" to display on short text that already fits inside the 3-line box without any visual truncation.
-   - **Fix:** Increase threshold to > 240 characters (or actual 3-line overflow) so "See more" only renders when text is actually cut off.
+This plan upgrades **Annotated** to 100% compliance with [Jason Calacanis's $5k Bounty Contest Checklist](https://annotated.lovable.app/).
 
-2. **Comment Section not reachable/visible:**
-   - `AnnotationCard.tsx` had `relative z-10` / `relative z-20` wrappers over the quote and commentary text. This stacked the text elements ABOVE the card link (`before:absolute before:inset-0`), preventing clicks on 90% of the card area from navigating to the detail page.
-   - Users couldn't reach `/[username]/[slug]` where the `CommentSection` resides.
-   - **Fix:** 
-     - Clean up card z-indexing so clicking the card reliably navigates to `/[username]/[slug]`.
-     - Add an explicit **"💬 Comments" button** to the bottom row of every `AnnotationCard` showing the comment count and linking directly to the comment section (`/[username]/[slug]#comments`).
+## Contest Requirements Audit & Checklist
 
-## Proposed Changes
+| Requirement | Status | Action Plan |
+| :--- | :--- | :--- |
+| **1. Sidebar Chrome Extension** | ⚠️ Partial | Enable official Chrome `sidePanel` API in `manifest.json`. |
+| **2. "File a Claim" Button** | ❌ Missing | Add visible "File a claim" button on every annotation card & detail page. |
+| **3. Always Link to Source** | ✅ Built | Direct status permalinks and source domain tags. |
+| **4. Sign Up (X / Google)** | ✅ Built | Google OAuth setup in Supabase. |
+| **5. Max 90s Video/Audio Clip** | ❌ Missing | Add 90s max trim control & validation. |
+| **6. Video Downscaled to 240p** | ❌ Missing | Downscale video recordings using Canvas 240p scaling (`426x240`). |
+| **7. Recorded Audio Commentary** | ⚠️ Hidden | Enable `MediaRecorder` voice recording & Supabase audio upload. |
+| **8. Public Social Feed + Comments**| ✅ Built | Explore feed, Google auth, comments & emoji reactions. |
 
-### `components/AnnotationCard.tsx`
-- Increase character threshold for `showToggle` from 150 to 240+ chars.
-- Remove blocking `relative z-10` / `relative z-20` on static text containers while keeping interactive elements (`a`, `button`, `ReactionRow`) cleanly clickable.
-- Fetch comment count for each card (or display interactive comment button).
-- Add a explicit comment action button `💬 Comments` at the bottom of each card.
+---
 
-### `components/CommentSection.tsx`
-- Ensure smooth scrolling to `#comments` anchor tag.
-- Verify robust error logging for Supabase comment fetching and insertion.
+## User Review Required
+
+> [!IMPORTANT]
+> **Fair Use & "File a Claim" Button**
+> Every annotation page must contain a visible "File a claim" button. We will wire this to open a Fair Use / DMCA dispute form or direct email trigger to `magnetarsenti@gmail.com`.
+
+> [!TIP]
+> **Video 240p Downsizing & 90s Cap**
+> To meet the contest spec, captured video clips will be dynamically re-encoded via HTML5 Canvas to 240p (`426x240`) at max 90 seconds. This keeps bandwidth ultra-low and respects fair use guidelines.
+
+---
+
+## Proposed Technical Changes
+
+### 1. Chrome Extension (`extension/`)
+- **`manifest.json`**:
+  - Add `"sidePanel"` permission and `"side_panel": { "default_path": "widget.html" }`.
+- **`widget.html` & `widget.js`**:
+  - **Video Clipper**: Add start/end time trim controls (capped at 90 seconds max).
+  - **240p Canvas Downscaler**: Render video frames to a `426x240` canvas before recording with `MediaRecorder`.
+  - **Voice Audio Commentary**: Enable `dictateBtn` to record user audio voice commentary, upload `.webm` audio blob to Supabase `annotation-media` bucket, and attach `audio_url`.
+
+### 2. Database Schema (`supabase/`)
+- Add `audio_url TEXT` column to `annotations` table.
+- Add `is_disputed BOOLEAN DEFAULT false` column to `annotations` table.
+
+### 3. Next.js Web App (`app/` & `components/`)
+- **`AnnotationCard.tsx` & Detail Page**:
+  - **"File a Claim" Button**: Add visible DMCA / Fair Use claim button with modal trigger.
+  - **Audio Commentary Player**: Display audio player (`<audio controls>`) when `annotation.audio_url` exists.
+  - **240p Video Player**: Render video clips with a small badge "240p Fair Use Clip (Max 90s)".
+
+---
 
 ## Verification Plan
-1. Test card text length: verify short quotes/tweets do NOT display "See more".
-2. Test card clickability: verify clicking anywhere on a feed card navigates to the detail page.
-3. Test comment section: verify clicking "💬 Comments" on a feed card opens the detail page scrolled directly to the comment section.
+
+### Automated & Manual Verification
+1. **Chrome Sidebar Verification**: Verify extension opens smoothly in Chrome's native side panel.
+2. **Video Downsizing & 90s Cap**: Test clipping a video, verify resolution is exactly 240p (`426x240`) and length <= 90s.
+3. **Voice Audio Commentary**: Record voice commentary in extension, publish, and verify audio plays on website card.
+4. **"File a Claim"**: Click "File a claim" on card and verify modal/dispute workflow.

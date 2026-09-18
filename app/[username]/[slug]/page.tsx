@@ -152,6 +152,15 @@ export default function AnnotationPage({
             <div className="text-base leading-relaxed text-[hsl(var(--foreground))] whitespace-pre-wrap">
               <p>{annotation.commentary}</p>
             </div>
+
+            {annotation.audio_url && (
+              <div className="mt-4 p-4 rounded bg-[hsl(var(--border))] border border-[hsl(var(--border))]">
+                <p className="text-xs font-bold uppercase tracking-wider text-[hsl(var(--text-subtle))] mb-2 flex items-center gap-1.5">
+                  🎙️ Audio Commentary
+                </p>
+                <audio controls src={annotation.audio_url} className="w-full" />
+              </div>
+            )}
           </section>
 
           {/* Reactions */}
@@ -186,6 +195,16 @@ export default function AnnotationPage({
                   Read Source
                 </a>
               </div>
+            </div>
+
+            <div className="mt-4 text-right">
+              <a
+                href={`mailto:magnetarsenti@gmail.com?subject=Fair Use Claim for Annotation ${annotation.id}`}
+                className="text-xs text-[hsl(var(--text-subtle))] hover:text-red-500 underline transition-colors"
+                title="File a DMCA / Fair Use dispute for this content"
+              >
+                File a claim (Dispute Fair Use)
+              </a>
             </div>
           </footer>
 

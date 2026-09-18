@@ -1,3 +1,8 @@
+// Enable side panel on action click
+if (chrome.sidePanel) {
+  chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch(() => {});
+}
+
 // ─── Side Panel ─────────────────────────────────────────────────────────────
 // sidePanel removed
 

@@ -24,6 +24,7 @@ function mapRowToAnnotation(row: any): Annotation {
     views: 0,
     shares: 0,
     media_url: row.media_url,
+      audio_url: row.audio_url,
     media_type: row.media_type,
   };
 }
