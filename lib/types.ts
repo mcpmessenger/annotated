@@ -1,5 +1,6 @@
 export interface Annotation {
   id: string;
+  userId?: string;
   slug: string;
   username: string;
   userDisplayName: string;

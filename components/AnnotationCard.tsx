@@ -5,6 +5,7 @@ import Link from "next/link";
 import { MessageSquare } from "lucide-react";
 import { Annotation } from "@/lib/types";
 import { ReactionRow } from "./ReactionRow";
+import { FollowButton } from "./FollowButton";
 
 export function AnnotationCard({ annotation }: { annotation: Annotation }) {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -40,12 +41,19 @@ export function AnnotationCard({ annotation }: { annotation: Annotation }) {
                 </span>
               )}
             </div>
-            <p className="text-sm text-[hsl(var(--text-subtle))] mt-1">
-              by{" "}
-              <Link href={`/u/${annotation.username}`} className="font-medium text-[hsl(var(--foreground))] hover:underline relative z-20">
-                {annotation.userDisplayName}
-              </Link>
-            </p>
+            <div className="flex items-center gap-2 mt-1 flex-wrap">
+              <p className="text-sm text-[hsl(var(--text-subtle))]">
+                by{" "}
+                <Link href={`/u/${annotation.username}`} className="font-medium text-[hsl(var(--foreground))] hover:underline relative z-20">
+                  {annotation.userDisplayName}
+                </Link>
+              </p>
+              {annotation.userId && (
+                <div className="relative z-20 inline-flex items-center">
+                  <FollowButton targetUserId={annotation.userId} size="sm" />
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>

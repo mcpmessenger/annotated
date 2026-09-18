@@ -9,6 +9,7 @@ function mapRowToAnnotation(row: any): Annotation {
   
   return {
     id: row.id,
+    userId: row.user_id,
     slug: row.slug || row.id,
     username: username,
     userDisplayName: profile.full_name || username,

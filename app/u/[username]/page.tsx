@@ -39,7 +39,11 @@ export default async function ProfilePage({
             <div className="flex items-center justify-between gap-4 mb-2 flex-wrap">
               <h1 className="editorial-heading">{user.displayName}</h1>
               {user.id && (
-                <FollowButton targetUserId={user.id} initialFollowerCount={user.followerCount} />
+                <FollowButton
+                  targetUserId={user.id}
+                  initialFollowerCount={user.followerCount}
+                  showSelfBadge={true}
+                />
               )}
             </div>
             <p className="text-sm text-[hsl(var(--text-muted))] mb-4 max-w-2xl leading-relaxed">

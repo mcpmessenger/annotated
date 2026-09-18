@@ -7,6 +7,7 @@ import { Footer } from "@/components/Footer";
 import { getAnnotationBySlug } from "@/lib/data";
 import { CommentSection } from "@/components/CommentSection";
 import { ReactionRow } from "@/components/ReactionRow";
+import { FollowButton } from "@/components/FollowButton";
 
 export default function AnnotationPage({
   params,
@@ -91,15 +92,20 @@ export default function AnnotationPage({
 
             <div className="flex flex-col sm:flex-row sm:items-center gap-4 justify-between">
               <div>
-                <p className="text-sm text-[hsl(var(--text-muted))]">
-                  by{" "}
-                  <Link
-                    href={`/u/${annotation.username}`}
-                    className="font-medium text-[hsl(var(--foreground))] hover:text-[hsl(var(--accent))]"
-                  >
-                    {annotation.userDisplayName}
-                  </Link>
-                </p>
+                <div className="flex items-center gap-3 flex-wrap">
+                  <p className="text-sm text-[hsl(var(--text-muted))]">
+                    by{" "}
+                    <Link
+                      href={`/u/${annotation.username}`}
+                      className="font-medium text-[hsl(var(--foreground))] hover:text-[hsl(var(--accent))]"
+                    >
+                      {annotation.userDisplayName}
+                    </Link>
+                  </p>
+                  {annotation.userId && (
+                    <FollowButton targetUserId={annotation.userId} size="sm" />
+                  )}
+                </div>
                 <p className="text-xs text-[hsl(var(--text-subtle))] mt-1">
                   {annotation.createdAt.toLocaleDateString("en-US", {
                     year: "numeric",
