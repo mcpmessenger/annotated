@@ -606,66 +606,105 @@ if(avatarEl) {
   if ($('#removeMediaBtn')) $('#removeMediaBtn').addEventListener('click', clearVideo);
 
   const dictateBtn = $('#dictateBtn');
-let recognition;
-let isRecording = false;
+  let isDictating = false;
+  let baseComment = '';
 
-if ('webkitSpeechRecognition' in window) {
-  recognition = new webkitSpeechRecognition();
-  recognition.continuous = false; // continuous sometimes stops abruptly, false makes it single-shot
-  recognition.interimResults = true;
+  function toggleDictation() {
+    if (isDictating) {
+      stopDictationUI();
+      if (window.parent !== window) {
+        window.parent.postMessage({ type: 'STOP_DICTATION' }, '*');
+      }
+      try {
+        chrome.tabs?.query({ active: true, currentWindow: true }, (tabs) => {
+          if (tabs?.[0]?.id) {
+            chrome.tabs.sendMessage(tabs[0].id, { type: 'STOP_DICTATION' }).catch(() => {});
+          }
+        });
+      } catch (_) {}
+    } else {
+      const commentEl = $('#comment');
+      baseComment = commentEl ? commentEl.value : '';
+      if (baseComment && !baseComment.endsWith(' ') && !baseComment.endsWith('\n')) {
+        baseComment += ' ';
+      }
+      isDictating = true;
+      if (dictateBtn) dictateBtn.classList.add('recording');
 
-  let finalTranscript = '';
-  
-  recognition.onstart = () => {
-    finalTranscript = $('#comment').value; // Store existing text
-  };
+      if (window.parent !== window) {
+        window.parent.postMessage({ type: 'START_DICTATION' }, '*');
+      }
+      try {
+        chrome.tabs?.query({ active: true, currentWindow: true }, (tabs) => {
+          if (tabs?.[0]?.id) {
+            chrome.tabs.sendMessage(tabs[0].id, { type: 'START_DICTATION' }).catch(() => {});
+          }
+        });
+      } catch (_) {}
+    }
+  }
 
-  recognition.onresult = (event) => {
-    let interimTranscript = '';
-    for (let i = event.resultIndex; i < event.results.length; ++i) {
-      if (event.results[i].isFinal) {
-        finalTranscript += event.results[i][0].transcript + ' ';
-      } else {
-        interimTranscript += event.results[i][0].transcript;
+  function stopDictationUI() {
+    isDictating = false;
+    if (dictateBtn) dictateBtn.classList.remove('recording');
+    const commentEl = $('#comment');
+    if (commentEl) {
+      commentEl.value = commentEl.value.trim();
+      baseComment = commentEl.value;
+      updateButton();
+    }
+  }
+
+  function handleDictationMsg(data) {
+    if (!data || !data.type) return;
+
+    if (data.type === 'DICTATION_STARTED') {
+      isDictating = true;
+      if (dictateBtn) dictateBtn.classList.add('recording');
+    } else if (data.type === 'DICTATION_RESULT') {
+      const commentEl = $('#comment');
+      if (commentEl) {
+        const finalPart = data.finalTranscript || '';
+        const interimPart = data.interimTranscript || '';
+        commentEl.value = baseComment + finalPart + interimPart;
+        updateButton();
+      }
+    } else if (data.type === 'DICTATION_ENDED') {
+      stopDictationUI();
+    } else if (data.type === 'DICTATION_ERROR') {
+      stopDictationUI();
+      const st = $('#status');
+      if (st && data.error) {
+        st.textContent = data.error;
+        st.className = 'status error';
+        setTimeout(() => {
+          if (st.textContent === data.error) {
+            st.textContent = '';
+            st.className = 'status';
+          }
+        }, 4000);
       }
     }
-    const commentInput = $('#comment');
-    commentInput.value = finalTranscript + interimTranscript;
-    updateButton(); // Not updateCounter() because updateButton does it
-  };
+  }
 
-  recognition.onerror = (e) => {
-    console.error('Speech recognition error', e);
-    stopDictation();
-  };
-
-  recognition.onend = () => {
-    stopDictation(); // We set continuous to false so it stops after a phrase. User can click again.
-  };
-}
-
-function stopDictation() {
-  isRecording = false;
-  if(dictateBtn) dictateBtn.classList.remove('recording');
-  if (recognition) recognition.stop();
-}
-
-if (dictateBtn) {
-  dictateBtn.addEventListener('click', (e) => {
-    e.preventDefault();
-    if (!recognition) {
-      alert("Dictation is not supported in this browser.");
-      return;
-    }
-    if (isRecording) {
-      stopDictation();
-    } else {
-      isRecording = true;
-      dictateBtn.classList.add('recording');
-      recognition.start();
-    }
+  window.addEventListener('message', (e) => {
+    handleDictationMsg(e.data);
   });
-}
+
+  try {
+    if (chrome.runtime?.onMessage) {
+      chrome.runtime.onMessage.addListener((msg) => {
+        handleDictationMsg(msg);
+      });
+    }
+  } catch (_) {}
+
+  if (dictateBtn) {
+    dictateBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      toggleDictation();
+    });
+  }
 
 
 

@@ -154,10 +154,15 @@
           widgetIframe.style.pointerEvents = 'none';
         } else if (e.data?.type === 'CLOSE_WIDGET') {
           widgetIframe.style.display = 'none';
+          stopDictation();
         } else if (e.data?.type === 'RESIZE_WIDGET') {
           if (widgetIframe && e.data.height) {
             widgetIframe.style.height = `${e.data.height}px`;
           }
+        } else if (e.data?.type === 'START_DICTATION') {
+          startDictation();
+        } else if (e.data?.type === 'STOP_DICTATION') {
+          stopDictation();
         }
       });
     } else if (!shadowRoot.contains(widgetIframe)) {
@@ -562,7 +567,139 @@
     }
   }
 
+  // ─── Speech-to-Text (STT) Engine ───────────────────────────────────────────
+  let activeSpeechRecognition = null;
+  let isDictating = false;
+
+  function sendDictationEvent(payload) {
+    if (widgetIframe && widgetIframe.contentWindow) {
+      try {
+        widgetIframe.contentWindow.postMessage(payload, '*');
+      } catch (_) {}
+    }
+    try {
+      chrome.runtime.sendMessage(payload).catch(() => {});
+    } catch (_) {}
+  }
+
+  async function startDictation() {
+    const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRec) {
+      sendDictationEvent({
+        type: 'DICTATION_ERROR',
+        error: 'Speech recognition is not supported on this browser/page.'
+      });
+      return;
+    }
+
+    if (activeSpeechRecognition) {
+      try { activeSpeechRecognition.stop(); } catch (_) {}
+      activeSpeechRecognition = null;
+    }
+
+    // Ensure mic permission prompt is triggered on host page if needed
+    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        stream.getTracks().forEach(t => t.stop());
+      } catch (err) {
+        console.warn('[Annotated STT] Mic permission check:', err);
+        sendDictationEvent({
+          type: 'DICTATION_ERROR',
+          error: 'Microphone permission denied. Allow mic access to dictate.'
+        });
+        return;
+      }
+    }
+
+    try {
+      const recognition = new SpeechRec();
+      activeSpeechRecognition = recognition;
+      isDictating = true;
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.lang = navigator.language || 'en-US';
+
+      recognition.onstart = () => {
+        sendDictationEvent({ type: 'DICTATION_STARTED' });
+      };
+
+      recognition.onresult = (event) => {
+        let finalTranscript = '';
+        let interimTranscript = '';
+        for (let i = 0; i < event.results.length; ++i) {
+          const item = event.results[i];
+          if (item.isFinal) {
+            finalTranscript += item[0].transcript + ' ';
+          } else {
+            interimTranscript += item[0].transcript;
+          }
+        }
+        sendDictationEvent({
+          type: 'DICTATION_RESULT',
+          finalTranscript,
+          interimTranscript
+        });
+      };
+
+      recognition.onerror = (event) => {
+        console.warn('[Annotated STT] Recognition error:', event.error);
+        if (event.error === 'not-allowed') {
+          sendDictationEvent({
+            type: 'DICTATION_ERROR',
+            error: 'Microphone access blocked. Check site permissions.'
+          });
+        } else if (event.error === 'network') {
+          sendDictationEvent({
+            type: 'DICTATION_ERROR',
+            error: 'Speech recognition network error.'
+          });
+        } else if (event.error !== 'no-speech') {
+          sendDictationEvent({
+            type: 'DICTATION_ERROR',
+            error: `Dictation error: ${event.error}`
+          });
+        }
+      };
+
+      recognition.onend = () => {
+        isDictating = false;
+        activeSpeechRecognition = null;
+        sendDictationEvent({ type: 'DICTATION_ENDED' });
+      };
+
+      recognition.start();
+    } catch (err) {
+      console.error('[Annotated STT] Failed to initialize recognition:', err);
+      isDictating = false;
+      activeSpeechRecognition = null;
+      sendDictationEvent({
+        type: 'DICTATION_ERROR',
+        error: err.message || 'Failed to start dictation.'
+      });
+    }
+  }
+
+  function stopDictation() {
+    isDictating = false;
+    if (activeSpeechRecognition) {
+      try { activeSpeechRecognition.stop(); } catch (_) {}
+      activeSpeechRecognition = null;
+    }
+    sendDictationEvent({ type: 'DICTATION_ENDED' });
+  }
+
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (message.type === 'START_DICTATION') {
+      startDictation();
+      sendResponse({ ok: true });
+      return true;
+    }
+    if (message.type === 'STOP_DICTATION') {
+      stopDictation();
+      sendResponse({ ok: true });
+      return true;
+    }
     if (message.type === 'stopVideo') {
       stopRecordingNow();
       sendResponse({ ok: true });
