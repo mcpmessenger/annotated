@@ -56,6 +56,7 @@ function showApp(user) {
   }
   loadAnnotationCount();
   loadPage();
+  resizeWidget(videoClipBlob ? 630 : 390);
 }
 
 $('#signInBtn').addEventListener('click', async () => {
@@ -250,14 +251,6 @@ if ($('#removeMedia')) if ($('#removeMedia')) $('#removeMedia').addEventListener
   updateButton();
 });
 
-let shouldTweetOnPublish = false;
-if ($('#tweetBtn')) {
-  $('#tweetBtn').addEventListener('click', () => {
-    shouldTweetOnPublish = true;
-    $('#publishBtn').click();
-  });
-}
-
 // ─── Publish ──────────────────────────────────────────────────────────────────
 $('#publishBtn').addEventListener('click', () => {
   if (!currentUser) return;
@@ -284,7 +277,7 @@ $('#publishBtn').addEventListener('click', () => {
         $('#uploadProgress').classList.add('hidden');
         $('#status').textContent = `Media upload failed: ${err.message}`;
         $('#publishBtn').disabled = false;
-        $('#publishBtn').innerHTML = ('Publish ' + '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>');
+        $('#publishBtn').textContent = 'Publish';
         setTimeout(() => $('#status').textContent = '', 4000);
         return;
       }
@@ -357,13 +350,13 @@ $('#publishBtn').addEventListener('click', () => {
     const db = await supabase.from('annotations');
     const res = await db.insert(annotation);
     if (res.code || res.error || res.message) {
-      $('#publishBtn').innerHTML = 'Publish';
+      $('#publishBtn').textContent = 'Publish';
       $('#publishBtn').disabled = false;
       $('#status').textContent = 'DB Error: ' + (res.message || res.error || JSON.stringify(res));
       return;
     }
   } catch (err) {
-    $('#publishBtn').innerHTML = 'Publish';
+    $('#publishBtn').textContent = 'Publish';
     $('#publishBtn').disabled = false;
     $('#status').textContent = 'Error: ' + err.message;
     return;
@@ -383,30 +376,31 @@ $('#publishBtn').addEventListener('click', () => {
           videoClipBlob = null;
           if ($('#videoTrimmerBox')) $('#videoTrimmerBox').classList.add('hidden');
           if ($('#videoPreviewEl')) $('#videoPreviewEl').src = '';
-          if ($('#clipVideoBtn')) $('#clipVideoBtn').innerText = '🎥 Clip Video';
-          resizeWidget(450);
+          if ($('#clipVideoBtn')) $('#clipVideoBtn').innerText = '🎥';
+          resizeWidget(390);
           if ($('#previewImg')) if ($('#previewImg')) $('#previewImg').src = ''; if ($('#previewVideo')) if ($('#previewVideo')) $('#previewVideo').src = '';
           if ($('#mediaInput')) if ($('#mediaInput')) $('#mediaInput').value = '';
           if ($('#mediaPreview')) if ($('#mediaPreview')) $('#mediaPreview').classList.add('hidden');
           if (document.querySelector('[data-intent]')) if (document.querySelector('[data-intent]')) document.querySelectorAll('[data-intent]').forEach(b => b.classList.remove('active'));
-          $('#publishBtn').innerHTML = ('Publish ' + '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>');
+          $('#publishBtn').textContent = 'Publish';
           updateButton();
 
           loadFeedFromSupabase();
           loadAnnotationCount();
           
-          const shareUrl = `https://twitter.com/intent/tweet?text=I%20just%20annotated%20this%20page!&url=https://annotated-repo.vercel.app/`;
-          if (shouldTweetOnPublish) {
-            window.open(shareUrl, '_blank');
-            shouldTweetOnPublish = false;
-          }
-          $('#status').innerHTML = `Published! <br/>`;
+          const shareUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(`"${safeQuote.slice(0, 100)}" — \n\nAnnotated on ${page.title || page.hostname}:`)}&url=${encodeURIComponent(page.url || 'https://annotated-repo.vercel.app')}`;
+          $('#status').innerHTML = `Published! &nbsp;`;
           const shareBtn = document.createElement('a');
           shareBtn.href = shareUrl;
           shareBtn.target = '_blank';
           shareBtn.className = 'tweet-btn';
-          shareBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="white"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg> Tweet Annotation`;
+          shareBtn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="white"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg> Tweet Annotation`;
           $('#status').appendChild(shareBtn);
+          setTimeout(() => {
+            if ($('#status') && $('#status').innerHTML.includes('Published!')) {
+              $('#status').innerHTML = '';
+            }
+          }, 6000);
         });
       });
     };
@@ -526,13 +520,13 @@ if(avatarEl) {
         if (isVideoRecording) {
           // Send stop message to content.js
           isVideoRecording = false;
-          clipVideoBtn.innerText = '🎥 Finalizing 240p Clip...';
+          clipVideoBtn.innerText = '⏳';
           clipVideoBtn.classList.remove('recording');
           chrome.tabs.sendMessage(tabId, { type: 'stopVideo' }, () => {});
         } else {
           // Start recording
           isVideoRecording = true;
-          clipVideoBtn.innerText = '🛑 Stop Capture (Click anytime)';
+          clipVideoBtn.innerText = '🛑';
           clipVideoBtn.classList.add('recording');
 
           const launchCapture = (streamId) => {
@@ -543,7 +537,7 @@ if(avatarEl) {
             }, (res) => {
               isVideoRecording = false;
               clipVideoBtn.classList.remove('recording');
-              clipVideoBtn.innerText = '🎥 Clip Video';
+              clipVideoBtn.innerText = '🎥';
               if (res && res.dataUrl) {
                 fetch(res.dataUrl)
                   .then(r => r.blob())
@@ -559,7 +553,7 @@ if(avatarEl) {
                     if (trimStartInput) trimStartInput.value = 0;
                     if (trimEndInput) trimEndInput.value = clipDuration;
                     if (trimDurationLabel) trimDurationLabel.innerText = `${clipDuration}s clip (90s max)`;
-                    resizeWidget(640);
+                    resizeWidget(630);
                     updateButton();
                   });
               } else if (res && res.error) {
@@ -595,8 +589,8 @@ if(avatarEl) {
       videoClipBlob = null;
       if (videoTrimmerBox) videoTrimmerBox.classList.add('hidden');
       if (videoPreviewEl) videoPreviewEl.src = '';
-      if (clipVideoBtn) clipVideoBtn.innerText = '🎥 Clip Video';
-      resizeWidget(450); // Reset widget height
+      if (clipVideoBtn) clipVideoBtn.innerText = '🎥';
+      resizeWidget(390); // Reset widget height
       updateButton();
     });
   }

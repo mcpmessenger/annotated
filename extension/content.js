@@ -132,13 +132,15 @@
       widgetIframe.style.cssText = `
         position: fixed;
         width: 360px;
-        height: 680px; max-height: 90vh;
+        height: 390px;
+        max-height: 90vh;
         border: 1px solid rgba(0,0,0,0.1);
         border-radius: 16px;
         box-shadow: 0 12px 40px rgba(0,0,0,0.15);
         background: transparent;
         display: block;
         color-scheme: light dark;
+        transition: height 0.25s cubic-bezier(0.4, 0, 0.2, 1);
       `;
       shadowRoot.appendChild(widgetIframe);
 
@@ -151,6 +153,10 @@
           widgetIframe.style.pointerEvents = 'none';
         } else if (e.data?.type === 'CLOSE_WIDGET') {
           widgetIframe.style.display = 'none';
+        } else if (e.data?.type === 'RESIZE_WIDGET') {
+          if (widgetIframe && e.data.height) {
+            widgetIframe.style.height = `${e.data.height}px`;
+          }
         }
       });
     } else if (!shadowRoot.contains(widgetIframe)) {
