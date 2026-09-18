@@ -242,7 +242,59 @@
   document.addEventListener('keyup', (e) => { if (e.key === 'Shift') setTimeout(recordSelection, 10); });
 
   // ─── Message handler ─────────────────────────────────────────────────────────
+  
+  // 🎬 Multimodal 240p Video Clipper (Max 90s)
+  function capture240pVideoClip(durationSeconds = 15, sendResponse) {
+    const video = document.querySelector('video');
+    if (!video) {
+      sendResponse({ error: 'No video element found on this page.' });
+      return;
+    }
+
+    try {
+      const canvas = document.createElement('canvas');
+      canvas.width = 426;  // 240p width
+      canvas.height = 240; // 240p height
+      const ctx = canvas.getContext('2d');
+
+      const stream = canvas.captureStream(24); // 24 FPS
+      const recorder = new MediaRecorder(stream, { mimeType: 'video/webm;codecs=vp8' });
+      const chunks = [];
+
+      recorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
+      recorder.onstop = () => {
+        const blob = new Blob(chunks, { type: 'video/webm' });
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          sendResponse({ dataUrl: reader.result, duration: Math.min(durationSeconds, 90) });
+        };
+        reader.readAsDataURL(blob);
+      };
+
+      recorder.start();
+      const startTime = Date.now();
+
+      const drawFrame = () => {
+        if (recorder.state === 'recording') {
+          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+          if ((Date.now() - startTime) / 1000 >= Math.min(durationSeconds, 90)) {
+            recorder.stop();
+          } else {
+            requestAnimationFrame(drawFrame);
+          }
+        }
+      };
+      drawFrame();
+    } catch (err) {
+      sendResponse({ error: err.message || 'Failed to capture video clip.' });
+    }
+  }
+
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+        if (message.type === 'captureVideo') {
+      capture240pVideoClip(message.duration || 15, sendResponse);
+      return true;
+    }
     if (message.type === 'openWidget') {
       createWidget(window.innerWidth - 380, 20);
       sendResponse({ ok: true });
