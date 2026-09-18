@@ -609,20 +609,29 @@ if(avatarEl) {
   let isDictating = false;
   let baseComment = '';
 
+  function setSttStatus(msg, isError = false) {
+    const st = $('#status');
+    if (!st) return;
+    st.textContent = msg;
+    st.className = isError ? 'status error' : 'status';
+    console.log(`[Widget STT Status] ${isError ? 'ERROR: ' : ''}${msg}`);
+  }
+
   function toggleDictation() {
+    console.log('[Widget STT] toggleDictation clicked. Current isDictating:', isDictating);
     if (isDictating) {
+      setSttStatus('Stopping dictation…');
       stopDictationUI();
       if (window.parent !== window) {
         window.parent.postMessage({ type: 'STOP_DICTATION' }, '*');
-      } else {
-        try {
-          chrome.tabs?.query({ active: true, currentWindow: true }, (tabs) => {
-            if (tabs?.[0]?.id) {
-              chrome.tabs.sendMessage(tabs[0].id, { type: 'STOP_DICTATION' }).catch(() => {});
-            }
-          });
-        } catch (_) {}
       }
+      try {
+        chrome.tabs?.query({ active: true, currentWindow: true }, (tabs) => {
+          if (tabs?.[0]?.id) {
+            chrome.tabs.sendMessage(tabs[0].id, { type: 'STOP_DICTATION' }).catch(() => {});
+          }
+        });
+      } catch (_) {}
     } else {
       const commentEl = $('#comment');
       baseComment = commentEl ? commentEl.value : '';
@@ -631,18 +640,19 @@ if(avatarEl) {
       }
       isDictating = true;
       if (dictateBtn) dictateBtn.classList.add('recording');
+      setSttStatus('Initializing microphone…');
 
+      console.log('[Widget STT] Sending START_DICTATION to parent and tabs...');
       if (window.parent !== window) {
         window.parent.postMessage({ type: 'START_DICTATION' }, '*');
-      } else {
-        try {
-          chrome.tabs?.query({ active: true, currentWindow: true }, (tabs) => {
-            if (tabs?.[0]?.id) {
-              chrome.tabs.sendMessage(tabs[0].id, { type: 'START_DICTATION' }).catch(() => {});
-            }
-          });
-        } catch (_) {}
       }
+      try {
+        chrome.tabs?.query({ active: true, currentWindow: true }, (tabs) => {
+          if (tabs?.[0]?.id) {
+            chrome.tabs.sendMessage(tabs[0].id, { type: 'START_DICTATION' }).catch(() => {});
+          }
+        });
+      } catch (_) {}
     }
   }
 
@@ -659,10 +669,16 @@ if(avatarEl) {
 
   function handleDictationMsg(data) {
     if (!data || !data.type) return;
+    if (data.type.startsWith('DICTATION_')) {
+      console.log('[Widget STT Message]', data);
+    }
 
-    if (data.type === 'DICTATION_STARTED') {
+    if (data.type === 'DICTATION_STATUS') {
+      setSttStatus(data.status || '');
+    } else if (data.type === 'DICTATION_STARTED') {
       isDictating = true;
       if (dictateBtn) dictateBtn.classList.add('recording');
+      setSttStatus('🎙️ Listening… speak now');
     } else if (data.type === 'DICTATION_RESULT') {
       const commentEl = $('#comment');
       if (commentEl) {
@@ -670,22 +686,27 @@ if(avatarEl) {
         const interimPart = data.interimTranscript || '';
         commentEl.value = baseComment + finalPart + interimPart;
         updateButton();
+        if (interimPart) {
+          setSttStatus(`Hearing: "${interimPart.slice(-30)}"`);
+        } else if (finalPart) {
+          setSttStatus('Transcribed speech');
+        }
       }
     } else if (data.type === 'DICTATION_ENDED') {
+      console.log('[Widget STT] Dictation ended cleanly.');
       stopDictationUI();
+      setSttStatus('');
     } else if (data.type === 'DICTATION_ERROR') {
+      console.warn('[Widget STT] Dictation error received:', data.error);
       stopDictationUI();
-      const st = $('#status');
-      if (st && data.error) {
-        st.textContent = data.error;
-        st.className = 'status error';
-        setTimeout(() => {
-          if (st.textContent === data.error) {
-            st.textContent = '';
-            st.className = 'status';
-          }
-        }, 4000);
-      }
+      setSttStatus(data.error || 'Dictation failed', true);
+      setTimeout(() => {
+        const st = $('#status');
+        if (st && st.textContent === data.error) {
+          st.textContent = '';
+          st.className = 'status';
+        }
+      }, 5000);
     }
   }
 
