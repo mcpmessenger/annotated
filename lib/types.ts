@@ -20,10 +20,13 @@ export interface Annotation {
 }
 
 export interface User {
+  id?: string;
   username: string;
   displayName: string;
   bio: string;
   annotationCount: number;
+  followerCount?: number;
+  followingCount?: number;
   avatar?: string | null;
 }
 

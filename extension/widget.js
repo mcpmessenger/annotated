@@ -96,7 +96,23 @@ async function loadAnnotationCount() {
     const result = await db.select('id').eq('user_id', currentUser.id).execute();
     const count = Array.isArray(result) ? result.length : 0;
     const name = currentUser.email?.split('@')[0] || 'user';
-    $('#profileMeta').textContent = `@${name} · ${count} annotation${count !== 1 ? 's' : ''}`;
+
+    // Query follower and following counts
+    let fCount = 0;
+    let flCount = 0;
+    try {
+      const dbFollows = await supabase.from('follows');
+      const followers = await dbFollows.select('follower_id').eq('following_id', currentUser.id).execute();
+      const following = await dbFollows.select('following_id').eq('follower_id', currentUser.id).execute();
+      fCount = Array.isArray(followers) ? followers.length : 0;
+      flCount = Array.isArray(following) ? following.length : 0;
+    } catch (_) {}
+
+    $('#profileMeta').textContent = `@${name} · ${fCount} follower${fCount !== 1 ? 's' : ''} · ${count} note${count !== 1 ? 's' : ''}`;
+
+    if ($('#avatarEl')) {
+      $('#avatarEl').title = `${currentUser.name || name} (${fCount} follower${fCount !== 1 ? 's' : ''} · ${flCount} following)`;
+    }
   } catch (_) {
     const name = currentUser.email?.split('@')[0] || 'user';
     $('#profileMeta').textContent = `@${name}`;

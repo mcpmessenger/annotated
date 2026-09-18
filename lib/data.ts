@@ -78,17 +78,32 @@ export async function getUserProfile(username: string): Promise<User | undefined
 
   if (error || !data) return undefined;
   
-  // get count
+  // get annotation count
   const { count } = await supabase
     .from("annotations")
     .select("*", { count: "exact", head: true })
     .eq("user_id", data.id);
 
+  // get followers count
+  const { count: followerCount } = await supabase
+    .from("follows")
+    .select("*", { count: "exact", head: true })
+    .eq("following_id", data.id);
+
+  // get following count
+  const { count: followingCount } = await supabase
+    .from("follows")
+    .select("*", { count: "exact", head: true })
+    .eq("follower_id", data.id);
+
   return {
+    id: data.id,
     username,
     displayName: data.full_name || username,
     bio: "Annotated community member.",
     annotationCount: count || 0,
+    followerCount: followerCount || 0,
+    followingCount: followingCount || 0,
     avatar: data.avatar_url,
   };
 }

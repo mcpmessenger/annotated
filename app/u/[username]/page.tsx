@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { AnnotationCard } from "@/components/AnnotationCard";
+import { FollowButton } from "@/components/FollowButton";
 import { getUserProfile, getUserAnnotations } from "@/lib/data";
 
 export const revalidate = 0;
@@ -29,13 +30,22 @@ export default async function ProfilePage({ params }: { params: { username: stri
                 {user.displayName.charAt(0).toUpperCase()}
               </div>
             </div>
-            <h1 className="editorial-heading mb-2">{user.displayName}</h1>
+            <div className="flex items-center justify-between gap-4 mb-2 flex-wrap">
+              <h1 className="editorial-heading">{user.displayName}</h1>
+              {user.id && (
+                <FollowButton targetUserId={user.id} initialFollowerCount={user.followerCount} />
+              )}
+            </div>
             <p className="text-sm text-[hsl(var(--text-muted))] mb-4 max-w-2xl leading-relaxed">
               {user.bio}
             </p>
-            <p className="text-sm font-medium text-[hsl(var(--foreground))]">
-              {user.annotationCount} annotation{user.annotationCount !== 1 ? "s" : ""}
-            </p>
+            <div className="flex items-center gap-3 text-sm font-medium text-[hsl(var(--foreground))] flex-wrap">
+              <span>{user.annotationCount} annotation{user.annotationCount !== 1 ? "s" : ""}</span>
+              <span className="text-[hsl(var(--border))]">•</span>
+              <span>{user.followerCount || 0} follower{(user.followerCount || 0) !== 1 ? "s" : ""}</span>
+              <span className="text-[hsl(var(--border))]">•</span>
+              <span>{user.followingCount || 0} following</span>
+            </div>
           </div>
         </section>
 
