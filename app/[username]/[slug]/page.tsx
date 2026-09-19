@@ -216,7 +216,7 @@ export default function AnnotationPage() {
                   <button
                     onClick={handleDelete}
                     disabled={isDeleting}
-                    className="px-4 py-2 rounded text-sm font-medium border border-red-500/30 bg-red-500/10 text-red-600 hover:bg-red-500/20 transition-colors w-full sm:w-auto flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+                    className="px-4 py-2 rounded text-sm font-medium border border-[hsl(var(--border))] text-[hsl(var(--foreground))] hover:bg-[hsl(var(--border))] transition-colors w-full sm:w-auto flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
                   >
                     <Trash2 size={14} />
                     <span>{isDeleting ? "Deleting..." : "Delete Note"}</span>
@@ -247,7 +247,7 @@ export default function AnnotationPage() {
               <Tooltip content="File a DMCA / Fair Use dispute for this content" position="top">
                 <Link
                   href={`/dmca?annotation_id=${annotation.id}&url=${encodeURIComponent(annotation.url || "")}`}
-                  className="text-xs text-[hsl(var(--text-subtle))] hover:text-red-500 underline transition-colors"
+                  className="text-xs text-[hsl(var(--text-muted))] hover:text-[hsl(var(--foreground))] transition-colors font-medium"
                 >
                   File a claim (Dispute Fair Use)
                 </Link>

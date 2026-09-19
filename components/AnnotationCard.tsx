@@ -190,7 +190,7 @@ export function AnnotationCard({
               type="button"
               onClick={handleDelete}
               disabled={isDeleting}
-              className="flex items-center gap-1 text-[11px] text-red-500/80 hover:text-red-600 transition-colors font-medium cursor-pointer"
+              className="flex items-center gap-1 text-xs text-[hsl(var(--text-muted))] hover:text-[hsl(var(--foreground))] transition-colors font-medium cursor-pointer disabled:opacity-50"
               title="Delete your annotation"
             >
               <Trash2 size={12} />
@@ -201,7 +201,7 @@ export function AnnotationCard({
             <Link
               href={`/dmca?annotation_id=${annotation.id}&url=${encodeURIComponent(annotation.url || "")}`}
               onClick={(e) => e.stopPropagation()}
-              className="text-[11px] text-[hsl(var(--text-subtle))] hover:text-red-500 underline transition-colors"
+              className="text-xs text-[hsl(var(--text-muted))] hover:text-[hsl(var(--foreground))] transition-colors font-medium"
             >
               File a claim
             </Link>
@@ -209,7 +209,7 @@ export function AnnotationCard({
 
           <Link
             href={`${detailLink}#comments`}
-            className="flex items-center gap-1.5 font-medium text-[hsl(var(--text-muted))] hover:text-[hsl(var(--foreground))] transition-colors"
+            className="flex items-center gap-1.5 text-xs font-medium text-[hsl(var(--text-muted))] hover:text-[hsl(var(--foreground))] transition-colors"
           >
             <MessageSquare size={14} />
             <span>Comments</span>
