@@ -397,7 +397,8 @@ body::-webkit-scrollbar-thumb {
 }
 body {
   border-radius: 16px;
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
   margin: 0;
   border: none;
 }
