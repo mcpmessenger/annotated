@@ -2,9 +2,46 @@
   const state = { annotations: [] };
   const getKey = () => `page:${location.origin}${location.pathname}`;
 
-  // ─── Load & render existing highlights ───────────────────────────────────────
-    const getExactSourceUrl = () => {
+  // ─── Helpers: Timestamp Extraction & Media Sync ──────────────────────────────
+  const extractTimestamp = (url, comment) => {
+    if (!url && !comment) return null;
+    // 1. YouTube & generic URL params: ?t=84s, &t=84, #t=84
+    const urlMatch = String(url || '').match(/[?&#]t=(\d+)(?:s)?/i);
+    if (urlMatch) return parseInt(urlMatch[1], 10);
+
+    // 2. YouTube format: t=1h2m3s
+    const hmsMatch = String(url || '').match(/[?&#]t=(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?/i);
+    if (hmsMatch && (hmsMatch[1] || hmsMatch[2] || hmsMatch[3])) {
+      const h = parseInt(hmsMatch[1] || 0, 10);
+      const m = parseInt(hmsMatch[2] || 0, 10);
+      const s = parseInt(hmsMatch[3] || 0, 10);
+      return h * 3600 + m * 60 + s;
+    }
+
+    // 3. Comment bracketed timestamp: [⏱️ 01:24] or [01:24]
+    const commentMatch = String(comment || '').match(/\[(?:⏱️\s*)?(\d+):(\d+)(?::(\d+))?\]/);
+    if (commentMatch) {
+      if (commentMatch[3]) {
+        return parseInt(commentMatch[1], 10) * 3600 + parseInt(commentMatch[2], 10) * 60 + parseInt(commentMatch[3], 10);
+      }
+      return parseInt(commentMatch[1], 10) * 60 + parseInt(commentMatch[2], 10);
+    }
+    return null;
+  };
+
+  const getMediaTimestamp = () => {
     try {
+      const mediaEl = document.querySelector('video, audio');
+      if (mediaEl && !isNaN(mediaEl.currentTime) && mediaEl.currentTime > 0) {
+        return Math.floor(mediaEl.currentTime);
+      }
+    } catch (_) {}
+    return null;
+  };
+
+  const getExactSourceUrl = (explicitTimestamp = null) => {
+    try {
+      // 1. Twitter/X Tweet permalink
       const selection = window.getSelection();
       if (selection && selection.rangeCount > 0) {
         const anchorNode = selection.anchorNode;
@@ -18,13 +55,33 @@
           }
         }
       }
+
+      // 2. YouTube with video ID and timestamp
+      if (location.hostname.includes('youtube.com') && location.search.includes('v=')) {
+        const vId = new URLSearchParams(location.search).get('v');
+        if (vId) {
+          const ts = explicitTimestamp != null ? explicitTimestamp : getMediaTimestamp();
+          if (ts != null && ts > 0) {
+            return `https://www.youtube.com/watch?v=${vId}&t=${ts}s`;
+          }
+          return `https://www.youtube.com/watch?v=${vId}`;
+        }
+      }
+
+      // 3. Generic video/audio timestamp
+      const ts = explicitTimestamp != null ? explicitTimestamp : getMediaTimestamp();
+      if (ts != null && ts > 0) {
+        const u = new URL(location.href);
+        u.hash = `t=${ts}`;
+        return u.href;
+      }
+
       const canonical = document.querySelector('link[rel="canonical"]');
       if (canonical && canonical.href) return canonical.href;
     } catch (_) {}
     return location.href;
   };
 
-  
   // Inject custom highlight styles into document
   if (!document.getElementById('annotated-highlight-style')) {
     const styleEl = document.createElement('style');
@@ -35,12 +92,14 @@
         color: #000 !important;
         cursor: pointer !important;
         border-radius: 3px;
-        padding: 0 2px;
+        padding: 1px 3px;
+        border-bottom: 2px solid #d8a900 !important;
         transition: all 0.2s ease;
       }
       .annotated-highlight:hover {
-        background-color: #f0c400 !important;
-        box-shadow: 0 0 10px rgba(255, 210, 26, 0.8);
+        background-color: #ffe04d !important;
+        box-shadow: 0 2px 10px rgba(255, 210, 26, 0.7);
+        border-bottom-color: #b88a00 !important;
       }
     `;
     (document.head || document.documentElement).appendChild(styleEl);
@@ -52,7 +111,14 @@
       state.annotations.forEach(renderHighlight);
     });
 
-    const cleanUrl = location.origin + location.pathname;
+    let cleanUrl = location.origin + location.pathname;
+    if (location.hostname.includes('youtube.com') && location.search.includes('v=')) {
+      const vId = new URLSearchParams(location.search).get('v');
+      if (vId) {
+        cleanUrl = `https://www.youtube.com/watch?v=${vId}`;
+      }
+    }
+
     const anonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRhamFkYnZsbGRybWd6enRka3NuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk1ODYwMTcsImV4cCI6MjEwNTE2MjAxN30.ZGteNtShkBErPckuMGX4tWMn0AtgU_THFSI37Wgd-eU';
     fetch(`https://dajadbvlldrmgzztdksn.supabase.co/rest/v1/annotations?url=ilike.${encodeURIComponent('%' + cleanUrl + '%')}`, {
       headers: { 'apikey': anonKey }
@@ -94,7 +160,7 @@
           const mark = document.createElement('mark');
           mark.dataset.annotatedHighlight = annotation.id;
           mark.className = 'annotated-highlight';
-          mark.title = `${annotation.intent || 'Annotation'} - ${annotation.commentary || annotation.comment || ''}`;
+          mark.title = `${annotation.intent || 'Annotation'} - ${annotation.commentary || annotation.comment || 'Click to view note'}`;
           try { 
             range.surroundContents(mark); 
             return true; 
@@ -104,6 +170,48 @@
     }
     return false;
   };
+
+  // ─── Clickable Yellow Highlight Delegation & Player Seek ─────────────────────
+  document.addEventListener('click', (e) => {
+    const mark = e.target.closest('.annotated-highlight');
+    if (!mark) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    const annotationId = mark.dataset.annotatedHighlight;
+    const annotation = state.annotations.find(a => String(a.id) === String(annotationId));
+    if (!annotation) return;
+
+    // Check for media timestamp & auto-seek video/audio player
+    const ts = extractTimestamp(annotation.url, annotation.comment || annotation.commentary);
+    if (ts != null) {
+      const mediaEl = document.querySelector('video, audio');
+      if (mediaEl) {
+        try {
+          mediaEl.currentTime = ts;
+          mediaEl.play?.().catch(() => {});
+        } catch (_) {}
+      }
+    }
+
+    const rect = mark.getBoundingClientRect();
+    createWidget(rect.right, rect.top);
+
+    const sendView = () => {
+      if (widgetIframe && widgetIframe.contentWindow) {
+        widgetIframe.contentWindow.postMessage({
+          type: 'VIEW_ANNOTATION',
+          annotation: {
+            ...annotation,
+            extractedTimestamp: ts
+          }
+        }, '*');
+      }
+    };
+    sendView();
+    setTimeout(sendView, 120);
+  }, { capture: true });
 
   setInterval(() => {
     state.annotations.forEach(ann => renderHighlight(ann));
@@ -158,6 +266,14 @@
         } else if (e.data?.type === 'RESIZE_WIDGET') {
           if (widgetIframe && e.data.height) {
             widgetIframe.style.height = `${e.data.height}px`;
+          }
+        } else if (e.data?.type === 'SEEK_MEDIA') {
+          const mediaEl = document.querySelector('video, audio');
+          if (mediaEl && typeof e.data.seconds === 'number') {
+            try {
+              mediaEl.currentTime = e.data.seconds;
+              mediaEl.play?.().catch(() => {});
+            } catch (_) {}
           }
         } else if (e.data?.type === 'START_DICTATION') {
           console.log('[Content Host] Window message received: START_DICTATION');
@@ -247,12 +363,14 @@
       console.warn('[Annotated] createWidget error:', err);
     }
 
+    const mediaTs = getMediaTimestamp();
     const payload = {
       quote,
-      url: getExactSourceUrl(),
+      url: getExactSourceUrl(mediaTs),
       title: document.title,
       hostname: location.hostname,
       timestamp: Date.now(),
+      media_timestamp: mediaTs,
     };
 
     try {
@@ -843,7 +961,7 @@
       return true;
     }
     if (message.type === 'saveAnnotation') {
-      const annotation = { ...message.annotation, id: crypto.randomUUID(), url: location.href };
+      const annotation = { ...message.annotation, id: message.annotation.id || crypto.randomUUID(), url: message.annotation.url || location.href };
       state.annotations.push(annotation);
       chrome.storage.local.set({ [getKey()]: state.annotations }).then(() => {
         renderHighlight(annotation);
@@ -852,11 +970,13 @@
       return true;
     }
     if (message.type === 'getPageInfo') {
+      const mediaTs = getMediaTimestamp();
       sendResponse({
         title: document.title,
-        url: getExactSourceUrl(),
+        url: getExactSourceUrl(mediaTs),
         hostname: location.hostname,
         selectedText: window.getSelection()?.toString().replace(/\s+/g, ' ').trim() || '',
+        media_timestamp: mediaTs,
       });
     }
   });

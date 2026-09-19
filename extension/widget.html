@@ -45,8 +45,8 @@
   <main id="mainApp" class="hidden">
     
 
-    <section class="composer card">
-      
+    <section id="composerSection" class="composer card">
+      <div id="composerTimestampBadge" class="timestamp-badge clickable-badge hidden" style="margin-bottom: 8px; display: inline-flex;" title="Captured video timestamp (click to seek)">⏱️ <span id="composerTimestampText">00:00</span></div>
       <div class="quote-box"><div class="quote-mark">"</div><div id="quote" class="quote">Select text on any page to anchor a comment here.</div></div>
       
         
@@ -99,6 +99,47 @@
         <button id="publishBtn" class="publish-btn" disabled style="flex: 1; margin: 0; padding: 10px;">Publish</button>
       </div>
       <div id="status" class="status"></div>
+    </section>
+
+    <!-- ── ANNOTATION DETAIL CARD (Interactive Highlights View) ────────────── -->
+    <section id="annotationDetailCard" class="annotation-detail-card card hidden">
+      <div class="detail-header">
+        <button id="detailBackBtn" class="detail-back-btn" title="Back to note composer">
+          ← <span style="font-weight:600;">Compose</span>
+        </button>
+        <div class="detail-tags">
+          <div id="detailTimestampBadge" class="timestamp-badge clickable-badge hidden" title="Click to seek media player">
+            ⏱️ <span id="detailTimestampText">00:00</span>
+          </div>
+          <span id="detailIntentBadge" class="detail-intent-badge" title="Intent">💡</span>
+        </div>
+      </div>
+
+      <div class="quote-box" style="margin-top: 10px;">
+        <div class="quote-mark">"</div>
+        <div id="detailQuote" class="quote"></div>
+      </div>
+
+      <div id="detailMediaBox" class="detail-media-box hidden" style="margin-top: 10px; border-radius: 8px; overflow: hidden; background: #000;"></div>
+
+      <div class="detail-comment-wrap" style="margin-top: 12px;">
+        <div id="detailComment" class="detail-comment-text" style="font-size: 13px; line-height: 1.5; color: var(--ink); white-space: pre-wrap;"></div>
+      </div>
+
+      <div class="detail-author-row" style="display: flex; align-items: center; gap: 8px; margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line);">
+        <div class="avatar top-avatar" id="detailAvatar" style="width: 24px; height: 24px; font-size: 11px;">?</div>
+        <div style="flex: 1; overflow: hidden;">
+          <strong id="detailAuthorName" style="font-size: 11px; display: block; white-space: nowrap; text-overflow: ellipsis; overflow: hidden;">Annotator</strong>
+          <span id="detailDate" class="muted" style="font-size: 10px;">Just now</span>
+        </div>
+      </div>
+
+      <div class="detail-actions" style="margin-top: 14px; display: flex; gap: 8px;">
+        <a id="detailOpenWebBtn" class="detail-web-btn" href="https://annotated-six.vercel.app" target="_blank" rel="noopener" style="flex: 1; text-align: center; text-decoration: none; padding: 9px 12px; background: #000; color: #fff; font-weight: 700; font-size: 12px; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center; gap: 6px;">
+          <span>Open on Annotated</span>
+          <span>↗</span>
+        </a>
+      </div>
     </section>
   </main>
 

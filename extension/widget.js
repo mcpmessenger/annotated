@@ -4,6 +4,7 @@ let page = { title: 'Current page', url: '', hostname: 'Current page' };
 let quote = '', intent = null;
 let mediaDataUrl = null, mediaType = null, mediaFileName = null;
 let videoClipBlob = null;
+let currentMediaTimestamp = null;
 
 let recordedAudioBlob = null;
 let mediaRecorder = null;
@@ -19,6 +20,42 @@ function pageKey() {
 function escapeHtml(v) {
   return String(v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[c]));
 }
+
+function extractTimestamp(url, comment) {
+  if (!url && !comment) return null;
+  const urlMatch = String(url || '').match(/[?&#]t=(\d+)(?:s)?/i);
+  if (urlMatch) return parseInt(urlMatch[1], 10);
+
+  const hmsMatch = String(url || '').match(/[?&#]t=(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?/i);
+  if (hmsMatch && (hmsMatch[1] || hmsMatch[2] || hmsMatch[3])) {
+    const h = parseInt(hmsMatch[1] || 0, 10);
+    const m = parseInt(hmsMatch[2] || 0, 10);
+    const s = parseInt(hmsMatch[3] || 0, 10);
+    return h * 3600 + m * 60 + s;
+  }
+
+  const commentMatch = String(comment || '').match(/\[(?:⏱️\s*)?(\d+):(\d+)(?::(\d+))?\]/);
+  if (commentMatch) {
+    if (commentMatch[3]) {
+      return parseInt(commentMatch[1], 10) * 3600 + parseInt(commentMatch[2], 10) * 60 + parseInt(commentMatch[3], 10);
+    }
+    return parseInt(commentMatch[1], 10) * 60 + parseInt(commentMatch[2], 10);
+  }
+  return null;
+}
+
+function formatSeconds(sec) {
+  if (sec == null || isNaN(sec)) return '';
+  const s = Math.floor(sec);
+  const hrs = Math.floor(s / 3600);
+  const mins = Math.floor((s % 3600) / 60);
+  const secs = s % 60;
+  if (hrs > 0) {
+    return `${hrs}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+  }
+  return `${mins}:${String(secs).padStart(2, '0')}`;
+}
+
 function setQuote(value) {
   quote = String(value || '').trim();
   $('#quote').textContent = quote ? `"${quote}"` : 'Select text on any page to anchor a comment here.';
@@ -153,7 +190,7 @@ async function loadFeedFromSupabase() {
   chrome.storage.local.get(pageKey(), data => renderFeed(data[pageKey()] || []));
 }
 
-// ─── Selection Handling ───────────────────────────────────────────────────────
+// ─── Selection & View Handling ─────────────────────────────────────────────
 function applySelection(selection) {
   if (!selection?.quote) return;
   page = {
@@ -163,7 +200,112 @@ function applySelection(selection) {
   };
   if ($('#pageHost')) $('#pageHost').textContent = page.hostname.replace(/^www\./, '');
   setQuote(selection.quote);
+
+  // Return to composer view when user selects new text
+  showComposer();
+
+  // Media timestamp badge
+  const ts = selection.media_timestamp != null ? selection.media_timestamp : extractTimestamp(selection.url, '');
+  if (ts != null) {
+    currentMediaTimestamp = ts;
+    const tsBadge = $('#composerTimestampBadge');
+    const tsText = $('#composerTimestampText');
+    if (tsBadge && tsText) {
+      tsText.textContent = formatSeconds(ts);
+      tsBadge.classList.remove('hidden');
+      tsBadge.onclick = (e) => {
+        e.stopPropagation();
+        window.parent.postMessage({ type: 'SEEK_MEDIA', seconds: ts }, '*');
+      };
+    }
+  } else {
+    currentMediaTimestamp = null;
+    const tsBadge = $('#composerTimestampBadge');
+    if (tsBadge) tsBadge.classList.add('hidden');
+  }
+
   loadFeedFromSupabase();
+}
+
+function showAnnotationDetail(ann) {
+  if (!ann) return;
+  const compSec = $('#composerSection');
+  if (compSec) compSec.classList.add('hidden');
+  const detailCard = $('#annotationDetailCard');
+  if (!detailCard) return;
+
+  detailCard.classList.remove('hidden');
+
+  // Quote
+  const qEl = $('#detailQuote');
+  if (qEl) qEl.textContent = ann.quote || ann.quote_text || 'Annotation';
+
+  // Intent
+  const intentEl = $('#detailIntentBadge');
+  if (intentEl) intentEl.textContent = ann.intent || '💡';
+
+  // Timestamp
+  const ts = ann.extractedTimestamp != null ? ann.extractedTimestamp : extractTimestamp(ann.url, ann.comment || ann.commentary);
+  const tsBadge = $('#detailTimestampBadge');
+  const tsText = $('#detailTimestampText');
+  if (tsBadge && tsText && ts != null) {
+    tsText.textContent = formatSeconds(ts);
+    tsBadge.classList.remove('hidden');
+    tsBadge.onclick = (e) => {
+      e.stopPropagation();
+      window.parent.postMessage({ type: 'SEEK_MEDIA', seconds: ts }, '*');
+    };
+  } else if (tsBadge) {
+    tsBadge.classList.add('hidden');
+  }
+
+  // Comment
+  const commentEl = $('#detailComment');
+  if (commentEl) commentEl.textContent = ann.comment || ann.commentary || '(No comment)';
+
+  // Author & Date
+  const authorEl = $('#detailAuthorName');
+  const avatarEl = $('#detailAvatar');
+  const dateEl = $('#detailDate');
+  if (dateEl) dateEl.textContent = ann.created_at ? new Date(ann.created_at).toLocaleDateString() : 'Recent';
+  const authorName = ann.user_name || (ann.user_id ? 'Annotator' : 'Community Member');
+  if (authorEl) authorEl.textContent = authorName;
+  if (avatarEl) avatarEl.textContent = initials(authorName);
+
+  // Media box
+  const mediaBox = $('#detailMediaBox');
+  if (mediaBox) {
+    mediaBox.innerHTML = '';
+    if (ann.media_url && (ann.media_type === 'video' || ann.media_url.includes('.webm') || ann.media_url.includes('.mp4'))) {
+      mediaBox.innerHTML = `<video src="${escapeHtml(ann.media_url)}" controls playsinline style="width:100%; max-height:160px; display:block;"></video>`;
+      mediaBox.classList.remove('hidden');
+    } else if (ann.media_url) {
+      mediaBox.innerHTML = `<img src="${escapeHtml(ann.media_url)}" style="width:100%; max-height:160px; object-fit:contain; display:block;">`;
+      mediaBox.classList.remove('hidden');
+    } else if (ann.audio_url) {
+      mediaBox.innerHTML = `<audio src="${escapeHtml(ann.audio_url)}" controls style="width:100%; display:block;"></audio>`;
+      mediaBox.classList.remove('hidden');
+    } else {
+      mediaBox.classList.add('hidden');
+    }
+  }
+
+  // Open on Annotated Web companion link
+  const openWebBtn = $('#detailOpenWebBtn');
+  if (openWebBtn) {
+    openWebBtn.href = 'https://annotated-six.vercel.app';
+  }
+
+  const hasMedia = !!(ann.media_url || ann.audio_url);
+  resizeWidget(hasMedia ? 540 : 380);
+}
+
+function showComposer() {
+  const detailCard = $('#annotationDetailCard');
+  if (detailCard) detailCard.classList.add('hidden');
+  const compSec = $('#composerSection');
+  if (compSec) compSec.classList.remove('hidden');
+  resizeWidget(videoClipBlob ? 630 : 390);
 }
 
 function loadPage() {
@@ -331,6 +473,15 @@ $('#publishBtn').addEventListener('click', () => {
       const safeIntent = (intent && allowedIntents.includes(intent)) ? intent : '💡';
       const safeComment = ($('#comment') ? $('#comment').value.trim() : '') || (videoClipBlob ? 'Shared a video clip' : 'Annotation');
 
+      let publishUrl = page.url;
+      if (currentMediaTimestamp != null) {
+        if (publishUrl.includes('youtube.com') && !publishUrl.includes('&t=') && !publishUrl.includes('?t=')) {
+          publishUrl += (publishUrl.includes('?') ? '&' : '?') + `t=${currentMediaTimestamp}s`;
+        } else if (!publishUrl.includes('#t=') && !publishUrl.includes('youtube.com')) {
+          publishUrl += `#t=${currentMediaTimestamp}`;
+        }
+      }
+
       const annotation = {
         audio_url,
         media_url,
@@ -339,7 +490,7 @@ $('#publishBtn').addEventListener('click', () => {
         comment: safeComment,
         intent: safeIntent,
         page_title: page.title,
-        url: page.url,
+        url: publishUrl,
         hostname: page.hostname,
         user_id: currentUser.id,
         created_at: new Date().toISOString(),
@@ -374,6 +525,8 @@ $('#publishBtn').addEventListener('click', () => {
           setQuote(''); intent = null;
           mediaDataUrl = null; mediaType = null; mediaFileName = null;
           videoClipBlob = null;
+          currentMediaTimestamp = null;
+          if ($('#composerTimestampBadge')) $('#composerTimestampBadge').classList.add('hidden');
           if ($('#videoTrimmerBox')) $('#videoTrimmerBox').classList.add('hidden');
           if ($('#videoPreviewEl')) $('#videoPreviewEl').src = '';
           if ($('#clipVideoBtn')) $('#clipVideoBtn').innerText = '🎥';
@@ -701,8 +854,20 @@ if(avatarEl) {
   }
 
   window.addEventListener('message', (e) => {
-    handleDictationMsg(e.data);
+    if (e.data?.type === 'VIEW_ANNOTATION') {
+      showAnnotationDetail(e.data.annotation);
+    } else {
+      handleDictationMsg(e.data);
+    }
   });
+
+  const detailBack = document.getElementById('detailBackBtn');
+  if (detailBack) {
+    detailBack.addEventListener('click', (e) => {
+      e.preventDefault();
+      showComposer();
+    });
+  }
 
   try {
     if (chrome.runtime?.onMessage) {

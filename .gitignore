@@ -14,3 +14,5 @@ node_modules
 .next/
 .DS_Store
 .vercel
+.env*.local
+fix_*.py

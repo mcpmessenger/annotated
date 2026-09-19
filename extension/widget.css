@@ -336,3 +336,70 @@ body {
 
 [data-theme="dark"] .publish-btn { background: #fff; color: #000; }
 [data-theme="dark"] .publish-btn:disabled { background: #475569; color: #94a3b8; }
+
+/* ── Timestamp Badges & Detail Card ─────────────────────────────────────── */
+.timestamp-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: var(--soft);
+  border: 1px solid var(--line);
+  color: var(--ink);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+.clickable-badge {
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.15s ease;
+}
+.clickable-badge:hover {
+  background: var(--yellow);
+  color: #000;
+  border-color: var(--yellow-dark);
+}
+.detail-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.detail-back-btn {
+  background: none;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--muted);
+  font-size: 11px;
+  padding: 4px 8px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.15s ease;
+}
+.detail-back-btn:hover {
+  background: var(--soft);
+  color: var(--ink);
+}
+.detail-tags {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.detail-intent-badge {
+  font-size: 16px;
+  line-height: 1;
+}
+.detail-web-btn {
+  transition: opacity 0.2s, transform 0.1s;
+}
+.detail-web-btn:hover {
+  opacity: 0.88;
+}
+[data-theme="dark"] .detail-web-btn {
+  background: #fff !important;
+  color: #000 !important;
+}
+
