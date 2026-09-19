@@ -29,12 +29,12 @@ export function AnnotationCard({
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setCurrentUserId(session?.user?.id ?? null);
     });
-    if (isDeleted) return null;
+    return () => subscription.unsubscribe();
+  }, []);
 
   const isOwner = !!(currentUserId && annotation.userId === currentUserId);
 
-  return () => subscription.unsubscribe();
-  }, []);
+  if (isDeleted) return null;
 
   const handleDelete = async (e: React.MouseEvent) => {
     e.preventDefault();
