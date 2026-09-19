@@ -1153,10 +1153,10 @@ async function loadWidgetComments(annotationId) {
 
   try {
     const anonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRhamFkYnZsbGRybWd6enRka3NuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk1ODYwMTcsImV4cCI6MjEwNTE2MjAxN30.ZGteNtShkBErPckuMGX4tWMn0AtgU_THFSI37Wgd-eU';
-    const res = await fetch(\`https://dajadbvlldrmgzztdksn.supabase.co/rest/v1/comments?annotation_id=eq.\${encodeURIComponent(annotationId)}&order=created_at.asc\`, {
+    const res = await fetch(`https://dajadbvlldrmgzztdksn.supabase.co/rest/v1/comments?annotation_id=eq.${encodeURIComponent(annotationId)}&order=created_at.asc`, {
       headers: {
         'apikey': anonKey,
-        'Authorization': \`Bearer \${supabase.token || anonKey}\`
+        'Authorization': `Bearer ${supabase.token || anonKey}`
       }
     });
 
@@ -1178,7 +1178,7 @@ async function loadWidgetComments(annotationId) {
     let profileMap = {};
     if (userIds.length > 0) {
       try {
-        const pRes = await fetch(\`https://dajadbvlldrmgzztdksn.supabase.co/rest/v1/profiles?id=in.(\${userIds.join(',')})\`, {
+        const pRes = await fetch(`https://dajadbvlldrmgzztdksn.supabase.co/rest/v1/profiles?id=in.(${userIds.join(',')})`, {
           headers: { apikey: anonKey }
         });
         const profs = await pRes.json();
@@ -1190,27 +1190,27 @@ async function loadWidgetComments(annotationId) {
 
     listEl.innerHTML = comments.map(c => {
       const prof = profileMap[c.user_id] || {};
-      const author = prof.full_name || (prof.email ? \`@\${prof.email.split('@')[0]}\` : 'Annotator');
+      const author = prof.full_name || (prof.email ? `@${prof.email.split('@')[0]}` : 'Annotator');
       const avatarUrl = prof.avatar_url;
       const initial = (author || 'A')[0].toUpperCase();
       const timeStr = c.created_at ? new Date(c.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : '';
 
       const avatarMarkup = avatarUrl
-        ? \`<img src="\${escapeHtml(avatarUrl)}" style="width: 18px; height: 18px; border-radius: 50%; object-fit: cover; flex-shrink: 0;" />\`
-        : \`<div style="width: 18px; height: 18px; border-radius: 50%; background: var(--yellow); color: #000; font-size: 9px; font-weight: 800; display: grid; place-items: center; flex-shrink: 0;">\${initial}</div>\`;
+        ? `<img src="${escapeHtml(avatarUrl)}" style="width: 18px; height: 18px; border-radius: 50%; object-fit: cover; flex-shrink: 0;" />`
+        : `<div style="width: 18px; height: 18px; border-radius: 50%; background: var(--yellow); color: #000; font-size: 9px; font-weight: 800; display: grid; place-items: center; flex-shrink: 0;">${initial}</div>`;
 
-      return \`
+      return `
         <div style="background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; font-size: 11.5px;">
           <div style="display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 3px;">
             <div style="display: flex; align-items: center; gap: 5px; overflow: hidden;">
-              \${avatarMarkup}
-              <strong style="color: var(--ink); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">\${escapeHtml(author)}</strong>
+              ${avatarMarkup}
+              <strong style="color: var(--ink); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(author)}</strong>
             </div>
-            <span style="font-size: 10px; color: var(--muted); flex-shrink: 0;">\${timeStr}</span>
+            <span style="font-size: 10px; color: var(--muted); flex-shrink: 0;">${timeStr}</span>
           </div>
-          <div style="color: var(--ink); line-height: 1.35; word-break: break-word; white-space: pre-wrap;">\${escapeHtml(c.text || '')}</div>
+          <div style="color: var(--ink); line-height: 1.35; word-break: break-word; white-space: pre-wrap;">${escapeHtml(c.text || '')}</div>
         </div>
-      \`;
+      `;
     }).join('');
 
     // Scroll to bottom of comments
@@ -1248,7 +1248,7 @@ if (widgetCommentForm) {
         headers: {
           'Content-Type': 'application/json',
           'apikey': anonKey,
-          'Authorization': \`Bearer \${supabase.token || anonKey}\`,
+          'Authorization': `Bearer ${supabase.token || anonKey}`,
           'Prefer': 'return=representation'
         },
         body: JSON.stringify({
@@ -1308,12 +1308,3 @@ if (widgetCommentMicBtn) {
     }
   });
 }
-`;
-
-// Insert before the last closing lines if not already present
-if (!code.includes('loadWidgetComments')) {
-  code = code + '\n' + commentLogicCode;
-  fs.writeFileSync(widgetJsPath, code, 'utf8');
-  console.log('widget.js updated with full comment support.');
-} else {
-  console.log('widget.js already has loadWidgetComments.')
