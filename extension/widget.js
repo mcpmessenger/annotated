@@ -434,7 +434,7 @@ function showAnnotationDetail(ann) {
   }
 
   const hasMedia = !!(ann.media_url || ann.audio_url);
-  resizeWidget(hasMedia ? 660 : 540);
+  resizeWidget(hasMedia ? 740 : 660);
   loadWidgetComments(ann.id);
 }
 
@@ -1258,6 +1258,10 @@ async function loadWidgetComments(annotationId) {
 
     // Scroll to bottom of comments
     listEl.scrollTop = listEl.scrollHeight;
+    setTimeout(() => {
+      const neededHeight = Math.max(660, Math.min(820, document.body.scrollHeight + 15));
+      resizeWidget(neededHeight);
+    }, 50);
   } catch (err) {
     console.error('[Widget Comments] Failed to load:', err);
     if (countEl) countEl.textContent = '0';

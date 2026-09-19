@@ -81,13 +81,12 @@ export async function getAnnotationBySlug(slug: string): Promise<Annotation | un
     if (byLike) data = byLike;
   }
 
-  // 3. Exact UUID match if cleanSlug is a valid UUID
-  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(cleanSlug);
-  if (!data && isUuid) {
+  // 3. UUID or ID prefix match
+  if (!data && stripped.length >= 4) {
     const { data: byId } = await supabase
       .from("annotations")
       .select("*")
-      .eq("id", cleanSlug)
+      .or(`id.eq.${cleanSlug},id.ilike.%${stripped}%`)
       .maybeSingle();
     if (byId) data = byId;
   }
