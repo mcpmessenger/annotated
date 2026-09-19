@@ -63,17 +63,30 @@ function openExternalUrl(url) {
 
 function extractTimestamp(url, comment) {
   if (!url && !comment) return null;
-  const urlMatch = String(url || '').match(/[?&#]t=(\d+)(?:s)?/i);
-  if (urlMatch) return parseInt(urlMatch[1], 10);
 
-  const hmsMatch = String(url || '').match(/[?&#]t=(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?/i);
-  if (hmsMatch && (hmsMatch[1] || hmsMatch[2] || hmsMatch[3])) {
-    const h = parseInt(hmsMatch[1] || 0, 10);
-    const m = parseInt(hmsMatch[2] || 0, 10);
-    const s = parseInt(hmsMatch[3] || 0, 10);
-    return h * 3600 + m * 60 + s;
+  // 1. Check URL query/hash parameters for t=...
+  const urlStr = String(url || '');
+  const tMatch = urlStr.match(/[?&#]t=([0-9hms]+)/i);
+  if (tMatch) {
+    const val = tMatch[1].toLowerCase();
+    if (/[hms]/.test(val)) {
+      let h = 0, m = 0, s = 0;
+      const hM = val.match(/(\d+)h/);
+      const mM = val.match(/(\d+)m/);
+      const sM = val.match(/(\d+)s/);
+      if (hM) h = parseInt(hM[1], 10);
+      if (mM) m = parseInt(mM[1], 10);
+      if (sM) s = parseInt(sM[1], 10);
+      if (!hM && !mM && !sM && /^\d+s?$/.test(val)) {
+        return parseInt(val.replace('s', ''), 10);
+      }
+      return h * 3600 + m * 60 + s;
+    } else if (/^\d+$/.test(val)) {
+      return parseInt(val, 10);
+    }
   }
 
+  // 2. Comment bracketed timestamp: [⏱️ 01:24], [01:24], or [1:02:24]
   const commentMatch = String(comment || '').match(/\[(?:⏱️\s*)?(\d+):(\d+)(?::(\d+))?\]/);
   if (commentMatch) {
     if (commentMatch[3]) {
@@ -97,7 +110,6 @@ function formatSeconds(sec) {
 }
 
 function setQuote(value) {
-  quote = String(value || '').trim();
   $('#quote').textContent = quote ? `"${quote}"` : 'Select text on any page to anchor a comment here.';
   updateButton();
 }

@@ -1,4 +1,4 @@
-﻿(() => {
+(() => {
   const state = { annotations: [], profiles: {} };
   const getKey = () => `page:${location.origin}${location.pathname}`;
   const escapeHtml = (v) => String(v || '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[c]));
@@ -11,20 +11,30 @@
   // ─── Helpers: Timestamp Extraction & Media Sync ──────────────────────────────
   const extractTimestamp = (url, comment) => {
     if (!url && !comment) return null;
-    // 1. YouTube & generic URL params: ?t=84s, &t=84, #t=84
-    const urlMatch = String(url || '').match(/[?&#]t=(\d+)(?:s)?/i);
-    if (urlMatch) return parseInt(urlMatch[1], 10);
 
-    // 2. YouTube format: t=1h2m3s
-    const hmsMatch = String(url || '').match(/[?&#]t=(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?/i);
-    if (hmsMatch && (hmsMatch[1] || hmsMatch[2] || hmsMatch[3])) {
-      const h = parseInt(hmsMatch[1] || 0, 10);
-      const m = parseInt(hmsMatch[2] || 0, 10);
-      const s = parseInt(hmsMatch[3] || 0, 10);
-      return h * 3600 + m * 60 + s;
+    // 1. Check URL query/hash parameters for t=...
+    const urlStr = String(url || '');
+    const tMatch = urlStr.match(/[?&#]t=([0-9hms]+)/i);
+    if (tMatch) {
+      const val = tMatch[1].toLowerCase();
+      if (/[hms]/.test(val)) {
+        let h = 0, m = 0, s = 0;
+        const hM = val.match(/(\d+)h/);
+        const mM = val.match(/(\d+)m/);
+        const sM = val.match(/(\d+)s/);
+        if (hM) h = parseInt(hM[1], 10);
+        if (mM) m = parseInt(mM[1], 10);
+        if (sM) s = parseInt(sM[1], 10);
+        if (!hM && !mM && !sM && /^\d+s?$/.test(val)) {
+          return parseInt(val.replace('s', ''), 10);
+        }
+        return h * 3600 + m * 60 + s;
+      } else if (/^\d+$/.test(val)) {
+        return parseInt(val, 10);
+      }
     }
 
-    // 3. Comment bracketed timestamp: [⏱️ 01:24] or [01:24]
+    // 2. Comment bracketed timestamp: [⏱️ 01:24], [01:24], or [1:02:24]
     const commentMatch = String(comment || '').match(/\[(?:⏱️\s*)?(\d+):(\d+)(?::(\d+))?\]/);
     if (commentMatch) {
       if (commentMatch[3]) {
@@ -33,6 +43,179 @@
       return parseInt(commentMatch[1], 10) * 60 + parseInt(commentMatch[2], 10);
     }
     return null;
+  };
+
+  const seekToTimestamp = (ts) => {
+    if (ts == null || isNaN(ts) || ts < 0) return;
+    try {
+      const ytPlayer = document.querySelector('#movie_player') || document.getElementById('movie_player');
+      if (ytPlayer && typeof ytPlayer.seekTo === 'function') {
+        ytPlayer.seekTo(ts, true);
+        if (typeof ytPlayer.playVideo === 'function') {
+          try { ytPlayer.playVideo(); } catch (_) {}
+        }
+        return;
+      }
+    } catch (_) {}
+
+    const mediaEl = document.querySelector('video, audio');
+    if (mediaEl) {
+      try {
+        mediaEl.currentTime = ts;
+        mediaEl.play?.().catch(() => {});
+      } catch (_) {}
+    }
+  };
+
+  const getMediaTimestamp = (targetEl = null) => {
+    try {
+      // 1. YouTube video player
+      if (location.hostname.includes('youtube.com')) {
+        const mediaEl = document.querySelector('video');
+        if (mediaEl && !isNaN(mediaEl.currentTime) && mediaEl.currentTime > 0) {
+          return Math.floor(mediaEl.currentTime);
+        }
+      }
+      // 2. Element-scoped media (only if user selected text directly inside a video/audio component)
+      const el = targetEl || lastKnownElement;
+      if (el) {
+        const playerContainer = el.closest('div[data-testid="videoPlayer"], div[data-testid="videoComponent"], .html5-video-player, video, audio');
+        if (playerContainer) {
+          const mediaEl = playerContainer.tagName === 'VIDEO' || playerContainer.tagName === 'AUDIO' ? playerContainer : playerContainer.querySelector('video, audio');
+          if (mediaEl && !isNaN(mediaEl.currentTime) && mediaEl.currentTime > 0) {
+            return Math.floor(mediaEl.currentTime);
+          }
+        }
+      }
+    } catch (_) {}
+    return null;
+  };
+
+  const getExactSourceUrl = (explicitTimestamp = null, targetEl = null) => {
+    try {
+      // 1. Twitter/X Tweet permalink
+      let element = targetEl || lastKnownElement;
+      if (!element) {
+        const selection = window.getSelection();
+        if (selection && selection.rangeCount > 0) {
+          const anchorNode = selection.anchorNode;
+          element = anchorNode?.nodeType === Node.ELEMENT_NODE ? anchorNode : anchorNode?.parentElement;
+        }
+      }
+
+      if (element) {
+        const tweetArticle = element.closest('article[data-testid="tweet"]');
+        if (tweetArticle) {
+          // Twitter always wraps the tweet's own timestamp in an anchor with /status/
+          const timeLink = tweetArticle.querySelector('time')?.closest('a[href*="/status/"]');
+          if (timeLink) {
+            const href = timeLink.getAttribute('href');
+            if (href) {
+              const cleanHref = href.split('?')[0];
+              return cleanHref.startsWith('http') ? cleanHref : `https://x.com${cleanHref}`;
+            }
+          }
+          // Fallback to any /status/ anchor in the tweet article matching a tweet status ID pattern
+          const statusLinks = Array.from(tweetArticle.querySelectorAll('a[href*="/status/"]'));
+          const mainStatusLink = statusLinks.find(a => /\/[^\/]+\/status\/\d+/.test(a.getAttribute('href') || ''));
+          if (mainStatusLink) {
+            const href = mainStatusLink.getAttribute('href');
+            if (href) {
+              const cleanHref = href.split('?')[0];
+              return cleanHref.startsWith('http') ? cleanHref : `https://x.com${cleanHref}`;
+            }
+          }
+        }
+      }
+
+      // If the current page is already a tweet status permalink, clean query params
+      if ((location.hostname.includes('x.com') || location.hostname.includes('twitter.com')) && location.pathname.includes('/status/')) {
+        const cleanPath = location.pathname.split('?')[0];
+        return `https://x.com${cleanPath}`;
+      }
+
+      // 2. YouTube with video ID and timestamp
+      if (location.hostname.includes('youtube.com') && location.search.includes('v=')) {
+        const vId = new URLSearchParams(location.search).get('v');
+        if (vId) {
+          const ts = explicitTimestamp != null ? explicitTimestamp : getMediaTimestamp();
+          if (ts != null && ts > 0) {
+            return `https://www.youtube.com/watch?v=${vId}&t=${ts}s`;
+          }
+          return `https://www.youtube.com/watch?v=${vId}`;
+        }
+      }
+
+      // 3. Generic video/audio timestamp
+      const ts = explicitTimestamp != null ? explicitTimestamp : getMediaTimestamp();
+      if (ts != null && ts > 0) {
+(() => {
+  const state = { annotations: [], profiles: {} };
+  const getKey = () => `page:${location.origin}${location.pathname}`;
+  const escapeHtml = (v) => String(v || '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[c]));
+
+  // Buffer the latest selection to survive aggressive SPA clears (like X.com)
+  let lastKnownSelection = null;
+  let lastKnownRect = null;
+  let lastKnownElement = null;
+
+  // ─── Helpers: Timestamp Extraction & Media Sync ──────────────────────────────
+  const extractTimestamp = (url, comment) => {
+    if (!url && !comment) return null;
+
+    // 1. Check URL query/hash parameters for t=...
+    const urlStr = String(url || '');
+    const tMatch = urlStr.match(/[?&#]t=([0-9hms]+)/i);
+    if (tMatch) {
+      const val = tMatch[1].toLowerCase();
+      if (/[hms]/.test(val)) {
+        let h = 0, m = 0, s = 0;
+        const hM = val.match(/(\d+)h/);
+        const mM = val.match(/(\d+)m/);
+        const sM = val.match(/(\d+)s/);
+        if (hM) h = parseInt(hM[1], 10);
+        if (mM) m = parseInt(mM[1], 10);
+        if (sM) s = parseInt(sM[1], 10);
+        if (!hM && !mM && !sM && /^\d+s?$/.test(val)) {
+          return parseInt(val.replace('s', ''), 10);
+        }
+        return h * 3600 + m * 60 + s;
+      } else if (/^\d+$/.test(val)) {
+        return parseInt(val, 10);
+      }
+    }
+
+    // 2. Comment bracketed timestamp: [⏱️ 01:24], [01:24], or [1:02:24]
+    const commentMatch = String(comment || '').match(/\[(?:⏱️\s*)?(\d+):(\d+)(?::(\d+))?\]/);
+    if (commentMatch) {
+      if (commentMatch[3]) {
+        return parseInt(commentMatch[1], 10) * 3600 + parseInt(commentMatch[2], 10) * 60 + parseInt(commentMatch[3], 10);
+      }
+      return parseInt(commentMatch[1], 10) * 60 + parseInt(commentMatch[2], 10);
+    }
+    return null;
+  };
+
+  const seekToTimestamp = (ts) => {
+    if (ts == null || isNaN(ts) || ts < 0) return;
+    try {
+      const ytPlayer = document.querySelector('#movie_player') || document.getElementById('movie_player');
+      if (ytPlayer && typeof ytPlayer.seekTo === 'function') {
+        ytPlayer.seekTo(ts, true);
+        if (typeof ytPlayer.playVideo === 'function') {
+          try { ytPlayer.playVideo(); } catch (_) {}
+        }
+        return;
+      }
+    } catch (_) {}
+
+    const mediaEl = document.querySelector('video, audio');
+    if (mediaEl) {
+      try {
+        mediaEl.currentTime = ts;
+        mediaEl.play?.().catch(() => {});
+      } catch (_) {}
+    }
   };
 
   const getMediaTimestamp = (targetEl = null) => {
@@ -243,7 +426,33 @@
     }, 350);
   };
 
+  let lastAutoSeekUrl = null;
+  const checkAutoSeekOnLoad = () => {
+    if (location.hostname.includes('youtube.com')) {
+      const urlTs = extractTimestamp(location.href, '');
+      if (urlTs != null && urlTs > 0 && location.href !== lastAutoSeekUrl) {
+        lastAutoSeekUrl = location.href;
+        let attempts = 0;
+        const interval = setInterval(() => {
+          attempts++;
+          const ytPlayer = document.querySelector('#movie_player');
+          if (ytPlayer && typeof ytPlayer.seekTo === 'function') {
+            ytPlayer.seekTo(urlTs, true);
+            if (typeof ytPlayer.playVideo === 'function') {
+              try { ytPlayer.playVideo(); } catch (_) {}
+            }
+            clearInterval(interval);
+          } else if (attempts > 15) {
+            seekToTimestamp(urlTs);
+            clearInterval(interval);
+          }
+        }, 300);
+      }
+    }
+  };
+
   const load = () => {
+    checkAutoSeekOnLoad();
     chrome.storage.local.get(getKey()).then(data => {
       state.annotations = data[getKey()] || [];
       renderAllPendingHighlights();
@@ -463,13 +672,7 @@
         if (topAnn) {
           const ts = extractTimestamp(topAnn.url, topAnn.comment || topAnn.commentary);
           if (ts != null) {
-            const mediaEl = document.querySelector('video');
-            if (mediaEl) {
-              try {
-                mediaEl.currentTime = ts;
-                mediaEl.play?.().catch(() => {});
-              } catch (_) {}
-            }
+            seekToTimestamp(ts);
           }
           openAnnotationInWidget(topAnn, badge.getBoundingClientRect());
         }
@@ -722,13 +925,7 @@
     // Check for media timestamp & auto-seek video/audio player
     const ts = extractTimestamp(annotation.url, annotation.comment || annotation.commentary);
     if (ts != null) {
-      const mediaEl = document.querySelector('video, audio');
-      if (mediaEl) {
-        try {
-          mediaEl.currentTime = ts;
-          mediaEl.play?.().catch(() => {});
-        } catch (_) {}
-      }
+      seekToTimestamp(ts);
     }
 
     createWidget(rect.right, rect.top);
@@ -844,7 +1041,6 @@
       window.addEventListener('message', (e) => {
         if (e.data?.type === 'DRAG_START') {
           isDragging = true;
-          // clientX from the iframe is already relative to the iframe's top-left corner
           dragOffset.x = e.data.clientX;
           dragOffset.y = e.data.clientY;
           widgetIframe.style.pointerEvents = 'none';
@@ -856,12 +1052,8 @@
             widgetIframe.style.height = `${e.data.height}px`;
           }
         } else if (e.data?.type === 'SEEK_MEDIA') {
-          const mediaEl = document.querySelector('video, audio');
-          if (mediaEl && typeof e.data.seconds === 'number') {
-            try {
-              mediaEl.currentTime = e.data.seconds;
-              mediaEl.play?.().catch(() => {});
-            } catch (_) {}
+          if (typeof e.data.seconds === 'number') {
+            seekToTimestamp(e.data.seconds);
           }
         } else if (e.data?.type === 'START_DICTATION') {
           console.log('[Content Host] Window message received: START_DICTATION');
@@ -888,18 +1080,18 @@
     positionWidget(x, y);
   }
 
-    document.addEventListener('mousemove', (e) => {
-      if (!isDragging) return;
-      widgetIframe.style.left = (e.clientX - dragOffset.x) + 'px';
-      widgetIframe.style.top = (e.clientY - dragOffset.y) + 'px';
-    }, { capture: true });
+  document.addEventListener('mousemove', (e) => {
+    if (!isDragging) return;
+    widgetIframe.style.left = (e.clientX - dragOffset.x) + 'px';
+    widgetIframe.style.top = (e.clientY - dragOffset.y) + 'px';
+  }, { capture: true });
 
-    document.addEventListener('mouseup', () => {
-      if (isDragging) {
-        isDragging = false;
-        widgetIframe.style.pointerEvents = 'auto';
-      }
-    }, { capture: true });
+  document.addEventListener('mouseup', () => {
+    if (isDragging) {
+      isDragging = false;
+      widgetIframe.style.pointerEvents = 'auto';
+    }
+  }, { capture: true });
 
   function positionWidget(x, y) {
     let posX = (typeof x === 'number' && !isNaN(x)) ? x : (window.innerWidth - 380);
