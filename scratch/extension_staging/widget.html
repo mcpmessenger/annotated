@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Annotated</title>
+  <link rel="stylesheet" href="widget.css">
+</head>
+<body>
+  <header class="topbar" id="dragHandle" style="cursor: grab;">
+    <div class="brand" id="brandLogo" style="cursor: pointer;" data-tooltip="Open Annotated Website"><img src="assets/icon-32.png" width="20" height="20" style="vertical-align: middle; margin-right: 4px;"><span>annotated<span class="dot">.</span></span></div>
+    <div class="top-actions">
+      <button id="themeBtn" class="icon-btn theme-btn" data-tooltip="Toggle theme"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"></path></svg></button>
+      
+      <div id="userMenuWrap" class="user-menu-wrap hidden">
+        <div class="avatar top-avatar" id="avatarEl">?</div>
+        <div id="userDropdown" class="user-dropdown hidden">
+          <div class="dropdown-header">
+            <div class="dropdown-user-row">
+              <div class="avatar dropdown-avatar" id="dropdownAvatarEl">?</div>
+              <div class="dropdown-user-info">
+                <strong id="profileName">Loading…</strong>
+                <div class="muted" id="profileMeta">@user</div>
+              </div>
+            </div>
+            <div class="profile-stats-row">
+              <div class="stat-pill"><span id="statFollowers" class="stat-num">0</span> <span class="stat-lbl">followers</span></div>
+              <div class="stat-dot">·</div>
+              <div class="stat-pill"><span id="statFollowing" class="stat-num">0</span> <span class="stat-lbl">following</span></div>
+              <div class="stat-dot">·</div>
+              <div class="stat-pill"><span id="statNotes" class="stat-num">0</span> <span class="stat-lbl">notes</span></div>
+            </div>
+          </div>
+          <button id="profileBtn" class="dropdown-item">
+            <span>My profile</span>
+            <span class="dropdown-arrow">↗</span>
+          </button>
+          <button id="signOutBtn" class="dropdown-item text-red">
+            <span>Sign out</span>
+            <span class="dropdown-icon">↪</span>
+          </button>
+        </div>
+      </div>
+
+      <button id="closeBtn" class="icon-btn" data-tooltip="Close panel">×</button>
+    </div>
+  </header>
+
+  <!-- ── AUTH SCREEN ─────────────────────────────────────────────────────────── -->
+  <div id="authScreen" class="auth-screen hidden">
+    <div class="auth-card">
+      <div class="auth-logo" id="authBrandLogo" style="cursor: pointer;" data-tooltip="Open Annotated Website"><span class="brand-mark large">▰</span><span class="auth-title">annotated<span class="dot">.</span></span></div>
+      <p class="auth-desc">Sign in to annotate, save, and share your insights across the web.</p>
+      <button id="signInBtn" class="google-btn">
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M17.64 9.205c0-.638-.057-1.252-.164-1.841H9v3.481h4.844a4.14 4.14 0 01-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z" fill="#4285F4"/><path d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 009 18z" fill="#34A853"/><path d="M3.964 10.71A5.41 5.41 0 013.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 000 9c0 1.452.348 2.827.957 4.042l3.007-2.332z" fill="#FBBC05"/><path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 00.957 4.958L3.964 6.29C4.672 4.163 6.656 3.58 9 3.58z" fill="#EA4335"/></svg>
+        Sign in with Google
+      </button>
+      <div id="authError" class="auth-error hidden"></div>
+    </div>
+  </div>
+
+  <!-- ── MAIN APP ─────────────────────────────────────────────────────────────── -->
+  <main id="mainApp" class="hidden">
+    
+
+    <section id="composerSection" class="composer card">
+      <div id="composerTimestampBadge" class="timestamp-badge clickable-badge hidden" style="margin-bottom: 8px; display: inline-flex;" data-tooltip="Captured video timestamp">⏱️ <span id="composerTimestampText">00:00</span></div>
+      <div class="quote-box"><div class="quote-mark">"</div><div id="quote" class="quote">Select text on any page to anchor a comment here.</div></div>
+      
+        
+      <!-- Multimodal Media Attachment Preview -->
+      
+      <!-- 🎬 Video Trimmer & Preview Box -->
+      <div id="videoTrimmerBox" class="video-trimmer-box hidden" style="margin-top: 10px; padding: 10px; background: var(--soft); border: 1px solid var(--line); border-radius: 8px;">
+        <div style="font-size: 11px; font-weight: 750; margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center;">
+          <span>🎬 Preview</span>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span id="trimDurationLabel" style="color: var(--muted); font-size: 10px;">15s</span>
+            <button id="clearVideoBtn" data-tooltip="Clear video clip" style="background: none; border: none; color: var(--muted); cursor: pointer; font-size: 12px; font-weight: bold; padding: 0 4px; line-height: 1; border-radius: 3px; display: inline-flex; align-items: center; justify-content: center;">✕</button>
+          </div>
+        </div>
+        <video id="videoPreviewEl" controls style="width: 100%; max-height: 140px; border-radius: 6px; background: #000;" playsinline></video>
+        <div style="display: flex; gap: 8px; align-items: center; margin-top: 8px; font-size: 11px;">
+          <label style="flex: 1; display: flex; flex-direction: column; gap: 2px;">
+            <span style="font-size: 10px; color: var(--muted);">Start (sec):</span>
+            <input type="number" id="trimStartInput" min="0" value="0" style="padding: 4px; border: 1px solid var(--line); border-radius: 4px; background: var(--surface); color: var(--ink); font-size: 11px;" />
+          </label>
+          <label style="flex: 1; display: flex; flex-direction: column; gap: 2px;">
+            <span style="font-size: 10px; color: var(--muted);">End (sec):</span>
+            <input type="number" id="trimEndInput" min="1" max="90" value="15" style="padding: 4px; border: 1px solid var(--line); border-radius: 4px; background: var(--surface); color: var(--ink); font-size: 11px;" />
+          </label>
+        </div>
+      </div>
+
+      <div id="mediaAttachmentBox" class="media-attachment-box hidden" style="margin-bottom: 8px; padding: 6px 10px; background: var(--soft); border: 1px solid var(--line); border-radius: 6px; display: flex; items-center; justify-content: space-between; font-size: 11px;">
+        <span id="mediaAttachmentLabel">🎬 Video Clip</span>
+        <button id="removeMediaBtn" style="background:none; border:none; color:var(--muted); cursor:pointer; font-weight:bold;">✕</button>
+      </div>
+
+        <div class="emoji-bar">
+          <span class="emoji-label">Quick React:</span>
+          <button class="emoji-btn" data-emoji="🔥">🔥</button>
+          <button class="emoji-btn" data-emoji="🤔">🤔</button>
+          <button class="emoji-btn" data-emoji="💡">💡</button>
+          <button class="emoji-btn" data-emoji="💯">💯</button>
+          <button class="emoji-btn" data-emoji="👎">👎</button>
+        </div>
+        <textarea id="comment" maxlength="1000" placeholder="What do you want people to notice?"></textarea>
+      
+        <div class="textarea-footer" style="display: flex; gap: 8px; justify-content: space-between; align-items: center; border-top: 1px solid var(--border); padding-top: 12px; margin-top: 12px;">
+        <button id="dictateBtn" class="dictate-btn-main" data-tooltip="Speech to Text" data-tooltip-pos="top" style="padding: 0 14px; font-size: 16px; flex: 0 0 auto;">
+          🎙️
+        </button>
+        <button id="clipVideoBtn" class="dictate-btn-main" data-tooltip="Clip Video" data-tooltip-pos="top" style="padding: 0 14px; font-size: 16px; flex: 0 0 auto;">
+          🎥
+        </button>
+        <button id="publishBtn" class="publish-btn" disabled style="flex: 1; margin: 0; padding: 10px;">Publish</button>
+      </div>
+      <div id="status" class="status"></div>
+    </section>
+
+    <!-- ── ANNOTATION DETAIL CARD (Interactive Highlights View) ────────────── -->
+    <section id="annotationDetailCard" class="annotation-detail-card card hidden">
+      <div class="detail-header">
+        <button id="detailBackBtn" class="detail-back-btn" data-tooltip="Back to note composer">
+          ← <span style="font-weight:600;">Compose</span>
+        </button>
+        <div class="detail-tags">
+          <div id="detailTimestampBadge" class="timestamp-badge clickable-badge hidden" title="Click to seek media player">
+            ⏱️ <span id="detailTimestampText">00:00</span>
+          </div>
+          <span id="detailIntentBadge" class="detail-intent-badge" title="Intent">💡</span>
+        </div>
+      </div>
+
+      <div class="quote-box" style="margin-top: 10px;">
+        <div class="quote-mark">"</div>
+        <div id="detailQuote" class="quote"></div>
+      </div>
+
+      <div id="detailMediaBox" class="detail-media-box hidden" style="margin-top: 10px; border-radius: 8px; overflow: hidden; background: #000;"></div>
+
+      <div class="detail-comment-wrap" style="margin-top: 12px; padding: 10px 12px; background: var(--soft); border: 1px solid var(--line); border-radius: 7px;">
+        <div id="detailComment" class="detail-comment-text" style="font-size: 13px; line-height: 1.5; color: var(--ink); white-space: pre-wrap; font-weight: 500;"></div>
+      </div>
+
+      <div class="detail-author-row" style="display: flex; align-items: center; gap: 8px; margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line);">
+        <div class="avatar top-avatar" id="detailAvatar" style="width: 24px; height: 24px; font-size: 11px;">?</div>
+        <div style="flex: 1; overflow: hidden;">
+          <strong id="detailAuthorName" style="font-size: 11px; display: block; white-space: nowrap; text-overflow: ellipsis; overflow: hidden;">Annotator</strong>
+          <span id="detailDate" class="muted" style="font-size: 10px;">Just now</span>
+        </div>
+      </div>
+
+            <!-- Interactive Comments on this Annotation -->
+      <div id="widgetCommentsSection" class="widget-comments-wrap" style="margin-top: 14px; border-top: 1px solid var(--line); padding-top: 12px;">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+          <strong style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); display: flex; align-items: center; gap: 4px;">
+            <span>💬 Discussion</span>
+            <span id="widgetCommentCount" style="background: var(--line); color: var(--ink); padding: 1px 5px; border-radius: 10px; font-size: 10px;">0</span>
+          </strong>
+        </div>
+
+        <!-- Scrollable comment list -->
+        <div id="widgetCommentList" class="widget-comment-list" style="max-height: 160px; overflow-y: auto; margin-bottom: 10px; display: flex; flex-direction: column; gap: 8px; scrollbar-width: thin;">
+          <div id="widgetCommentEmpty" style="font-size: 11px; color: var(--muted); text-align: center; padding: 12px 0;">No comments yet. Be the first to join the discussion!</div>
+        </div>
+
+        <!-- Comment input form -->
+        <form id="widgetCommentForm" style="display: flex; flex-direction: column; gap: 6px;">
+          <div>
+            <textarea id="widgetCommentInput" rows="2" placeholder="Add your thought to this annotation..." style="width: 100%; box-sizing: border-box; resize: none; font-size: 12px; line-height: 1.4; padding: 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); font-family: inherit;"></textarea>
+          </div>
+          <div style="display: flex; justify-content: flex-end; align-items: center; gap: 6px;">
+            <span id="widgetCommentStatus" style="font-size: 11px; color: var(--muted); flex: 1;"></span>
+            <button type="button" id="widgetCommentMicBtn" data-tooltip="Speak to comment" data-tooltip-pos="top" style="background: var(--soft); color: var(--ink); border: 1px solid var(--line); border-radius: 5px; cursor: pointer; font-size: 13px; padding: 5px 8px; display: inline-flex; align-items: center; justify-content: center; transition: all 0.15s ease;">🎙️</button>
+            <button type="submit" id="widgetCommentSubmitBtn" style="background: var(--yellow); color: #000; border: none; font-weight: 700; font-size: 11px; padding: 6px 14px; border-radius: 5px; cursor: pointer; transition: opacity 0.15s;">Reply</button>
+          </div>
+        </form>
+      </div>
+
+      <div class="detail-actions" style="margin-top: 14px; display: flex; gap: 8px;">
+        <a id="detailOpenWebBtn" href="https://annotated-repo.vercel.app" target="_blank" rel="noopener noreferrer" class="detail-web-btn" style="flex: 1; text-align: center; border: none; cursor: pointer; padding: 9px 12px; background: #000; color: #fff; font-weight: 700; font-size: 12px; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; text-decoration: none;">
+          <span>Open on Annotated</span>
+          <span>↗</span>
+        </a>
+      </div>
+    </section>
+  </main>
+
+  <!-- <footer style="display:none">...</footer> -->
+
+  <script src="fix-webm-duration.js"></script>
+  <script src="supabase-client.js"></script>
+  <script src="widget.js"></script>
+</body>
+</html>
+
+
+
+
+
+
+

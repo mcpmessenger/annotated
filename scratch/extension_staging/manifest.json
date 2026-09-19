@@ -1,0 +1,76 @@
+{
+  "manifest_version": 3,
+  "name": "Annotated \u2014 Web Annotation Layer",
+  "version": "2.0.0",
+  "description": "Highlight, contextualize, and share the web.",
+  "permissions": [
+    "storage",
+    "activeTab",
+    "contextMenus",
+    "identity",
+    "tabs",
+    "sidePanel",
+    "tabCapture",
+    "offscreen",
+    "scripting"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "oauth2": {
+    "client_id": "343335882944-fir4aehjgkvnj0r6tdg0mmcc2sjt99vf.apps.googleusercontent.com",
+    "scopes": [
+      "openid",
+      "email",
+      "profile"
+    ]
+  },
+  "action": {
+    "default_title": "Open Annotated"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "fix-webm-duration.js",
+        "content.js"
+      ],
+      "css": [
+        "content.css"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "icons": {
+    "16": "assets/icon-16.png",
+    "32": "assets/icon-32.png",
+    "48": "assets/icon-48.png",
+    "128": "assets/icon-128.png"
+  },
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "widget.html",
+        "widget.css",
+        "widget.js",
+        "fix-webm-duration.js",
+        "supabase-js.js",
+        "offscreen.html",
+        "offscreen.js",
+        "icons/*",
+        "images/*"
+      ],
+      "matches": [
+        "<all_urls>"
+      ]
+    }
+  ],
+  "side_panel": {
+    "default_path": "widget.html"
+  }
+}
