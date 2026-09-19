@@ -23,20 +23,35 @@ function escapeHtml(v) {
 
 function openExternalUrl(url) {
   if (!url) return;
+  console.log('[Annotated Widget] openExternalUrl called for:', url);
+
+  // 1. Direct runtime message to background script
   try {
     if (chrome?.runtime?.sendMessage) {
-      chrome.runtime.sendMessage({ type: 'openTab', url }, () => {});
-      return;
+      chrome.runtime.sendMessage({ type: 'openTab', url }, (res) => {
+        if (chrome.runtime.lastError) {
+          console.warn('[Annotated Widget] runtime.sendMessage openTab failed:', chrome.runtime.lastError.message);
+        }
+      });
     }
-  } catch (_) {}
+  } catch (err) {
+    console.warn('[Annotated Widget] runtime.sendMessage exception:', err);
+  }
+
+  // 2. Parent postMessage relay to content script (handles cases where background worker is asleep or needs top frame)
+  try {
+    if (window.parent && window.parent !== window) {
+      window.parent.postMessage({ type: 'OPEN_TAB', url }, '*');
+    }
+  } catch (err) {
+    console.warn('[Annotated Widget] parent.postMessage exception:', err);
+  }
+
+  // 3. Native tabs API if directly available
   try {
     if (chrome?.tabs?.create) {
       chrome.tabs.create({ url, active: true });
-      return;
     }
-  } catch (_) {}
-  try {
-    window.open(url, '_blank', 'noopener,noreferrer');
   } catch (_) {}
 }
 
@@ -255,6 +270,24 @@ function showAnnotationDetail(ann) {
 
   detailCard.classList.remove('hidden');
 
+  // Compute target URL and button bindings immediately
+  const slug = ann.slug || ann.id;
+  let targetUser = ann.username || (ann.author_profile?.email ? ann.author_profile.email.split('@')[0] : (currentUser?.email ? currentUser.email.split('@')[0] : 'a'));
+  let detailUrl = slug ? `https://annotated-repo.vercel.app/${encodeURIComponent(targetUser)}/${encodeURIComponent(slug)}` : 'https://annotated-repo.vercel.app';
+
+  const openWebBtn = $('#detailOpenWebBtn');
+  const bindWebButton = (url) => {
+    if (!openWebBtn) return;
+    openWebBtn.onmousedown = (e) => e.stopPropagation();
+    openWebBtn.onclick = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      console.log('[Annotated Widget] Open on Annotated button clicked:', url);
+      openExternalUrl(url);
+    };
+  };
+  bindWebButton(detailUrl);
+
   // Quote
   const qEl = $('#detailQuote');
   if (qEl) qEl.textContent = ann.quote || ann.quote_text || 'Annotation';
@@ -314,6 +347,11 @@ function showAnnotationDetail(ann) {
     const name = prof.full_name || (prof.email ? prof.email.split('@')[0] : 'Annotator');
     const handle = prof.email ? `@${prof.email.split('@')[0]}` : '';
     applyProfile(name, handle, prof.avatar_url);
+    if (prof.email && slug) {
+      targetUser = prof.email.split('@')[0];
+      detailUrl = `https://annotated-repo.vercel.app/${encodeURIComponent(targetUser)}/${encodeURIComponent(slug)}`;
+      bindWebButton(detailUrl);
+    }
   } else if (ann.user_id) {
     const anonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRhamFkYnZsbGRybWd6enRka3NuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk1ODYwMTcsImV4cCI6MjEwNTE2MjAxN30.ZGteNtShkBErPckuMGX4tWMn0AtgU_THFSI37Wgd-eU';
     fetch(`https://dajadbvlldrmgzztdksn.supabase.co/rest/v1/profiles?id=eq.${ann.user_id}`, {
@@ -329,7 +367,7 @@ function showAnnotationDetail(ann) {
         if (p.email && slug) {
           targetUser = p.email.split('@')[0];
           detailUrl = `https://annotated-repo.vercel.app/${encodeURIComponent(targetUser)}/${encodeURIComponent(slug)}`;
-          if (openWebBtn) openWebBtn.href = detailUrl;
+          bindWebButton(detailUrl);
         }
       } else {
         applyProfile(ann.user_name || 'Community Member', '', null);
@@ -358,21 +396,6 @@ function showAnnotationDetail(ann) {
     } else {
       mediaBox.classList.add('hidden');
     }
-  }
-
-  // Open on Annotated Web companion link to that specific annotation
-  const slug = ann.slug || ann.id;
-  let targetUser = ann.username || (ann.author_profile?.email ? ann.author_profile.email.split('@')[0] : (currentUser?.email ? currentUser.email.split('@')[0] : 'a'));
-  let detailUrl = slug ? `https://annotated-repo.vercel.app/${encodeURIComponent(targetUser)}/${encodeURIComponent(slug)}` : 'https://annotated-repo.vercel.app';
-
-  const openWebBtn = $('#detailOpenWebBtn');
-  if (openWebBtn) {
-    openWebBtn.href = detailUrl;
-    openWebBtn.onclick = (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      openExternalUrl(detailUrl);
-    };
   }
 
   const hasMedia = !!(ann.media_url || ann.audio_url);
@@ -991,6 +1014,10 @@ document.querySelectorAll('.emoji-btn').forEach(btn => {
 const dragHandle = document.getElementById('dragHandle');
 if (dragHandle) {
   dragHandle.addEventListener('mousedown', (e) => {
+    // Crucial: do NOT start dragging or disable pointerEvents if clicking brand logo, buttons, theme toggle, or user menu
+    if (e.target.closest('#brandLogo') || e.target.closest('#authBrandLogo') || e.target.closest('button') || e.target.closest('.icon-btn') || e.target.closest('.user-menu-wrap') || e.target.closest('.avatar')) {
+      return;
+    }
     // Tell parent frame to start dragging
     window.parent.postMessage({
       type: 'DRAG_START',
@@ -1002,21 +1029,44 @@ if (dragHandle) {
 
 const closeBtn = document.getElementById('closeBtn');
 if (closeBtn) {
-  // Override window.close() behavior for iframe
+  closeBtn.addEventListener('mousedown', (e) => e.stopPropagation());
   closeBtn.addEventListener('click', (e) => {
     e.preventDefault();
+    e.stopPropagation();
     window.parent.postMessage({ type: 'CLOSE_WIDGET' }, '*');
   });
 }
 
+const themeBtn = document.getElementById('themeBtn');
+if (themeBtn) {
+  themeBtn.addEventListener('mousedown', (e) => e.stopPropagation());
+}
 
+const detailBackBtn = document.getElementById('detailBackBtn');
+if (detailBackBtn) {
+  detailBackBtn.addEventListener('mousedown', (e) => e.stopPropagation());
+}
 
+// Open website on logo click - stop mousedown propagation to prevent drag pointerEvents interception
+const brandLogo = document.getElementById('brandLogo');
+if (brandLogo) {
+  brandLogo.addEventListener('mousedown', (e) => e.stopPropagation());
+  brandLogo.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    console.log('[Annotated Widget] Brand logo clicked');
+    openExternalUrl('https://annotated-repo.vercel.app');
+  });
+}
 
+const authBrandLogo = document.getElementById('authBrandLogo');
+if (authBrandLogo) {
+  authBrandLogo.addEventListener('mousedown', (e) => e.stopPropagation());
+  authBrandLogo.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    console.log('[Annotated Widget] Auth brand logo clicked');
+    openExternalUrl('https://annotated-repo.vercel.app');
+  });
+}
 
-
-
-
-
-  // Open website on logo click
-  if ($('#brandLogo')) $('#brandLogo').addEventListener('click', () => openExternalUrl('https://annotated-repo.vercel.app'));
-  if ($('#authBrandLogo')) $('#authBrandLogo').addEventListener('click', () => openExternalUrl('https://annotated-repo.vercel.app'));

@@ -682,8 +682,18 @@
         } else if (e.data?.type === 'STOP_DICTATION') {
           console.log('[Content Host] Window message received: STOP_DICTATION');
           stopDictation();
-        } else if (e.data?.type === 'OPEN_URL' && e.data.url) {
-          window.open(e.data.url, '_blank', 'noopener,noreferrer');
+        } else if ((e.data?.type === 'OPEN_TAB' || e.data?.type === 'OPEN_URL') && e.data.url) {
+          console.log('[Annotated Content] Received tab open request for:', e.data.url);
+          try {
+            chrome.runtime.sendMessage({ type: 'openTab', url: e.data.url }, (res) => {
+              if (chrome.runtime.lastError) {
+                console.warn('[Annotated Content] Background openTab relay failed, falling back to window.open:', chrome.runtime.lastError.message);
+                window.open(e.data.url, '_blank', 'noopener,noreferrer');
+              }
+            });
+          } catch (_) {
+            window.open(e.data.url, '_blank', 'noopener,noreferrer');
+          }
         }
       });
     } else if (!shadowRoot.contains(widgetIframe)) {

@@ -1,6 +1,24 @@
 
-// Tab Audio Stream ID generator for MV3
+// ─── Unified Extension Message Listener ───────────────────────────────────────
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  // 1. Open URL in a fresh new tab without disturbing active reading surface
+  if (message.type === 'openTab' || message.type === 'OPEN_TAB') {
+    if (message.url) {
+      console.log('[Annotated Background] Opening external tab:', message.url);
+      chrome.tabs.create({ url: message.url, active: true }, (tab) => {
+        if (chrome.runtime.lastError) {
+          sendResponse({ error: chrome.runtime.lastError.message });
+        } else {
+          sendResponse({ ok: true, tabId: tab?.id });
+        }
+      });
+    } else {
+      sendResponse({ error: 'No URL provided' });
+    }
+    return true;
+  }
+
+  // 2. Tab Audio Stream ID generator for MV3
   if (message.type === 'getTabAudioStreamId') {
     const tabId = message.tabId || sender.tab?.id;
     if (!tabId) {
@@ -21,6 +39,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
+  // 3. Ensure Offscreen Document
   if (message.type === 'ENSURE_OFFSCREEN') {
     (async () => {
       try {
@@ -50,59 +69,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     })();
     return true;
   }
-});
 
-// Enable side panel on action click
-if (chrome.sidePanel) {
-  // Keep sidePanel in manifest for contest compliance, but use floating overlay as default
-chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: false }).catch(() => {});
-}
-
-// ─── Side Panel ─────────────────────────────────────────────────────────────
-// sidePanel removed
-
-// ─── Context Menu ─────────────────────────────────────────────────────────────
-chrome.runtime.onInstalled.addListener(() => {
-  chrome.contextMenus.create({
-    id: 'annotate-selection',
-    title: 'Annotate with Annotated',
-    contexts: ['selection'],
-  });
-});
-
-chrome.contextMenus.onClicked.addListener((info, tab) => {
-  if (info.menuItemId !== 'annotate-selection' || !tab?.id) return;
-  const payload = {
-    quote: info.selectionText.replace(/\s+/g, ' ').trim(),
-    url: tab.url,
-    title: tab.title,
-    hostname: (() => { try { return new URL(tab.url).hostname; } catch (_) { return tab.url; } })(),
-    timestamp: Date.now(),
-  };
-  chrome.storage.local.set({ pendingSelection: payload }, () => {
-    // sidePanel removed
-  });
-});
-
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  // Open URL in a fresh new tab without disturbing active reading surface
-  if (message.type === 'openTab' || message.type === 'OPEN_TAB') {
-    if (message.url) {
-      chrome.tabs.create({ url: message.url, active: true });
-      sendResponse({ ok: true });
-    }
-    return true;
-  }
-
-  // Relay selection updates to the side panel when it's already open
+  // 4. Relay selection updates
   if (message.type === 'selection') {
     chrome.runtime.sendMessage(message).catch(() => {});
-    
     sendResponse({ ok: true });
     return true;
   }
 
-  // Screenshot: capture visible tab and return base64 dataUrl
+  // 5. Screenshot: capture visible tab and return base64 dataUrl
   if (message.type === 'captureScreenshot') {
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       const tab = tabs?.[0];
@@ -119,7 +94,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         }
       );
     });
-    return true; // keep channel open for async response
+    return true;
   }
 });
 
