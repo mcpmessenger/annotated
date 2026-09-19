@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "Annotated \u2014 Web Annotation Layer",
+  "name": "Annotated — Web Annotation Layer",
   "version": "2.0.0",
   "description": "Highlight, contextualize, and share the web.",
   "permissions": [
@@ -9,7 +9,6 @@
     "contextMenus",
     "identity",
     "tabs",
-    "sidePanel",
     "tabCapture",
     "offscreen",
     "scripting"
@@ -69,8 +68,5 @@
         "<all_urls>"
       ]
     }
-  ],
-  "side_panel": {
-    "default_path": "widget.html"
-  }
+  ]
 }

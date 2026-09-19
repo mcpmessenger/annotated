@@ -1446,6 +1446,15 @@
       capture240pVideoClip(message.duration || 90, message.streamId, sendResponse);
       return true;
     }
+    if (message.type === 'TOGGLE_WIDGET') {
+      if (widgetIframe && widgetIframe.style.display !== 'none') {
+        widgetIframe.style.display = 'none';
+      } else {
+        createWidget(window.innerWidth - 380, 20);
+      }
+      sendResponse({ ok: true });
+      return true;
+    }
     if (message.type === 'openWidget') {
       createWidget(window.innerWidth - 380, 20);
       sendResponse({ ok: true });
