@@ -140,7 +140,11 @@ export function CommentSection({ annotationId }: { annotationId: string }) {
                 {comment.user_name || "Community Member"}
               </span>
               <span className="text-[10px] text-[hsl(var(--text-subtle))] ml-auto">
-                {new Date(comment.created_at).toLocaleString()}
+                {(() => {
+                  if (!comment.created_at) return "";
+                  const d = new Date(comment.created_at);
+                  return isNaN(d.getTime()) ? "" : d.toLocaleString();
+                })()}
               </span>
             </div>
             <p className="text-sm text-[hsl(var(--foreground))] whitespace-pre-wrap pl-8">{comment.text}</p>
