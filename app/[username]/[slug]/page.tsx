@@ -10,6 +10,7 @@ import { CommentSection } from "@/components/CommentSection";
 import { ReactionRow } from "@/components/ReactionRow";
 import { FollowButton } from "@/components/FollowButton";
 import { Tooltip } from "@/components/Tooltip";
+import { TextToSpeechButton } from "@/components/TextToSpeechButton";
 
 export default function AnnotationPage() {
   const params = useParams();
@@ -186,7 +187,13 @@ export default function AnnotationPage() {
                 <p>{annotation.views || 0} views</p>
               </div>
 
-              <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+              <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto items-stretch sm:items-center">
+                <TextToSpeechButton
+                  text={`${annotation.quoteText ? `Quote: ${annotation.quoteText}. ` : ""}${annotation.commentary || ""}`}
+                  showLabel={true}
+                  size="md"
+                  className="px-3 py-2 border border-[hsl(var(--border))] rounded"
+                />
                 <button
                   onClick={handleCopyLink}
                   className={`px-4 py-2 rounded text-sm font-medium transition-colors w-full sm:w-auto ${

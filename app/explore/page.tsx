@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { AnnotationCard } from "@/components/AnnotationCard";
+import { SpeechToTextButton } from "@/components/SpeechToTextButton";
 import { getRecentAnnotations } from "@/lib/data";
 import { Annotation } from "@/lib/types";
 
@@ -55,14 +56,23 @@ export default function ExplorePage() {
 
         {/* Search */}
         <section className="border-b border-[hsl(var(--border))] bg-[hsl(var(--background))] sticky top-[65px] z-30">
-          <div className="editorial-container py-4 space-y-4">
-            <input
-              type="text"
-              placeholder="Search annotations, users, sources..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full px-4 py-2 border border-[hsl(var(--border))] bg-[hsl(var(--background))] text-[hsl(var(--foreground))] rounded text-sm focus:outline-none focus:ring-2 focus:ring-[hsl(var(--accent))]"
-            />
+          <div className="editorial-container py-4">
+            <div className="relative flex items-center">
+              <input
+                type="text"
+                placeholder="Search annotations, users, sources (or speak)..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-4 pr-14 py-2.5 border border-[hsl(var(--border))] bg-[hsl(var(--background))] text-[hsl(var(--foreground))] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[hsl(var(--accent))]"
+              />
+              <div className="absolute right-2 flex items-center">
+                <SpeechToTextButton
+                  currentValue={searchQuery}
+                  onTranscript={(transcription) => setSearchQuery(transcription)}
+                  size="sm"
+                />
+              </div>
+            </div>
           </div>
         </section>
 
