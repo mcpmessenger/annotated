@@ -636,13 +636,23 @@
     const mark = e.target.closest('.annotated-highlight');
     if (mark) {
       const annotationId = mark.dataset.annotatedHighlight;
-      // Collect ALL annotations that share the same quote text as the hovered mark
       const hoveredAnnotation = state.annotations.find(a => String(a.id) === String(annotationId));
       if (hoveredAnnotation) {
-        const quote = (hoveredAnnotation.quote || '').trim().toLowerCase();
-        const allForQuote = quote
-          ? state.annotations.filter(a => (a.quote || '').trim().toLowerCase() === quote)
-          : [hoveredAnnotation];
+        // Collect ALL annotations whose quote overlaps with the hovered passage/mark
+        const norm = (s) => (s || '').toLowerCase().replace(/\s+/g, ' ').trim();
+        const hoveredQuote = norm(hoveredAnnotation.quote);
+        const markText = norm(mark.textContent);
+
+        const allForQuote = state.annotations.filter(a => {
+          if (String(a.id) === String(hoveredAnnotation.id)) return true;
+          const q = norm(a.quote);
+          if (!q) return false;
+          // Check substring overlap in either direction
+          if (hoveredQuote && (hoveredQuote.includes(q) || q.includes(hoveredQuote))) return true;
+          if (markText && (markText.includes(q) || q.includes(markText))) return true;
+          return false;
+        });
+
         showBubble(mark, allForQuote.length > 0 ? allForQuote : [hoveredAnnotation]);
       }
     }
