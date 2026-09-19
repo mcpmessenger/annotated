@@ -255,7 +255,10 @@ function renderFeed(items) {
       <article class="annotation" data-id="${a.id}">
         <div class="aheader" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
           <span style="font-weight:700; font-size:12px; color:#ffd21a;">${escapeHtml(a.intent || '💡')} ${tsStr ? `⏱️ ${tsStr}` : ''}</span>
-          <a class="web-link" href="${webUrl}" target="_blank" rel="noopener" style="color:#8899a6; text-decoration:none; font-size:12px; font-weight:600;" title="Open on Annotated Website">↗ View Web</a>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <a class="web-link" href="${webUrl}" target="_blank" rel="noopener" style="color:#8899a6; text-decoration:none; font-size:12px; font-weight:600;" title="Open on Annotated Website">↗ View Web</a>
+            ${currentUser && (a.user_id === currentUser.id || !a.user_id) ? '<button class="feed-delete-btn" style="background:none; border:none; color:#8899a6; cursor:pointer; font-size:12px; padding:0 2px;" title="Delete annotation">🗑️</button>' : ''}
+          </div>
         </div>
         <div class="aquote" style="cursor:pointer;" title="Click to seek video">"${escapeHtml(a.quote || a.quote_text || "")}"</div>
         ${a.media_url ? `
@@ -285,6 +288,31 @@ function renderFeed(items) {
         const username = ann.username || (ann.author_profile?.email ? ann.author_profile.email.split('@')[0] : (currentUser?.email ? currentUser.email.split('@')[0] : 'user'));
         const webUrl = ann.slug || ann.id ? `https://annotated-repo.vercel.app/${encodeURIComponent(username)}/${encodeURIComponent(ann.slug || ann.id)}` : 'https://annotated-repo.vercel.app';
         openExternalUrl(webUrl);
+      });
+    }
+
+    const feedDelBtn = el.querySelector('.feed-delete-btn');
+    if (feedDelBtn) {
+      feedDelBtn.addEventListener('click', async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (!confirm('Are you sure you want to delete this annotation?')) return;
+        try {
+          const db = await supabase.from('annotations');
+          await db.delete().eq('id', ann.id).execute();
+        } catch (err) {
+          console.warn('[Annotated Delete] Error:', err);
+        }
+        try {
+          const key = pageKey();
+          chrome.storage.local.get(key, data => {
+            const items = (data[key] || []).filter(a => String(a.id) !== String(ann.id));
+            chrome.storage.local.set({ [key]: items }, () => {});
+          });
+        } catch (_) {}
+        try { window.parent.postMessage({ type: 'RELOAD_ANNOTATIONS' }, '*'); } catch (_) {}
+        loadFeedFromSupabase();
+        loadAnnotationCount();
       });
     }
 
