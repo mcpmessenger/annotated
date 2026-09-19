@@ -688,15 +688,9 @@ if(avatarEl) {
       hasLastError = false;
       const commentEl = $('#comment');
       if (commentEl) {
-        const finalPart = data.finalTranscript || '';
-        const interimPart = data.interimTranscript || '';
-        commentEl.value = baseComment + finalPart + interimPart;
+        const text = (data.text !== undefined) ? data.text : ((data.finalTranscript || '') + (data.interimTranscript || ''));
+        commentEl.value = (baseComment ? baseComment.trim() + ' ' : '') + text;
         updateButton();
-        if (interimPart) {
-          setSttStatus(`Hearing: "${interimPart.slice(-30)}"`);
-        } else if (finalPart) {
-          setSttStatus('Transcribed speech');
-        }
       }
     } else if (data.type === 'DICTATION_ENDED') {
       console.log('[Widget STT] Dictation ended cleanly.');

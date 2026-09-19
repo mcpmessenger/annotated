@@ -571,8 +571,10 @@
 
   // ─── Speech-to-Text (STT) Engine ───────────────────────────────────────────
   let activeSpeechRecognition = null;
-  let activeMicStream = null;
   let isDictating = false;
+  let restartTimeoutId = null;
+  let sessionAccumulatedFinal = '';
+  let currentRunFinal = '';
 
   function sendDictationEvent(payload) {
     console.log('[Content STT Dispatch]', payload);
@@ -599,14 +601,15 @@
       return;
     }
 
-    // If already active and dictating, do not re-trigger
     if (isDictating && activeSpeechRecognition) {
-      console.log('[Content STT] Already active and dictating, ignoring re-trigger');
+      console.log('[Content STT] Already active and dictating, ignoring duplicate start');
       return;
     }
 
-    // Clean up previous without firing ENDED
     cleanupSTT(false);
+    sessionAccumulatedFinal = '';
+    currentRunFinal = '';
+    isDictating = true;
 
     // Check permission state first to avoid redundant getUserMedia requests
     let hasPermission = false;
@@ -617,6 +620,7 @@
         if (perm.state === 'granted') {
           hasPermission = true;
         } else if (perm.state === 'denied') {
+          isDictating = false;
           sendDictationEvent({
             type: 'DICTATION_ERROR',
             error: 'Microphone is blocked for this site. Click the lock icon in the URL bar to allow.'
@@ -635,6 +639,7 @@
         await new Promise(r => setTimeout(r, 120));
       } catch (err) {
         console.warn('[Content STT] getUserMedia error:', err);
+        isDictating = false;
         sendDictationEvent({
           type: 'DICTATION_ERROR',
           error: 'Microphone permission denied. Allow mic access to dictate.'
@@ -643,132 +648,133 @@
       }
     }
 
-    try {
-      console.log('[Content STT] Initializing new SpeechRecognition instance');
-      const recognition = new SpeechRec();
-      activeSpeechRecognition = recognition;
-      isDictating = true;
-      let recognitionFailed = false;
+    sendDictationEvent({ type: 'DICTATION_STATUS', status: '🎙️ Mic active… listening' });
 
-      recognition.continuous = true;
-      recognition.interimResults = true;
-      recognition.lang = navigator.language || 'en-US';
+    function initRecognition() {
+      if (!isDictating) return;
 
-      recognition.onstart = () => {
-        console.log('[Content STT] Event: onstart');
-        sendDictationEvent({ type: 'DICTATION_STARTED' });
-      };
+      try {
+        console.log('[Content STT] Initializing SpeechRecognition session');
+        const recognition = new SpeechRec();
+        activeSpeechRecognition = recognition;
+        let recognitionFailed = false;
 
-      recognition.onaudiostart = () => {
-        console.log('[Content STT] Event: onaudiostart (audio engine receiving sound)');
-        sendDictationEvent({ type: 'DICTATION_STATUS', status: '🎙️ Mic active… listening' });
-      };
+        recognition.continuous = true;
+        recognition.interimResults = true;
+        recognition.lang = navigator.language || 'en-US';
 
-      recognition.onsoundstart = () => {
-        console.log('[Content STT] Event: onsoundstart (audio signal detected)');
-        sendDictationEvent({ type: 'DICTATION_STATUS', status: 'Sound detected…' });
-      };
+        recognition.onstart = () => {
+          console.log('[Content STT] Event: onstart');
+          sendDictationEvent({ type: 'DICTATION_STARTED' });
+        };
 
-      recognition.onspeechstart = () => {
-        console.log('[Content STT] Event: onspeechstart (human speech detected!)');
-        sendDictationEvent({ type: 'DICTATION_STATUS', status: 'Speech detected…' });
-      };
+        recognition.onaudiostart = () => {
+          console.log('[Content STT] Event: onaudiostart');
+          sendDictationEvent({ type: 'DICTATION_STATUS', status: '🎙️ Mic active… listening' });
+        };
 
-      recognition.onspeechend = () => {
-        console.log('[Content STT] Event: onspeechend');
-      };
-
-      recognition.onsoundend = () => {
-        console.log('[Content STT] Event: onsoundend');
-      };
-
-      recognition.onaudioend = () => {
-        console.log('[Content STT] Event: onaudioend');
-      };
-
-      recognition.onresult = (event) => {
-        console.log('[Content STT] Event: onresult! Total results count:', event.results.length);
-        let finalTranscript = '';
-        let interimTranscript = '';
-        for (let i = 0; i < event.results.length; ++i) {
-          const item = event.results[i];
-          if (item.isFinal) {
-            finalTranscript += item[0].transcript + ' ';
-          } else {
-            interimTranscript += item[0].transcript;
+        recognition.onresult = (event) => {
+          let runFinal = '';
+          let interimTranscript = '';
+          for (let i = 0; i < event.results.length; ++i) {
+            const item = event.results[i];
+            if (item.isFinal) {
+              runFinal += item[0].transcript + ' ';
+            } else {
+              interimTranscript += item[0].transcript;
+            }
           }
-        }
-        console.log('[Content STT] Transcribed text:', { finalTranscript, interimTranscript });
-        sendDictationEvent({
-          type: 'DICTATION_RESULT',
-          finalTranscript,
-          interimTranscript
-        });
-      };
+          currentRunFinal = runFinal;
+          const fullText = (sessionAccumulatedFinal + currentRunFinal + interimTranscript).trimStart();
+          console.log('[Content STT] Transcribed total:', fullText);
+          sendDictationEvent({
+            type: 'DICTATION_RESULT',
+            text: fullText,
+            finalTranscript: sessionAccumulatedFinal + currentRunFinal,
+            interimTranscript: interimTranscript
+          });
+        };
 
-      recognition.onerror = (event) => {
-        console.warn('[Content STT] Event: onerror! Code:', event.error, event);
-        if (event.error === 'aborted' || event.error === 'no-speech') {
-          console.log(`[Content STT] Ignored normal lifecycle event: ${event.error}`);
-          return;
-        }
-        recognitionFailed = true;
-        if (event.error === 'not-allowed') {
-          sendDictationEvent({
-            type: 'DICTATION_ERROR',
-            error: 'Microphone permission blocked. Please allow mic access.'
-          });
-        } else if (event.error === 'audio-capture') {
-          sendDictationEvent({
-            type: 'DICTATION_ERROR',
-            error: 'Microphone not available or busy in another app.'
-          });
-        } else if (event.error === 'network') {
-          sendDictationEvent({
-            type: 'DICTATION_ERROR',
-            error: 'Speech recognition network error.'
-          });
-        } else {
-          sendDictationEvent({
-            type: 'DICTATION_ERROR',
-            error: `Dictation error: ${event.error}`
-          });
-        }
-      };
-
-      recognition.onend = () => {
-        console.log('[Content STT] Event: onend. isDictating:', isDictating, 'recognitionFailed:', recognitionFailed);
-        if (isDictating && !recognitionFailed) {
-          try {
-            console.log('[Content STT] Still in dictation mode; keeping recognition active...');
-            recognition.start();
+        recognition.onerror = (event) => {
+          console.warn('[Content STT] Event: onerror! Code:', event.error, event);
+          if (event.error === 'aborted' || event.error === 'no-speech') {
+            console.log(`[Content STT] Ignored normal lifecycle event: ${event.error}`);
             return;
-          } catch (e) {
-            console.warn('[Content STT] Recognition restart skipped:', e);
           }
-        }
-        if (!recognitionFailed) {
-          cleanupSTT(true);
+          recognitionFailed = true;
+          if (event.error === 'not-allowed') {
+            sendDictationEvent({
+              type: 'DICTATION_ERROR',
+              error: 'Microphone permission blocked. Please allow mic access.'
+            });
+          } else if (event.error === 'audio-capture') {
+            sendDictationEvent({
+              type: 'DICTATION_ERROR',
+              error: 'Microphone not available or busy in another app.'
+            });
+          } else if (event.error === 'network') {
+            sendDictationEvent({
+              type: 'DICTATION_ERROR',
+              error: 'Speech recognition network error.'
+            });
+          } else {
+            sendDictationEvent({
+              type: 'DICTATION_ERROR',
+              error: `Dictation error: ${event.error}`
+            });
+          }
+        };
+
+        recognition.onend = () => {
+          console.log('[Content STT] Event: onend. isDictating:', isDictating, 'recognitionFailed:', recognitionFailed);
+          sessionAccumulatedFinal += currentRunFinal;
+          currentRunFinal = '';
+
+          if (isDictating && !recognitionFailed) {
+            console.log('[Content STT] Still dictating; scheduling 200ms restart transition...');
+            restartTimeoutId = setTimeout(() => {
+              if (isDictating && !recognitionFailed) {
+                initRecognition();
+              }
+            }, 200);
+            return;
+          }
+
+          if (!recognitionFailed) {
+            cleanupSTT(true);
+          } else {
+            cleanupSTT(false);
+          }
+        };
+
+        console.log('[Content STT] Calling recognition.start()...');
+        recognition.start();
+      } catch (err) {
+        console.error('[Content STT] Failed to initialize recognition:', err);
+        if (isDictating) {
+          restartTimeoutId = setTimeout(() => {
+            if (isDictating) initRecognition();
+          }, 300);
         } else {
           cleanupSTT(false);
+          sendDictationEvent({
+            type: 'DICTATION_ERROR',
+            error: err.message || 'Failed to start dictation.'
+          });
         }
-      };
-
-      console.log('[Content STT] Calling recognition.start()...');
-      recognition.start();
-    } catch (err) {
-      console.error('[Content STT] Failed to initialize recognition:', err);
-      cleanupSTT(false);
-      sendDictationEvent({
-        type: 'DICTATION_ERROR',
-        error: err.message || 'Failed to start dictation.'
-      });
+      }
     }
+
+    initRecognition();
   }
 
   function cleanupSTT(notifyEnded = true) {
     console.log('[Content STT] cleanupSTT called. notifyEnded:', notifyEnded);
     isDictating = false;
+    if (restartTimeoutId) {
+      clearTimeout(restartTimeoutId);
+      restartTimeoutId = null;
+    }
     if (activeSpeechRecognition) {
       const rec = activeSpeechRecognition;
       activeSpeechRecognition = null;
