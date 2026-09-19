@@ -191,16 +191,17 @@ export function AnnotationCard({
 
         <div className="flex items-center gap-4 relative z-20">
           {isOwner && (
-            <button
-              type="button"
-              onClick={handleDelete}
-              disabled={isDeleting}
-              className="flex items-center gap-1 text-xs text-[hsl(var(--text-muted))] hover:text-[hsl(var(--foreground))] transition-colors font-medium cursor-pointer disabled:opacity-50"
-              title="Delete your annotation"
-            >
-              <Trash2 size={12} />
-              <span>{isDeleting ? "Deleting..." : "Delete"}</span>
-            </button>
+            <Tooltip content="Delete your annotation" position="top">
+              <button
+                type="button"
+                onClick={handleDelete}
+                disabled={isDeleting}
+                className="flex items-center gap-1 text-xs text-[hsl(var(--text-muted))] hover:text-[hsl(var(--foreground))] transition-colors font-medium cursor-pointer disabled:opacity-50"
+              >
+                <Trash2 size={12} />
+                <span>{isDeleting ? "Deleting..." : "Delete"}</span>
+              </button>
+            </Tooltip>
           )}
           <Tooltip content="File a DMCA / Fair Use dispute for this content" position="top">
             <Link
