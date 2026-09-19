@@ -813,7 +813,7 @@
       badge.addEventListener('mouseleave', () => { badge.style.transform = 'scale(1) translateY(0)'; });
     }
     
-    document.body.appendChild(badge); color:#000; padding:2px 7px; border-radius:10px; font-size:11px; font-weight:900;">${count}</span>${tsStr ? `<span style="background:rgba(255,210,26,0.18); border:1px solid #ffd21a; color:#ffd21a; padding:2px 7px; border-radius:10px; font-size:11px; font-weight:800;">⏱️ ${tsStr}</span>` : ''}<span>${intent}</span>`;
+    document.body.appendChild(badge);
   }
 
 
