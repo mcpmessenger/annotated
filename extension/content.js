@@ -35,11 +35,25 @@
     return null;
   };
 
-  const getMediaTimestamp = () => {
+  const getMediaTimestamp = (targetEl = null) => {
     try {
-      const mediaEl = document.querySelector('video, audio');
-      if (mediaEl && !isNaN(mediaEl.currentTime) && mediaEl.currentTime > 0) {
-        return Math.floor(mediaEl.currentTime);
+      // 1. YouTube video player
+      if (location.hostname.includes('youtube.com')) {
+        const mediaEl = document.querySelector('video');
+        if (mediaEl && !isNaN(mediaEl.currentTime) && mediaEl.currentTime > 0) {
+          return Math.floor(mediaEl.currentTime);
+        }
+      }
+      // 2. Element-scoped media (only if user selected text directly inside a video/audio component)
+      const el = targetEl || lastKnownElement;
+      if (el) {
+        const playerContainer = el.closest('div[data-testid="videoPlayer"], div[data-testid="videoComponent"], .html5-video-player, video, audio');
+        if (playerContainer) {
+          const mediaEl = playerContainer.tagName === 'VIDEO' || playerContainer.tagName === 'AUDIO' ? playerContainer : playerContainer.querySelector('video, audio');
+          if (mediaEl && !isNaN(mediaEl.currentTime) && mediaEl.currentTime > 0) {
+            return Math.floor(mediaEl.currentTime);
+          }
+        }
       }
     } catch (_) {}
     return null;
@@ -650,6 +664,7 @@
         background: transparent;
         display: block;
         color-scheme: light dark;
+        pointer-events: auto !important;
         transition: height 0.25s cubic-bezier(0.4, 0, 0.2, 1);
       `;
       shadowRoot.appendChild(widgetIframe);
@@ -685,15 +700,11 @@
         } else if ((e.data?.type === 'OPEN_TAB' || e.data?.type === 'OPEN_URL') && e.data.url) {
           console.log('[Annotated Content] Received tab open request for:', e.data.url);
           try {
-            chrome.runtime.sendMessage({ type: 'openTab', url: e.data.url }, (res) => {
-              if (chrome.runtime.lastError) {
-                console.warn('[Annotated Content] Background openTab relay failed, falling back to window.open:', chrome.runtime.lastError.message);
-                window.open(e.data.url, '_blank', 'noopener,noreferrer');
-              }
-            });
-          } catch (_) {
+            chrome.runtime.sendMessage({ type: 'openTab', url: e.data.url });
+          } catch (_) {}
+          try {
             window.open(e.data.url, '_blank', 'noopener,noreferrer');
-          }
+          } catch (_) {}
         }
       });
     } else if (!shadowRoot.contains(widgetIframe)) {
@@ -701,6 +712,7 @@
     }
 
     widgetIframe.style.display = 'block';
+    widgetIframe.style.pointerEvents = 'auto';
     positionWidget(x, y);
   }
 

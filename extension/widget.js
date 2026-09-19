@@ -53,6 +53,11 @@ function openExternalUrl(url) {
       chrome.tabs.create({ url, active: true });
     }
   } catch (_) {}
+
+  // 4. Direct window.open fallback
+  try {
+    window.open(url, '_blank', 'noopener,noreferrer');
+  } catch (_) {}
 }
 
 function extractTimestamp(url, comment) {
@@ -270,6 +275,18 @@ function showAnnotationDetail(ann) {
 
   detailCard.classList.remove('hidden');
 
+  // Wire Compose button directly
+  const detailBack = $('#detailBackBtn');
+  if (detailBack) {
+    detailBack.onmousedown = (e) => e.stopPropagation();
+    detailBack.onclick = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      console.log('[Annotated Widget] Compose button clicked');
+      showComposer();
+    };
+  }
+
   // Compute target URL and button bindings immediately
   const slug = ann.slug || ann.id;
   let targetUser = ann.username || (ann.author_profile?.email ? ann.author_profile.email.split('@')[0] : (currentUser?.email ? currentUser.email.split('@')[0] : 'a'));
@@ -278,6 +295,7 @@ function showAnnotationDetail(ann) {
   const openWebBtn = $('#detailOpenWebBtn');
   const bindWebButton = (url) => {
     if (!openWebBtn) return;
+    openWebBtn.href = url;
     openWebBtn.onmousedown = (e) => e.stopPropagation();
     openWebBtn.onclick = (e) => {
       e.preventDefault();
@@ -296,11 +314,16 @@ function showAnnotationDetail(ann) {
   const intentEl = $('#detailIntentBadge');
   if (intentEl) intentEl.textContent = ann.intent || '💡';
 
-  // Timestamp
-  const ts = ann.extractedTimestamp != null ? ann.extractedTimestamp : extractTimestamp(ann.url, ann.comment || ann.commentary);
+  // Timestamp: only show on actual video platforms (e.g. YouTube/Vimeo) or with video attachments
+  const isVideoPage = ann.url && (ann.url.includes('youtube.com') || ann.url.includes('vimeo.com'));
+  const hasVideoAttachment = !!(ann.media_url && (ann.media_type === 'video' || ann.media_url.includes('.webm') || ann.media_url.includes('.mp4')));
+  const explicitCommentTs = ann.comment ? String(ann.comment).match(/\[(?:⏱️\s*)?(\d+):(\d+)(?::(\d+))?\]/) : null;
+  const showTs = isVideoPage || hasVideoAttachment || !!explicitCommentTs;
+  const ts = showTs ? (ann.extractedTimestamp != null ? ann.extractedTimestamp : extractTimestamp(ann.url, ann.comment || ann.commentary)) : null;
+
   const tsBadge = $('#detailTimestampBadge');
   const tsText = $('#detailTimestampText');
-  if (tsBadge && tsText && ts != null) {
+  if (tsBadge && tsText && ts != null && ts > 0) {
     tsText.textContent = formatSeconds(ts);
     tsBadge.classList.remove('hidden');
     tsBadge.onclick = (e) => {
