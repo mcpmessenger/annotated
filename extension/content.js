@@ -1044,6 +1044,16 @@
         } else if (e.data?.type === 'STOP_DICTATION') {
           console.log('[Content Host] Window message received: STOP_DICTATION');
           stopDictation();
+        } else if (e.data?.type === 'CAPTURE_VIDEO') {
+          capture240pVideoClip(e.data.duration || 90, e.data.streamId, (res) => {
+            try {
+              if (widgetIframe && widgetIframe.contentWindow) {
+                widgetIframe.contentWindow.postMessage({ type: 'VIDEO_CAPTURED', ...res }, '*');
+              }
+            } catch (_) {}
+          });
+        } else if (e.data?.type === 'STOP_VIDEO') {
+          stopRecordingNow();
         } else if ((e.data?.type === 'OPEN_TAB' || e.data?.type === 'OPEN_URL') && e.data.url) {
           console.log('[Annotated Content] Received tab open request for:', e.data.url);
           try {

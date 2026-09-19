@@ -853,73 +853,83 @@ if (userMenuWrap && userDropdown) {
   if (clipVideoBtn) {
     clipVideoBtn.addEventListener('click', async (e) => {
       e.preventDefault();
-      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-        const tabId = tabs[0]?.id;
-        if (!tabId) return;
 
-        if (isVideoRecording) {
-          // Send stop message to content.js
-          isVideoRecording = false;
-          clipVideoBtn.innerText = '⏳';
+      const handleVideoResult = (res) => {
+        isVideoRecording = false;
+        if (clipVideoBtn) {
           clipVideoBtn.classList.remove('recording');
-          chrome.tabs.sendMessage(tabId, { type: 'stopVideo' }, () => {});
-        } else {
-          // Start recording
-          isVideoRecording = true;
-          clipVideoBtn.innerText = '🛑';
-          clipVideoBtn.classList.add('recording');
-
-          const launchCapture = (streamId) => {
-            chrome.tabs.sendMessage(tabId, {
-              type: 'captureVideo',
-              duration: 90,
-              streamId: streamId || null
-            }, (res) => {
-              isVideoRecording = false;
-              clipVideoBtn.classList.remove('recording');
-              clipVideoBtn.innerText = '🎥';
-              if (res && res.dataUrl) {
-                fetch(res.dataUrl)
-                  .then(r => r.blob())
-                  .then(blob => {
-                    videoClipBlob = blob;
-                    if (videoPreviewEl) {
-                      videoPreviewEl.src = URL.createObjectURL(blob);
-                      videoPreviewEl.muted = false;
-                      videoPreviewEl.volume = 1.0;
-                    }
-                    if (videoTrimmerBox) videoTrimmerBox.classList.remove('hidden');
-                    const clipDuration = res.duration || 15;
-                    if (trimStartInput) trimStartInput.value = 0;
-                    if (trimEndInput) trimEndInput.value = clipDuration;
-                    if (trimDurationLabel) trimDurationLabel.innerText = `${clipDuration}s`;
-                    resizeWidget(630);
-                    updateButton();
-                  });
-              } else if (res && res.error) {
-                alert(res.error);
-              }
-            });
-          };
-
-          // Try to acquire tab capture streamId with user gesture right here in the extension page
-          if (chrome.tabCapture && chrome.tabCapture.getMediaStreamId) {
-            try {
-              chrome.tabCapture.getMediaStreamId({ targetTabId: tabId, consumerTabId: tabId }, (streamId) => {
-                if (chrome.runtime.lastError || !streamId) {
-                  launchCapture(null);
-                } else {
-                  launchCapture(streamId);
-                }
-              });
-            } catch (_) {
-              launchCapture(null);
-            }
-          } else {
-            launchCapture(null);
-          }
+          clipVideoBtn.innerText = '🎥';
         }
-      });
+        if (res && res.dataUrl) {
+          fetch(res.dataUrl)
+            .then(r => r.blob())
+            .then(blob => {
+              videoClipBlob = blob;
+              if (videoPreviewEl) {
+                videoPreviewEl.src = URL.createObjectURL(blob);
+                videoPreviewEl.muted = false;
+                videoPreviewEl.volume = 1.0;
+              }
+              if (videoTrimmerBox) videoTrimmerBox.classList.remove('hidden');
+              const clipDuration = res.duration || 15;
+              if (trimStartInput) trimStartInput.value = 0;
+              if (trimEndInput) trimEndInput.value = clipDuration;
+              if (trimDurationLabel) trimDurationLabel.innerText = `${clipDuration}s`;
+              resizeWidget(630);
+              updateButton();
+            });
+        } else if (res && res.error) {
+          alert(res.error);
+        }
+      };
+
+      if (isVideoRecording) {
+        // Stop recording
+        isVideoRecording = false;
+        clipVideoBtn.innerText = '⏳';
+        clipVideoBtn.classList.remove('recording');
+
+        try {
+          chrome.runtime.sendMessage({ type: 'stopVideo' }, () => {});
+        } catch (_) {}
+        try {
+          window.parent.postMessage({ type: 'STOP_VIDEO' }, '*');
+        } catch (_) {}
+      } else {
+        // Start recording
+        isVideoRecording = true;
+        clipVideoBtn.innerText = '🛑';
+        clipVideoBtn.classList.add('recording');
+
+        let handled = false;
+
+        // A. Primary: chrome.runtime.sendMessage to content.js
+        try {
+          chrome.runtime.sendMessage({ type: 'captureVideo', duration: 90 }, (res) => {
+            if (!handled && (res || chrome.runtime.lastError == null)) {
+              handled = true;
+              handleVideoResult(res);
+            }
+          });
+        } catch (_) {}
+
+        // B. Secondary: window.parent.postMessage relay
+        try {
+          window.parent.postMessage({ type: 'CAPTURE_VIDEO', duration: 90 }, '*');
+        } catch (_) {}
+
+        // Listener for parent postMessage response fallback
+        const onMsg = (event) => {
+          if (event.data && event.data.type === 'VIDEO_CAPTURED') {
+            window.removeEventListener('message', onMsg);
+            if (!handled) {
+              handled = true;
+              handleVideoResult(event.data);
+            }
+          }
+        };
+        window.addEventListener('message', onMsg);
+      }
     });
   }
 
