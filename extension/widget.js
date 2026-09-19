@@ -263,14 +263,60 @@ function showAnnotationDetail(ann) {
   const commentEl = $('#detailComment');
   if (commentEl) commentEl.textContent = ann.comment || ann.commentary || '(No comment)';
 
-  // Author & Date
+  // Author & Date Resolution
   const authorEl = $('#detailAuthorName');
   const avatarEl = $('#detailAvatar');
   const dateEl = $('#detailDate');
   if (dateEl) dateEl.textContent = ann.created_at ? new Date(ann.created_at).toLocaleDateString() : 'Recent';
-  const authorName = ann.user_name || (ann.user_id ? 'Annotator' : 'Community Member');
-  if (authorEl) authorEl.textContent = authorName;
-  if (avatarEl) avatarEl.textContent = initials(authorName);
+
+  function applyProfile(name, handle, avatarUrl) {
+    if (authorEl) {
+      authorEl.innerHTML = `<span>${escapeHtml(name)}</span>${handle ? ` <span class="muted" style="font-weight: normal; font-size: 10px;">${escapeHtml(handle)}</span>` : ''}`;
+    }
+    if (avatarEl) {
+      if (avatarUrl) {
+        avatarEl.style.backgroundImage = `url(${avatarUrl})`;
+        avatarEl.style.backgroundSize = 'cover';
+        avatarEl.style.backgroundPosition = 'center';
+        avatarEl.textContent = '';
+      } else {
+        avatarEl.style.backgroundImage = 'none';
+        avatarEl.textContent = initials(name);
+      }
+    }
+  }
+
+  if (currentUser && (ann.user_id === currentUser.id || !ann.user_id)) {
+    const name = currentUser.name || (currentUser.email ? currentUser.email.split('@')[0] : 'You');
+    const handle = currentUser.email ? `@${currentUser.email.split('@')[0]}` : '';
+    applyProfile(name, handle, currentUser.avatar);
+  } else if (ann.author_profile) {
+    const prof = ann.author_profile;
+    const name = prof.full_name || (prof.email ? prof.email.split('@')[0] : 'Annotator');
+    const handle = prof.email ? `@${prof.email.split('@')[0]}` : '';
+    applyProfile(name, handle, prof.avatar_url);
+  } else if (ann.user_id) {
+    const anonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRhamFkYnZsbGRybWd6enRka3NuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk1ODYwMTcsImV4cCI6MjEwNTE2MjAxN30.ZGteNtShkBErPckuMGX4tWMn0AtgU_THFSI37Wgd-eU';
+    fetch(`https://dajadbvlldrmgzztdksn.supabase.co/rest/v1/profiles?id=eq.${ann.user_id}`, {
+      headers: { apikey: anonKey }
+    })
+    .then(r => r.json())
+    .then(profs => {
+      if (Array.isArray(profs) && profs[0]) {
+        const p = profs[0];
+        const name = p.full_name || (p.email ? p.email.split('@')[0] : 'Annotator');
+        const handle = p.email ? `@${p.email.split('@')[0]}` : '';
+        applyProfile(name, handle, p.avatar_url);
+      } else {
+        applyProfile(ann.user_name || 'Community Member', '', null);
+      }
+    })
+    .catch(() => {
+      applyProfile(ann.user_name || 'Community Member', '', null);
+    });
+  } else {
+    applyProfile(ann.user_name || 'Community Member', '', null);
+  }
 
   // Media box
   const mediaBox = $('#detailMediaBox');

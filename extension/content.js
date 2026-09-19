@@ -1,6 +1,7 @@
 (() => {
-  const state = { annotations: [] };
+  const state = { annotations: [], profiles: {} };
   const getKey = () => `page:${location.origin}${location.pathname}`;
+  const escapeHtml = (v) => String(v || '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[c]));
 
   // ─── Helpers: Timestamp Extraction & Media Sync ──────────────────────────────
   const extractTimestamp = (url, comment) => {
@@ -91,15 +92,15 @@
         background-color: #ffd21a !important;
         color: #000 !important;
         cursor: pointer !important;
-        border-radius: 3px;
-        padding: 1px 3px;
-        border-bottom: 2px solid #d8a900 !important;
-        transition: all 0.2s ease;
+        border-radius: 2px;
+        padding: 0 1px;
+        -webkit-box-decoration-break: clone;
+        box-decoration-break: clone;
+        transition: background-color 0.15s ease, box-shadow 0.15s ease;
       }
       .annotated-highlight:hover {
         background-color: #ffe04d !important;
-        box-shadow: 0 2px 10px rgba(255, 210, 26, 0.7);
-        border-bottom-color: #b88a00 !important;
+        box-shadow: 0 0 8px rgba(255, 210, 26, 0.6);
       }
     `;
     (document.head || document.documentElement).appendChild(styleEl);
@@ -126,6 +127,22 @@
     .then(r => r.json())
     .then(data => {
       if (Array.isArray(data)) {
+        // Resolve author profiles in batch
+        const userIds = [...new Set(data.map(a => a.user_id).filter(Boolean))];
+        const missingUserIds = userIds.filter(id => !state.profiles[id]);
+        if (missingUserIds.length > 0) {
+          fetch(`https://dajadbvlldrmgzztdksn.supabase.co/rest/v1/profiles?id=in.(${missingUserIds.join(',')})`, {
+            headers: { 'apikey': anonKey }
+          })
+          .then(res => res.json())
+          .then(profiles => {
+            if (Array.isArray(profiles)) {
+              profiles.forEach(p => { state.profiles[p.id] = p; });
+            }
+          })
+          .catch(() => {});
+        }
+
         data.forEach(ann => {
           if (!state.annotations.find(a => a.id === ann.id)) {
             state.annotations.push(ann);
@@ -160,7 +177,7 @@
           const mark = document.createElement('mark');
           mark.dataset.annotatedHighlight = annotation.id;
           mark.className = 'annotated-highlight';
-          mark.title = `${annotation.intent || 'Annotation'} - ${annotation.commentary || annotation.comment || 'Click to view note'}`;
+          // NOTE: Do not set mark.title (avoids clunky disappearing OS browser tooltip)
           try { 
             range.surroundContents(mark); 
             return true; 
@@ -171,17 +188,141 @@
     return false;
   };
 
-  // ─── Clickable Yellow Highlight Delegation & Player Seek ─────────────────────
-  document.addEventListener('click', (e) => {
-    const mark = e.target.closest('.annotated-highlight');
-    if (!mark) return;
+  // ─── Interactive Floating In-Page Preview Bubble ─────────────────────────────
+  let hoverBubble = null;
+  let hideBubbleTimeout = null;
+  let currentHoveredAnnotationId = null;
 
-    e.preventDefault();
-    e.stopPropagation();
+  function ensureBubble() {
+    if (!widgetContainer || !document.body.contains(widgetContainer)) {
+      widgetContainer = document.createElement('div');
+      widgetContainer.id = 'annotated-layer-' + crypto.randomUUID().split('-')[0];
+      widgetContainer.style.cssText = 'position: fixed; z-index: 2147483647; top: 0; left: 0; pointer-events: none;';
+      shadowRoot = widgetContainer.attachShadow({ mode: 'open' });
+      document.body.appendChild(widgetContainer);
+    }
 
-    const annotationId = mark.dataset.annotatedHighlight;
-    const annotation = state.annotations.find(a => String(a.id) === String(annotationId));
-    if (!annotation) return;
+    if (!hoverBubble) {
+      hoverBubble = document.createElement('div');
+      hoverBubble.style.cssText = `
+        position: fixed;
+        display: none;
+        pointer-events: auto;
+        z-index: 2147483647;
+        background: #1c282f;
+        color: #fff;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        font-size: 12px;
+        line-height: 1.4;
+        padding: 8px 12px;
+        border-radius: 9px;
+        box-shadow: 0 8px 24px rgba(0,0,0,0.35), 0 0 0 1px rgba(255,255,255,0.12);
+        max-width: 290px;
+        cursor: pointer;
+        transition: opacity 0.15s ease, transform 0.15s ease;
+        transform: translateY(4px);
+        opacity: 0;
+      `;
+      hoverBubble.addEventListener('mouseenter', () => {
+        if (hideBubbleTimeout) {
+          clearTimeout(hideBubbleTimeout);
+          hideBubbleTimeout = null;
+        }
+      });
+      hoverBubble.addEventListener('mouseleave', () => {
+        scheduleHideBubble();
+      });
+      hoverBubble.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (currentHoveredAnnotationId) {
+          const ann = state.annotations.find(a => String(a.id) === String(currentHoveredAnnotationId));
+          if (ann) {
+            const mark = document.querySelector(`[data-annotated-highlight="${ann.id}"]`);
+            openAnnotationInWidget(ann, mark?.getBoundingClientRect());
+          }
+        }
+      });
+      shadowRoot.appendChild(hoverBubble);
+    }
+  }
+
+  function scheduleHideBubble() {
+    if (hideBubbleTimeout) clearTimeout(hideBubbleTimeout);
+    hideBubbleTimeout = setTimeout(() => {
+      if (hoverBubble) {
+        hoverBubble.style.opacity = '0';
+        hoverBubble.style.transform = 'translateY(4px)';
+        setTimeout(() => {
+          if (hoverBubble && hoverBubble.style.opacity === '0') {
+            hoverBubble.style.display = 'none';
+          }
+        }, 150);
+      }
+      currentHoveredAnnotationId = null;
+    }, 240); // 240ms debounce to allow user to move mouse into bubble
+  }
+
+  function showBubble(mark, annotation) {
+    if (hideBubbleTimeout) {
+      clearTimeout(hideBubbleTimeout);
+      hideBubbleTimeout = null;
+    }
+    ensureBubble();
+    currentHoveredAnnotationId = annotation.id;
+
+    // Get author info from cache
+    const profile = state.profiles[annotation.user_id] || {};
+    const authorName = profile.full_name || (profile.email ? `@${profile.email.split('@')[0]}` : (annotation.user_name || 'Annotator'));
+    const comment = annotation.comment || annotation.commentary || 'Annotation note';
+    const avatarUrl = profile.avatar_url;
+    const initial = (authorName || 'A')[0].toUpperCase();
+    const intent = annotation.intent || '';
+
+    hoverBubble.innerHTML = `
+      <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 4px;">
+        <div style="display: flex; align-items: center; gap: 6px; overflow: hidden;">
+          ${avatarUrl 
+            ? `<img src="${avatarUrl}" style="width: 16px; height: 16px; border-radius: 50%; object-fit: cover; flex-shrink: 0;">` 
+            : `<div style="width: 16px; height: 16px; border-radius: 50%; background: #ffd21a; color: #000; font-size: 9px; font-weight: 800; display: grid; place-items: center; flex-shrink: 0;">${initial}</div>`
+          }
+          <strong style="font-size: 11px; color: #ffd21a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(authorName)}</strong>
+        </div>
+        ${intent ? `<span style="font-size: 12px; flex-shrink: 0;">${intent}</span>` : ''}
+      </div>
+      <div style="font-size: 12px; color: #edf3f5; word-break: break-word; max-height: 54px; overflow: hidden; text-overflow: ellipsis; line-height: 1.35;">${escapeHtml(comment)}</div>
+      <div style="font-size: 10px; color: #9aaab2; margin-top: 5px; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 4px;">
+        <span>Click to view details</span>
+        <span style="color: #ffd21a; font-weight: bold;">↗</span>
+      </div>
+    `;
+
+    const rect = mark.getBoundingClientRect();
+    let left = rect.left;
+    let top = rect.bottom + 8;
+
+    if (left + 300 > window.innerWidth) left = window.innerWidth - 305;
+    if (left < 10) left = 10;
+    if (top + 100 > window.innerHeight) {
+      top = Math.max(10, rect.top - 95);
+    }
+
+    hoverBubble.style.left = `${left}px`;
+    hoverBubble.style.top = `${top}px`;
+    hoverBubble.style.display = 'block';
+
+    requestAnimationFrame(() => {
+      if (hoverBubble) {
+        hoverBubble.style.opacity = '1';
+        hoverBubble.style.transform = 'translateY(0)';
+      }
+    });
+  }
+
+  function openAnnotationInWidget(annotation, rect) {
+    if (!rect) {
+      const mark = document.querySelector(`[data-annotated-highlight="${annotation.id}"]`);
+      rect = mark ? mark.getBoundingClientRect() : { right: window.innerWidth - 380, top: 20 };
+    }
 
     // Check for media timestamp & auto-seek video/audio player
     const ts = extractTimestamp(annotation.url, annotation.comment || annotation.commentary);
@@ -195,22 +336,57 @@
       }
     }
 
-    const rect = mark.getBoundingClientRect();
     createWidget(rect.right, rect.top);
 
+    const profile = state.profiles[annotation.user_id] || null;
     const sendView = () => {
       if (widgetIframe && widgetIframe.contentWindow) {
         widgetIframe.contentWindow.postMessage({
           type: 'VIEW_ANNOTATION',
           annotation: {
             ...annotation,
-            extractedTimestamp: ts
+            extractedTimestamp: ts,
+            author_profile: profile
           }
         }, '*');
       }
     };
     sendView();
     setTimeout(sendView, 120);
+  }
+
+  // ─── Clickable & Hover Highlight Handlers ─────────────────────────────────────
+  document.addEventListener('mouseover', (e) => {
+    const mark = e.target.closest('.annotated-highlight');
+    if (mark) {
+      const annotationId = mark.dataset.annotatedHighlight;
+      const annotation = state.annotations.find(a => String(a.id) === String(annotationId));
+      if (annotation) {
+        showBubble(mark, annotation);
+      }
+    }
+  });
+
+  document.addEventListener('mouseout', (e) => {
+    const mark = e.target.closest('.annotated-highlight');
+    if (mark) {
+      scheduleHideBubble();
+    }
+  });
+
+  document.addEventListener('click', (e) => {
+    const mark = e.target.closest('.annotated-highlight');
+    if (!mark) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    const annotationId = mark.dataset.annotatedHighlight;
+    const annotation = state.annotations.find(a => String(a.id) === String(annotationId));
+    if (annotation) {
+      if (hoverBubble) hoverBubble.style.display = 'none';
+      openAnnotationInWidget(annotation, mark.getBoundingClientRect());
+    }
   }, { capture: true });
 
   setInterval(() => {
