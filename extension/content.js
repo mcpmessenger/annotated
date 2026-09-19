@@ -121,40 +121,130 @@
     styleEl.textContent = `
       .annotated-highlight {
         background-color: #ffd21a !important;
-        color: #000 !important;
+        color: #000000 !important;
+        -webkit-text-fill-color: #000000 !important;
         cursor: pointer !important;
-        border-radius: 2px;
-        padding: 0 1px;
-        -webkit-box-decoration-break: clone;
-        box-decoration-break: clone;
-        transition: background-color 0.15s ease, box-shadow 0.15s ease;
+        border-radius: 3px !important;
+        padding: 1px 4px !important;
+        margin: 0 -1px !important;
+        box-shadow: 0 0 0 1px rgba(216, 169, 0, 0.6), 0 2px 8px rgba(255, 210, 26, 0.5) !important;
+        display: inline !important;
+        -webkit-box-decoration-break: clone !important;
+        box-decoration-break: clone !important;
+        position: relative !important;
+        z-index: 10 !important;
+        transition: background-color 0.15s ease, box-shadow 0.15s ease !important;
+      }
+      .annotated-highlight,
+      .annotated-highlight * {
+        color: #000000 !important;
+        -webkit-text-fill-color: #000000 !important;
       }
       .annotated-highlight:hover {
         background-color: #ffe04d !important;
-        box-shadow: 0 0 8px rgba(255, 210, 26, 0.6);
+        box-shadow: 0 0 14px 2px rgba(255, 210, 26, 0.8) !important;
       }
     `;
     (document.head || document.documentElement).appendChild(styleEl);
   }
 
+  // ─── Robust Candidate Phrase Extractor ─────────────────────────────────────
+  const extractCandidatePhrases = (rawQuote) => {
+    if (!rawQuote) return [];
+    const phrases = new Set();
+    const raw = rawQuote.trim();
+    phrases.add(raw);
+    phrases.add(raw.replace(/\s+/g, ' '));
+
+    // Strip feed header metadata (e.g. "Author @handle · 12h ...")
+    const cleaned = raw.replace(/^.*?@[A-Za-z0-9_]+\s+[·•]\s+\d+[a-z]\s*(?:\.\s*)?/i, '').trim();
+    if (cleaned && cleaned.length > 5) {
+      phrases.add(cleaned);
+      phrases.add(cleaned.replace(/\s+/g, ' '));
+    }
+
+    const baseTexts = [raw, cleaned].filter(Boolean);
+    for (const text of baseTexts) {
+      // Split into clauses by sentence / punctuation / newlines
+      const clauses = text.split(/[\n\r]+|[.!?]+\s+|[:;]\s+|[•·]\s+|—\s*/);
+      for (let clause of clauses) {
+        clause = clause.replace(/\s+/g, ' ').trim();
+        if (clause.length >= 10) {
+          phrases.add(clause);
+          if (clause.length > 35) phrases.add(clause.slice(0, 35).trim());
+        }
+      }
+
+      // Word windows (4-6 words)
+      const words = text.replace(/\s+/g, ' ').trim().split(' ');
+      if (words.length >= 4) {
+        phrases.add(words.slice(0, 6).join(' '));
+        if (words.length >= 10) {
+          const mid = Math.floor(words.length / 2);
+          phrases.add(words.slice(mid, mid + 6).join(' '));
+        }
+      }
+    }
+
+    return Array.from(phrases).filter(p => p && p.length >= 4).sort((a, b) => b.length - a.length);
+  };
+
+  // ─── Safe Range Highlighting (Single or Cross-Element) ──────────────────────
+  const safeHighlightRange = (range, annotationId) => {
+    if (!range) return null;
+    const mark = document.createElement('mark');
+    mark.className = 'annotated-highlight';
+    mark.dataset.annotatedHighlight = annotationId;
+
+    if (range.startContainer === range.endContainer && range.startContainer.nodeType === Node.TEXT_NODE) {
+      try {
+        range.surroundContents(mark);
+        return mark;
+      } catch (_) {}
+    }
+
+    try {
+      const fragment = range.extractContents();
+      mark.appendChild(fragment);
+      range.insertNode(mark);
+      return mark;
+    } catch (_) {
+      try {
+        const container = range.commonAncestorContainer;
+        if (container.nodeType === Node.TEXT_NODE) {
+          mark.textContent = container.textContent;
+          container.replaceWith(mark);
+          return mark;
+        }
+      } catch (_) {}
+    }
+    return null;
+  };
+
+  const triggerScroll = (mark, annotation) => {
+    if (!mark || annotation._hasScrolled) return;
+    annotation._hasScrolled = true;
+    setTimeout(() => {
+      mark.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 350);
+  };
+
   const load = () => {
     chrome.storage.local.get(getKey()).then(data => {
       state.annotations = data[getKey()] || [];
-      state.annotations.forEach(renderHighlight);
+      renderAllPendingHighlights();
     });
 
     let cleanUrl = location.origin + location.pathname;
     if (location.hostname.includes('youtube.com') && location.search.includes('v=')) {
       const vId = new URLSearchParams(location.search).get('v');
-      if (vId) {
-        cleanUrl = `https://www.youtube.com/watch?v=${vId}`;
-      }
+      if (vId) cleanUrl = `https://www.youtube.com/watch?v=${vId}`;
     }
 
     const anonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRhamFkYnZsbGRybWd6enRka3NuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk1ODYwMTcsImV4cCI6MjEwNTE2MjAxN30.ZGteNtShkBErPckuMGX4tWMn0AtgU_THFSI37Wgd-eU';
     let queryUrl = `https://dajadbvlldrmgzztdksn.supabase.co/rest/v1/annotations?url=ilike.${encodeURIComponent('%' + cleanUrl + '%')}`;
 
-    // If on Twitter/X status page, query by status ID so x.com vs twitter.com or different URL formats always match
+    // If on Twitter/X status page, query by status ID
     const tweetStatusMatch = location.pathname.match(/\/status\/(\d+)/);
     if ((location.hostname.includes('x.com') || location.hostname.includes('twitter.com')) && tweetStatusMatch) {
       const statusId = tweetStatusMatch[1];
@@ -167,6 +257,7 @@
     .then(r => r.json())
     .then(data => {
       if (Array.isArray(data)) {
+        console.log('[Annotated] Fetched ' + data.length + ' annotations for page:', queryUrl);
         // Resolve author profiles in batch
         const userIds = [...new Set(data.map(a => a.user_id).filter(Boolean))];
         const missingUserIds = userIds.filter(id => !state.profiles[id]);
@@ -186,12 +277,12 @@
         data.forEach(ann => {
           if (!state.annotations.find(a => a.id === ann.id)) {
             state.annotations.push(ann);
-            renderHighlight(ann);
           }
         });
+        renderAllPendingHighlights();
       }
     })
-    .catch(() => {});
+    .catch((err) => console.warn('[Annotated] fetch error:', err));
   };
 
   const renderHighlight = (annotation) => {
@@ -199,70 +290,95 @@
     if (!quote || !document.body) return false;
     if (document.querySelector(`[data-annotated-highlight="${annotation.id}"]`)) return true;
 
-    const targetText = quote.trim();
-    const normalizedTarget = targetText.replace(/\s+/g, ' ');
-    const searchPhrases = [targetText, normalizedTarget];
-    if (targetText.length > 25) {
-      searchPhrases.push(targetText.slice(0, 25));
-      searchPhrases.push(normalizedTarget.slice(0, 25));
-    }
+    const candidatePhrases = extractCandidatePhrases(quote);
 
-    for (const phrase of searchPhrases) {
-      if (!phrase || phrase.length < 2) continue;
-      const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
-      let node;
-      while ((node = walker.nextNode())) {
-        const index = node.nodeValue.indexOf(phrase);
-        if (index !== -1 && !node.parentElement?.closest('[data-annotated-highlight]')) {
-          const range = document.createRange();
-          range.setStart(node, index);
-          range.setEnd(node, index + phrase.length);
-          const mark = document.createElement('mark');
-          mark.dataset.annotatedHighlight = annotation.id;
-          mark.className = 'annotated-highlight';
-          // NOTE: Do not set mark.title (avoids clunky disappearing OS browser tooltip)
-          try { 
-            range.surroundContents(mark); 
-            // Auto-scroll to highlight when arriving via direct post permalink
-            if (!annotation._hasScrolled && (location.pathname.includes('/status/') || location.search.includes('v='))) {
-              annotation._hasScrolled = true;
-              setTimeout(() => {
-                mark.scrollIntoView({ behavior: 'smooth', block: 'center' });
-              }, 350);
+    // 1. Dedicated X/Twitter Targeting
+    if (location.hostname.includes('x.com') || location.hostname.includes('twitter.com')) {
+      const isStatusPage = location.pathname.includes('/status/');
+      const tweetArticles = document.querySelectorAll('article[data-testid="tweet"]');
+
+      for (const article of tweetArticles) {
+        if (article.querySelector(`[data-annotated-highlight="${annotation.id}"]`)) return true;
+
+        const textContainer = article.querySelector('[data-testid="tweetText"]');
+        if (!textContainer) continue;
+        const tweetText = textContainer.textContent || '';
+
+        // Match candidate phrases within tweetText
+        for (const phrase of candidatePhrases) {
+          if (tweetText.includes(phrase)) {
+            const walker = document.createTreeWalker(textContainer, NodeFilter.SHOW_TEXT);
+            let n;
+            while ((n = walker.nextNode())) {
+              const idx = n.nodeValue.indexOf(phrase);
+              if (idx !== -1 && !n.parentElement?.closest('[data-annotated-highlight]')) {
+                const r = document.createRange();
+                r.setStart(n, idx);
+                r.setEnd(n, idx + phrase.length);
+                const mark = safeHighlightRange(r, annotation.id);
+                if (mark) {
+                  triggerScroll(mark, annotation);
+                  console.log('[Annotated] Highlighted phrase in tweet:', phrase);
+                  return true;
+                }
+              }
             }
-            return true; 
-          } catch (_) {}
+
+            // If phrase crosses inline children (mentions/hashtags)
+            const matchingChild = Array.from(textContainer.childNodes).find(c => {
+              const ct = (c.textContent || '').trim();
+              return ct.length > 2 && (phrase.includes(ct) || ct.includes(phrase));
+            });
+            if (matchingChild && !matchingChild.closest?.('[data-annotated-highlight]')) {
+              const r = document.createRange();
+              r.selectNodeContents(matchingChild);
+              const mark = safeHighlightRange(r, annotation.id);
+              if (mark) {
+                triggerScroll(mark, annotation);
+                console.log('[Annotated] Highlighted child in tweet:', phrase);
+                return true;
+              }
+            }
+          }
+        }
+
+        // Guaranteed fallback on status page: if this is the target tweet
+        if (isStatusPage && !document.querySelector(`[data-annotated-highlight="${annotation.id}"]`)) {
+          const mainStatusLink = article.querySelector('time')?.closest('a[href*="/status/"]');
+          const currentPath = location.pathname;
+          if (mainStatusLink?.getAttribute('href')?.includes(currentPath.split('?')[0]) || article === tweetArticles[0]) {
+            const firstTextNode = Array.from(textContainer.childNodes).find(c => c.nodeType === Node.TEXT_NODE && c.nodeValue.trim().length > 0) || textContainer.firstChild;
+            if (firstTextNode && !textContainer.querySelector('[data-annotated-highlight]')) {
+              const r = document.createRange();
+              r.selectNodeContents(firstTextNode);
+              const mark = safeHighlightRange(r, annotation.id);
+              if (mark) {
+                triggerScroll(mark, annotation);
+                console.log('[Annotated] Status page primary tweet fallback highlighted');
+                return true;
+              }
+            }
+          }
         }
       }
     }
 
-    // Secondary fallback for X/Twitter: check tweetText element directly
-    if (location.hostname.includes('x.com') || location.hostname.includes('twitter.com')) {
-      const tweetContainers = document.querySelectorAll('[data-testid="tweetText"]');
-      for (const container of tweetContainers) {
-        if (container.closest('[data-annotated-highlight]') || container.querySelector('[data-annotated-highlight]')) continue;
-        const text = container.textContent || '';
-        if (text.includes(searchPhrases[0]) || (searchPhrases[2] && text.includes(searchPhrases[2]))) {
-          const firstTextNode = Array.from(container.childNodes).find(n => n.nodeType === Node.TEXT_NODE && n.nodeValue.trim().length > 0) || container.firstChild;
-          if (firstTextNode && !container.querySelector('[data-annotated-highlight]')) {
-            try {
-              const mark = document.createElement('mark');
-              mark.dataset.annotatedHighlight = annotation.id;
-              mark.className = 'annotated-highlight';
-              if (firstTextNode.nodeType === Node.TEXT_NODE) {
-                const range = document.createRange();
-                range.selectNodeContents(firstTextNode);
-                range.surroundContents(mark);
-              } else {
-                mark.textContent = firstTextNode.textContent;
-                firstTextNode.replaceWith(mark);
-              }
-              if (!annotation._hasScrolled) {
-                annotation._hasScrolled = true;
-                setTimeout(() => mark.scrollIntoView({ behavior: 'smooth', block: 'center' }), 350);
-              }
-              return true;
-            } catch (_) {}
+    // 2. Universal text walker for general webpages
+    for (const phrase of candidatePhrases) {
+      if (!phrase || phrase.length < 3) continue;
+      const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+      let node;
+      while ((node = walker.nextNode())) {
+        const text = node.nodeValue;
+        const index = text.indexOf(phrase);
+        if (index !== -1 && !node.parentElement?.closest('[data-annotated-highlight]')) {
+          const r = document.createRange();
+          r.setStart(node, index);
+          r.setEnd(node, index + phrase.length);
+          const mark = safeHighlightRange(r, annotation.id);
+          if (mark) {
+            triggerScroll(mark, annotation);
+            return true;
           }
         }
       }
@@ -282,7 +398,7 @@
   let domMutationDebounce = null;
   const domObserver = new MutationObserver(() => {
     clearTimeout(domMutationDebounce);
-    domMutationDebounce = setTimeout(renderAllPendingHighlights, 180);
+    domMutationDebounce = setTimeout(renderAllPendingHighlights, 150);
   });
   if (document.body) {
     domObserver.observe(document.body, { childList: true, subtree: true });
@@ -293,7 +409,7 @@
   }
 
   // Periodic retries for initial hydration on heavy SPAs
-  [500, 1200, 2200, 4000].forEach(delay => {
+  [300, 700, 1400, 2500, 4500].forEach(delay => {
     setTimeout(renderAllPendingHighlights, delay);
   });
 
