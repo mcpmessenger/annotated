@@ -11,6 +11,7 @@ let mediaRecorder = null;
 let audioChunks = [];
 
 let currentUser = null;
+let currentDetailWebUrl = "https://annotated-repo.vercel.app";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 function pageKey() {
@@ -303,6 +304,7 @@ function showAnnotationDetail(ann) {
   const slug = ann.slug || ann.id;
   let targetUser = ann.username || (ann.author_profile?.email ? ann.author_profile.email.split('@')[0] : (currentUser?.email ? currentUser.email.split('@')[0] : 'a'));
   let detailUrl = slug ? `https://annotated-repo.vercel.app/${encodeURIComponent(targetUser)}/${encodeURIComponent(slug)}` : 'https://annotated-repo.vercel.app';
+  currentDetailWebUrl = detailUrl;
 
   const openWebBtn = $('#detailOpenWebBtn');
   const bindWebButton = (url) => {
@@ -316,7 +318,7 @@ function showAnnotationDetail(ann) {
       openExternalUrl(url);
     };
   };
-  bindWebButton(detailUrl);
+  bindWebButton(detailUrl); currentDetailWebUrl = detailUrl;
 
   // Quote
   const qEl = $('#detailQuote');
@@ -1235,24 +1237,37 @@ async function loadWidgetComments(annotationId) {
       const avatarUrl = prof.avatar_url;
       const initial = (author || 'A')[0].toUpperCase();
       const timeStr = c.created_at ? new Date(c.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : '';
+      const commentTargetUrl = `${currentDetailWebUrl}#comment-${c.id}`;
 
       const avatarMarkup = avatarUrl
         ? `<img src="${escapeHtml(avatarUrl)}" style="width: 18px; height: 18px; border-radius: 50%; object-fit: cover; flex-shrink: 0;" />`
         : `<div style="width: 18px; height: 18px; border-radius: 50%; background: var(--yellow); color: #000; font-size: 9px; font-weight: 800; display: grid; place-items: center; flex-shrink: 0;">${initial}</div>`;
 
       return `
-        <div style="background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; font-size: 11.5px;">
+        <div class="widget-comment-card" data-url="${escapeHtml(commentTargetUrl)}" title="View comment on website" style="background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; font-size: 11.5px; cursor: pointer; transition: background 0.15s ease, border-color 0.15s ease;">
           <div style="display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 3px;">
             <div style="display: flex; align-items: center; gap: 5px; overflow: hidden;">
               ${avatarMarkup}
               <strong style="color: var(--ink); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(author)}</strong>
             </div>
-            <span style="font-size: 10px; color: var(--muted); flex-shrink: 0;">${timeStr}</span>
+            <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0;">
+              <span style="font-size: 10px; color: var(--muted);">${timeStr}</span>
+              <span class="widget-comment-link-icon" style="font-size: 11px; color: var(--muted); opacity: 0.7;">↗</span>
+            </div>
           </div>
           <div style="color: var(--ink); line-height: 1.35; word-break: break-word; white-space: pre-wrap;">${escapeHtml(c.text || '')}</div>
         </div>
       `;
     }).join('');
+
+    listEl.querySelectorAll('.widget-comment-card').forEach(card => {
+      card.onmousedown = (e) => e.stopPropagation();
+      card.onclick = (e) => {
+        e.stopPropagation();
+        const targetUrl = card.getAttribute('data-url');
+        if (targetUrl) openExternalUrl(targetUrl);
+      };
+    });
 
     // Scroll to bottom of comments
     listEl.scrollTop = listEl.scrollHeight;

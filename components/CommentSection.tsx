@@ -15,6 +15,18 @@ export function CommentSection({ annotationId }: { annotationId: string }) {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   useEffect(() => {
+    if (typeof window !== "undefined" && window.location.hash && comments.length > 0) {
+      const targetId = window.location.hash.replace("#", "");
+      const el = document.getElementById(targetId);
+      if (el) {
+        setTimeout(() => {
+          el.scrollIntoView({ behavior: "smooth", block: "center" });
+        }, 150);
+      }
+    }
+  }, [comments]);
+
+  useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
     });
@@ -152,7 +164,7 @@ export function CommentSection({ annotationId }: { annotationId: string }) {
       
       <div className="space-y-4 mb-8">
         {comments.map((comment) => (
-          <div key={comment.id} className="bg-[hsl(var(--border))] p-4 rounded-lg shadow-sm">
+          <div key={comment.id} id={`comment-${comment.id}`} className="bg-[hsl(var(--border))] p-4 rounded-lg shadow-sm transition-all target:ring-2 target:ring-[hsl(var(--accent))]">
             <div className="flex items-center gap-2 mb-2">
               {comment.user_avatar ? (
                 <img src={comment.user_avatar} alt="Avatar" className="w-6 h-6 rounded-full border border-[hsl(var(--border))]" />

@@ -549,3 +549,13 @@ body {
   border-color: #e53e3e !important;
   color: #ff8888 !important;
 }
+
+
+.widget-comment-card:hover {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border-color: var(--yellow) !important;
+}
+.widget-comment-card:hover .widget-comment-link-icon {
+  color: var(--yellow) !important;
+  opacity: 1 !important;
+}
