@@ -452,6 +452,10 @@
       widgetContainer.id = 'annotated-layer-' + crypto.randomUUID().split('-')[0];
       widgetContainer.style.cssText = 'position: fixed; z-index: 2147483647; top: 0; left: 0; pointer-events: none;';
       shadowRoot = widgetContainer.attachShadow({ mode: 'open' });
+      const shadowStyle = document.createElement('style');
+      shadowStyle.id = 'annotated-shadow-style';
+      shadowStyle.textContent = '*:focus { outline: none !important; } iframe { outline: none !important; }';
+      shadowRoot.appendChild(shadowStyle);
       document.body.appendChild(widgetContainer);
     }
 
@@ -711,7 +715,7 @@
     if (!widgetContainer || !document.body.contains(widgetContainer)) {
       widgetContainer = document.createElement('div');
       widgetContainer.id = 'annotated-layer-' + crypto.randomUUID().split('-')[0];
-      widgetContainer.style.cssText = 'position: fixed; z-index: 2147483647; top: 0; left: 0;';
+      widgetContainer.style.cssText = 'position: fixed; z-index: 2147483647; top: 0; left: 0; width: 0; height: 0; overflow: visible; pointer-events: none; border: none; outline: none; margin: 0; padding: 0; background: transparent;';
       shadowRoot = widgetContainer.attachShadow({ mode: 'open' });
       document.body.appendChild(widgetContainer);
     }

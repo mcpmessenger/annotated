@@ -3,6 +3,7 @@ import { CommentReactionRow } from "./CommentReactionRow";
 import { SpeechToTextButton } from "@/components/SpeechToTextButton";
 
 import { useState, useEffect } from "react";
+import { Trash2 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 
 const QUICK_EMOJIS = ["🔥", "🤔", "💡", "💯", "👎"];
@@ -95,6 +96,34 @@ export function CommentSection({ annotationId }: { annotationId: string }) {
     }
   };
 
+  
+  const deleteComment = async (commentId: string) => {
+    if (!user) return;
+    if (!confirm("Are you sure you want to delete this comment?")) return;
+
+    const previousComments = [...comments];
+    setComments((prev) => prev.filter((c) => c.id !== commentId));
+    setErrorMsg(null);
+
+    try {
+      const { error } = await supabase
+        .from("comments")
+        .delete()
+        .eq("id", commentId)
+        .eq("user_id", user.id);
+
+      if (error) {
+        console.error("[Comments] Delete error:", error);
+        setErrorMsg("Failed to delete comment: " + error.message);
+        setComments(previousComments);
+      }
+    } catch (err: any) {
+      console.error("[Comments] Delete exception:", err);
+      setErrorMsg("Error deleting comment: " + (err.message || "Unknown error"));
+      setComments(previousComments);
+    }
+  };
+
   const submitComment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user || !newText.trim()) return;
@@ -176,13 +205,24 @@ export function CommentSection({ annotationId }: { annotationId: string }) {
               <span className="text-xs font-semibold text-[hsl(var(--foreground))]">
                 {comment.user_name || "Community Member"}
               </span>
-              <span className="text-[10px] text-[hsl(var(--text-subtle))] ml-auto">
-                {(() => {
-                  if (!comment.created_at) return "";
-                  const d = new Date(comment.created_at);
-                  return isNaN(d.getTime()) ? "" : d.toLocaleString();
-                })()}
-              </span>
+              <div className="flex items-center gap-2 ml-auto">
+                <span className="text-[10px] text-[hsl(var(--text-subtle))]">
+                  {(() => {
+                    if (!comment.created_at) return "";
+                    const d = new Date(comment.created_at);
+                    return isNaN(d.getTime()) ? "" : d.toLocaleString();
+                  })()}
+                </span>
+                {user && comment.user_id === user.id && (
+                  <button
+                    onClick={() => deleteComment(comment.id)}
+                    className="p-1 text-[hsl(var(--text-muted))] hover:text-red-500 transition-colors cursor-pointer rounded"
+                    title="Delete your comment"
+                  >
+                    <Trash2 size={13} />
+                  </button>
+                )}
+              </div>
             </div>
             <p className="text-sm text-[hsl(var(--foreground))] whitespace-pre-wrap pl-8">{comment.text}</p>
             <CommentReactionRow commentId={comment.id} />
