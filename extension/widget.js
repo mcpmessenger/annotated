@@ -223,35 +223,122 @@ async function loadAnnotationCount() {
 
 // ─── Feed ─────────────────────────────────────────────────────────────────────
 function renderFeed(items) {
-  $('#annotationCount').textContent = `${items.length} annotation${items.length === 1 ? '' : 's'}`;
-  $('#feed').innerHTML = items.length
-    ? items.slice().reverse().map(a => `
-        <article class="annotation">
-          <div class="aquote">"${escapeHtml(a.quote || a.quote_text || "")}"</div>
-          ${a.media_url ? `
-            <div class="feed-media-wrap">
-              ${a.media_type === 'video'
-                ? `<video class="feed-media" src="${escapeHtml(a.media_url)}" controls playsinline></video>`
-                : `<img class="feed-media" src="${escapeHtml(a.media_url)}" alt="Annotation media" loading="lazy">`
-              }
-            </div>` : ''}
-          <div class="acomment">${escapeHtml(a.comment || a.commentary || "")}</div>
-          <div class="meta">
-            <span>${escapeHtml(a.intent)} · ${new Date(a.created_at || Date.now()).toLocaleDateString()}</span>
-            <a href="https://annotated-repo.vercel.app" target="_blank" rel="noopener">↗</a>
-          </div>
-        </article>`).join('')
-    : '<div class="empty">Your annotations on this page will appear here.</div>';
+  const currentVId = (() => {
+    try {
+      if (page.url && page.url.includes('youtube.com') && page.url.includes('v=')) {
+        return new URL(page.url).searchParams.get('v');
+      }
+    } catch (_) {}
+    return null;
+  })();
+
+  const filteredItems = Array.isArray(items) ? items.filter(a => {
+    if (!a) return false;
+    if (currentVId) return String(a.url || '').includes(currentVId);
+    return true;
+  }) : [];
+
+  if ($('#annotationCount')) $('#annotationCount').textContent = `${filteredItems.length} annotation${filteredItems.length === 1 ? '' : 's'}`;
+
+  if (!filteredItems.length) {
+    $('#feed').innerHTML = '<div class="empty">Your annotations on this page will appear here.</div>';
+    return;
+  }
+
+  $('#feed').innerHTML = filteredItems.slice().reverse().map(a => {
+    const username = a.username || (a.author_profile?.email ? a.author_profile.email.split('@')[0] : (currentUser?.email ? currentUser.email.split('@')[0] : 'user'));
+    const webUrl = a.slug || a.id ? `https://annotated-repo.vercel.app/${encodeURIComponent(username)}/${encodeURIComponent(a.slug || a.id)}` : 'https://annotated-repo.vercel.app';
+    const ts = extractTimestamp(a.url, a.comment || a.commentary);
+    const tsStr = ts != null ? formatSeconds(ts) : '';
+
+    return `
+      <article class="annotation" data-id="${a.id}">
+        <div class="aheader" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+          <span style="font-weight:700; font-size:12px; color:#ffd21a;">${escapeHtml(a.intent || '💡')} ${tsStr ? `⏱️ ${tsStr}` : ''}</span>
+          <a class="web-link" href="${webUrl}" target="_blank" rel="noopener" style="color:#8899a6; text-decoration:none; font-size:12px; font-weight:600;" title="Open on Annotated Website">↗ View Web</a>
+        </div>
+        <div class="aquote" style="cursor:pointer;" title="Click to seek video">"${escapeHtml(a.quote || a.quote_text || "")}"</div>
+        ${a.media_url ? `
+          <div class="feed-media-wrap">
+            ${a.media_type === 'video' || a.media_url.includes('.webm') || a.media_url.includes('.mp4')
+              ? `<video class="feed-media" src="${escapeHtml(a.media_url)}" controls playsinline></video>`
+              : `<img class="feed-media" src="${escapeHtml(a.media_url)}" alt="Annotation media" loading="lazy">`
+            }
+          </div>` : ''}
+        <div class="acomment">${escapeHtml(a.comment || a.commentary || "")}</div>
+        <div class="meta" style="margin-top:6px; display:flex; justify-content:space-between; font-size:11px; color:#8899a6;">
+          <span>@${escapeHtml(username)} · ${new Date(a.created_at || Date.now()).toLocaleDateString()}</span>
+        </div>
+      </article>`;
+  }).join('');
+
+  $('#feed').querySelectorAll('.annotation').forEach(el => {
+    const annId = el.dataset.id;
+    const ann = filteredItems.find(a => String(a.id) === String(annId));
+    if (!ann) return;
+
+    const webLink = el.querySelector('.web-link');
+    if (webLink) {
+      webLink.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const username = ann.username || (ann.author_profile?.email ? ann.author_profile.email.split('@')[0] : (currentUser?.email ? currentUser.email.split('@')[0] : 'user'));
+        const webUrl = ann.slug || ann.id ? `https://annotated-repo.vercel.app/${encodeURIComponent(username)}/${encodeURIComponent(ann.slug || ann.id)}` : 'https://annotated-repo.vercel.app';
+        openExternalUrl(webUrl);
+      });
+    }
+
+    const aquote = el.querySelector('.aquote');
+    if (aquote) {
+      aquote.addEventListener('click', () => {
+        const ts = extractTimestamp(ann.url, ann.comment || ann.commentary);
+        if (ts != null) {
+          window.parent.postMessage({ type: 'SEEK_MEDIA', seconds: ts }, '*');
+        }
+      });
+    }
+  });
 }
 
 async function loadFeedFromSupabase() {
   if (!currentUser) { renderFeed([]); return; }
+
+  let cleanUrl = page.url || location.href;
+  let currentVId = null;
+
+  if (cleanUrl.includes('youtube.com') && cleanUrl.includes('v=')) {
+    try {
+      const u = new URL(cleanUrl);
+      currentVId = u.searchParams.get('v');
+      if (currentVId) cleanUrl = `https://www.youtube.com/watch?v=${currentVId}`;
+    } catch (_) {}
+  }
+
   try {
     const db = await supabase.from('annotations');
-    const items = await db.select('*').eq('url', page.url).execute();
-    if (Array.isArray(items)) { renderFeed(items); return; }
-  } catch (_) {}
-  chrome.storage.local.get(pageKey(), data => renderFeed(data[pageKey()] || []));
+    let items = null;
+    if (currentVId) {
+      items = await db.select('*').ilike('url', `%${currentVId}%`).execute();
+    } else if (cleanUrl) {
+      items = await db.select('*').ilike('url', `%${cleanUrl}%`).execute();
+    }
+    if (Array.isArray(items)) {
+      renderFeed(items);
+      return;
+    }
+  } catch (err) {
+    console.warn('[Annotated Widget] loadFeedFromSupabase error:', err);
+  }
+
+  chrome.storage.local.get(pageKey(), data => {
+    const localItems = data[pageKey()] || [];
+    if (currentVId) {
+      const filtered = localItems.filter(a => String(a.url || '').includes(currentVId));
+      renderFeed(filtered);
+    } else {
+      renderFeed(localItems);
+    }
+  });
 }
 
 // ─── Selection & View Handling ─────────────────────────────────────────────
