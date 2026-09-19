@@ -945,6 +945,7 @@ if (userMenuWrap && userDropdown) {
   }
 
   function toggleDictation() {
+    activeDictationTarget = 'main';
     console.log('[Widget STT] toggleDictation clicked. Current isDictating:', isDictating);
     if (isDictating) {
       setSttStatus('Stopping dictation…');
@@ -1289,19 +1290,30 @@ if (widgetCommentMicBtn) {
   widgetCommentMicBtn.addEventListener('click', (e) => {
     e.preventDefault();
     const commentInput = $('#widgetCommentInput');
+    const statusEl = $('#widgetCommentStatus');
     if (!commentInput) return;
 
     if (isCommentDictating) {
       isCommentDictating = false;
-      widgetCommentMicBtn.style.opacity = '0.7';
       widgetCommentMicBtn.classList.remove('recording');
       if (window.parent !== window) {
         window.parent.postMessage({ type: 'STOP_DICTATION' }, '*');
       }
     } else {
+      if (isDictating) {
+        stopDictationUI();
+      }
+      activeDictationTarget = 'comment';
       isCommentDictating = true;
-      widgetCommentMicBtn.style.opacity = '1';
+      baseCommentReply = commentInput.value || '';
+      if (baseCommentReply && !baseCommentReply.endsWith(' ') && !baseCommentReply.endsWith('\n')) {
+        baseCommentReply += ' ';
+      }
       widgetCommentMicBtn.classList.add('recording');
+      if (statusEl) {
+        statusEl.textContent = '🎙️ Listening…';
+        statusEl.style.color = 'var(--muted)';
+      }
       if (window.parent !== window) {
         window.parent.postMessage({ type: 'START_DICTATION' }, '*');
       }
