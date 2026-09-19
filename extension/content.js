@@ -1079,6 +1079,26 @@
           });
         } else if (e.data?.type === 'STOP_VIDEO') {
           stopRecordingNow();
+        } else if (e.data?.type === 'GET_PAGE_INFO') {
+          const mediaTs = getMediaTimestamp();
+          const info = {
+            type: 'PAGE_INFO_RESPONSE',
+            title: document.title,
+            url: getExactSourceUrl(mediaTs, lastKnownElement),
+            hostname: location.hostname,
+            selectedText: window.getSelection()?.toString().replace(/\s+/g, ' ').trim() || lastKnownSelection || '',
+            media_timestamp: mediaTs,
+          };
+          try {
+            if (widgetIframe && widgetIframe.contentWindow) {
+              widgetIframe.contentWindow.postMessage(info, '*');
+            }
+          } catch (_) {}
+        } else if (e.data?.type === 'SAVE_ANNOTATION' && e.data.annotation) {
+          state.annotations.push(e.data.annotation);
+          renderAllPendingHighlights();
+        } else if (e.data?.type === 'RELOAD_ANNOTATIONS') {
+          load();
         } else if ((e.data?.type === 'OPEN_TAB' || e.data?.type === 'OPEN_URL') && e.data.url) {
           console.log('[Annotated Content] Received tab open request for:', e.data.url);
           try {

@@ -461,34 +461,47 @@ function showComposer() {
 }
 
 function loadPage() {
-  chrome.tabs.query({ active: true, currentWindow: true }, tabs => {
-    const tab = tabs?.[0];
-    if (!tab?.id) return;
+  const applyInfo = (info) => {
+    if (!info) return;
     page = {
-      title: tab.title || 'Current page',
-      url: tab.url || 'https://annotated.com',
-      hostname: (() => { try { return new URL(tab.url || '').hostname; } catch (_) { return 'Current page'; } })(),
+      title: info.title || page.title || 'Current page',
+      url: info.url || page.url || location.href,
+      hostname: info.hostname || page.hostname || 'youtube.com',
     };
-    if ($('#pageHost')) $('#pageHost').textContent = page.hostname.replace(/^www\./, '');
+    if ($('#pageHost')) $('#pageHost').textContent = (page.hostname || '').replace(/^www\./, '');
+    if (info.selectedText || info.quote) {
+      setQuote(info.quote || info.selectedText);
+    }
+    if (info.media_timestamp != null) {
+      currentMediaTimestamp = info.media_timestamp;
+    }
+    loadFeedFromSupabase();
+  };
+
+  try {
+    if (chrome?.runtime?.sendMessage) {
+      chrome.runtime.sendMessage({ type: 'getPageInfo' }, (info) => {
+        if (!chrome.runtime.lastError && info) {
+          applyInfo(info);
+        } else {
+          try { window.parent.postMessage({ type: 'GET_PAGE_INFO' }, '*'); } catch (_) {}
+        }
+      });
+    } else {
+      try { window.parent.postMessage({ type: 'GET_PAGE_INFO' }, '*'); } catch (_) {}
+    }
+  } catch (_) {
+    try { window.parent.postMessage({ type: 'GET_PAGE_INFO' }, '*'); } catch (_) {}
+  }
+
+  try {
     chrome.storage.local.get(['pendingSelection', pageKey()], data => {
       if (data.pendingSelection && Date.now() - data.pendingSelection.timestamp < 120000) {
         applySelection(data.pendingSelection);
         chrome.storage.local.remove('pendingSelection');
-      } else {
-        loadFeedFromSupabase();
-        chrome.tabs.sendMessage(tab.id, { type: 'getPageInfo' }, info => {
-          if (!chrome.runtime.lastError && (info?.selectedText || info?.quote)) {
-            applySelection({
-              ...info,
-              quote: info.quote || info.selectedText,
-              url: info.url || page.url,
-              hostname: info.hostname || page.hostname,
-            });
-          }
-        });
       }
     });
-  });
+  } catch (_) {}
 }
 
 // ─── Media: Screenshot ────────────────────────────────────────────────────────
@@ -551,109 +564,103 @@ if ($('#removeMedia')) if ($('#removeMedia')) $('#removeMedia').addEventListener
 });
 
 // ─── Publish ──────────────────────────────────────────────────────────────────
-$('#publishBtn').addEventListener('click', () => {
+$('#publishBtn').addEventListener('click', async () => {
   if (!currentUser) return;
 
-  chrome.tabs.query({ active: true, currentWindow: true }, async tabs => {
-    const tabId = tabs?.[0]?.id;
-    if (!tabId) return;
+  $('#publishBtn').disabled = true;
+  $('#publishBtn').textContent = 'Publishing…';
 
-    $('#publishBtn').disabled = true;
-    $('#publishBtn').textContent = 'Publishing…';
-
-    // Upload media first if attached
-    let media_url = null;
-    if (mediaDataUrl) {
-      try {
-        $('#uploadProgress').classList.remove('hidden');
-        $('#progressLabel').textContent = 'Uploading media…';
-        $('#progressFill').style.width = '40%';
-        media_url = await supabase.uploadMedia(mediaDataUrl, mediaFileName || 'media');
-        $('#progressFill').style.width = '100%';
-        await new Promise(r => setTimeout(r, 300));
-        $('#uploadProgress').classList.add('hidden');
-      } catch (err) {
-        $('#uploadProgress').classList.add('hidden');
-        $('#status').textContent = `Media upload failed: ${err.message}`;
-        $('#publishBtn').disabled = false;
-        $('#publishBtn').textContent = 'Publish';
-        setTimeout(() => $('#status').textContent = '', 4000);
-        return;
-      }
+  let media_url = null;
+  if (mediaDataUrl) {
+    try {
+      if ($('#uploadProgress')) $('#uploadProgress').classList.remove('hidden');
+      if ($('#progressLabel')) $('#progressLabel').textContent = 'Uploading media…';
+      if ($('#progressFill')) $('#progressFill').style.width = '40%';
+      media_url = await supabase.uploadMedia(mediaDataUrl, mediaFileName || 'media');
+      if ($('#progressFill')) $('#progressFill').style.width = '100%';
+      await new Promise(r => setTimeout(r, 300));
+      if ($('#uploadProgress')) $('#uploadProgress').classList.add('hidden');
+    } catch (err) {
+      if ($('#uploadProgress')) $('#uploadProgress').classList.add('hidden');
+      $('#status').textContent = `Media upload failed: ${err.message}`;
+      $('#publishBtn').disabled = false;
+      $('#publishBtn').textContent = 'Publish';
+      setTimeout(() => $('#status').textContent = '', 4000);
+      return;
     }
+  }
 
-                let media_type = null;
-      if (videoClipBlob) {
-        try {
-          const fileName = `video_${Date.now()}.webm`;
-          const uploadRes = await fetch(`${supabase.url}/storage/v1/object/annotation-media/${fileName}`, {
-            method: 'POST',
-            headers: {
-              'apikey': supabase.key,
-              'Authorization': `Bearer ${supabase.token || supabase.key}`,
-              'Content-Type': 'video/webm'
-            },
-            body: videoClipBlob
-          });
-          if (uploadRes.ok) {
-            media_url = `${supabase.url}/storage/v1/object/public/annotation-media/${fileName}`;
-            media_type = 'video';
-          }
-        } catch (err) {
-          console.error('[VideoUpload] Error:', err);
-        }
+  let media_type = null;
+  if (videoClipBlob) {
+    try {
+      const fileName = `video_${Date.now()}.webm`;
+      const uploadRes = await fetch(`${supabase.url}/storage/v1/object/annotation-media/${fileName}`, {
+        method: 'POST',
+        headers: {
+          'apikey': supabase.key,
+          'Authorization': `Bearer ${supabase.token || supabase.key}`,
+          'Content-Type': 'video/webm'
+        },
+        body: videoClipBlob
+      });
+      if (uploadRes.ok) {
+        media_url = `${supabase.url}/storage/v1/object/public/annotation-media/${fileName}`;
+        media_type = 'video';
       }
+    } catch (err) {
+      console.error('[VideoUpload] Error:', err);
+    }
+  }
 
-      let audio_url = null;
-      if (recordedAudioBlob) {
-        try {
-          const fileName = `audio_${Date.now()}.webm`;
-          const uploadRes = await fetch(`${supabase.url}/storage/v1/object/annotation-media/${fileName}`, {
-            method: 'POST',
-            headers: {
-              'apikey': supabase.key,
-              'Authorization': `Bearer ${supabase.token || supabase.key}`,
-              'Content-Type': 'audio/webm'
-            },
-            body: recordedAudioBlob
-          });
-          if (uploadRes.ok) {
-            audio_url = `${supabase.url}/storage/v1/object/public/annotation-media/${fileName}`;
-          }
-        } catch (err) {
-          console.error('[AudioUpload] Error:', err);
-        }
+  let audio_url = null;
+  if (recordedAudioBlob) {
+    try {
+      const fileName = `audio_${Date.now()}.webm`;
+      const uploadRes = await fetch(`${supabase.url}/storage/v1/object/annotation-media/${fileName}`, {
+        method: 'POST',
+        headers: {
+          'apikey': supabase.key,
+          'Authorization': `Bearer ${supabase.token || supabase.key}`,
+          'Content-Type': 'audio/webm'
+        },
+        body: recordedAudioBlob
+      });
+      if (uploadRes.ok) {
+        audio_url = `${supabase.url}/storage/v1/object/public/annotation-media/${fileName}`;
       }
+    } catch (err) {
+      console.error('[AudioUpload] Error:', err);
+    }
+  }
 
-      const safeQuote = (quote && quote.trim()) || (videoClipBlob ? `🎬 Video Clip (${page.title || 'Video'})` : (media_url ? `Attachment: ${page.title || 'Media'}` : (page.title || 'Page Annotation')));
-      const allowedIntents = ['🔥', '🤔', '💡', '💯', '👎'];
-      const safeIntent = (intent && allowedIntents.includes(intent)) ? intent : '💡';
-      const safeComment = ($('#comment') ? $('#comment').value.trim() : '') || (videoClipBlob ? 'Shared a video clip' : 'Annotation');
+  const safeQuote = (quote && quote.trim()) || (videoClipBlob ? `🎬 Video Clip (${page.title || 'Video'})` : (media_url ? `Attachment: ${page.title || 'Media'}` : (page.title || 'Page Annotation')));
+  const allowedIntents = ['🔥', '🤔', '💡', '💯', '👎'];
+  const safeIntent = (intent && allowedIntents.includes(intent)) ? intent : '💡';
+  const safeComment = ($('#comment') ? $('#comment').value.trim() : '') || (videoClipBlob ? 'Shared a video clip' : 'Annotation');
 
-      let publishUrl = page.url;
-      if (currentMediaTimestamp != null) {
-        if (publishUrl.includes('youtube.com') && !publishUrl.includes('&t=') && !publishUrl.includes('?t=')) {
-          publishUrl += (publishUrl.includes('?') ? '&' : '?') + `t=${currentMediaTimestamp}s`;
-        } else if (!publishUrl.includes('#t=') && !publishUrl.includes('youtube.com')) {
-          publishUrl += `#t=${currentMediaTimestamp}`;
-        }
-      }
+  let publishUrl = page.url || location.href;
+  if (currentMediaTimestamp != null) {
+    if (publishUrl.includes('youtube.com') && !publishUrl.includes('&t=') && !publishUrl.includes('?t=')) {
+      publishUrl += (publishUrl.includes('?') ? '&' : '?') + `t=${currentMediaTimestamp}s`;
+    } else if (!publishUrl.includes('#t=') && !publishUrl.includes('youtube.com')) {
+      publishUrl += `#t=${currentMediaTimestamp}`;
+    }
+  }
 
-      const annotation = {
-        audio_url,
-        media_url,
-        media_type: media_type || (media_url ? mediaType : null),
-        quote: safeQuote,
-        comment: safeComment,
-        intent: safeIntent,
-        page_title: page.title,
-        url: publishUrl,
-        hostname: page.hostname,
-        user_id: currentUser.id,
-        created_at: new Date().toISOString(),
-      };
+  const annotation = {
+    audio_url,
+    media_url,
+    media_type: media_type || (media_url ? mediaType : null),
+    quote: safeQuote,
+    comment: safeComment,
+    intent: safeIntent,
+    page_title: page.title || 'Page',
+    url: publishUrl,
+    hostname: page.hostname || 'youtube.com',
+    user_id: currentUser.id,
+    created_at: new Date().toISOString(),
+  };
 
-    // Save to Supabase
   let savedRow = null;
   try {
     const db = await supabase.from('annotations');
@@ -676,64 +683,72 @@ $('#publishBtn').addEventListener('click', () => {
     return;
   }
 
-  // Also save locally for highlight rendering with real Supabase id & slug
   const realId = savedRow?.id || crypto.randomUUID();
   const realSlug = savedRow?.slug || realId;
   const localAnnotation = { ...annotation, id: realId, slug: realSlug };
-  const finishPublish = () => {
-    const key = pageKey();
+
+  const key = pageKey();
+  try {
     chrome.storage.local.get(key, data => {
       const items = [...(data[key] || []), localAnnotation];
       chrome.storage.local.set({ [key]: items }, () => {
-          // Reset form
-          $('#comment').value = ''; if ($('#counter')) $('#counter').textContent = '0';
-          setQuote(''); intent = null;
-          mediaDataUrl = null; mediaType = null; mediaFileName = null;
-          videoClipBlob = null;
-          currentMediaTimestamp = null;
-          if ($('#composerTimestampBadge')) $('#composerTimestampBadge').classList.add('hidden');
-          if ($('#videoTrimmerBox')) $('#videoTrimmerBox').classList.add('hidden');
-          if ($('#videoPreviewEl')) $('#videoPreviewEl').src = '';
-          if ($('#clipVideoBtn')) $('#clipVideoBtn').innerText = '🎥';
-          resizeWidget(390);
-          if ($('#previewImg')) if ($('#previewImg')) $('#previewImg').src = ''; if ($('#previewVideo')) if ($('#previewVideo')) $('#previewVideo').src = '';
-          if ($('#mediaInput')) if ($('#mediaInput')) $('#mediaInput').value = '';
-          if ($('#mediaPreview')) if ($('#mediaPreview')) $('#mediaPreview').classList.add('hidden');
-          if (document.querySelector('[data-intent]')) if (document.querySelector('[data-intent]')) document.querySelectorAll('[data-intent]').forEach(b => b.classList.remove('active'));
-          $('#publishBtn').textContent = 'Publish';
-          updateButton();
+        $('#comment').value = '';
+        if ($('#counter')) $('#counter').textContent = '0';
+        setQuote(''); intent = null;
+        mediaDataUrl = null; mediaType = null; mediaFileName = null;
+        videoClipBlob = null;
+        currentMediaTimestamp = null;
+        if ($('#composerTimestampBadge')) $('#composerTimestampBadge').classList.add('hidden');
+        if ($('#videoTrimmerBox')) $('#videoTrimmerBox').classList.add('hidden');
+        if ($('#videoPreviewEl')) $('#videoPreviewEl').src = '';
+        if ($('#clipVideoBtn')) $('#clipVideoBtn').innerText = '🎥';
+        resizeWidget(390);
+        if ($('#previewImg')) $('#previewImg').src = '';
+        if ($('#previewVideo')) $('#previewVideo').src = '';
+        if ($('#mediaInput')) $('#mediaInput').value = '';
+        if ($('#mediaPreview')) $('#mediaPreview').classList.add('hidden');
+        if (document.querySelector('[data-intent]')) document.querySelectorAll('[data-intent]').forEach(b => b.classList.remove('active'));
+        $('#publishBtn').textContent = 'Publish';
+        updateButton();
 
-          loadFeedFromSupabase();
-          loadAnnotationCount();
-          
-          const shareUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(`"${safeQuote.slice(0, 100)}" — \n\nAnnotated on ${page.title || page.hostname}:`)}&url=${encodeURIComponent(page.url || 'https://annotated-repo.vercel.app')}`;
-          $('#status').innerHTML = `Published! &nbsp;`;
-          const shareBtn = document.createElement('a');
-          shareBtn.href = shareUrl;
-          shareBtn.target = '_blank';
-          shareBtn.className = 'tweet-btn';
-          shareBtn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="white"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg> Tweet Annotation`;
-          $('#status').appendChild(shareBtn);
-          setTimeout(() => {
-            if ($('#status') && $('#status').innerHTML.includes('Published!')) {
-              $('#status').innerHTML = '';
-            }
-          }, 6000);
-        });
+        loadFeedFromSupabase();
+        loadAnnotationCount();
+
+        const shareUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(`"${safeQuote.slice(0, 100)}"`)}&url=${encodeURIComponent(publishUrl)}`;
+        $('#status').innerHTML = `Published! &nbsp;`;
+        const shareBtn = document.createElement('a');
+        shareBtn.href = shareUrl;
+        shareBtn.target = '_blank';
+        shareBtn.className = 'tweet-btn';
+        shareBtn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="white"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg> Tweet Annotation`;
+        $('#status').appendChild(shareBtn);
+        setTimeout(() => {
+          if ($('#status') && $('#status').innerHTML.includes('Published!')) {
+            $('#status').innerHTML = '';
+          }
+        }, 6000);
       });
-    };
-    finishPublish();
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      const tabId = tabs[0]?.id;
-      if (tabId) chrome.tabs.sendMessage(tabId, { type: 'saveAnnotation', annotation: localAnnotation }).catch(() => {});
     });
-  });
+  } catch (_) {}
+
+  // Notify content script to render highlight and progress bar markers immediately
+  try {
+    chrome.runtime.sendMessage({ type: 'saveAnnotation', annotation: localAnnotation });
+  } catch (_) {}
+  try {
+    window.parent.postMessage({ type: 'SAVE_ANNOTATION', annotation: localAnnotation }, '*');
+  } catch (_) {}
+  try {
+    setTimeout(() => {
+      window.parent.postMessage({ type: 'RELOAD_ANNOTATIONS' }, '*');
+    }, 400);
+  } catch (_) {}
 });
 
 // ─── UI Controls ─────────────────────────────────────────────────────────────
 $('#comment').addEventListener('input', e => { if ($('#counter')) $('#counter').textContent = e.target.value.length; updateButton(); });
-if (document.querySelector('[data-intent]')) if (document.querySelector('[data-intent]')) document.querySelectorAll('[data-intent]').forEach(btn => btn.addEventListener('click', () => {
-  if (document.querySelector('[data-intent]')) if (document.querySelector('[data-intent]')) document.querySelectorAll('[data-intent]').forEach(b => b.classList.remove('active'));
+if (document.querySelector('[data-intent]')) document.querySelectorAll('[data-intent]').forEach(btn => btn.addEventListener('click', () => {
+  if (document.querySelector('[data-intent]')) document.querySelectorAll('[data-intent]').forEach(b => b.classList.remove('active'));
   btn.classList.add('active'); intent = btn.dataset.intent; updateButton();
 }));
 $('#themeBtn').addEventListener('click', () => setTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'));
@@ -1402,3 +1417,18 @@ if (widgetCommentMicBtn) {
     }
   });
 }
+
+
+  window.addEventListener('message', (e) => {
+    if (e.data?.type === 'PAGE_INFO_RESPONSE') {
+      page = {
+        title: e.data.title || page.title || 'Current page',
+        url: e.data.url || page.url || location.href,
+        hostname: e.data.hostname || page.hostname || 'youtube.com',
+      };
+      if ($('#pageHost')) $('#pageHost').textContent = (page.hostname || '').replace(/^www\./, '');
+      if (e.data.selectedText || e.data.quote) setQuote(e.data.quote || e.data.selectedText);
+      if (e.data.media_timestamp != null) currentMediaTimestamp = e.data.media_timestamp;
+      loadFeedFromSupabase();
+    }
+  });
