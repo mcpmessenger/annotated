@@ -608,24 +608,39 @@
     // Clean up previous without firing ENDED
     cleanupSTT(false);
 
-    // Verify/request microphone permission on host page, then release so SpeechRecognition has sole device access
-    sendDictationEvent({ type: 'DICTATION_STATUS', status: 'Requesting mic permission…' });
-    try {
-      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-        console.log('[Content STT] Requesting getUserMedia({ audio: true }) to verify site permission...');
+    // Check permission state first to avoid redundant getUserMedia requests
+    let hasPermission = false;
+    if (navigator.permissions && navigator.permissions.query) {
+      try {
+        const perm = await navigator.permissions.query({ name: 'microphone' });
+        console.log('[Content STT] navigator.permissions microphone state:', perm.state);
+        if (perm.state === 'granted') {
+          hasPermission = true;
+        } else if (perm.state === 'denied') {
+          sendDictationEvent({
+            type: 'DICTATION_ERROR',
+            error: 'Microphone is blocked for this site. Click the lock icon in the URL bar to allow.'
+          });
+          return;
+        }
+      } catch (_) {}
+    }
+
+    if (!hasPermission && navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+      sendDictationEvent({ type: 'DICTATION_STATUS', status: 'Requesting mic permission…' });
+      try {
+        console.log('[Content STT] Requesting getUserMedia to prompt for microphone permission...');
         const tempStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        console.log('[Content STT] getUserMedia granted! Releasing temporary lock for SpeechRecognition...');
         tempStream.getTracks().forEach(t => t.stop());
-        // Wait 150ms for Windows audio hardware to release exclusive lock
-        await new Promise(r => setTimeout(r, 150));
+        await new Promise(r => setTimeout(r, 120));
+      } catch (err) {
+        console.warn('[Content STT] getUserMedia error:', err);
+        sendDictationEvent({
+          type: 'DICTATION_ERROR',
+          error: 'Microphone permission denied. Allow mic access to dictate.'
+        });
+        return;
       }
-    } catch (err) {
-      console.warn('[Content STT] getUserMedia error:', err);
-      sendDictationEvent({
-        type: 'DICTATION_ERROR',
-        error: 'Microphone permission denied. Allow mic access to dictate.'
-      });
-      return;
     }
 
     try {
@@ -722,7 +737,16 @@
       };
 
       recognition.onend = () => {
-        console.log('[Content STT] Event: onend. recognitionFailed:', recognitionFailed);
+        console.log('[Content STT] Event: onend. isDictating:', isDictating, 'recognitionFailed:', recognitionFailed);
+        if (isDictating && !recognitionFailed) {
+          try {
+            console.log('[Content STT] Still in dictation mode; keeping recognition active...');
+            recognition.start();
+            return;
+          } catch (e) {
+            console.warn('[Content STT] Recognition restart skipped:', e);
+          }
+        }
         if (!recognitionFailed) {
           cleanupSTT(true);
         } else {
@@ -757,6 +781,7 @@
 
   function stopDictation() {
     console.log('[Content STT] stopDictation() called by user');
+    isDictating = false;
     cleanupSTT(true);
   }
 
