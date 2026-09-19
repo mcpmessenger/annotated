@@ -11,6 +11,9 @@ export function Footer() {
             <a href="/privacy" className="hover:text-[hsl(var(--foreground))] transition-colors">
               Privacy Policy
             </a>
+            <a href="/dmca" className="hover:text-[hsl(var(--foreground))] transition-colors">
+              DMCA / Fair Use
+            </a>
             <a href="https://github.com/mcpmessenger/annotated" target="_blank" className="hover:text-[hsl(var(--foreground))] transition-colors">
               GitHub
             </a>

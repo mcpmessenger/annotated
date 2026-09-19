@@ -135,13 +135,13 @@ export function AnnotationCard({ annotation }: { annotation: Annotation }) {
 
         <div className="flex items-center gap-4 relative z-20">
           <Tooltip content="File a DMCA / Fair Use dispute for this content" position="top">
-            <a
-              href={`mailto:magnetarsenti@gmail.com?subject=Fair Use Claim for Annotation ${annotation.id}`}
+            <Link
+              href={`/dmca?annotation_id=${annotation.id}&url=${encodeURIComponent(annotation.url || "")}`}
               onClick={(e) => e.stopPropagation()}
               className="text-[11px] text-[hsl(var(--text-subtle))] hover:text-red-500 underline transition-colors"
             >
               File a claim
-            </a>
+            </Link>
           </Tooltip>
 
           <Link

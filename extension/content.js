@@ -1,4 +1,4 @@
-(() => {
+﻿(() => {
   const state = { annotations: [], profiles: {} };
   const getKey = () => `page:${location.origin}${location.pathname}`;
   const escapeHtml = (v) => String(v || '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[c]));
@@ -457,7 +457,7 @@
         border-radius: 9px;
         box-shadow: 0 8px 24px rgba(0,0,0,0.35), 0 0 0 1px rgba(255,255,255,0.12);
         max-width: 290px;
-        cursor: pointer;
+        cursor: default;
         transition: opacity 0.15s ease, transform 0.15s ease;
         transform: translateY(4px);
         opacity: 0;
@@ -501,39 +501,76 @@
     }, 240); // 240ms debounce to allow user to move mouse into bubble
   }
 
-  function showBubble(mark, annotation) {
+  function showBubble(mark, annotations) {
+    if (!Array.isArray(annotations)) annotations = [annotations];
+    if (annotations.length === 0) return;
+
     if (hideBubbleTimeout) {
       clearTimeout(hideBubbleTimeout);
       hideBubbleTimeout = null;
     }
     ensureBubble();
-    currentHoveredAnnotationId = annotation.id;
+    currentHoveredAnnotationId = annotations[0].id;
 
-    // Get author info from cache
-    const profile = state.profiles[annotation.user_id] || {};
-    const authorName = profile.full_name || (profile.email ? `@${profile.email.split('@')[0]}` : (annotation.user_name || 'Annotator'));
-    const comment = annotation.comment || annotation.commentary || 'Annotation note';
-    const avatarUrl = profile.avatar_url;
-    const initial = (authorName || 'A')[0].toUpperCase();
-    const intent = annotation.intent || '';
+    const isSingle = annotations.length === 1;
+
+    const rowsHtml = annotations.map((annotation, idx) => {
+      const profile = state.profiles[annotation.user_id] || {};
+      const authorName = profile.full_name || (profile.email ? `@${profile.email.split('@')[0]}` : (annotation.user_name || 'Annotator'));
+      const comment = annotation.comment || annotation.commentary || 'Annotation note';
+      const avatarUrl = profile.avatar_url;
+      const initial = (authorName || 'A')[0].toUpperCase();
+      const intent = annotation.intent || '';
+
+      const avatarHtml = avatarUrl
+        ? `<img src="${avatarUrl}" style="width: 18px; height: 18px; border-radius: 50%; object-fit: cover; flex-shrink: 0;">`
+        : `<div style="width: 18px; height: 18px; border-radius: 50%; background: #ffd21a; color: #000; font-size: 9px; font-weight: 800; display: grid; place-items: center; flex-shrink: 0;">${initial}</div>`;
+
+      const divider = idx > 0 ? `<div style="height: 1px; background: rgba(255,255,255,0.08); margin: 6px 0;"></div>` : '';
+
+      return `
+        ${divider}
+        <div class="ann-row" data-ann-id="${annotation.id}" style="cursor: pointer; border-radius: 6px; padding: 4px 2px; transition: background 0.1s;">
+          <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 3px;">
+            <div style="display: flex; align-items: center; gap: 6px; overflow: hidden;">
+              ${avatarHtml}
+              <strong style="font-size: 11px; color: #ffd21a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(authorName)}</strong>
+            </div>
+            ${intent ? `<span style="font-size: 12px; flex-shrink: 0;">${intent}</span>` : ''}
+          </div>
+          <div style="font-size: 12px; color: #edf3f5; word-break: break-word; max-height: 54px; overflow: hidden; text-overflow: ellipsis; line-height: 1.35;">${escapeHtml(comment)}</div>
+        </div>
+      `;
+    }).join('');
+
+    const countLabel = isSingle
+      ? `<span>Click to view details</span><span style="color: #ffd21a; font-weight: bold;">↗</span>`
+      : `<span>${annotations.length} annotations — click any to view</span><span style="color: #ffd21a; font-weight: bold;">↗</span>`;
 
     hoverBubble.innerHTML = `
-      <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 4px;">
-        <div style="display: flex; align-items: center; gap: 6px; overflow: hidden;">
-          ${avatarUrl 
-            ? `<img src="${avatarUrl}" style="width: 16px; height: 16px; border-radius: 50%; object-fit: cover; flex-shrink: 0;">` 
-            : `<div style="width: 16px; height: 16px; border-radius: 50%; background: #ffd21a; color: #000; font-size: 9px; font-weight: 800; display: grid; place-items: center; flex-shrink: 0;">${initial}</div>`
-          }
-          <strong style="font-size: 11px; color: #ffd21a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(authorName)}</strong>
-        </div>
-        ${intent ? `<span style="font-size: 12px; flex-shrink: 0;">${intent}</span>` : ''}
+      <div style="max-height: 260px; overflow-y: auto; scrollbar-width: thin; scrollbar-color: #445 transparent;">
+        ${rowsHtml}
       </div>
-      <div style="font-size: 12px; color: #edf3f5; word-break: break-word; max-height: 54px; overflow: hidden; text-overflow: ellipsis; line-height: 1.35;">${escapeHtml(comment)}</div>
       <div style="font-size: 10px; color: #9aaab2; margin-top: 5px; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 4px;">
-        <span>Click to view details</span>
-        <span style="color: #ffd21a; font-weight: bold;">↗</span>
+        ${countLabel}
       </div>
     `;
+
+    // Attach per-row click handlers
+    hoverBubble.querySelectorAll('.ann-row').forEach(row => {
+      row.addEventListener('mouseenter', () => { row.style.background = 'rgba(255,255,255,0.06)'; });
+      row.addEventListener('mouseleave', () => { row.style.background = ''; });
+      row.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const annId = row.dataset.annId;
+        const ann = state.annotations.find(a => String(a.id) === String(annId));
+        if (ann) {
+          hoverBubble.style.display = 'none';
+          const m = document.querySelector(`[data-annotated-highlight="${ann.id}"]`);
+          openAnnotationInWidget(ann, m?.getBoundingClientRect());
+        }
+      });
+    });
 
     const rect = mark.getBoundingClientRect();
     let left = rect.left;
@@ -541,8 +578,8 @@
 
     if (left + 300 > window.innerWidth) left = window.innerWidth - 305;
     if (left < 10) left = 10;
-    if (top + 100 > window.innerHeight) {
-      top = Math.max(10, rect.top - 95);
+    if (top + 120 > window.innerHeight) {
+      top = Math.max(10, rect.top - 120);
     }
 
     hoverBubble.style.left = `${left}px`;
@@ -599,9 +636,14 @@
     const mark = e.target.closest('.annotated-highlight');
     if (mark) {
       const annotationId = mark.dataset.annotatedHighlight;
-      const annotation = state.annotations.find(a => String(a.id) === String(annotationId));
-      if (annotation) {
-        showBubble(mark, annotation);
+      // Collect ALL annotations that share the same quote text as the hovered mark
+      const hoveredAnnotation = state.annotations.find(a => String(a.id) === String(annotationId));
+      if (hoveredAnnotation) {
+        const quote = (hoveredAnnotation.quote || '').trim().toLowerCase();
+        const allForQuote = quote
+          ? state.annotations.filter(a => (a.quote || '').trim().toLowerCase() === quote)
+          : [hoveredAnnotation];
+        showBubble(mark, allForQuote.length > 0 ? allForQuote : [hoveredAnnotation]);
       }
     }
   });

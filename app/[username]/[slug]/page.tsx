@@ -210,12 +210,12 @@ export default function AnnotationPage() {
 
             <div className="mt-4 text-right">
               <Tooltip content="File a DMCA / Fair Use dispute for this content" position="top">
-                <a
-                  href={`mailto:magnetarsenti@gmail.com?subject=Fair Use Claim for Annotation ${annotation.id}`}
+                <Link
+                  href={`/dmca?annotation_id=${annotation.id}&url=${encodeURIComponent(annotation.url || "")}`}
                   className="text-xs text-[hsl(var(--text-subtle))] hover:text-red-500 underline transition-colors"
                 >
                   File a claim (Dispute Fair Use)
-                </a>
+                </Link>
               </Tooltip>
             </div>
           </footer>
