@@ -9,6 +9,19 @@
   let lastKnownElement = null;
 
   // ─── Helpers: Timestamp Extraction & Media Sync ──────────────────────────────
+  
+  const formatSeconds = (sec) => {
+    if (sec == null || isNaN(sec)) return '';
+    const s = Math.floor(sec);
+    const hrs = Math.floor(s / 3600);
+    const mins = Math.floor((s % 3600) / 60);
+    const secs = s % 60;
+    if (hrs > 0) {
+      return `${hrs}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+    }
+    return `${mins}:${String(secs).padStart(2, '0')}`;
+  };
+
   const extractTimestamp = (url, comment) => {
     if (!url && !comment) return null;
 
@@ -450,6 +463,128 @@
   };
 
   
+  
+  function renderYouTubeProgressBarMarkers() {
+    const isYTWatch = location.hostname.includes('youtube.com') && location.pathname.includes('/watch');
+    if (!isYTWatch || !state.annotations || state.annotations.length === 0) {
+      const existingContainer = document.getElementById('annotated-yt-markers-layer');
+      if (existingContainer) existingContainer.remove();
+      return;
+    }
+
+    const mediaEl = document.querySelector('video');
+    const progressBar = document.querySelector('.ytp-progress-bar') || document.querySelector('.ytp-progress-bar-container');
+
+    if (!mediaEl || !progressBar || !mediaEl.duration || isNaN(mediaEl.duration) || mediaEl.duration <= 0) {
+      return;
+    }
+
+    let markersLayer = document.getElementById('annotated-yt-markers-layer');
+    if (!markersLayer) {
+      markersLayer = document.createElement('div');
+      markersLayer.id = 'annotated-yt-markers-layer';
+      markersLayer.style.cssText = `
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        z-index: 999;
+      `;
+      progressBar.appendChild(markersLayer);
+    }
+
+    // Keep markers sync'd with current annotations list
+    const totalDuration = mediaEl.duration;
+    const existingMarkers = markersLayer.querySelectorAll('.annotated-yt-progress-marker');
+    
+    // Clear old markers if annotations count or timestamps changed
+    markersLayer.innerHTML = '';
+
+    state.annotations.forEach((ann, idx) => {
+      const ts = extractTimestamp(ann.url, ann.comment || ann.commentary);
+      if (ts == null || ts < 0 || ts > totalDuration) return;
+
+      const pct = (ts / totalDuration) * 100;
+      const intent = ann.intent || '💡';
+      const commentText = (ann.comment || ann.commentary || ann.quote || ann.quote_text || 'Annotation').trim();
+
+      const marker = document.createElement('div');
+      marker.className = 'annotated-yt-progress-marker';
+      marker.style.cssText = `
+        position: absolute;
+        left: ${pct}%;
+        top: -1px;
+        bottom: -1px;
+        width: 5px;
+        transform: translateX(-50%);
+        background: #ffd21a;
+        border-radius: 3px;
+        box-shadow: 0 0 10px #ffd21a, 0 0 4px rgba(0,0,0,0.9);
+        cursor: pointer;
+        pointer-events: auto;
+        z-index: 1000;
+        transition: transform 0.15s cubic-bezier(0.175, 0.885, 0.32, 1.275), background 0.15s ease, box-shadow 0.15s ease;
+      `;
+
+      // Custom Hover Tooltip
+      let markerTooltip = null;
+
+      marker.addEventListener('mouseenter', (e) => {
+        marker.style.transform = 'translateX(-50%) scaleY(1.7) scaleX(1.4)';
+        marker.style.background = '#ffffff';
+        marker.style.boxShadow = '0 0 14px #ffffff, 0 0 6px #ffd21a';
+
+        // Create tooltip on player
+        markerTooltip = document.createElement('div');
+        markerTooltip.className = 'annotated-yt-marker-tooltip';
+        markerTooltip.style.cssText = `
+          position: absolute;
+          bottom: 24px;
+          left: ${pct}%;
+          transform: translateX(-50%);
+          background: #17242c;
+          border: 1px solid #ffd21a;
+          border-radius: 8px;
+          padding: 6px 10px;
+          color: #fff;
+          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+          font-size: 11px;
+          font-weight: 600;
+          white-space: nowrap;
+          pointer-events: none;
+          box-shadow: 0 6px 20px rgba(0,0,0,0.7);
+          z-index: 1001;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+        `;
+        markerTooltip.innerHTML = `<span style="color:#ffd21a; font-weight:800;">⏱️ ${formatSeconds(ts)}</span> <span style="opacity:0.9;">${escapeHtml(commentText.slice(0, 50))}${commentText.length > 50 ? '…' : ''}</span>`;
+        markersLayer.appendChild(markerTooltip);
+      });
+
+      marker.addEventListener('mouseleave', () => {
+        marker.style.transform = 'translateX(-50%) scale(1)';
+        marker.style.background = '#ffd21a';
+        marker.style.boxShadow = '0 0 10px #ffd21a, 0 0 4px rgba(0,0,0,0.9)';
+        if (markerTooltip) {
+          markerTooltip.remove();
+          markerTooltip = null;
+        }
+      });
+
+      marker.addEventListener('click', (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        seekToTimestamp(ts);
+        openAnnotationInWidget(ann, marker.getBoundingClientRect());
+      });
+
+      markersLayer.appendChild(marker);
+    });
+  }
+
   function renderYouTubeVideoTag() {
     const isYTWatch = location.hostname.includes('youtube.com') && location.pathname.includes('/watch');
     if (!isYTWatch || !state.annotations || state.annotations.length === 0) {
@@ -551,6 +686,8 @@
 
 
   const renderAllPendingHighlights = () => {
+    renderYouTubeVideoTag();
+    renderYouTubeProgressBarMarkers();
     if (!state.annotations || state.annotations.length === 0) return;
     state.annotations.forEach(ann => {
       renderHighlight(ann);
@@ -835,7 +972,11 @@
   }, { capture: true });
 
   setInterval(() => {
-    state.annotations.forEach(ann => renderHighlight(ann));
+    renderYouTubeVideoTag();
+    renderYouTubeProgressBarMarkers();
+    if (state.annotations && state.annotations.length > 0) {
+      state.annotations.forEach(ann => renderHighlight(ann));
+    }
   }, 1000);
 
   let widgetIframe = null;
