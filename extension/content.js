@@ -415,6 +415,71 @@
     return false;
   };
 
+  
+  function renderYouTubeVideoTag() {
+    if (!location.hostname.includes('youtube.com') || !location.pathname.includes('/watch')) return;
+    if (!state.annotations || state.annotations.length === 0) {
+      const existing = document.getElementById('annotated-yt-tag');
+      if (existing) existing.remove();
+      return;
+    }
+
+    const titleContainer = document.querySelector('ytd-watch-metadata #title, #title h1, h1.ytd-watch-metadata, #above-the-fold #title');
+    if (!titleContainer) return;
+
+    let tag = document.getElementById('annotated-yt-tag');
+    if (!tag) {
+      tag = document.createElement('div');
+      tag.id = 'annotated-yt-tag';
+      tag.style.cssText = `
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        margin-left: 14px;
+        padding: 6px 14px;
+        background: #17242c;
+        border: 1px solid #ffd21a;
+        border-radius: 20px;
+        color: #ffd21a;
+        font-size: 13px;
+        font-weight: 700;
+        cursor: pointer;
+        box-shadow: 0 4px 16px rgba(0,0,0,0.35);
+        vertical-align: middle;
+        transition: transform 0.15s ease, background 0.15s ease;
+      `;
+      tag.addEventListener('mouseenter', () => { tag.style.transform = 'scale(1.05)'; });
+      tag.addEventListener('mouseleave', () => { tag.style.transform = 'scale(1)'; });
+      tag.addEventListener('click', (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        const ann = state.annotations[0];
+        if (ann) {
+          const ts = extractTimestamp(ann.url, ann.comment || ann.commentary);
+          if (ts != null) {
+            const mediaEl = document.querySelector('video');
+            if (mediaEl) {
+              try {
+                mediaEl.currentTime = ts;
+                mediaEl.play?.().catch(() => {});
+              } catch (_) {}
+            }
+          }
+          openAnnotationInWidget(ann, tag.getBoundingClientRect());
+        }
+      });
+    }
+
+    const count = state.annotations.length;
+    const intent = state.annotations[0]?.intent || '💡';
+    tag.innerHTML = `<span>✏️ Annotated</span><span style="background:#ffd21a; color:#000; padding:1px 6px; border-radius:10px; font-size:11px; font-weight:900;">${count}</span><span>${intent}</span>`;
+
+    if (!titleContainer.contains(tag)) {
+      titleContainer.appendChild(tag);
+    }
+  }
+
+
   const renderAllPendingHighlights = () => {
     if (!state.annotations || state.annotations.length === 0) return;
     state.annotations.forEach(ann => {
