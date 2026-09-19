@@ -7,6 +7,12 @@ function mapRowToAnnotation(row: any): Annotation {
   const email = profile.email || "user@example.com";
   const username = email.split("@")[0];
   
+  let sourceUrl = row.url;
+  // Resolve known historical tweet annotations that were captured on x.com/Jason
+  if (sourceUrl === 'https://x.com/Jason' && row.quote?.includes('$5,000 prize')) {
+    sourceUrl = 'https://x.com/Jason/status/2100272625289433254';
+  }
+
   return {
     id: row.id,
     userId: row.user_id,
@@ -15,7 +21,7 @@ function mapRowToAnnotation(row: any): Annotation {
     userDisplayName: profile.full_name || username,
     avatar_url: profile.avatar_url,
     title: row.page_title || row.hostname || "Webpage",
-    sourceUrl: row.url,
+    sourceUrl: sourceUrl,
     sourceTitle: row.page_title || row.hostname,
     sourceDomain: row.hostname || "",
     quoteText: row.quote,

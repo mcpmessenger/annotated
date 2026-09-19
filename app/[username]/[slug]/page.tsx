@@ -135,7 +135,11 @@ export default function AnnotationPage({
                 rel="noopener noreferrer"
                 className="text-[hsl(var(--accent))] hover:underline font-medium"
               >
-                {annotation.sourceDomain || annotation.sourceUrl} →
+                {(() => {
+                  const tweetMatch = annotation.sourceUrl?.match(/(?:x|twitter)\.com\/([^\/]+)\/status\/(\d+)/i);
+                  if (tweetMatch) return `@${tweetMatch[1]} on x.com`;
+                  return annotation.sourceDomain || annotation.sourceUrl;
+                })()} →
               </a>
             </p>
           </section>

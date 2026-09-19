@@ -3,6 +3,11 @@
   const getKey = () => `page:${location.origin}${location.pathname}`;
   const escapeHtml = (v) => String(v || '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[c]));
 
+  // Buffer the latest selection to survive aggressive SPA clears (like X.com)
+  let lastKnownSelection = null;
+  let lastKnownRect = null;
+  let lastKnownElement = null;
+
   // ─── Helpers: Timestamp Extraction & Media Sync ──────────────────────────────
   const extractTimestamp = (url, comment) => {
     if (!url && !comment) return null;
@@ -40,21 +45,47 @@
     return null;
   };
 
-  const getExactSourceUrl = (explicitTimestamp = null) => {
+  const getExactSourceUrl = (explicitTimestamp = null, targetEl = null) => {
     try {
       // 1. Twitter/X Tweet permalink
-      const selection = window.getSelection();
-      if (selection && selection.rangeCount > 0) {
-        const anchorNode = selection.anchorNode;
-        const element = anchorNode?.nodeType === Node.ELEMENT_NODE ? anchorNode : anchorNode?.parentElement;
-        const tweetArticle = element?.closest('article[data-testid="tweet"]');
+      let element = targetEl || lastKnownElement;
+      if (!element) {
+        const selection = window.getSelection();
+        if (selection && selection.rangeCount > 0) {
+          const anchorNode = selection.anchorNode;
+          element = anchorNode?.nodeType === Node.ELEMENT_NODE ? anchorNode : anchorNode?.parentElement;
+        }
+      }
+
+      if (element) {
+        const tweetArticle = element.closest('article[data-testid="tweet"]');
         if (tweetArticle) {
-          const statusLink = tweetArticle.querySelector('a[href*="/status/"]');
-          if (statusLink) {
-            const href = statusLink.getAttribute('href');
-            if (href) return href.startsWith('http') ? href : `https://x.com${href}`;
+          // Twitter always wraps the tweet's own timestamp in an anchor with /status/
+          const timeLink = tweetArticle.querySelector('time')?.closest('a[href*="/status/"]');
+          if (timeLink) {
+            const href = timeLink.getAttribute('href');
+            if (href) {
+              const cleanHref = href.split('?')[0];
+              return cleanHref.startsWith('http') ? cleanHref : `https://x.com${cleanHref}`;
+            }
+          }
+          // Fallback to any /status/ anchor in the tweet article matching a tweet status ID pattern
+          const statusLinks = Array.from(tweetArticle.querySelectorAll('a[href*="/status/"]'));
+          const mainStatusLink = statusLinks.find(a => /\/[^\/]+\/status\/\d+/.test(a.getAttribute('href') || ''));
+          if (mainStatusLink) {
+            const href = mainStatusLink.getAttribute('href');
+            if (href) {
+              const cleanHref = href.split('?')[0];
+              return cleanHref.startsWith('http') ? cleanHref : `https://x.com${cleanHref}`;
+            }
           }
         }
+      }
+
+      // If the current page is already a tweet status permalink, clean query params
+      if ((location.hostname.includes('x.com') || location.hostname.includes('twitter.com')) && location.pathname.includes('/status/')) {
+        const cleanPath = location.pathname.split('?')[0];
+        return `https://x.com${cleanPath}`;
       }
 
       // 2. YouTube with video ID and timestamp
@@ -121,7 +152,16 @@
     }
 
     const anonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRhamFkYnZsbGRybWd6enRka3NuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk1ODYwMTcsImV4cCI6MjEwNTE2MjAxN30.ZGteNtShkBErPckuMGX4tWMn0AtgU_THFSI37Wgd-eU';
-    fetch(`https://dajadbvlldrmgzztdksn.supabase.co/rest/v1/annotations?url=ilike.${encodeURIComponent('%' + cleanUrl + '%')}`, {
+    let queryUrl = `https://dajadbvlldrmgzztdksn.supabase.co/rest/v1/annotations?url=ilike.${encodeURIComponent('%' + cleanUrl + '%')}`;
+
+    // If on Twitter/X status page, query by status ID so x.com vs twitter.com or different URL formats always match
+    const tweetStatusMatch = location.pathname.match(/\/status\/(\d+)/);
+    if ((location.hostname.includes('x.com') || location.hostname.includes('twitter.com')) && tweetStatusMatch) {
+      const statusId = tweetStatusMatch[1];
+      queryUrl = `https://dajadbvlldrmgzztdksn.supabase.co/rest/v1/annotations?url=ilike.${encodeURIComponent('%/status/' + statusId + '%')}`;
+    }
+
+    fetch(queryUrl, {
       headers: { 'apikey': anonKey }
     })
     .then(r => r.json())
@@ -160,12 +200,15 @@
     if (document.querySelector(`[data-annotated-highlight="${annotation.id}"]`)) return true;
 
     const targetText = quote.trim();
-    const searchPhrases = [targetText];
+    const normalizedTarget = targetText.replace(/\s+/g, ' ');
+    const searchPhrases = [targetText, normalizedTarget];
     if (targetText.length > 25) {
       searchPhrases.push(targetText.slice(0, 25));
+      searchPhrases.push(normalizedTarget.slice(0, 25));
     }
 
     for (const phrase of searchPhrases) {
+      if (!phrase || phrase.length < 2) continue;
       const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
       let node;
       while ((node = walker.nextNode())) {
@@ -180,13 +223,79 @@
           // NOTE: Do not set mark.title (avoids clunky disappearing OS browser tooltip)
           try { 
             range.surroundContents(mark); 
+            // Auto-scroll to highlight when arriving via direct post permalink
+            if (!annotation._hasScrolled && (location.pathname.includes('/status/') || location.search.includes('v='))) {
+              annotation._hasScrolled = true;
+              setTimeout(() => {
+                mark.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              }, 350);
+            }
             return true; 
           } catch (_) {}
         }
       }
     }
+
+    // Secondary fallback for X/Twitter: check tweetText element directly
+    if (location.hostname.includes('x.com') || location.hostname.includes('twitter.com')) {
+      const tweetContainers = document.querySelectorAll('[data-testid="tweetText"]');
+      for (const container of tweetContainers) {
+        if (container.closest('[data-annotated-highlight]') || container.querySelector('[data-annotated-highlight]')) continue;
+        const text = container.textContent || '';
+        if (text.includes(searchPhrases[0]) || (searchPhrases[2] && text.includes(searchPhrases[2]))) {
+          const firstTextNode = Array.from(container.childNodes).find(n => n.nodeType === Node.TEXT_NODE && n.nodeValue.trim().length > 0) || container.firstChild;
+          if (firstTextNode && !container.querySelector('[data-annotated-highlight]')) {
+            try {
+              const mark = document.createElement('mark');
+              mark.dataset.annotatedHighlight = annotation.id;
+              mark.className = 'annotated-highlight';
+              if (firstTextNode.nodeType === Node.TEXT_NODE) {
+                const range = document.createRange();
+                range.selectNodeContents(firstTextNode);
+                range.surroundContents(mark);
+              } else {
+                mark.textContent = firstTextNode.textContent;
+                firstTextNode.replaceWith(mark);
+              }
+              if (!annotation._hasScrolled) {
+                annotation._hasScrolled = true;
+                setTimeout(() => mark.scrollIntoView({ behavior: 'smooth', block: 'center' }), 350);
+              }
+              return true;
+            } catch (_) {}
+          }
+        }
+      }
+    }
+
     return false;
   };
+
+  const renderAllPendingHighlights = () => {
+    if (!state.annotations || state.annotations.length === 0) return;
+    state.annotations.forEach(ann => {
+      renderHighlight(ann);
+    });
+  };
+
+  // Re-run highlighting as dynamic SPA elements (X.com, YouTube) mount in DOM
+  let domMutationDebounce = null;
+  const domObserver = new MutationObserver(() => {
+    clearTimeout(domMutationDebounce);
+    domMutationDebounce = setTimeout(renderAllPendingHighlights, 180);
+  });
+  if (document.body) {
+    domObserver.observe(document.body, { childList: true, subtree: true });
+  } else {
+    document.addEventListener('DOMContentLoaded', () => {
+      if (document.body) domObserver.observe(document.body, { childList: true, subtree: true });
+    });
+  }
+
+  // Periodic retries for initial hydration on heavy SPAs
+  [500, 1200, 2200, 4000].forEach(delay => {
+    setTimeout(renderAllPendingHighlights, delay);
+  });
 
   // ─── Interactive Floating In-Page Preview Bubble ─────────────────────────────
   let hoverBubble = null;
@@ -493,19 +602,17 @@
     widgetIframe.style.top = top + 'px';
   }
 
-  // Buffer the latest selection to survive aggressive SPA clears (like X.com)
-  let lastKnownSelection = null;
-  let lastKnownRect = null;
-  
   document.addEventListener('selectionchange', () => {
     const selection = window.getSelection();
     const quote = selection?.toString().replace(/\s+/g, ' ').trim();
     if (quote && quote.length >= 2 && selection.rangeCount > 0) {
       lastKnownSelection = quote;
-      lastKnownRect = selection.getRangeAt(0).getBoundingClientRect();
-    } else {
-      // Clear if they actually deselected (not just X.com being aggressive on mouseup)
-      // We rely on mousedown to clear it to be safe
+      try {
+        const range = selection.getRangeAt(0);
+        lastKnownRect = range.getBoundingClientRect();
+        const node = range.commonAncestorContainer;
+        lastKnownElement = node.nodeType === Node.ELEMENT_NODE ? node : node.parentElement;
+      } catch (_) {}
     }
   });
 
@@ -514,6 +621,7 @@
     if (!widgetContainer || !widgetContainer.contains(e.target)) {
       lastKnownSelection = null;
       lastKnownRect = null;
+      lastKnownElement = null;
     }
   }, { capture: true });
 
@@ -542,7 +650,7 @@
     const mediaTs = getMediaTimestamp();
     const payload = {
       quote,
-      url: getExactSourceUrl(mediaTs),
+      url: getExactSourceUrl(mediaTs, lastKnownElement),
       title: document.title,
       hostname: location.hostname,
       timestamp: Date.now(),
@@ -1149,9 +1257,9 @@
       const mediaTs = getMediaTimestamp();
       sendResponse({
         title: document.title,
-        url: getExactSourceUrl(mediaTs),
+        url: getExactSourceUrl(mediaTs, lastKnownElement),
         hostname: location.hostname,
-        selectedText: window.getSelection()?.toString().replace(/\s+/g, ' ').trim() || '',
+        selectedText: window.getSelection()?.toString().replace(/\s+/g, ' ').trim() || lastKnownSelection || '',
         media_timestamp: mediaTs,
       });
     }

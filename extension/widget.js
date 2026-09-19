@@ -376,8 +376,13 @@ function loadPage() {
       } else {
         loadFeedFromSupabase();
         chrome.tabs.sendMessage(tab.id, { type: 'getPageInfo' }, info => {
-          if (!chrome.runtime.lastError && info?.selectedText) {
-            applySelection({ ...info, url: page.url, hostname: page.hostname });
+          if (!chrome.runtime.lastError && (info?.selectedText || info?.quote)) {
+            applySelection({
+              ...info,
+              quote: info.quote || info.selectedText,
+              url: info.url || page.url,
+              hostname: info.hostname || page.hostname,
+            });
           }
         });
       }

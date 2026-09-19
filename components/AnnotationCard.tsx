@@ -72,9 +72,16 @@ export function AnnotationCard({ annotation }: { annotation: Annotation }) {
               target="_blank" 
               rel="noopener noreferrer" 
               className="hover:text-[hsl(var(--accent))] hover:underline font-medium relative z-20 truncate max-w-[260px] inline-block align-bottom"
-              title={annotation.sourceTitle}
+              title={annotation.sourceTitle || annotation.sourceUrl}
             >
-              {annotation.sourceDomain || (annotation.sourceTitle.length > 45 ? annotation.sourceTitle.slice(0, 45) + '...' : annotation.sourceTitle)}
+              {(() => {
+                if (!annotation.sourceUrl) return annotation.sourceDomain || annotation.sourceTitle || "source";
+                const tweetMatch = annotation.sourceUrl.match(/(?:x|twitter)\.com\/([^\/]+)\/status\/(\d+)/i);
+                if (tweetMatch) {
+                  return `@${tweetMatch[1]} on x.com`;
+                }
+                return annotation.sourceDomain || (annotation.sourceTitle.length > 45 ? annotation.sourceTitle.slice(0, 45) + '...' : annotation.sourceTitle);
+              })()}
             </a>
           </p>
 
