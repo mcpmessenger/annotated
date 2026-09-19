@@ -1,7 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
+import { Trash2 } from "lucide-react";
+import { supabase } from "@/lib/supabaseClient";
 import Link from "next/link";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
@@ -52,6 +54,29 @@ export default function AnnotationPage() {
       </div>
     );
   }
+
+
+  const handleDelete = async () => {
+    if (!confirm("Are you sure you want to delete this annotation? This cannot be undone.")) {
+      return;
+    }
+
+    setIsDeleting(true);
+    try {
+      const { error } = await supabase
+        .from("annotations")
+        .delete()
+        .eq("id", annotation.id);
+
+      if (error) throw error;
+
+      router.push(`/u/${annotation.username}`);
+    } catch (err: any) {
+      console.error("Error deleting annotation:", err);
+      alert("Failed to delete annotation: " + (err.message || "Unknown error"));
+      setIsDeleting(false);
+    }
+  };
 
   const shareUrl = typeof window !== "undefined" ? window.location.href : "";
 
@@ -186,7 +211,17 @@ export default function AnnotationPage() {
                 <p>{annotation.views || 0} views</p>
               </div>
 
-              <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+              <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto items-center">
+                {currentUserId && annotation.userId === currentUserId && (
+                  <button
+                    onClick={handleDelete}
+                    disabled={isDeleting}
+                    className="px-4 py-2 rounded text-sm font-medium border border-red-500/30 bg-red-500/10 text-red-600 hover:bg-red-500/20 transition-colors w-full sm:w-auto flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+                  >
+                    <Trash2 size={14} />
+                    <span>{isDeleting ? "Deleting..." : "Delete Note"}</span>
+                  </button>
+                )}
                 <button
                   onClick={handleCopyLink}
                   className={`px-4 py-2 rounded text-sm font-medium transition-colors w-full sm:w-auto ${

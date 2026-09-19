@@ -2,14 +2,65 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { MessageSquare } from "lucide-react";
+import { MessageSquare, Trash2 } from "lucide-react";
+import { useEffect } from "react";
+import { supabase } from "@/lib/supabaseClient";
 import { Annotation } from "@/lib/types";
 import { ReactionRow } from "./ReactionRow";
 import { FollowButton } from "./FollowButton";
 import { Tooltip } from "@/components/Tooltip";
 
-export function AnnotationCard({ annotation }: { annotation: Annotation }) {
+export function AnnotationCard({
+  annotation,
+  onDelete,
+}: {
+  annotation: Annotation;
+  onDelete?: (id: string) => void;
+}) {
   const [isExpanded, setIsExpanded] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isDeleted, setIsDeleted] = useState(false);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setCurrentUserId(session?.user?.id ?? null);
+    });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setCurrentUserId(session?.user?.id ?? null);
+    });
+    if (isDeleted) return null;
+
+  const isOwner = !!(currentUserId && annotation.userId === currentUserId);
+
+  return () => subscription.unsubscribe();
+  }, []);
+
+  const handleDelete = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (!confirm("Are you sure you want to delete this annotation? This cannot be undone.")) {
+      return;
+    }
+
+    setIsDeleting(true);
+    try {
+      const { error } = await supabase
+        .from("annotations")
+        .delete()
+        .eq("id", annotation.id);
+
+      if (error) throw error;
+
+      setIsDeleted(true);
+      if (onDelete) onDelete(annotation.id);
+    } catch (err: any) {
+      console.error("Error deleting annotation:", err);
+      alert("Failed to delete annotation: " + (err.message || "Unknown error"));
+      setIsDeleting(false);
+    }
+  };
 
   const detailLink = `/${annotation.username}/${annotation.slug}`;
 
@@ -134,6 +185,18 @@ export function AnnotationCard({ annotation }: { annotation: Annotation }) {
         </span>
 
         <div className="flex items-center gap-4 relative z-20">
+          {isOwner && (
+            <button
+              type="button"
+              onClick={handleDelete}
+              disabled={isDeleting}
+              className="flex items-center gap-1 text-[11px] text-red-500/80 hover:text-red-600 transition-colors font-medium cursor-pointer"
+              title="Delete your annotation"
+            >
+              <Trash2 size={12} />
+              <span>{isDeleting ? "Deleting..." : "Delete"}</span>
+            </button>
+          )}
           <Tooltip content="File a DMCA / Fair Use dispute for this content" position="top">
             <Link
               href={`/dmca?annotation_id=${annotation.id}&url=${encodeURIComponent(annotation.url || "")}`}
