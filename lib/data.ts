@@ -73,22 +73,39 @@ export async function getAnnotationBySlug(slug: string): Promise<Annotation | un
   // 2. Contains slug match (e.g. if slug has leading dashes or short suffix)
   const stripped = cleanSlug.replace(/^-+/, "");
   if (!data && stripped.length >= 4) {
-    const { data: byLike } = await supabase
+    const { data: bySlugLike } = await supabase
       .from("annotations")
       .select("*")
       .ilike("slug", `%${stripped}%`)
       .maybeSingle();
-    if (byLike) data = byLike;
+    if (bySlugLike) data = bySlugLike;
   }
 
-  // 3. UUID or ID prefix match
-  if (!data && stripped.length >= 4) {
+  // 3. Exact UUID match if cleanSlug or stripped is a valid 36-char UUID
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(stripped);
+  if (!data && isUuid) {
     const { data: byId } = await supabase
       .from("annotations")
       .select("*")
-      .or(`id.eq.${cleanSlug},id.ilike.%${stripped}%`)
+      .eq("id", stripped)
       .maybeSingle();
     if (byId) data = byId;
+  }
+
+  // 4. Fallback search over recent annotations matching id prefix or slug substring
+  if (!data && stripped.length >= 4) {
+    const { data: allRecent } = await supabase
+      .from("annotations")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(100);
+
+    if (Array.isArray(allRecent)) {
+      data = allRecent.find(a => 
+        String(a.slug || "").includes(stripped) || 
+        String(a.id || "").toLowerCase().startsWith(stripped.toLowerCase())
+      );
+    }
   }
 
   if (!data) return undefined;
