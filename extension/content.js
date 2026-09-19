@@ -288,11 +288,25 @@
           .catch(() => {});
         }
 
-        data.forEach(ann => {
-          if (!state.annotations.find(a => a.id === ann.id)) {
-            state.annotations.push(ann);
+        // Overwrite in-memory annotations with fresh server data to prune deleted ones
+        const remoteIds = new Set(data.map(a => String(a.id)));
+        
+        // Remove stale marks from DOM for any annotations no longer on server
+        state.annotations.forEach(a => {
+          if (!remoteIds.has(String(a.id))) {
+            document.querySelectorAll(`[data-annotated-highlight="${a.id}"]`).forEach(el => {
+              const parent = el.parentNode;
+              if (parent) {
+                while (el.firstChild) parent.insertBefore(el.firstChild, el);
+                parent.removeChild(el);
+              }
+            });
           }
         });
+
+        // Set state to fresh remote annotations and sync local cache
+        state.annotations = data;
+        chrome.storage.local.set({ [getKey()]: data });
         renderAllPendingHighlights();
       }
     })
