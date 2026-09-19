@@ -9,6 +9,7 @@ import { getAnnotationBySlug } from "@/lib/data";
 import { CommentSection } from "@/components/CommentSection";
 import { ReactionRow } from "@/components/ReactionRow";
 import { FollowButton } from "@/components/FollowButton";
+import { Tooltip } from "@/components/Tooltip";
 
 export default function AnnotationPage() {
   const params = useParams();
@@ -208,13 +209,14 @@ export default function AnnotationPage() {
             </div>
 
             <div className="mt-4 text-right">
-              <a
-                href={`mailto:magnetarsenti@gmail.com?subject=Fair Use Claim for Annotation ${annotation.id}`}
-                className="text-xs text-[hsl(var(--text-subtle))] hover:text-red-500 underline transition-colors"
-                title="File a DMCA / Fair Use dispute for this content"
-              >
-                File a claim (Dispute Fair Use)
-              </a>
+              <Tooltip content="File a DMCA / Fair Use dispute for this content" position="top">
+                <a
+                  href={`mailto:magnetarsenti@gmail.com?subject=Fair Use Claim for Annotation ${annotation.id}`}
+                  className="text-xs text-[hsl(var(--text-subtle))] hover:text-red-500 underline transition-colors"
+                >
+                  File a claim (Dispute Fair Use)
+                </a>
+              </Tooltip>
             </div>
           </footer>
 

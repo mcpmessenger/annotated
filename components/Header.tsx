@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useState, useEffect, useRef } from "react";
 import { Sun, Moon, PencilLine, User } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
+import { Tooltip } from "@/components/Tooltip";
 
 const navItems = [
   { label: "Explore", href: "/explore" },
@@ -108,13 +109,14 @@ export function Header() {
               {item.label}
             </Link>
           ))}
-          <button 
-            onClick={toggleTheme}
-            className="ml-4 text-sm w-8 h-8 flex items-center justify-center rounded-full hover:bg-[hsl(var(--border))] text-[hsl(var(--text-muted))] transition-colors"
-            title="Toggle theme"
-          >
-            {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
-          </button>
+          <Tooltip content={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"} position="bottom">
+            <button 
+              onClick={toggleTheme}
+              className="ml-4 text-sm w-8 h-8 flex items-center justify-center rounded-full hover:bg-[hsl(var(--border))] text-[hsl(var(--text-muted))] transition-colors"
+            >
+              {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
+            </button>
+          </Tooltip>
           
           <div className="ml-2 pl-4 border-l border-[hsl(var(--border))] flex items-center">
             {user ? (
@@ -210,9 +212,11 @@ export function Header() {
                 )}
               </div>
             ) : (
-              <button onClick={handleLogin} title="Sign in with Google" className="w-8 h-8 rounded-full border border-[hsl(var(--border))] bg-[hsl(var(--background))] flex items-center justify-center text-[hsl(var(--text-muted))] hover:text-[hsl(var(--foreground))] hover:border-[hsl(var(--foreground))] transition-all">
-                <User size={18} />
-              </button>
+              <Tooltip content="Sign in with Google" position="bottom">
+                <button onClick={handleLogin} className="w-8 h-8 rounded-full border border-[hsl(var(--border))] bg-[hsl(var(--background))] flex items-center justify-center text-[hsl(var(--text-muted))] hover:text-[hsl(var(--foreground))] hover:border-[hsl(var(--foreground))] transition-all">
+                  <User size={18} />
+                </button>
+              </Tooltip>
             )}
           </div>
         </nav>

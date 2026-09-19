@@ -6,6 +6,7 @@ import { MessageSquare } from "lucide-react";
 import { Annotation } from "@/lib/types";
 import { ReactionRow } from "./ReactionRow";
 import { FollowButton } from "./FollowButton";
+import { Tooltip } from "@/components/Tooltip";
 
 export function AnnotationCard({ annotation }: { annotation: Annotation }) {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -67,22 +68,23 @@ export function AnnotationCard({ annotation }: { annotation: Annotation }) {
         <div className="flex items-center justify-between mt-2 pt-2 border-t border-[hsl(var(--border))]/50">
           <p className="text-xs text-[hsl(var(--text-subtle))] flex items-center gap-1 max-w-[70%]">
             <span>from</span>
-            <a 
-              href={annotation.sourceUrl} 
-              target="_blank" 
-              rel="noopener noreferrer" 
-              className="hover:text-[hsl(var(--accent))] hover:underline font-medium relative z-20 truncate max-w-[260px] inline-block align-bottom"
-              title={annotation.sourceTitle || annotation.sourceUrl}
-            >
-              {(() => {
-                if (!annotation.sourceUrl) return annotation.sourceDomain || annotation.sourceTitle || "source";
-                const tweetMatch = annotation.sourceUrl.match(/(?:x|twitter)\.com\/([^\/]+)\/status\/(\d+)/i);
-                if (tweetMatch) {
-                  return `@${tweetMatch[1]} on x.com`;
-                }
-                return annotation.sourceDomain || (annotation.sourceTitle.length > 45 ? annotation.sourceTitle.slice(0, 45) + '...' : annotation.sourceTitle);
-              })()}
-            </a>
+            <Tooltip content={annotation.sourceTitle || annotation.sourceUrl} position="top" className="truncate max-w-[260px] align-bottom">
+              <a 
+                href={annotation.sourceUrl} 
+                target="_blank" 
+                rel="noopener noreferrer" 
+                className="hover:text-[hsl(var(--accent))] hover:underline font-medium relative z-20 truncate inline-block"
+              >
+                {(() => {
+                  if (!annotation.sourceUrl) return annotation.sourceDomain || annotation.sourceTitle || "source";
+                  const tweetMatch = annotation.sourceUrl.match(/(?:x|twitter)\.com\/([^\/]+)\/status\/(\d+)/i);
+                  if (tweetMatch) {
+                    return `@${tweetMatch[1]} on x.com`;
+                  }
+                  return annotation.sourceDomain || (annotation.sourceTitle.length > 45 ? annotation.sourceTitle.slice(0, 45) + '...' : annotation.sourceTitle);
+                })()}
+              </a>
+            </Tooltip>
           </p>
 
           {showToggle && (
@@ -132,14 +134,15 @@ export function AnnotationCard({ annotation }: { annotation: Annotation }) {
         </span>
 
         <div className="flex items-center gap-4 relative z-20">
-          <a
-            href={`mailto:magnetarsenti@gmail.com?subject=Fair Use Claim for Annotation ${annotation.id}`}
-            onClick={(e) => e.stopPropagation()}
-            className="text-[11px] text-[hsl(var(--text-subtle))] hover:text-red-500 underline transition-colors"
-            title="File a DMCA / Fair Use dispute for this content"
-          >
-            File a claim
-          </a>
+          <Tooltip content="File a DMCA / Fair Use dispute for this content" position="top">
+            <a
+              href={`mailto:magnetarsenti@gmail.com?subject=Fair Use Claim for Annotation ${annotation.id}`}
+              onClick={(e) => e.stopPropagation()}
+              className="text-[11px] text-[hsl(var(--text-subtle))] hover:text-red-500 underline transition-colors"
+            >
+              File a claim
+            </a>
+          </Tooltip>
 
           <Link
             href={`${detailLink}#comments`}
