@@ -24,16 +24,20 @@ function escapeHtml(v) {
 function openExternalUrl(url) {
   if (!url) return;
   try {
-    if (chrome?.tabs?.create) {
-      chrome.tabs.create({ url });
+    if (chrome?.runtime?.sendMessage) {
+      chrome.runtime.sendMessage({ type: 'openTab', url }, () => {});
       return;
     }
   } catch (_) {}
   try {
-    const win = window.open(url, '_blank');
-    if (win) return;
+    if (chrome?.tabs?.create) {
+      chrome.tabs.create({ url, active: true });
+      return;
+    }
   } catch (_) {}
-  window.parent.postMessage({ type: 'OPEN_URL', url }, '*');
+  try {
+    window.open(url, '_blank', 'noopener,noreferrer');
+  } catch (_) {}
 }
 
 function extractTimestamp(url, comment) {
@@ -138,7 +142,7 @@ $('#signOutBtn').addEventListener('click', async () => {
 $('#profileBtn').addEventListener('click', () => {
   if (currentUser?.email) {
     const username = currentUser.email.split('@')[0];
-    chrome.tabs.create({ url: `https://annotated-repo.vercel.app/u/${username}` });
+    openExternalUrl(`https://annotated-repo.vercel.app/u/${username}`);
   }
 });
 

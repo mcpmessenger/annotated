@@ -84,8 +84,16 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
   });
 });
 
-// ─── Message Relay + Screenshot ───────────────────────────────────────────────
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  // Open URL in a fresh new tab without disturbing active reading surface
+  if (message.type === 'openTab' || message.type === 'OPEN_TAB') {
+    if (message.url) {
+      chrome.tabs.create({ url: message.url, active: true });
+      sendResponse({ ok: true });
+    }
+    return true;
+  }
+
   // Relay selection updates to the side panel when it's already open
   if (message.type === 'selection') {
     chrome.runtime.sendMessage(message).catch(() => {});
