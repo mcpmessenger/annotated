@@ -620,10 +620,11 @@
           ? `${formatSeconds(range.start)} - ${formatSeconds(range.end)}`
           : formatSeconds(range.start);
 
+        const cleanComment = commentText.replace(/\[(?:⏱️\s*)?[0-9hms:]+\s*-\s*[0-9hms:]+\]/i, '').trim();
         markerTooltip.innerHTML = `
           <span style="background:#ffd21a; color:#000; padding:2px 7px; border-radius:12px; font-weight:800; font-size:11px;">⏱️ ${timeRangeStr}</span>
-          <span style="color:#ffd21a; font-weight:700;">${intent}</span>
-          <span style="opacity:0.9; max-width:240px; overflow:hidden; text-overflow:ellipsis;">"${escapeHtml(commentText.slice(0, 50))}${commentText.length > 50 ? '…' : ''}"</span>
+          ${intent ? `<span style="color:#ffd21a; font-weight:700;">${intent}</span>` : ''}
+          ${cleanComment ? `<span style="opacity:0.9; max-width:240px; overflow:hidden; text-overflow:ellipsis;">"${escapeHtml(cleanComment.slice(0, 50))}${cleanComment.length > 50 ? '…' : ''}"</span>` : ''}
         `;
         markersLayer.appendChild(markerTooltip);
       });
