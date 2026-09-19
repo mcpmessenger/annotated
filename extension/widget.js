@@ -626,13 +626,6 @@ if(avatarEl) {
       if (window.parent !== window) {
         window.parent.postMessage({ type: 'STOP_DICTATION' }, '*');
       }
-      try {
-        chrome.tabs?.query({ active: true, currentWindow: true }, (tabs) => {
-          if (tabs?.[0]?.id) {
-            chrome.tabs.sendMessage(tabs[0].id, { type: 'STOP_DICTATION' }).catch(() => {});
-          }
-        });
-      } catch (_) {}
     } else {
       hasLastError = false;
       const commentEl = $('#comment');
@@ -642,19 +635,12 @@ if(avatarEl) {
       }
       isDictating = true;
       if (dictateBtn) dictateBtn.classList.add('recording');
-      setSttStatus('Initializing microphone…');
+      setSttStatus('🎙️ Mic active… listening');
 
-      console.log('[Widget STT] Sending START_DICTATION to parent and tabs...');
+      console.log('[Widget STT] Sending START_DICTATION to parent...');
       if (window.parent !== window) {
         window.parent.postMessage({ type: 'START_DICTATION' }, '*');
       }
-      try {
-        chrome.tabs?.query({ active: true, currentWindow: true }, (tabs) => {
-          if (tabs?.[0]?.id) {
-            chrome.tabs.sendMessage(tabs[0].id, { type: 'START_DICTATION' }).catch(() => {});
-          }
-        });
-      } catch (_) {}
     }
   }
 
