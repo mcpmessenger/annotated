@@ -7,7 +7,6 @@ import { Annotation } from "@/lib/types";
 import { ReactionRow } from "./ReactionRow";
 import { FollowButton } from "./FollowButton";
 import { Tooltip } from "@/components/Tooltip";
-import { TextToSpeechButton } from "@/components/TextToSpeechButton";
 
 export function AnnotationCard({ annotation }: { annotation: Annotation }) {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -134,13 +133,7 @@ export function AnnotationCard({ annotation }: { annotation: Annotation }) {
           })}
         </span>
 
-        <div className="flex items-center gap-3 relative z-20">
-          <TextToSpeechButton
-            text={`${annotation.quote ? `Quote: ${annotation.quote}. ` : ''}${annotation.commentary}`}
-            showLabel={true}
-            size="sm"
-          />
-
+        <div className="flex items-center gap-4 relative z-20">
           <Tooltip content="File a DMCA / Fair Use dispute for this content" position="top">
             <a
               href={`mailto:magnetarsenti@gmail.com?subject=Fair Use Claim for Annotation ${annotation.id}`}

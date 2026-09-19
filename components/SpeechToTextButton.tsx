@@ -215,12 +215,12 @@ export function SpeechToTextButton({
         <button
           type="button"
           onClick={toggleListening}
-          className={`relative inline-flex items-center justify-center gap-1.5 rounded-lg border font-medium transition-all cursor-pointer ${
-            isSmall ? "p-1.5 text-xs" : "px-2.5 py-1.5 text-xs"
+          className={`relative inline-flex items-center justify-center gap-1.5 border font-medium transition-all cursor-pointer ${
+            isSmall ? "p-1.5 text-xs rounded-md" : "px-3 py-2 text-sm rounded-[6px]"
           } ${
             isListening
               ? "border-red-500 bg-red-500/10 text-red-600 dark:text-red-400 ring-2 ring-red-500/30 shadow-xs animate-pulse"
-              : "border-[hsl(var(--border))] bg-[hsl(var(--background))] text-[hsl(var(--text-muted))] hover:text-[hsl(var(--foreground))] hover:border-[hsl(var(--accent))] shadow-2xs"
+              : "border-[hsl(var(--border))] bg-[hsl(var(--background))] text-[hsl(var(--foreground))] hover:border-[hsl(var(--accent))] shadow-2xs"
           } ${className}`}
           aria-label={isListening ? "Stop speech dictation" : "Start speech dictation"}
           aria-pressed={isListening}

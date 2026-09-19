@@ -1,7 +1,6 @@
 'use client';
 import { CommentReactionRow } from "./CommentReactionRow";
 import { SpeechToTextButton } from "@/components/SpeechToTextButton";
-import { TextToSpeechButton } from "@/components/TextToSpeechButton";
 
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
@@ -140,12 +139,9 @@ export function CommentSection({ annotationId }: { annotationId: string }) {
               <span className="text-xs font-semibold text-[hsl(var(--foreground))]">
                 {comment.user_name || "Community Member"}
               </span>
-              <div className="ml-auto flex items-center gap-2">
-                <span className="text-[10px] text-[hsl(var(--text-subtle))]">
-                  {new Date(comment.created_at).toLocaleString()}
-                </span>
-                <TextToSpeechButton text={comment.text} />
-              </div>
+              <span className="text-[10px] text-[hsl(var(--text-subtle))] ml-auto">
+                {new Date(comment.created_at).toLocaleString()}
+              </span>
             </div>
             <p className="text-sm text-[hsl(var(--foreground))] whitespace-pre-wrap pl-8">{comment.text}</p>
             <CommentReactionRow commentId={comment.id} />
@@ -159,45 +155,35 @@ export function CommentSection({ annotationId }: { annotationId: string }) {
 
       {user ? (
         <form onSubmit={submitComment} className="mt-6">
-          <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-[hsl(var(--text-subtle))] font-medium">Quick React:</span>
-              {QUICK_EMOJIS.map((emoji) => (
-                <button
-                  key={emoji}
-                  type="button"
-                  onClick={() => insertEmoji(emoji)}
-                  className="text-lg hover:scale-125 transition-transform p-1 rounded hover:bg-[hsl(var(--border))]"
-                  title={`Insert ${emoji}`}
-                >
-                  {emoji}
-                </button>
-              ))}
-            </div>
-
-            {/* Top Toolbar Dictation Button */}
-            <SpeechToTextButton
-              currentValue={newText}
-              onTranscript={(transcription) => setNewText(transcription)}
-              showLabel={true}
-              label="Dictate"
-              size="sm"
-            />
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-xs text-[hsl(var(--text-subtle))] font-medium">Quick React:</span>
+            {QUICK_EMOJIS.map((emoji) => (
+              <button
+                key={emoji}
+                type="button"
+                onClick={() => insertEmoji(emoji)}
+                className="text-lg hover:scale-125 transition-transform p-1 rounded hover:bg-[hsl(var(--border))]"
+                title={`Insert ${emoji}`}
+              >
+                {emoji}
+              </button>
+            ))}
           </div>
 
           <textarea
             value={newText}
             onChange={(e) => setNewText(e.target.value)}
-            placeholder="Add your thoughts or click the mic to speak..."
+            placeholder="Add your thoughts or talk to comment..."
             className="w-full bg-[hsl(var(--background))] border border-[hsl(var(--border))] rounded-[6px] p-3 text-[hsl(var(--foreground))] focus:outline-none focus:border-[hsl(var(--accent))] resize-y min-h-[100px]"
           />
-          <div className="flex items-center justify-between mt-2">
+          <div className="flex items-center justify-end gap-3 mt-2">
+            {/* Microphone button placed directly to the left of the Post Comment button */}
             <SpeechToTextButton
               currentValue={newText}
               onTranscript={(transcription) => setNewText(transcription)}
               showLabel={true}
-              label="Voice Input"
-              size="sm"
+              label="Talk"
+              size="md"
             />
             <button
               type="submit"
