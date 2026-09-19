@@ -417,45 +417,51 @@
 
   
   function renderYouTubeVideoTag() {
-    if (!location.hostname.includes('youtube.com') || !location.pathname.includes('/watch')) return;
-    if (!state.annotations || state.annotations.length === 0) {
+    const isYTWatch = location.hostname.includes('youtube.com') && location.pathname.includes('/watch');
+    if (!isYTWatch || !state.annotations || state.annotations.length === 0) {
       const existing = document.getElementById('annotated-yt-tag');
       if (existing) existing.remove();
+      const existingBadge = document.getElementById('annotated-yt-floating-badge');
+      if (existingBadge) existingBadge.remove();
       return;
     }
 
-    const titleContainer = document.querySelector('ytd-watch-metadata #title, #title h1, h1.ytd-watch-metadata, #above-the-fold #title');
-    if (!titleContainer) return;
+    const count = state.annotations.length;
+    const topAnn = state.annotations[0];
+    const intent = topAnn?.intent || '💡';
 
-    let tag = document.getElementById('annotated-yt-tag');
-    if (!tag) {
-      tag = document.createElement('div');
-      tag.id = 'annotated-yt-tag';
-      tag.style.cssText = `
-        display: inline-flex;
+    // A. Floating Screen Badge (Guaranteed visible on top of YouTube video player)
+    let badge = document.getElementById('annotated-yt-floating-badge');
+    if (!badge) {
+      badge = document.createElement('div');
+      badge.id = 'annotated-yt-floating-badge';
+      badge.style.cssText = `
+        position: fixed;
+        bottom: 70px;
+        left: 20px;
+        z-index: 2147483646;
+        background: #17242c;
+        border: 1.5px solid #ffd21a;
+        border-radius: 30px;
+        padding: 8px 16px;
+        color: #ffd21a;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        font-size: 13px;
+        font-weight: 800;
+        cursor: pointer;
+        box-shadow: 0 8px 28px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(255, 210, 26, 0.3);
+        display: flex;
         align-items: center;
         gap: 8px;
-        margin-left: 14px;
-        padding: 6px 14px;
-        background: #17242c;
-        border: 1px solid #ffd21a;
-        border-radius: 20px;
-        color: #ffd21a;
-        font-size: 13px;
-        font-weight: 700;
-        cursor: pointer;
-        box-shadow: 0 4px 16px rgba(0,0,0,0.35);
-        vertical-align: middle;
-        transition: transform 0.15s ease, background 0.15s ease;
+        transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
       `;
-      tag.addEventListener('mouseenter', () => { tag.style.transform = 'scale(1.05)'; });
-      tag.addEventListener('mouseleave', () => { tag.style.transform = 'scale(1)'; });
-      tag.addEventListener('click', (e) => {
+      badge.addEventListener('mouseenter', () => { badge.style.transform = 'scale(1.06) translateY(-2px)'; });
+      badge.addEventListener('mouseleave', () => { badge.style.transform = 'scale(1) translateY(0)'; });
+      badge.addEventListener('click', (e) => {
         e.stopPropagation();
         e.preventDefault();
-        const ann = state.annotations[0];
-        if (ann) {
-          const ts = extractTimestamp(ann.url, ann.comment || ann.commentary);
+        if (topAnn) {
+          const ts = extractTimestamp(topAnn.url, topAnn.comment || topAnn.commentary);
           if (ts != null) {
             const mediaEl = document.querySelector('video');
             if (mediaEl) {
@@ -465,17 +471,47 @@
               } catch (_) {}
             }
           }
-          openAnnotationInWidget(ann, tag.getBoundingClientRect());
+          openAnnotationInWidget(topAnn, badge.getBoundingClientRect());
         }
       });
+      document.body.appendChild(badge);
     }
+    badge.innerHTML = `<span>✏️ Annotated Video</span><span style="background:#ffd21a; color:#000; padding:2px 7px; border-radius:10px; font-size:11px; font-weight:900;">${count}</span><span>${intent}</span>`;
 
-    const count = state.annotations.length;
-    const intent = state.annotations[0]?.intent || '💡';
-    tag.innerHTML = `<span>✏️ Annotated</span><span style="background:#ffd21a; color:#000; padding:1px 6px; border-radius:10px; font-size:11px; font-weight:900;">${count}</span><span>${intent}</span>`;
-
-    if (!titleContainer.contains(tag)) {
-      titleContainer.appendChild(tag);
+    // B. Title Header Injected Tag
+    const titleContainer = document.querySelector('ytd-watch-metadata #title, #primary #title, #title h1, h1.ytd-watch-metadata, #above-the-fold #title');
+    if (titleContainer) {
+      let tag = document.getElementById('annotated-yt-tag');
+      if (!tag) {
+        tag = document.createElement('div');
+        tag.id = 'annotated-yt-tag';
+        tag.style.cssText = `
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          margin-left: 14px;
+          padding: 6px 14px;
+          background: #17242c;
+          border: 1px solid #ffd21a;
+          border-radius: 20px;
+          color: #ffd21a;
+          font-size: 13px;
+          font-weight: 700;
+          cursor: pointer;
+          box-shadow: 0 4px 16px rgba(0,0,0,0.35);
+          vertical-align: middle;
+          transition: transform 0.15s ease;
+        `;
+        tag.addEventListener('click', (e) => {
+          e.stopPropagation();
+          e.preventDefault();
+          if (topAnn) openAnnotationInWidget(topAnn, tag.getBoundingClientRect());
+        });
+      }
+      tag.innerHTML = `<span>✏️ Annotated</span><span style="background:#ffd21a; color:#000; padding:1px 6px; border-radius:10px; font-size:11px; font-weight:900;">${count}</span><span>${intent}</span>`;
+      if (!titleContainer.contains(tag)) {
+        titleContainer.appendChild(tag);
+      }
     }
   }
 
@@ -1555,3 +1591,9 @@
 
 
 
+
+
+  // Listen to YouTube SPA navigation events
+  window.addEventListener('yt-navigate-finish', () => { setTimeout(load, 300); });
+  window.addEventListener('yt-page-data-updated', () => { setTimeout(load, 300); });
+  window.addEventListener('spfdone', () => { setTimeout(load, 300); });
