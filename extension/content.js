@@ -676,50 +676,144 @@
       return;
     }
 
-    const count = ytAnns.length;
-    const topAnn = ytAnns[0];
-    const intent = topAnn?.intent || '💡';
-    const ts = extractTimestamp(topAnn.url, topAnn.comment || topAnn.commentary);
-    const tsStr = ts != null ? formatSeconds(ts) : '';
+        const count = ytAnns.length;
+    const currentIds = ytAnns.map(a => a.id).join(',');
 
-    // Floating Screen Badge (Bottom-left visible on top of YouTube video player)
     let badge = document.getElementById('annotated-yt-floating-badge');
-    if (!badge) {
-      badge = document.createElement('div');
-      badge.id = 'annotated-yt-floating-badge';
-      badge.style.cssText = `
-        position: fixed;
-        bottom: 70px;
-        left: 20px;
-        z-index: 2147483646;
+    if (badge && badge.getAttribute('data-ann-ids') === currentIds) {
+      return; // no need to re-render
+    }
+    if (badge) badge.remove();
+
+    badge = document.createElement('div');
+    badge.id = 'annotated-yt-floating-badge';
+    badge.setAttribute('data-ann-ids', currentIds);
+    badge.style.cssText = `
+      position: fixed;
+      bottom: 70px;
+      left: 20px;
+      z-index: 2147483646;
+      background: #17242c;
+      border: 1.5px solid #ffd21a;
+      border-radius: 30px;
+      padding: 8px 16px;
+      color: #ffd21a;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      font-size: 13px;
+      font-weight: 800;
+      cursor: pointer;
+      box-shadow: 0 8px 28px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(255, 210, 26, 0.3);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    `;
+
+    badge.innerHTML = `<span>✏️ Annotated Video</span><span style="background:#ffd21a; color:#000; padding:2px 7px; border-radius:10px; font-size:11px; font-weight:900;">${count}</span>`;
+
+    badge.addEventListener('click', (e) => {
+      e.stopPropagation();
+      e.preventDefault();
+      const topAnn = ytAnns[0];
+      const tsRange = extractTimestampRange(topAnn.url, topAnn.comment || topAnn.commentary);
+      const ts = tsRange ? tsRange.start : extractTimestamp(topAnn.url, topAnn.comment || topAnn.commentary);
+      if (ts != null) seekToTimestamp(ts);
+      openAnnotationInWidget(topAnn, badge.getBoundingClientRect());
+    });
+
+    if (count > 1) {
+      const menu = document.createElement('div');
+      menu.style.cssText = `
+        position: absolute;
+        bottom: calc(100% + 10px);
+        left: 0;
         background: #17242c;
         border: 1.5px solid #ffd21a;
-        border-radius: 30px;
-        padding: 8px 16px;
-        color: #ffd21a;
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-        font-size: 13px;
-        font-weight: 800;
-        cursor: pointer;
-        box-shadow: 0 8px 28px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(255, 210, 26, 0.3);
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        border-radius: 12px;
+        padding: 8px;
+        display: none;
+        flex-direction: column;
+        gap: 6px;
+        box-shadow: 0 8px 28px rgba(0, 0, 0, 0.65);
+        min-width: 250px;
+        max-width: 350px;
+        max-height: 400px;
+        overflow-y: auto;
+        z-index: 2147483647;
+        cursor: default;
       `;
+
+      ytAnns.forEach(ann => {
+        const item = document.createElement('div');
+        const tsRange = extractTimestampRange(ann.url, ann.comment || ann.commentary);
+        let tsStr = '';
+        let startSec = null;
+        if (tsRange) {
+          startSec = tsRange.start;
+          tsStr = tsRange.end > tsRange.start + 2
+            ? `${formatSeconds(tsRange.start)} - ${formatSeconds(tsRange.end)}`
+            : formatSeconds(tsRange.start);
+        } else {
+          startSec = extractTimestamp(ann.url, ann.comment || ann.commentary);
+          if (startSec != null) tsStr = formatSeconds(startSec);
+        }
+
+        const intent = ann.intent || '💡';
+        const commentRaw = (ann.comment || ann.commentary || ann.quote || ann.quote_text || 'Annotation').trim();
+        const cleanComment = commentRaw.replace(/\[(?:⏱️\s*)?[0-9hms:]+\s*-\s*[0-9hms:]+\]/i, '').trim();
+
+        item.style.cssText = `
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+          padding: 8px;
+          border-radius: 8px;
+          background: rgba(255, 255, 255, 0.05);
+          cursor: pointer;
+          transition: background 0.15s ease;
+          text-align: left;
+        `;
+        item.addEventListener('mouseenter', () => item.style.background = 'rgba(255, 255, 255, 0.1)');
+        item.addEventListener('mouseleave', () => item.style.background = 'rgba(255, 255, 255, 0.05)');
+
+        item.addEventListener('click', (e) => {
+          e.stopPropagation();
+          e.preventDefault();
+          if (startSec != null) seekToTimestamp(startSec);
+          openAnnotationInWidget(ann, badge.getBoundingClientRect());
+          menu.style.display = 'none';
+        });
+
+        item.innerHTML = `
+          <div style="display:flex; align-items:center; gap:6px;">
+            ${tsStr ? `<span style="background:#ffd21a; color:#000; padding:2px 6px; border-radius:10px; font-weight:800; font-size:10px;">⏱️ ${tsStr}</span>` : ''}
+            <span style="color:#ffd21a; font-size:12px;">${intent}</span>
+          </div>
+          ${cleanComment ? `<div style="font-size:12px; color:#fff; opacity:0.9; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;">"${escapeHtml(cleanComment)}"</div>` : ''}
+        `;
+        menu.appendChild(item);
+      });
+
+      badge.appendChild(menu);
+
+      let hoverTimeout;
+      badge.addEventListener('mouseenter', () => {
+        clearTimeout(hoverTimeout);
+        badge.style.transform = 'scale(1.06) translateY(-2px)';
+        menu.style.display = 'flex';
+      });
+      badge.addEventListener('mouseleave', () => {
+        hoverTimeout = setTimeout(() => {
+          badge.style.transform = 'scale(1) translateY(0)';
+          menu.style.display = 'none';
+        }, 300);
+      });
+    } else {
       badge.addEventListener('mouseenter', () => { badge.style.transform = 'scale(1.06) translateY(-2px)'; });
       badge.addEventListener('mouseleave', () => { badge.style.transform = 'scale(1) translateY(0)'; });
-      badge.addEventListener('click', (e) => {
-        e.stopPropagation();
-        e.preventDefault();
-        if (topAnn) {
-          if (ts != null) seekToTimestamp(ts);
-          openAnnotationInWidget(topAnn, badge.getBoundingClientRect());
-        }
-      });
-      document.body.appendChild(badge);
     }
-    badge.innerHTML = `<span>✏️ Annotated Video</span><span style="background:#ffd21a; color:#000; padding:2px 7px; border-radius:10px; font-size:11px; font-weight:900;">${count}</span>${tsStr ? `<span style="background:rgba(255,210,26,0.18); border:1px solid #ffd21a; color:#ffd21a; padding:2px 7px; border-radius:10px; font-size:11px; font-weight:800;">⏱️ ${tsStr}</span>` : ''}<span>${intent}</span>`;
+    
+    document.body.appendChild(badge); color:#000; padding:2px 7px; border-radius:10px; font-size:11px; font-weight:900;">${count}</span>${tsStr ? `<span style="background:rgba(255,210,26,0.18); border:1px solid #ffd21a; color:#ffd21a; padding:2px 7px; border-radius:10px; font-size:11px; font-weight:800;">⏱️ ${tsStr}</span>` : ''}<span>${intent}</span>`;
   }
 
 
