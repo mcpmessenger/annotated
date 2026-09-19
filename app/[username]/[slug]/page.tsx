@@ -15,10 +15,26 @@ import { Tooltip } from "@/components/Tooltip";
 
 export default function AnnotationPage() {
   const params = useParams();
+  const router = useRouter();
   const rawSlug = (params?.slug as string) || "";
+  
   const [annotation, setAnnotation] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setCurrentUserId(session?.user?.id ?? null);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setCurrentUserId(session?.user?.id ?? null);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   useEffect(() => {
     if (rawSlug) {
@@ -55,7 +71,6 @@ export default function AnnotationPage() {
     );
   }
 
-
   const handleDelete = async () => {
     if (!confirm("Are you sure you want to delete this annotation? This cannot be undone.")) {
       return;
@@ -89,6 +104,12 @@ export default function AnnotationPage() {
       console.error("Failed to copy:", err);
     }
   };
+
+  const createdDate = (() => {
+    if (!annotation.createdAt) return null;
+    const d = annotation.createdAt instanceof Date ? annotation.createdAt : new Date(annotation.createdAt);
+    return isNaN(d.getTime()) ? null : d;
+  })();
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -132,13 +153,15 @@ export default function AnnotationPage() {
                     <FollowButton targetUserId={annotation.userId} size="sm" />
                   )}
                 </div>
-                <p className="text-xs text-[hsl(var(--text-subtle))] mt-1">
-                  {annotation.createdAt.toLocaleDateString("en-US", {
-                    year: "numeric",
-                    month: "long",
-                    day: "numeric",
-                  })}
-                </p>
+                {createdDate && (
+                  <p className="text-xs text-[hsl(var(--text-subtle))] mt-1">
+                    {createdDate.toLocaleDateString("en-US", {
+                      year: "numeric",
+                      month: "long",
+                      day: "numeric",
+                    })}
+                  </p>
+                )}
               </div>
               {annotation.intent && (
                 <span className="text-2xl bg-[hsl(var(--border))] rounded-full w-10 h-10 flex items-center justify-center shadow-sm">

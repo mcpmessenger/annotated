@@ -48,7 +48,32 @@ export function CommentSection({ annotationId }: { annotationId: string }) {
         console.error("[Comments] Fetch error:", error);
         setErrorMsg(error.message);
       } else {
-        setComments(data || []);
+        const rawComments = data || [];
+        const userIds = Array.from(new Set(rawComments.map(c => c.user_id).filter(Boolean)));
+        
+        let profilesMap: Record<string, any> = {};
+        if (userIds.length > 0) {
+          const { data: pData } = await supabase
+            .from("profiles")
+            .select("*")
+            .in("id", userIds);
+          if (pData) {
+            pData.forEach(p => { profilesMap[p.id] = p; });
+          }
+        }
+
+        const enriched = rawComments.map(c => {
+          const p = profilesMap[c.user_id] || {};
+          const email = p.email || "";
+          const fallbackName = email.split("@")[0] || "User";
+          return {
+            ...c,
+            user_name: p.full_name || fallbackName,
+            user_avatar: p.avatar_url
+          };
+        });
+
+        setComments(enriched);
       }
     } catch (err: any) {
       console.error("[Comments] Exception:", err);
@@ -98,7 +123,7 @@ export function CommentSection({ annotationId }: { annotationId: string }) {
       } else if (data && data.length > 0) {
         // Replace temp item with persisted database row
         setComments((prev) =>
-          prev.map((c) => (c.id === tempId ? { ...c, ...data[0] } : c))
+          prev.map((c) => (c.id === tempId ? { ...c, ...data[0], user_name: tempComment.user_name, user_avatar: tempComment.user_avatar } : c))
         );
       }
     } catch (err: any) {
