@@ -306,11 +306,11 @@ function showAnnotationDetail(ann) {
 
   const openWebBtn = $('#detailOpenWebBtn');
   const bindWebButton = (url) => {
-    if (!openWebBtn) return;
+    if (!openWebBtn || !url) return;
     openWebBtn.href = url;
+    openWebBtn.setAttribute('href', url);
     openWebBtn.onmousedown = (e) => e.stopPropagation();
     openWebBtn.onclick = (e) => {
-      e.preventDefault();
       e.stopPropagation();
       console.log('[Annotated Widget] Open on Annotated button clicked:', url);
       openExternalUrl(url);
