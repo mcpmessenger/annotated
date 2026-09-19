@@ -557,29 +557,41 @@
       const commentText = (ann.comment || ann.commentary || ann.quote || ann.quote_text || 'Annotation').trim();
 
       const marker = document.createElement('div');
-      marker.className = 'annotated-yt-progress-marker';
+      marker.className = 'annotated-yt-progress-marker-wrap';
       marker.style.cssText = `
         position: absolute;
         left: ${startPct}%;
         width: ${widthPct}%;
-        top: -1px;
-        bottom: -1px;
+        min-width: 14px;
+        top: -15px;
+        bottom: -15px;
+        cursor: pointer;
+        pointer-events: auto;
+        z-index: 1000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      `;
+
+      const visual = document.createElement('div');
+      visual.className = 'annotated-yt-progress-marker';
+      visual.style.cssText = `
+        width: 100%;
+        height: 6px;
         background: rgba(255, 210, 26, 0.65);
         border: 1px solid #ffd21a;
         border-radius: 3px;
         box-shadow: 0 0 10px rgba(255, 210, 26, 0.8), inset 0 0 4px rgba(255, 210, 26, 0.6);
-        cursor: pointer;
-        pointer-events: auto;
-        z-index: 1000;
         transition: transform 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
       `;
+      marker.appendChild(visual);
 
       let markerTooltip = null;
 
       marker.addEventListener('mouseenter', () => {
-        marker.style.transform = 'scaleY(1.8)';
-        marker.style.background = 'rgba(255, 255, 255, 0.9)';
-        marker.style.boxShadow = '0 0 14px #ffffff, 0 0 8px #ffd21a';
+        visual.style.transform = 'scaleY(1.8)';
+        visual.style.background = 'rgba(255, 255, 255, 0.9)';
+        visual.style.boxShadow = '0 0 14px #ffffff, 0 0 8px #ffd21a';
 
         markerTooltip = document.createElement('div');
         markerTooltip.className = 'annotated-yt-marker-tooltip';
@@ -617,9 +629,9 @@
       });
 
       marker.addEventListener('mouseleave', () => {
-        marker.style.transform = 'scale(1)';
-        marker.style.background = 'rgba(255, 210, 26, 0.65)';
-        marker.style.boxShadow = '0 0 10px rgba(255, 210, 26, 0.8), inset 0 0 4px rgba(255, 210, 26, 0.6)';
+        visual.style.transform = 'scale(1)';
+        visual.style.background = 'rgba(255, 210, 26, 0.65)';
+        visual.style.boxShadow = '0 0 10px rgba(255, 210, 26, 0.8), inset 0 0 4px rgba(255, 210, 26, 0.6)';
         if (markerTooltip) {
           markerTooltip.remove();
           markerTooltip = null;
