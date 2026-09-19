@@ -933,8 +933,7 @@ if (userMenuWrap && userDropdown) {
 
   const dictateBtn = $('#dictateBtn');
   let isDictating = false;
-  let isCommentDictating = false;
-  let activeDictationTarget = 'main'; // 'main' | 'comment'
+    let activeDictationTarget = 'main'; // 'main' | 'comment'
   let baseComment = '';
   let baseCommentReply = '';
   let hasLastError = false;
