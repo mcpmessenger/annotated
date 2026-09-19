@@ -1015,9 +1015,7 @@ if (userMenuWrap && userDropdown) {
       } else if (data.type === 'DICTATION_ENDED') {
         isCommentDictating = false;
         if (micBtn) micBtn.classList.remove('recording');
-        if (statusEl && statusEl.textContent.includes('Listening')) {
-          statusEl.textContent = '';
-        }
+        if (statusEl) statusEl.textContent = '';
       } else if (data.type === 'DICTATION_ERROR') {
         isCommentDictating = false;
         if (micBtn) micBtn.classList.remove('recording');
@@ -1342,6 +1340,7 @@ if (widgetCommentMicBtn) {
     if (isCommentDictating) {
       isCommentDictating = false;
       widgetCommentMicBtn.classList.remove('recording');
+      if (statusEl) statusEl.textContent = '';
       if (window.parent !== window) {
         window.parent.postMessage({ type: 'STOP_DICTATION' }, '*');
       }

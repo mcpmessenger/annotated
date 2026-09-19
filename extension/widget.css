@@ -535,3 +535,17 @@ body {
 #widgetCommentMicBtn:hover {
   background: var(--line) !important;
 }
+
+#widgetCommentMicBtn.recording,
+.dictate-btn-main.recording {
+  background: #fff5f5 !important;
+  border-color: #fc8181 !important;
+  color: #e53e3e !important;
+  animation: pulse-recording 1.5s infinite ease-in-out !important;
+}
+[data-theme="dark"] #widgetCommentMicBtn.recording,
+[data-theme="dark"] .dictate-btn-main.recording {
+  background: #4a1f1f !important;
+  border-color: #e53e3e !important;
+  color: #ff8888 !important;
+}
