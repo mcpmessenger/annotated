@@ -4,6 +4,8 @@ let page = { title: 'Current page', url: '', hostname: 'Current page' };
 let quote = '', intent = null;
 let mediaDataUrl = null, mediaType = null, mediaFileName = null;
 let videoClipBlob = null;
+let videoStartTs = null;
+let videoEndTs = null;
 let currentMediaTimestamp = null;
 
 let recordedAudioBlob = null;
@@ -751,7 +753,17 @@ $('#publishBtn').addEventListener('click', async () => {
   const safeQuote = (quote && quote.trim()) || (videoClipBlob ? `🎬 Video Clip (${page.title || 'Video'})` : (media_url ? `Attachment: ${page.title || 'Media'}` : (page.title || 'Page Annotation')));
   const allowedIntents = ['🔥', '🤔', '💡', '💯', '👎'];
   const safeIntent = (intent && allowedIntents.includes(intent)) ? intent : '💡';
-  const safeComment = ($('#comment') ? $('#comment').value.trim() : '') || (videoClipBlob ? 'Shared a video clip' : 'Annotation');
+  let safeComment = ($('#comment') ? $('#comment').value.trim() : '') || (videoClipBlob ? 'Shared a video clip' : 'Annotation');
+
+  // Inject start and stop times into the comment to render progress markers
+  if (videoStartTs != null && videoEndTs != null) {
+    const fmt = (ts) => {
+      const m = Math.floor(ts / 60);
+      const s = Math.floor(ts % 60);
+      return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+    };
+    safeComment += `\n\n[⏱️ ${fmt(videoStartTs)} - ${fmt(videoEndTs)}]`;
+  }
 
   let publishUrl = page.url || location.href;
   if (currentMediaTimestamp != null) {
@@ -812,6 +824,8 @@ $('#publishBtn').addEventListener('click', async () => {
         setQuote(''); intent = null;
         mediaDataUrl = null; mediaType = null; mediaFileName = null;
         videoClipBlob = null;
+        videoStartTs = null;
+        videoEndTs = null;
         currentMediaTimestamp = null;
         if ($('#composerTimestampBadge')) $('#composerTimestampBadge').classList.add('hidden');
         if ($('#videoTrimmerBox')) $('#videoTrimmerBox').classList.add('hidden');
@@ -995,6 +1009,7 @@ if (userMenuWrap && userDropdown) {
             .then(r => r.blob())
             .then(blob => {
               videoClipBlob = blob;
+              if (res.startTs !== undefined) { videoStartTs = res.startTs; videoEndTs = res.endTs; }
               if (videoPreviewEl) {
                 videoPreviewEl.src = URL.createObjectURL(blob);
                 videoPreviewEl.muted = false;

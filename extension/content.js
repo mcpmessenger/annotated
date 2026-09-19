@@ -1419,6 +1419,7 @@
       activeVideoRecorder = recorder;
       const chunks = [];
       const recordStartTime = Date.now();
+      const mediaStartTs = activeVideoEl ? activeVideoEl.currentTime : 0;
       const maxDurationMs = Math.min(durationSeconds, 90) * 1000;
 
       recorder.ondataavailable = (e) => {
@@ -1447,6 +1448,7 @@
 
         const rawBlob = new Blob(chunks, { type: 'video/webm' });
         const actualDurationMs = Math.max(Date.now() - recordStartTime, 500);
+        const mediaEndTs = activeVideoEl ? activeVideoEl.currentTime : 0;
 
         const finalize = (finalBlob) => {
           const reader = new FileReader();
@@ -1454,7 +1456,9 @@
             if (pendingSendResponse) {
               pendingSendResponse({
                 dataUrl: reader.result,
-                duration: Math.round(actualDurationMs / 1000)
+                duration: Math.round(actualDurationMs / 1000),
+                startTs: Math.floor(mediaStartTs),
+                endTs: Math.floor(mediaEndTs)
               });
               pendingSendResponse = null;
             }
