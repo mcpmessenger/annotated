@@ -123,7 +123,7 @@ $('#signOutBtn').addEventListener('click', async () => {
 $('#profileBtn').addEventListener('click', () => {
   if (currentUser?.email) {
     const username = currentUser.email.split('@')[0];
-    chrome.tabs.create({ url: `https://annotated-six.vercel.app/u/${username}` });
+    chrome.tabs.create({ url: `https://annotated-repo.vercel.app/u/${username}` });
   }
 });
 
@@ -174,7 +174,7 @@ function renderFeed(items) {
           <div class="acomment">${escapeHtml(a.comment)}</div>
           <div class="meta">
             <span>${escapeHtml(a.intent)} · ${new Date(a.created_at || Date.now()).toLocaleDateString()}</span>
-            <a href="https://annotated-six.vercel.app" target="_blank" rel="noopener">↗</a>
+            <a href="https://annotated-repo.vercel.app" target="_blank" rel="noopener">↗</a>
           </div>
         </article>`).join('')
     : '<div class="empty">Your annotations on this page will appear here.</div>';
@@ -339,7 +339,12 @@ function showAnnotationDetail(ann) {
   // Open on Annotated Web companion link
   const openWebBtn = $('#detailOpenWebBtn');
   if (openWebBtn) {
-    openWebBtn.href = 'https://annotated-six.vercel.app';
+    if (ann.slug && (ann.username || currentUser?.email)) {
+      const u = ann.username || currentUser.email.split('@')[0];
+      openWebBtn.href = `https://annotated-repo.vercel.app/${u}/${ann.slug}`;
+    } else {
+      openWebBtn.href = 'https://annotated-repo.vercel.app';
+    }
   }
 
   const hasMedia = !!(ann.media_url || ann.audio_url);
