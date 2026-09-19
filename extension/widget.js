@@ -434,7 +434,8 @@ function showAnnotationDetail(ann) {
   }
 
   const hasMedia = !!(ann.media_url || ann.audio_url);
-  resizeWidget(hasMedia ? 540 : 380);
+  resizeWidget(hasMedia ? 660 : 540);
+  loadWidgetComments(ann.id);
 }
 
 function showComposer() {
@@ -1135,3 +1136,184 @@ if (authBrandLogo) {
   });
 }
 
+
+
+// ─── Annotation Detail Comments (Discussion) ───────────────────────────────────
+let currentDetailAnnotationId = null;
+let isCommentDictating = false;
+
+async function loadWidgetComments(annotationId) {
+  currentDetailAnnotationId = annotationId;
+  const listEl = $('#widgetCommentList');
+  const countEl = $('#widgetCommentCount');
+  const emptyEl = $('#widgetCommentEmpty');
+  if (!listEl) return;
+
+  if (countEl) countEl.textContent = '…';
+
+  try {
+    const anonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRhamFkYnZsbGRybWd6enRka3NuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk1ODYwMTcsImV4cCI6MjEwNTE2MjAxN30.ZGteNtShkBErPckuMGX4tWMn0AtgU_THFSI37Wgd-eU';
+    const res = await fetch(\`https://dajadbvlldrmgzztdksn.supabase.co/rest/v1/comments?annotation_id=eq.\${encodeURIComponent(annotationId)}&order=created_at.asc\`, {
+      headers: {
+        'apikey': anonKey,
+        'Authorization': \`Bearer \${supabase.token || anonKey}\`
+      }
+    });
+
+    const comments = await res.json();
+    if (!Array.isArray(comments)) {
+      if (countEl) countEl.textContent = '0';
+      return;
+    }
+
+    if (countEl) countEl.textContent = String(comments.length);
+
+    if (comments.length === 0) {
+      listEl.innerHTML = '<div id="widgetCommentEmpty" style="font-size: 11px; color: var(--muted); text-align: center; padding: 12px 0;">No comments yet. Be the first to join the discussion!</div>';
+      return;
+    }
+
+    // Fetch author profiles for avatars/names
+    const userIds = [...new Set(comments.map(c => c.user_id).filter(Boolean))];
+    let profileMap = {};
+    if (userIds.length > 0) {
+      try {
+        const pRes = await fetch(\`https://dajadbvlldrmgzztdksn.supabase.co/rest/v1/profiles?id=in.(\${userIds.join(',')})\`, {
+          headers: { apikey: anonKey }
+        });
+        const profs = await pRes.json();
+        if (Array.isArray(profs)) {
+          profs.forEach(p => { profileMap[p.id] = p; });
+        }
+      } catch (_) {}
+    }
+
+    listEl.innerHTML = comments.map(c => {
+      const prof = profileMap[c.user_id] || {};
+      const author = prof.full_name || (prof.email ? \`@\${prof.email.split('@')[0]}\` : 'Annotator');
+      const avatarUrl = prof.avatar_url;
+      const initial = (author || 'A')[0].toUpperCase();
+      const timeStr = c.created_at ? new Date(c.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : '';
+
+      const avatarMarkup = avatarUrl
+        ? \`<img src="\${escapeHtml(avatarUrl)}" style="width: 18px; height: 18px; border-radius: 50%; object-fit: cover; flex-shrink: 0;" />\`
+        : \`<div style="width: 18px; height: 18px; border-radius: 50%; background: var(--yellow); color: #000; font-size: 9px; font-weight: 800; display: grid; place-items: center; flex-shrink: 0;">\${initial}</div>\`;
+
+      return \`
+        <div style="background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; font-size: 11.5px;">
+          <div style="display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 3px;">
+            <div style="display: flex; align-items: center; gap: 5px; overflow: hidden;">
+              \${avatarMarkup}
+              <strong style="color: var(--ink); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">\${escapeHtml(author)}</strong>
+            </div>
+            <span style="font-size: 10px; color: var(--muted); flex-shrink: 0;">\${timeStr}</span>
+          </div>
+          <div style="color: var(--ink); line-height: 1.35; word-break: break-word; white-space: pre-wrap;">\${escapeHtml(c.text || '')}</div>
+        </div>
+      \`;
+    }).join('');
+
+    // Scroll to bottom of comments
+    listEl.scrollTop = listEl.scrollHeight;
+  } catch (err) {
+    console.error('[Widget Comments] Failed to load:', err);
+    if (countEl) countEl.textContent = '0';
+  }
+}
+
+// Handle Comment Submission
+const widgetCommentForm = $('#widgetCommentForm');
+if (widgetCommentForm) {
+  widgetCommentForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (!currentUser) {
+      alert('Please sign in to post a comment!');
+      return;
+    }
+
+    const input = $('#widgetCommentInput');
+    const submitBtn = $('#widgetCommentSubmitBtn');
+    const statusEl = $('#widgetCommentStatus');
+    const text = input ? input.value.trim() : '';
+
+    if (!text || !currentDetailAnnotationId) return;
+
+    if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Posting…'; }
+    if (statusEl) statusEl.textContent = '';
+
+    try {
+      const anonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRhamFkYnZsbGRybWd6enRka3NuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk1ODYwMTcsImV4cCI6MjEwNTE2MjAxN30.ZGteNtShkBErPckuMGX4tWMn0AtgU_THFSI37Wgd-eU';
+      const res = await fetch('https://dajadbvlldrmgzztdksn.supabase.co/rest/v1/comments', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': anonKey,
+          'Authorization': \`Bearer \${supabase.token || anonKey}\`,
+          'Prefer': 'return=representation'
+        },
+        body: JSON.stringify({
+          annotation_id: currentDetailAnnotationId,
+          user_id: currentUser.id,
+          text: text
+        })
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message || 'Failed to post comment');
+      }
+
+      if (input) input.value = '';
+      if (statusEl) {
+        statusEl.textContent = 'Posted!';
+        statusEl.style.color = '#22c55e';
+        setTimeout(() => { if (statusEl) statusEl.textContent = ''; }, 3000);
+      }
+      // Reload comments
+      await loadWidgetComments(currentDetailAnnotationId);
+    } catch (err) {
+      console.error('[Widget Comments] Post error:', err);
+      if (statusEl) {
+        statusEl.textContent = err.message || 'Error posting';
+        statusEl.style.color = '#ef4444';
+      }
+    } finally {
+      if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Reply'; }
+    }
+  });
+}
+
+// Mic / Speech-to-Text for widget comment box
+const widgetCommentMicBtn = $('#widgetCommentMicBtn');
+if (widgetCommentMicBtn) {
+  widgetCommentMicBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    const commentInput = $('#widgetCommentInput');
+    if (!commentInput) return;
+
+    if (isCommentDictating) {
+      isCommentDictating = false;
+      widgetCommentMicBtn.style.opacity = '0.7';
+      widgetCommentMicBtn.classList.remove('recording');
+      if (window.parent !== window) {
+        window.parent.postMessage({ type: 'STOP_DICTATION' }, '*');
+      }
+    } else {
+      isCommentDictating = true;
+      widgetCommentMicBtn.style.opacity = '1';
+      widgetCommentMicBtn.classList.add('recording');
+      if (window.parent !== window) {
+        window.parent.postMessage({ type: 'START_DICTATION' }, '*');
+      }
+    }
+  });
+}
+`;
+
+// Insert before the last closing lines if not already present
+if (!code.includes('loadWidgetComments')) {
+  code = code + '\n' + commentLogicCode;
+  fs.writeFileSync(widgetJsPath, code, 'utf8');
+  console.log('widget.js updated with full comment support.');
+} else {
+  console.log('widget.js already has loadWidgetComments.')

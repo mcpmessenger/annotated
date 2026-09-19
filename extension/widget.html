@@ -152,6 +152,33 @@
         </div>
       </div>
 
+            <!-- Interactive Comments on this Annotation -->
+      <div id="widgetCommentsSection" class="widget-comments-wrap" style="margin-top: 14px; border-top: 1px solid var(--line); padding-top: 12px;">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+          <strong style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); display: flex; align-items: center; gap: 4px;">
+            <span>💬 Discussion</span>
+            <span id="widgetCommentCount" style="background: var(--line); color: var(--ink); padding: 1px 5px; border-radius: 10px; font-size: 10px;">0</span>
+          </strong>
+        </div>
+
+        <!-- Scrollable comment list -->
+        <div id="widgetCommentList" class="widget-comment-list" style="max-height: 160px; overflow-y: auto; margin-bottom: 10px; display: flex; flex-direction: column; gap: 8px; scrollbar-width: thin;">
+          <div id="widgetCommentEmpty" style="font-size: 11px; color: var(--muted); text-align: center; padding: 12px 0;">No comments yet. Be the first to join the discussion!</div>
+        </div>
+
+        <!-- Comment input form -->
+        <form id="widgetCommentForm" style="display: flex; flex-direction: column; gap: 6px;">
+          <div style="position: relative;">
+            <textarea id="widgetCommentInput" rows="2" placeholder="Add your thought to this annotation..." style="width: 100%; box-sizing: border-box; resize: none; font-size: 12px; line-height: 1.4; padding: 8px; padding-right: 32px; border-radius: 6px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); font-family: inherit;"></textarea>
+            <button type="button" id="widgetCommentMicBtn" title="Speak to comment" style="position: absolute; right: 6px; bottom: 8px; background: none; border: none; cursor: pointer; font-size: 14px; padding: 2px 4px; border-radius: 4px; opacity: 0.7;">🎙️</button>
+          </div>
+          <div style="display: flex; justify-content: flex-end; align-items: center; gap: 6px;">
+            <span id="widgetCommentStatus" style="font-size: 11px; color: var(--muted); flex: 1;"></span>
+            <button type="submit" id="widgetCommentSubmitBtn" style="background: var(--yellow); color: #000; border: none; font-weight: 700; font-size: 11px; padding: 6px 14px; border-radius: 5px; cursor: pointer; transition: opacity 0.15s;">Reply</button>
+          </div>
+        </form>
+      </div>
+
       <div class="detail-actions" style="margin-top: 14px; display: flex; gap: 8px;">
         <button type="button" id="detailOpenWebBtn" class="detail-web-btn" style="flex: 1; text-align: center; border: none; cursor: pointer; padding: 9px 12px; background: #000; color: #fff; font-weight: 700; font-size: 12px; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center; gap: 6px;">
           <span>Open on Annotated</span>
