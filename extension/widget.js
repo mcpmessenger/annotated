@@ -21,6 +21,21 @@ function escapeHtml(v) {
   return String(v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[c]));
 }
 
+function openExternalUrl(url) {
+  if (!url) return;
+  try {
+    if (chrome?.tabs?.create) {
+      chrome.tabs.create({ url });
+      return;
+    }
+  } catch (_) {}
+  try {
+    const win = window.open(url, '_blank');
+    if (win) return;
+  } catch (_) {}
+  window.parent.postMessage({ type: 'OPEN_URL', url }, '*');
+}
+
 function extractTimestamp(url, comment) {
   if (!url && !comment) return null;
   const urlMatch = String(url || '').match(/[?&#]t=(\d+)(?:s)?/i);
@@ -307,6 +322,11 @@ function showAnnotationDetail(ann) {
         const name = p.full_name || (p.email ? p.email.split('@')[0] : 'Annotator');
         const handle = p.email ? `@${p.email.split('@')[0]}` : '';
         applyProfile(name, handle, p.avatar_url);
+        if (p.email && slug) {
+          targetUser = p.email.split('@')[0];
+          detailUrl = `https://annotated-repo.vercel.app/${encodeURIComponent(targetUser)}/${encodeURIComponent(slug)}`;
+          if (openWebBtn) openWebBtn.href = detailUrl;
+        }
       } else {
         applyProfile(ann.user_name || 'Community Member', '', null);
       }
@@ -336,15 +356,19 @@ function showAnnotationDetail(ann) {
     }
   }
 
-  // Open on Annotated Web companion link
+  // Open on Annotated Web companion link to that specific annotation
+  const slug = ann.slug || ann.id;
+  let targetUser = ann.username || (ann.author_profile?.email ? ann.author_profile.email.split('@')[0] : (currentUser?.email ? currentUser.email.split('@')[0] : 'a'));
+  let detailUrl = slug ? `https://annotated-repo.vercel.app/${encodeURIComponent(targetUser)}/${encodeURIComponent(slug)}` : 'https://annotated-repo.vercel.app';
+
   const openWebBtn = $('#detailOpenWebBtn');
   if (openWebBtn) {
-    if (ann.slug && (ann.username || currentUser?.email)) {
-      const u = ann.username || currentUser.email.split('@')[0];
-      openWebBtn.href = `https://annotated-repo.vercel.app/${u}/${ann.slug}`;
-    } else {
-      openWebBtn.href = 'https://annotated-repo.vercel.app';
-    }
+    openWebBtn.href = detailUrl;
+    openWebBtn.onclick = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      openExternalUrl(detailUrl);
+    };
   }
 
   const hasMedia = !!(ann.media_url || ann.audio_url);
@@ -990,5 +1014,5 @@ if (closeBtn) {
 
 
   // Open website on logo click
-  if ($('#brandLogo')) $('#brandLogo').addEventListener('click', () => window.open('https://annotated-repo.vercel.app', '_blank'));
-  if ($('#authBrandLogo')) $('#authBrandLogo').addEventListener('click', () => window.open('https://annotated-repo.vercel.app', '_blank'));
+  if ($('#brandLogo')) $('#brandLogo').addEventListener('click', () => openExternalUrl('https://annotated-repo.vercel.app'));
+  if ($('#authBrandLogo')) $('#authBrandLogo').addEventListener('click', () => openExternalUrl('https://annotated-repo.vercel.app'));

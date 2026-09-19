@@ -682,6 +682,8 @@
         } else if (e.data?.type === 'STOP_DICTATION') {
           console.log('[Content Host] Window message received: STOP_DICTATION');
           stopDictation();
+        } else if (e.data?.type === 'OPEN_URL' && e.data.url) {
+          window.open(e.data.url, '_blank', 'noopener,noreferrer');
         }
       });
     } else if (!shadowRoot.contains(widgetIframe)) {

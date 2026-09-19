@@ -60,16 +60,29 @@ export async function getRecentAnnotations(): Promise<Annotation[]> {
 }
 
 export async function getAnnotationBySlug(slug: string): Promise<Annotation | undefined> {
-  const { data, error } = await supabase
+  const cleanSlug = decodeURIComponent(slug || "").trim();
+  if (!cleanSlug) return undefined;
+
+  let { data, error } = await supabase
     .from("annotations")
     .select("*")
-    .eq("slug", slug)
-    .single();
+    .eq("slug", cleanSlug)
+    .maybeSingle();
 
-  if (error || !data) return undefined;
+  // If not found by slug, fallback to matching by id
+  if (!data) {
+    const { data: byId } = await supabase
+      .from("annotations")
+      .select("*")
+      .eq("id", cleanSlug)
+      .maybeSingle();
+    data = byId;
+  }
+
+  if (!data) return undefined;
   
   if (data.user_id) {
-    const { data: pData } = await supabase.from("profiles").select("*").eq("id", data.user_id).single();
+    const { data: pData } = await supabase.from("profiles").select("*").eq("id", data.user_id).maybeSingle();
     if (pData) data.profiles = pData;
   }
   return mapRowToAnnotation(data);
