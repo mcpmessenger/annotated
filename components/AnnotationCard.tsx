@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { MessageSquare, Trash2 } from "lucide-react";
+import { MessageSquare, Trash2, ExternalLink } from "lucide-react";
 import { useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { Annotation } from "@/lib/types";
@@ -87,6 +87,20 @@ export function AnnotationCard({
                   {annotation.title}
                 </Link>
               </h3>
+              {annotation.sourceUrl && (
+                <Tooltip content="Open original source" position="top">
+                  <a
+                    href={annotation.sourceUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                    className="relative z-20 text-[hsl(var(--text-muted))] hover:text-[hsl(var(--accent))] p-1 rounded hover:bg-[hsl(var(--border))] transition-colors inline-flex items-center flex-shrink-0"
+                    title="Open original source"
+                  >
+                    <ExternalLink size={14} />
+                  </a>
+                </Tooltip>
+              )}
               {annotation.intent && (
                 <span className="text-xl bg-[hsl(var(--border))] rounded-full w-8 h-8 flex items-center justify-center shadow-sm">
                   {annotation.intent}
