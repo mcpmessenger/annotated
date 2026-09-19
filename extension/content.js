@@ -22,6 +22,40 @@
     return `${mins}:${String(secs).padStart(2, '0')}`;
   };
 
+  
+  const extractTimestampRange = (url, comment) => {
+    const urlStr = String(url || '');
+    const commentStr = String(comment || '');
+
+    // Range in comment: [01:24 - 01:40] or [⏱️ 01:24 - 01:40]
+    const rangeCommentMatch = commentStr.match(/\[(?:⏱️\s*)?(\d+):(\d+)(?::(\d+))?\s*-\s*(\d+):(\d+)(?::(\d+))?\]/);
+    if (rangeCommentMatch) {
+      let s1 = parseInt(rangeCommentMatch[1], 10) * 60 + parseInt(rangeCommentMatch[2], 10);
+      if (rangeCommentMatch[3]) s1 = parseInt(rangeCommentMatch[1], 10) * 3600 + parseInt(rangeCommentMatch[2], 10) * 60 + parseInt(rangeCommentMatch[3], 10);
+
+      let s2 = parseInt(rangeCommentMatch[4], 10) * 60 + parseInt(rangeCommentMatch[5], 10);
+      if (rangeCommentMatch[6]) s2 = parseInt(rangeCommentMatch[4], 10) * 3600 + parseInt(rangeCommentMatch[5], 10) * 60 + parseInt(rangeCommentMatch[6], 10);
+
+      return { start: s1, end: Math.max(s1 + 5, s2) };
+    }
+
+    // Range in URL: t=84s-100s or t=84-100
+    const urlRangeMatch = urlStr.match(/[?&#]t=(\d+)(?:s)?-(\d+)(?:s)?/i);
+    if (urlRangeMatch) {
+      const s1 = parseInt(urlRangeMatch[1], 10);
+      const s2 = parseInt(urlRangeMatch[2], 10);
+      return { start: s1, end: Math.max(s1 + 5, s2) };
+    }
+
+    // Single timestamp fallback with 15s default highlight range
+    const startTs = extractTimestamp(url, comment);
+    if (startTs != null && startTs >= 0) {
+      return { start: startTs, end: startTs + 15 };
+    }
+
+    return null;
+  };
+
   const extractTimestamp = (url, comment) => {
     if (!url && !comment) return null;
 
@@ -464,7 +498,7 @@
 
   
   
-  function renderYouTubeProgressBarMarkers() {
+    function renderYouTubeProgressBarMarkers() {
     const isYTWatch = location.hostname.includes('youtube.com') && location.pathname.includes('/watch');
     if (!isYTWatch || !state.annotations || state.annotations.length === 0) {
       const existingContainer = document.getElementById('annotated-yt-markers-layer');
@@ -476,6 +510,19 @@
     const progressBar = document.querySelector('.ytp-progress-bar') || document.querySelector('.ytp-progress-bar-container');
 
     if (!mediaEl || !progressBar || !mediaEl.duration || isNaN(mediaEl.duration) || mediaEl.duration <= 0) {
+      return;
+    }
+
+    const currentVId = new URLSearchParams(location.search).get('v');
+    const ytAnns = state.annotations.filter(ann => {
+      if (!ann) return false;
+      if (currentVId) return String(ann.url || '').includes(currentVId);
+      return true;
+    });
+
+    if (ytAnns.length === 0) {
+      const existingContainer = document.getElementById('annotated-yt-markers-layer');
+      if (existingContainer) existingContainer.remove();
       return;
     }
 
@@ -495,18 +542,17 @@
       progressBar.appendChild(markersLayer);
     }
 
-    // Keep markers sync'd with current annotations list
-    const totalDuration = mediaEl.duration;
-    const existingMarkers = markersLayer.querySelectorAll('.annotated-yt-progress-marker');
-    
-    // Clear old markers if annotations count or timestamps changed
     markersLayer.innerHTML = '';
+    const totalDuration = mediaEl.duration;
 
-    state.annotations.forEach((ann, idx) => {
-      const ts = extractTimestamp(ann.url, ann.comment || ann.commentary);
-      if (ts == null || ts < 0 || ts > totalDuration) return;
+    ytAnns.forEach((ann) => {
+      const range = extractTimestampRange(ann.url, ann.comment || ann.commentary);
+      if (!range || range.start < 0 || range.start > totalDuration) return;
 
-      const pct = (ts / totalDuration) * 100;
+      const startPct = (range.start / totalDuration) * 100;
+      const endPct = (Math.min(range.end, totalDuration) / totalDuration) * 100;
+      const widthPct = Math.max(endPct - startPct, 0.6);
+
       const intent = ann.intent || '💡';
       const commentText = (ann.comment || ann.commentary || ann.quote || ann.quote_text || 'Annotation').trim();
 
@@ -514,60 +560,66 @@
       marker.className = 'annotated-yt-progress-marker';
       marker.style.cssText = `
         position: absolute;
-        left: ${pct}%;
+        left: ${startPct}%;
+        width: ${widthPct}%;
         top: -1px;
         bottom: -1px;
-        width: 5px;
-        transform: translateX(-50%);
-        background: #ffd21a;
+        background: rgba(255, 210, 26, 0.65);
+        border: 1px solid #ffd21a;
         border-radius: 3px;
-        box-shadow: 0 0 10px #ffd21a, 0 0 4px rgba(0,0,0,0.9);
+        box-shadow: 0 0 10px rgba(255, 210, 26, 0.8), inset 0 0 4px rgba(255, 210, 26, 0.6);
         cursor: pointer;
         pointer-events: auto;
         z-index: 1000;
-        transition: transform 0.15s cubic-bezier(0.175, 0.885, 0.32, 1.275), background 0.15s ease, box-shadow 0.15s ease;
+        transition: transform 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
       `;
 
-      // Custom Hover Tooltip
       let markerTooltip = null;
 
-      marker.addEventListener('mouseenter', (e) => {
-        marker.style.transform = 'translateX(-50%) scaleY(1.7) scaleX(1.4)';
-        marker.style.background = '#ffffff';
-        marker.style.boxShadow = '0 0 14px #ffffff, 0 0 6px #ffd21a';
+      marker.addEventListener('mouseenter', () => {
+        marker.style.transform = 'scaleY(1.8)';
+        marker.style.background = 'rgba(255, 255, 255, 0.9)';
+        marker.style.boxShadow = '0 0 14px #ffffff, 0 0 8px #ffd21a';
 
-        // Create tooltip on player
         markerTooltip = document.createElement('div');
         markerTooltip.className = 'annotated-yt-marker-tooltip';
         markerTooltip.style.cssText = `
           position: absolute;
-          bottom: 24px;
-          left: ${pct}%;
-          transform: translateX(-50%);
+          bottom: 26px;
+          left: ${startPct}%;
+          transform: translateX(-20%);
           background: #17242c;
-          border: 1px solid #ffd21a;
-          border-radius: 8px;
-          padding: 6px 10px;
+          border: 1.5px solid #ffd21a;
+          border-radius: 10px;
+          padding: 8px 12px;
           color: #fff;
           font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-          font-size: 11px;
+          font-size: 12px;
           font-weight: 600;
           white-space: nowrap;
           pointer-events: none;
-          box-shadow: 0 6px 20px rgba(0,0,0,0.7);
+          box-shadow: 0 8px 24px rgba(0,0,0,0.75);
           z-index: 1001;
           display: flex;
           align-items: center;
-          gap: 6px;
+          gap: 8px;
         `;
-        markerTooltip.innerHTML = `<span style="color:#ffd21a; font-weight:800;">⏱️ ${formatSeconds(ts)}</span> <span style="opacity:0.9;">${escapeHtml(commentText.slice(0, 50))}${commentText.length > 50 ? '…' : ''}</span>`;
+        const timeRangeStr = range.end > range.start + 2
+          ? `${formatSeconds(range.start)} - ${formatSeconds(range.end)}`
+          : formatSeconds(range.start);
+
+        markerTooltip.innerHTML = `
+          <span style="background:#ffd21a; color:#000; padding:2px 7px; border-radius:12px; font-weight:800; font-size:11px;">⏱️ ${timeRangeStr}</span>
+          <span style="color:#ffd21a; font-weight:700;">${intent}</span>
+          <span style="opacity:0.9; max-width:240px; overflow:hidden; text-overflow:ellipsis;">"${escapeHtml(commentText.slice(0, 50))}${commentText.length > 50 ? '…' : ''}"</span>
+        `;
         markersLayer.appendChild(markerTooltip);
       });
 
       marker.addEventListener('mouseleave', () => {
-        marker.style.transform = 'translateX(-50%) scale(1)';
-        marker.style.background = '#ffd21a';
-        marker.style.boxShadow = '0 0 10px #ffd21a, 0 0 4px rgba(0,0,0,0.9)';
+        marker.style.transform = 'scale(1)';
+        marker.style.background = 'rgba(255, 210, 26, 0.65)';
+        marker.style.boxShadow = '0 0 10px rgba(255, 210, 26, 0.8), inset 0 0 4px rgba(255, 210, 26, 0.6)';
         if (markerTooltip) {
           markerTooltip.remove();
           markerTooltip = null;
@@ -577,7 +629,7 @@
       marker.addEventListener('click', (e) => {
         e.stopPropagation();
         e.preventDefault();
-        seekToTimestamp(ts);
+        seekToTimestamp(range.start);
         openAnnotationInWidget(ann, marker.getBoundingClientRect());
       });
 
@@ -585,21 +637,39 @@
     });
   }
 
-  function renderYouTubeVideoTag() {
+    function renderYouTubeVideoTag() {
     const isYTWatch = location.hostname.includes('youtube.com') && location.pathname.includes('/watch');
+
+    // Remove static tag near title if present
+    const existingStatic = document.getElementById('annotated-yt-tag');
+    if (existingStatic) existingStatic.remove();
+
     if (!isYTWatch || !state.annotations || state.annotations.length === 0) {
-      const existing = document.getElementById('annotated-yt-tag');
-      if (existing) existing.remove();
       const existingBadge = document.getElementById('annotated-yt-floating-badge');
       if (existingBadge) existingBadge.remove();
       return;
     }
 
-    const count = state.annotations.length;
-    const topAnn = state.annotations[0];
-    const intent = topAnn?.intent || '💡';
+    const currentVId = new URLSearchParams(location.search).get('v');
+    const ytAnns = state.annotations.filter(ann => {
+      if (!ann) return false;
+      if (currentVId) return String(ann.url || '').includes(currentVId);
+      return true;
+    });
 
-    // A. Floating Screen Badge (Guaranteed visible on top of YouTube video player)
+    if (ytAnns.length === 0) {
+      const existingBadge = document.getElementById('annotated-yt-floating-badge');
+      if (existingBadge) existingBadge.remove();
+      return;
+    }
+
+    const count = ytAnns.length;
+    const topAnn = ytAnns[0];
+    const intent = topAnn?.intent || '💡';
+    const ts = extractTimestamp(topAnn.url, topAnn.comment || topAnn.commentary);
+    const tsStr = ts != null ? formatSeconds(ts) : '';
+
+    // Floating Screen Badge (Bottom-left visible on top of YouTube video player)
     let badge = document.getElementById('annotated-yt-floating-badge');
     if (!badge) {
       badge = document.createElement('div');
@@ -630,58 +700,13 @@
         e.stopPropagation();
         e.preventDefault();
         if (topAnn) {
-          const ts = extractTimestamp(topAnn.url, topAnn.comment || topAnn.commentary);
-          if (ts != null) {
-            const mediaEl = document.querySelector('video');
-            if (mediaEl) {
-              try {
-                mediaEl.currentTime = ts;
-                mediaEl.play?.().catch(() => {});
-              } catch (_) {}
-            }
-          }
+          if (ts != null) seekToTimestamp(ts);
           openAnnotationInWidget(topAnn, badge.getBoundingClientRect());
         }
       });
       document.body.appendChild(badge);
     }
-    badge.innerHTML = `<span>✏️ Annotated Video</span><span style="background:#ffd21a; color:#000; padding:2px 7px; border-radius:10px; font-size:11px; font-weight:900;">${count}</span><span>${intent}</span>`;
-
-    // B. Title Header Injected Tag
-    const titleContainer = document.querySelector('ytd-watch-metadata #title, #primary #title, #title h1, h1.ytd-watch-metadata, #above-the-fold #title');
-    if (titleContainer) {
-      let tag = document.getElementById('annotated-yt-tag');
-      if (!tag) {
-        tag = document.createElement('div');
-        tag.id = 'annotated-yt-tag';
-        tag.style.cssText = `
-          display: inline-flex;
-          align-items: center;
-          gap: 8px;
-          margin-left: 14px;
-          padding: 6px 14px;
-          background: #17242c;
-          border: 1px solid #ffd21a;
-          border-radius: 20px;
-          color: #ffd21a;
-          font-size: 13px;
-          font-weight: 700;
-          cursor: pointer;
-          box-shadow: 0 4px 16px rgba(0,0,0,0.35);
-          vertical-align: middle;
-          transition: transform 0.15s ease;
-        `;
-        tag.addEventListener('click', (e) => {
-          e.stopPropagation();
-          e.preventDefault();
-          if (topAnn) openAnnotationInWidget(topAnn, tag.getBoundingClientRect());
-        });
-      }
-      tag.innerHTML = `<span>✏️ Annotated</span><span style="background:#ffd21a; color:#000; padding:1px 6px; border-radius:10px; font-size:11px; font-weight:900;">${count}</span><span>${intent}</span>`;
-      if (!titleContainer.contains(tag)) {
-        titleContainer.appendChild(tag);
-      }
-    }
+    badge.innerHTML = `<span>✏️ Annotated Video</span><span style="background:#ffd21a; color:#000; padding:2px 7px; border-radius:10px; font-size:11px; font-weight:900;">${count}</span>${tsStr ? `<span style="background:rgba(255,210,26,0.18); border:1px solid #ffd21a; color:#ffd21a; padding:2px 7px; border-radius:10px; font-size:11px; font-weight:800;">⏱️ ${tsStr}</span>` : ''}<span>${intent}</span>`;
   }
 
 
