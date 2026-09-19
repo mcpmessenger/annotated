@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, use } from "react";
+import { useState, useEffect } from "react";
+import { useParams } from "next/navigation";
 import Link from "next/link";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
@@ -9,24 +10,23 @@ import { CommentSection } from "@/components/CommentSection";
 import { ReactionRow } from "@/components/ReactionRow";
 import { FollowButton } from "@/components/FollowButton";
 
-export default function AnnotationPage({
-  params,
-}: {
-  params: Promise<{ username: string; slug: string }> | { username: string; slug: string };
-}) {
-  const unwrappedParams = (params instanceof Promise) ? use(params) : params;
+export default function AnnotationPage() {
+  const params = useParams();
+  const rawSlug = (params?.slug as string) || "";
   const [annotation, setAnnotation] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
-    if (unwrappedParams?.slug) {
-      getAnnotationBySlug(unwrappedParams.slug).then((data) => {
+    if (rawSlug) {
+      getAnnotationBySlug(rawSlug).then((data) => {
         setAnnotation(data);
         setLoading(false);
       });
+    } else {
+      setLoading(false);
     }
-  }, [unwrappedParams?.slug]);
+  }, [rawSlug]);
 
   if (loading) {
     return (

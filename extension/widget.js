@@ -627,6 +627,7 @@ $('#publishBtn').addEventListener('click', () => {
       };
 
     // Save to Supabase
+  let savedRow = null;
   try {
     const db = await supabase.from('annotations');
     const res = await db.insert(annotation);
@@ -636,6 +637,11 @@ $('#publishBtn').addEventListener('click', () => {
       $('#status').textContent = 'DB Error: ' + (res.message || res.error || JSON.stringify(res));
       return;
     }
+    if (Array.isArray(res) && res[0]) {
+      savedRow = res[0];
+    } else if (res && res.id) {
+      savedRow = res;
+    }
   } catch (err) {
     $('#publishBtn').textContent = 'Publish';
     $('#publishBtn').disabled = false;
@@ -643,13 +649,15 @@ $('#publishBtn').addEventListener('click', () => {
     return;
   }
 
-    // Also save locally for highlight rendering
-    const localAnnotation = { ...annotation, id: crypto.randomUUID() };
-    const finishPublish = () => {
-      const key = pageKey();
-      chrome.storage.local.get(key, data => {
-        const items = [...(data[key] || []), localAnnotation];
-        chrome.storage.local.set({ [key]: items }, () => {
+  // Also save locally for highlight rendering with real Supabase id & slug
+  const realId = savedRow?.id || crypto.randomUUID();
+  const realSlug = savedRow?.slug || realId;
+  const localAnnotation = { ...annotation, id: realId, slug: realSlug };
+  const finishPublish = () => {
+    const key = pageKey();
+    chrome.storage.local.get(key, data => {
+      const items = [...(data[key] || []), localAnnotation];
+      chrome.storage.local.set({ [key]: items }, () => {
           // Reset form
           $('#comment').value = ''; if ($('#counter')) $('#counter').textContent = '0';
           setQuote(''); intent = null;

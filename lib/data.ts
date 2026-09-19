@@ -79,6 +79,20 @@ export async function getAnnotationBySlug(slug: string): Promise<Annotation | un
     data = byId;
   }
 
+  // Fallback: match by UUID prefix if slug ends with short id (e.g. "--da3e5af5" or "title-da3e5af5")
+  if (!data && cleanSlug.length >= 8) {
+    const parts = cleanSlug.split("-");
+    const potentialShortId = parts[parts.length - 1];
+    if (potentialShortId && potentialShortId.length >= 8) {
+      const { data: byLike } = await supabase
+        .from("annotations")
+        .select("*")
+        .ilike("id", `${potentialShortId}%`)
+        .maybeSingle();
+      data = byLike;
+    }
+  }
+
   if (!data) return undefined;
   
   if (data.user_id) {
