@@ -14,7 +14,10 @@ export function Footer() {
             <a href="/dmca" className="hover:text-[hsl(var(--foreground))] transition-colors">
               DMCA / Fair Use
             </a>
-            <a href="https://github.com/mcpmessenger/annotated" target="_blank" className="hover:text-[hsl(var(--foreground))] transition-colors">
+            <a href="https://chromewebstore.google.com/detail/annotated/bnaejhcknifnikgiohecinndejbajfdo" target="_blank" rel="noopener noreferrer" className="hover:text-[hsl(var(--foreground))] transition-colors">
+              Chrome Extension
+            </a>
+            <a href="https://github.com/mcpmessenger/annotated" target="_blank" rel="noopener noreferrer" className="hover:text-[hsl(var(--foreground))] transition-colors">
               GitHub
             </a>
             <a href="mailto:magnetarsenti@gmail.com" className="hover:text-[hsl(var(--foreground))] transition-colors">

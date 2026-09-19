@@ -108,6 +108,15 @@ function SidebarContent({
           </Link>
           <span className="opacity-40">·</span>
           <a
+            href="https://chromewebstore.google.com/detail/annotated/bnaejhcknifnikgiohecinndejbajfdo"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:text-[hsl(var(--foreground))] transition-colors"
+          >
+            Extension
+          </a>
+          <span className="opacity-40">·</span>
+          <a
             href="https://github.com/mcpmessenger/annotated"
             target="_blank"
             rel="noopener noreferrer"
