@@ -933,7 +933,10 @@ if (userMenuWrap && userDropdown) {
 
   const dictateBtn = $('#dictateBtn');
   let isDictating = false;
+  let isCommentDictating = false;
+  let activeDictationTarget = 'main'; // 'main' | 'comment'
   let baseComment = '';
+  let baseCommentReply = '';
   let hasLastError = false;
 
   function setSttStatus(msg, isError = false) {
@@ -986,6 +989,46 @@ if (userMenuWrap && userDropdown) {
     if (!data || !data.type) return;
     if (data.type.startsWith('DICTATION_')) {
       console.log('[Widget STT Message]', data);
+    }
+
+    if (activeDictationTarget === 'comment') {
+      const commentInput = $('#widgetCommentInput');
+      const micBtn = $('#widgetCommentMicBtn');
+      const statusEl = $('#widgetCommentStatus');
+
+      if (data.type === 'DICTATION_STATUS') {
+        if (statusEl && data.status) {
+          statusEl.textContent = data.status;
+          statusEl.style.color = 'var(--muted)';
+        }
+      } else if (data.type === 'DICTATION_STARTED') {
+        isCommentDictating = true;
+        if (micBtn) micBtn.classList.add('recording');
+        if (statusEl) {
+          statusEl.textContent = '🎙️ Listening…';
+          statusEl.style.color = 'var(--muted)';
+        }
+      } else if (data.type === 'DICTATION_RESULT') {
+        if (commentInput) {
+          const text = (data.text !== undefined) ? data.text : ((data.finalTranscript || '') + (data.interimTranscript || ''));
+          commentInput.value = (baseCommentReply ? baseCommentReply.trim() + ' ' : '') + text;
+        }
+      } else if (data.type === 'DICTATION_ENDED') {
+        isCommentDictating = false;
+        if (micBtn) micBtn.classList.remove('recording');
+        if (statusEl && statusEl.textContent.includes('Listening')) {
+          statusEl.textContent = '';
+        }
+      } else if (data.type === 'DICTATION_ERROR') {
+        isCommentDictating = false;
+        if (micBtn) micBtn.classList.remove('recording');
+        if (statusEl) {
+          statusEl.textContent = data.error || 'Dictation failed';
+          statusEl.style.color = '#ef4444';
+          setTimeout(() => { if (statusEl) statusEl.textContent = ''; }, 5000);
+        }
+      }
+      return;
     }
 
     if (data.type === 'DICTATION_STATUS') {
