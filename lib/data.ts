@@ -63,34 +63,33 @@ export async function getAnnotationBySlug(slug: string): Promise<Annotation | un
   const cleanSlug = decodeURIComponent(slug || "").trim();
   if (!cleanSlug) return undefined;
 
-  let { data, error } = await supabase
+  // 1. Direct slug match
+  let { data } = await supabase
     .from("annotations")
     .select("*")
     .eq("slug", cleanSlug)
     .maybeSingle();
 
-  // If not found by slug, fallback to matching by id
-  if (!data) {
+  // 2. Contains slug match (e.g. if slug has leading dashes or short suffix)
+  const stripped = cleanSlug.replace(/^-+/, "");
+  if (!data && stripped.length >= 4) {
+    const { data: byLike } = await supabase
+      .from("annotations")
+      .select("*")
+      .ilike("slug", `%${stripped}%`)
+      .maybeSingle();
+    if (byLike) data = byLike;
+  }
+
+  // 3. Exact UUID match if cleanSlug is a valid UUID
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(cleanSlug);
+  if (!data && isUuid) {
     const { data: byId } = await supabase
       .from("annotations")
       .select("*")
       .eq("id", cleanSlug)
       .maybeSingle();
-    data = byId;
-  }
-
-  // Fallback: match by UUID prefix if slug ends with short id (e.g. "--da3e5af5" or "title-da3e5af5")
-  if (!data && cleanSlug.length >= 8) {
-    const parts = cleanSlug.split("-");
-    const potentialShortId = parts[parts.length - 1];
-    if (potentialShortId && potentialShortId.length >= 8) {
-      const { data: byLike } = await supabase
-        .from("annotations")
-        .select("*")
-        .ilike("id", `${potentialShortId}%`)
-        .maybeSingle();
-      data = byLike;
-    }
+    if (byId) data = byId;
   }
 
   if (!data) return undefined;

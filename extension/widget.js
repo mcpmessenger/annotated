@@ -125,10 +125,19 @@ function showApp(user) {
   $('#userMenuWrap').classList.remove('hidden');
   $('#profileName').textContent = user.name;
   $('#avatarEl').textContent = initials(user.name);
+  $('#avatarEl').removeAttribute('title');
+  const dropdownAvatar = $('#dropdownAvatarEl');
+  if (dropdownAvatar) dropdownAvatar.textContent = initials(user.name);
+
   if (user.avatar) {
     $('#avatarEl').style.backgroundImage = `url(${user.avatar})`;
     $('#avatarEl').style.backgroundSize = 'cover';
     $('#avatarEl').textContent = '';
+    if (dropdownAvatar) {
+      dropdownAvatar.style.backgroundImage = `url(${user.avatar})`;
+      dropdownAvatar.style.backgroundSize = 'cover';
+      dropdownAvatar.textContent = '';
+    }
   }
   loadAnnotationCount();
   loadPage();
@@ -185,10 +194,13 @@ async function loadAnnotationCount() {
       flCount = Array.isArray(following) ? following.length : 0;
     } catch (_) {}
 
-    $('#profileMeta').textContent = `@${name} · ${fCount} follower${fCount !== 1 ? 's' : ''} · ${count} note${count !== 1 ? 's' : ''}`;
+    $('#profileMeta').textContent = `@${name}`;
+    if ($('#statFollowers')) $('#statFollowers').textContent = fCount;
+    if ($('#statFollowing')) $('#statFollowing').textContent = flCount;
+    if ($('#statNotes')) $('#statNotes').textContent = count;
 
     if ($('#avatarEl')) {
-      $('#avatarEl').title = `${currentUser.name || name} (${fCount} follower${fCount !== 1 ? 's' : ''} · ${flCount} following)`;
+      $('#avatarEl').removeAttribute('title');
     }
   } catch (_) {
     const name = currentUser.email?.split('@')[0] || 'user';
@@ -739,18 +751,40 @@ chrome.runtime.onMessage.addListener(message => {
   showAuth();
 })();
 
-// --- Nordic UI Dropdown & Dictation ---
+// --- Nordic UI Dropdown & Hover Card ---
 
+const userMenuWrap = $('#userMenuWrap');
 const avatarEl = $('#avatarEl');
 const userDropdown = $('#userDropdown');
+let userMenuHideTimeout = null;
 
-if(avatarEl) {
-  avatarEl.addEventListener('click', (e) => {
-    e.stopPropagation();
-    userDropdown.classList.toggle('hidden');
+if (userMenuWrap && userDropdown) {
+  userMenuWrap.addEventListener('mouseenter', () => {
+    if (userMenuHideTimeout) {
+      clearTimeout(userMenuHideTimeout);
+      userMenuHideTimeout = null;
+    }
+    userDropdown.classList.remove('hidden');
   });
-  document.addEventListener('click', () => {
-    userDropdown.classList.add('hidden');
+
+  userMenuWrap.addEventListener('mouseleave', () => {
+    if (userMenuHideTimeout) clearTimeout(userMenuHideTimeout);
+    userMenuHideTimeout = setTimeout(() => {
+      userDropdown.classList.add('hidden');
+    }, 240);
+  });
+
+  if (avatarEl) {
+    avatarEl.addEventListener('click', (e) => {
+      e.stopPropagation();
+      userDropdown.classList.toggle('hidden');
+    });
+  }
+
+  document.addEventListener('click', (e) => {
+    if (!userMenuWrap.contains(e.target)) {
+      userDropdown.classList.add('hidden');
+    }
   });
 }
 

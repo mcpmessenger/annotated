@@ -16,11 +16,29 @@
         <div class="avatar top-avatar" id="avatarEl">?</div>
         <div id="userDropdown" class="user-dropdown hidden">
           <div class="dropdown-header">
-            <strong id="profileName">Loading…</strong>
-            <div class="muted" id="profileMeta">@user</div>
+            <div class="dropdown-user-row">
+              <div class="avatar dropdown-avatar" id="dropdownAvatarEl">?</div>
+              <div class="dropdown-user-info">
+                <strong id="profileName">Loading…</strong>
+                <div class="muted" id="profileMeta">@user</div>
+              </div>
+            </div>
+            <div class="profile-stats-row">
+              <div class="stat-pill"><span id="statFollowers" class="stat-num">0</span> <span class="stat-lbl">followers</span></div>
+              <div class="stat-dot">·</div>
+              <div class="stat-pill"><span id="statFollowing" class="stat-num">0</span> <span class="stat-lbl">following</span></div>
+              <div class="stat-dot">·</div>
+              <div class="stat-pill"><span id="statNotes" class="stat-num">0</span> <span class="stat-lbl">notes</span></div>
+            </div>
           </div>
-          <button id="profileBtn" class="dropdown-item">My profile ↗</button>
-          <button id="signOutBtn" class="dropdown-item text-red">Sign out</button>
+          <button id="profileBtn" class="dropdown-item">
+            <span>My profile</span>
+            <span class="dropdown-arrow">↗</span>
+          </button>
+          <button id="signOutBtn" class="dropdown-item text-red">
+            <span>Sign out</span>
+            <span class="dropdown-icon">↪</span>
+          </button>
         </div>
       </div>
 
