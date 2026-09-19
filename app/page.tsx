@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { Header } from "@/components/Header";
-import { Footer } from "@/components/Footer";
 import { HomeFeed } from "@/components/HomeFeed";
 import { getRecentAnnotations } from "@/lib/data";
 
@@ -49,10 +48,7 @@ export default async function Home() {
         </section>
       </main>
 
-      {/* Responsive mobile footer */}
-      <div className="lg:hidden">
-        <Footer />
-      </div>
+      {/* Clean layout */}
     </div>
   );
 }
