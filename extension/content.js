@@ -654,12 +654,13 @@
       if (hoveredAnnotation) {
         // Collect ALL annotations whose quote overlaps with the hovered passage/mark
         const norm = (s) => (s || '').toLowerCase().replace(/\s+/g, ' ').trim();
-        const hoveredQuote = norm(hoveredAnnotation.quote);
+        const getQuote = (a) => norm(a ? (a.quote || a.quote_text) : '');
+        const hoveredQuote = getQuote(hoveredAnnotation);
         const markText = norm(mark.textContent);
 
         const allForQuote = state.annotations.filter(a => {
           if (String(a.id) === String(hoveredAnnotation.id)) return true;
-          const q = norm(a.quote);
+          const q = getQuote(a);
           if (!q) return false;
           // Check substring overlap in either direction
           if (hoveredQuote && (hoveredQuote.includes(q) || q.includes(hoveredQuote))) return true;

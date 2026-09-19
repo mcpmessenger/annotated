@@ -214,7 +214,7 @@ function renderFeed(items) {
   $('#feed').innerHTML = items.length
     ? items.slice().reverse().map(a => `
         <article class="annotation">
-          <div class="aquote">"${escapeHtml(a.quote)}"</div>
+          <div class="aquote">"${escapeHtml(a.quote || a.quote_text || "")}"</div>
           ${a.media_url ? `
             <div class="feed-media-wrap">
               ${a.media_type === 'video'
@@ -222,7 +222,7 @@ function renderFeed(items) {
                 : `<img class="feed-media" src="${escapeHtml(a.media_url)}" alt="Annotation media" loading="lazy">`
               }
             </div>` : ''}
-          <div class="acomment">${escapeHtml(a.comment)}</div>
+          <div class="acomment">${escapeHtml(a.comment || a.commentary || "")}</div>
           <div class="meta">
             <span>${escapeHtml(a.intent)} · ${new Date(a.created_at || Date.now()).toLocaleDateString()}</span>
             <a href="https://annotated-repo.vercel.app" target="_blank" rel="noopener">↗</a>
