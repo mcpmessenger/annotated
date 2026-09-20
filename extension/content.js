@@ -472,7 +472,7 @@
             if (idx !== -1 && !n.parentElement?.closest('[data-annotated-highlight]')) {
               const p = n.parentElement;
               // React-safe highlighting: just style the parent inline wrapper, do not split text nodes!
-              p.style.backgroundColor = 'rgba(0, 170, 255, 0.35)';
+              p.style.backgroundColor = '#ffd21a'; p.style.color = '#000';
               p.style.borderRadius = '2px';
               p.dataset.annotatedHighlight = annotation.id;
               highlightMap.set(p, String(annotation.id));
@@ -1107,7 +1107,13 @@
 
   // ─── Clickable & Hover Highlight Handlers ─────────────────────────────────────
   document.addEventListener('mouseover', (e) => {
-    const mark = e.target.closest('.annotated-highlight');
+    let mark = e.target.closest('.annotated-highlight');
+    let target = e.target;
+    while (target && target !== document.body && !mark) {
+      if (highlightMap.has(target)) mark = target;
+      else target = target.parentElement;
+    }
+    
     if (mark) {
       const annotationId = mark.dataset.annotatedHighlight || highlightMap.get(mark);
       const hoveredAnnotation = state.annotations.find(a => String(a.id) === String(annotationId));
@@ -1134,7 +1140,13 @@
   });
 
   document.addEventListener('mouseout', (e) => {
-    const mark = e.target.closest('.annotated-highlight');
+    let mark = e.target.closest('.annotated-highlight');
+    let target = e.target;
+    while (target && target !== document.body && !mark) {
+      if (highlightMap.has(target)) mark = target;
+      else target = target.parentElement;
+    }
+    
     if (mark) {
       scheduleHideBubble();
     }
