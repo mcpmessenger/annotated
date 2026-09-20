@@ -112,6 +112,7 @@ function formatSeconds(sec) {
 }
 
 function setQuote(value) {
+  quote = value;
   $('#quote').textContent = quote ? `"${quote}"` : 'Select text on any page to anchor a comment here.';
   updateButton();
 }
