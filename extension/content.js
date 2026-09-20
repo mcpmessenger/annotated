@@ -328,6 +328,20 @@
     chrome.storage.local.get(getKey()).then(data => {
       state.annotations = data[getKey()] || [];
       renderAllPendingHighlights();
+      
+      const localUserIds = [...new Set(state.annotations.map(a => a.user_id).filter(Boolean))];
+      const missingUserIds = localUserIds.filter(id => !state.profiles[id]);
+      if (missingUserIds.length > 0) {
+        fetch(`https://dajadbvlldrmgzztdksn.supabase.co/rest/v1/profiles?id=in.(${missingUserIds.join(',')})`, {
+          headers: { 'apikey': anonKey }
+        })
+        .then(res => res.json())
+        .then(profiles => {
+          if (Array.isArray(profiles)) {
+            profiles.forEach(p => { state.profiles[p.id] = p; });
+          }
+        }).catch(() => {});
+      }
     });
 
     let cleanUrl = location.origin + location.pathname;
