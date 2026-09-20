@@ -416,6 +416,30 @@
     const candidatePhrases = extractCandidatePhrases(quote);
     let hasHighlightedAny = false;
 
+    // 1.5 Dedicated YouTube Title Targeting
+    if (location.hostname.includes('youtube.com') && location.pathname.includes('/watch')) {
+      const titleEl = document.querySelector('h1.ytd-watch-metadata yt-formatted-string, h1.title yt-formatted-string, #title h1');
+      if (titleEl && titleEl.textContent) {
+        const titleText = norm(titleEl.textContent);
+        const q = norm(quote);
+        // If the quote is the page title, or a significant chunk of the video title, highlight the full title
+        if ((q.includes(titleText) && titleText.length > 5) || (titleText.includes(q) && q.length > 15)) {
+          if (!titleEl.querySelector('[data-annotated-highlight]') && !highlightMap.has(titleEl)) {
+            titleEl.style.backgroundColor = '#ffd21a';
+            titleEl.style.color = '#000';
+            titleEl.style.borderRadius = '4px';
+            titleEl.style.padding = '2px 4px';
+            titleEl.dataset.annotatedHighlight = annotation.id;
+            highlightMap.set(titleEl, String(annotation.id));
+            triggerScroll(titleEl, annotation);
+            return true;
+          } else if (highlightMap.has(titleEl)) {
+            return true; // Already highlighted by another annotation
+          }
+        }
+      }
+    }
+
     // 1. Dedicated X/Twitter Targeting
     if (location.hostname.includes('x.com') || location.hostname.includes('twitter.com')) {
       const isStatusPage = location.pathname.includes('/status/');
