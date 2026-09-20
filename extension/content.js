@@ -337,17 +337,17 @@
     }
 
     const anonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRhamFkYnZsbGRybWd6enRka3NuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk1ODYwMTcsImV4cCI6MjEwNTE2MjAxN30.ZGteNtShkBErPckuMGX4tWMn0AtgU_THFSI37Wgd-eU';
-    let queryUrl = `https://dajadbvlldrmgzztdksn.supabase.co/rest/v1/annotations?url=ilike.${encodeURIComponent('%' + cleanUrl + '%')}`;
+    let queryUrl = `https://dajadbvlldrmgzztdksn.supabase.co/rest/v1/annotations?url=ilike.${encodeURIComponent('%' + cleanUrl + '%')}&_t=${Date.now()}`;
 
     // If on Twitter/X status page, query by status ID
     const tweetStatusMatch = location.pathname.match(/\/status\/(\d+)/);
     if ((location.hostname.includes('x.com') || location.hostname.includes('twitter.com')) && tweetStatusMatch) {
       const statusId = tweetStatusMatch[1];
-      queryUrl = `https://dajadbvlldrmgzztdksn.supabase.co/rest/v1/annotations?url=ilike.${encodeURIComponent('%/status/' + statusId + '%')}`;
+      queryUrl = `https://dajadbvlldrmgzztdksn.supabase.co/rest/v1/annotations?url=ilike.${encodeURIComponent('%/status/' + statusId + '%')}&_t=${Date.now()}`;
     }
 
     fetch(queryUrl, {
-      headers: { 'apikey': anonKey }
+      headers: { 'apikey': anonKey }, cache: 'no-store'
     })
     .then(r => r.json())
     .then(data => {
@@ -358,7 +358,7 @@
         const missingUserIds = userIds.filter(id => !state.profiles[id]);
         if (missingUserIds.length > 0) {
           fetch(`https://dajadbvlldrmgzztdksn.supabase.co/rest/v1/profiles?id=in.(${missingUserIds.join(',')})`, {
-            headers: { 'apikey': anonKey }
+            headers: { 'apikey': anonKey }, cache: 'no-store'
           })
           .then(res => res.json())
           .then(profiles => {

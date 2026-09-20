@@ -313,7 +313,8 @@ function renderFeed(items) {
             chrome.storage.local.set({ [key]: items }, () => {});
           });
         } catch (_) {}
-        try { window.parent.postMessage({ type: 'RELOAD_ANNOTATIONS' }, '*'); } catch (_) {}
+        try { window.parent.postMessage({ type: 'RELOAD_ANNOTATIONS' }, '*');
+        fetchAnnotations(); } catch (_) {}
         loadFeedFromSupabase();
         loadAnnotationCount();
       });
@@ -871,6 +872,7 @@ $('#publishBtn').addEventListener('click', async () => {
   try {
     setTimeout(() => {
       window.parent.postMessage({ type: 'RELOAD_ANNOTATIONS' }, '*');
+        fetchAnnotations();
     }, 400);
   } catch (_) {}
 });
