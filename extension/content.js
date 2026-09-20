@@ -400,6 +400,7 @@
     if (document.querySelector(`[data-annotated-highlight="${annotation.id}"]`)) return true;
 
     const candidatePhrases = extractCandidatePhrases(quote);
+    let hasHighlightedAny = false;
 
     // 1. Dedicated X/Twitter Targeting
     if (location.hostname.includes('x.com') || location.hostname.includes('twitter.com')) {
@@ -428,7 +429,7 @@
                 if (mark) {
                   triggerScroll(mark, annotation);
                   console.log('[Annotated] Highlighted phrase in tweet:', phrase);
-                  return true;
+                  hasHighlightedAny = true;
                 }
               }
             }
@@ -445,14 +446,14 @@
               if (mark) {
                 triggerScroll(mark, annotation);
                 console.log('[Annotated] Highlighted child in tweet:', phrase);
-                return true;
+                hasHighlightedAny = true;
               }
             }
           }
         }
 
         // Guaranteed fallback on status page: if this is the target tweet
-        if (isStatusPage && !document.querySelector(`[data-annotated-highlight="${annotation.id}"]`)) {
+        if (isStatusPage && !hasHighlightedAny && !document.querySelector(`[data-annotated-highlight="${annotation.id}"]`)) {
           const mainStatusLink = article.querySelector('time')?.closest('a[href*="/status/"]');
           const currentPath = location.pathname;
           if (mainStatusLink?.getAttribute('href')?.includes(currentPath.split('?')[0]) || article === tweetArticles[0]) {
@@ -464,13 +465,17 @@
               if (mark) {
                 triggerScroll(mark, annotation);
                 console.log('[Annotated] Status page primary tweet fallback highlighted');
-                return true;
+                hasHighlightedAny = true;
               }
             }
           }
         }
+        
+        if (hasHighlightedAny) return true;
       }
     }
+
+    if (hasHighlightedAny) return true;
 
     // 2. Universal text walker for general webpages
     for (const phrase of candidatePhrases) {
@@ -487,18 +492,17 @@
           const mark = safeHighlightRange(r, annotation.id);
           if (mark) {
             triggerScroll(mark, annotation);
-            return true;
+            hasHighlightedAny = true;
           }
         }
       }
     }
 
-    return false;
+    return hasHighlightedAny;
   };
 
   
-  
-    function renderYouTubeProgressBarMarkers() {
+      function renderYouTubeProgressBarMarkers() {
     const isYTWatch = location.hostname.includes('youtube.com') && location.pathname.includes('/watch');
     if (!isYTWatch || !state.annotations || state.annotations.length === 0) {
       const existingContainer = document.getElementById('annotated-yt-markers-layer');
