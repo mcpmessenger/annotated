@@ -480,6 +480,8 @@
            textContainer.style.borderRadius = '4px';
            textContainer.style.padding = '4px 6px';
            textContainer.dataset.annotatedHighlight = annotation.id;
+           textContainer.classList.add('annotated-highlight');
+           highlightMap.set(textContainer, annotation.id);
            triggerScroll(textContainer, annotation);
            return true;
         }
