@@ -412,29 +412,46 @@
 
         const textContainer = article.querySelector('[data-testid="tweetText"]');
         if (!textContainer) continue;
+        
         const tweetText = textContainer.textContent || '';
+        const normalizedTweet = tweetText.replace(/\s+/g, '').trim();
+        const normalizedQuote = quote.replace(/\s+/g, '').trim();
+
+        // If the user selected the entire tweet (or 95% of it), highlight the whole container block nicely
+        if (normalizedTweet.length > 20 && (normalizedQuote.includes(normalizedTweet) || normalizedTweet.includes(normalizedQuote))) {
+           textContainer.style.backgroundColor = 'rgba(255, 210, 26, 0.15)';
+           textContainer.style.borderRadius = '8px';
+           textContainer.style.padding = '8px';
+           textContainer.style.outline = '2px solid rgba(255, 210, 26, 0.4)';
+           textContainer.dataset.annotatedHighlight = annotation.id;
+           triggerScroll(textContainer, annotation);
+           return true;
+        }
 
         // Match candidate phrases within tweetText
         for (const phrase of candidatePhrases) {
-          if (tweetText.includes(phrase)) {
-            const walker = document.createTreeWalker(textContainer, NodeFilter.SHOW_TEXT);
-            let n;
-            while ((n = walker.nextNode())) {
-              const idx = n.nodeValue.indexOf(phrase);
-              if (idx !== -1 && !n.parentElement?.closest('[data-annotated-highlight]')) {
-                const r = document.createRange();
-                r.setStart(n, idx);
-                r.setEnd(n, idx + phrase.length);
-                const mark = safeHighlightRange(r, annotation.id);
-                if (mark) {
-                  triggerScroll(mark, annotation);
-                  console.log('[Annotated] Highlighted phrase in tweet:', phrase);
-                  hasHighlightedAny = true;
-                }
+          if (!phrase || phrase.length < 3) continue;
+          
+          const walker = document.createTreeWalker(textContainer, NodeFilter.SHOW_TEXT);
+          let n;
+          let matchedInWalker = false;
+          while ((n = walker.nextNode())) {
+            const idx = n.nodeValue.indexOf(phrase);
+            if (idx !== -1 && !n.parentElement?.closest('[data-annotated-highlight]')) {
+              const r = document.createRange();
+              r.setStart(n, idx);
+              r.setEnd(n, idx + phrase.length);
+              const mark = safeHighlightRange(r, annotation.id);
+              if (mark) {
+                triggerScroll(mark, annotation);
+                hasHighlightedAny = true;
+                matchedInWalker = true;
               }
             }
+          }
 
-            // If phrase crosses inline children (mentions/hashtags)
+          // If phrase crosses inline children (mentions/hashtags)
+          if (!matchedInWalker) {
             const matchingChild = Array.from(textContainer.childNodes).find(c => {
               const ct = (c.textContent || '').trim();
               return ct.length > 2 && (phrase.includes(ct) || ct.includes(phrase));
@@ -445,7 +462,6 @@
               const mark = safeHighlightRange(r, annotation.id);
               if (mark) {
                 triggerScroll(mark, annotation);
-                console.log('[Annotated] Highlighted child in tweet:', phrase);
                 hasHighlightedAny = true;
               }
             }
@@ -464,7 +480,6 @@
               const mark = safeHighlightRange(r, annotation.id);
               if (mark) {
                 triggerScroll(mark, annotation);
-                console.log('[Annotated] Status page primary tweet fallback highlighted');
                 hasHighlightedAny = true;
               }
             }
