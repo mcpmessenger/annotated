@@ -772,7 +772,7 @@
       openAnnotationInWidget(topAnn, badge.getBoundingClientRect());
     });
 
-    if (count > 1) {
+    if (true) {
       const menu = document.createElement('div');
       menu.style.cssText = `
         position: absolute;
