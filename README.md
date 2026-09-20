@@ -9,13 +9,27 @@
 
 <br />
 
-## 🌟 What is Annotated?
+## 🚀 How to Install the Latest Version (Chrome)
+
+Want to get the absolute newest, stable version of Annotated directly from GitHub? Follow these quick steps:
+
+1. **Download the Extension:** Look at the files in this repository and download the latest deployment package (e.g., `annotated-extension-v2.1.21.zip`).
+2. **Unzip the Folder:** Extract the downloaded `.zip` file to a folder on your computer (like your Desktop or Documents).
+3. **Open Chrome Extensions:** Open Google Chrome and type `chrome://extensions/` into the URL bar and hit Enter.
+4. **Enable Developer Mode:** In the top-right corner of the Extensions page, toggle on **Developer mode**.
+5. **Load the Extension:** Click the **Load unpacked** button that appears in the top-left corner.
+6. **Select the Folder:** Browse to the folder where you extracted the `.zip` file and select it.
+7. **Done!** The Annotated extension is now installed. Make sure to **refresh any open web pages** (like YouTube or X.com) so the newest version of the extension can load onto them!
+
+---
+
+## 📖 What is Annotated?
 
 The internet is full of static content, but the real value is in the ideas, critiques, and questions that content generates. **Annotated** is a Chrome Extension and companion web platform that transforms solitary reading into a multiplayer experience. 
 
 It allows anyone to seamlessly highlight text on any webpage across the internet and attach their thoughts. Once published, these annotations become instantly visible to the community via a global feed and are persistently highlighted in-browser for any other Annotated users who visit that same URL.
 
-## 🚀 Key Features
+## ✨ Key Features
 
 *   **Frictionless In-Browser Highlighting:** Just select text on any webpage, right-click, and drop your thoughts. No tab-switching required.
 *   **Community Highlights:** When you visit a webpage, Annotated automatically fetches community insights. If someone else has annotated a sentence you're reading, it will be highlighted in yellow right on your screen.
@@ -30,7 +44,7 @@ Built for speed, scale, and a flawless developer experience:
 *   **Browser Extension:** Google Chrome Manifest V3, pure vanilla JS/CSS for zero-overhead DOM injection, custom SidePanel UI.
 *   **Backend & Auth:** **Supabase** (PostgreSQL). Handling real-time REST data fetching and Google OAuth integration directly within the extension's isolated environment.
 
-## 💡 Why This Wins
+## 🏆 Why This Wins
 
 Annotated isn't just an app; it's a new layer on top of the internet. By breaking commentary out of walled gardens (like Twitter threads or Reddit) and attaching it directly to the source material, Annotated curates a higher quality of discourse. 
 
