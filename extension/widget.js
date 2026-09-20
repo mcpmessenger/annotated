@@ -1439,7 +1439,7 @@ async function loadWidgetComments(annotationId) {
           <div style="display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 3px;">
             <div style="display: flex; align-items: center; gap: 5px; overflow: hidden;">
               ${clickableAvatarMarkup}
-              <strong title="View profile" style="cursor: pointer; color: var(--ink); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" onclick="event.stopPropagation(); window.open('${profileUrl}', '_blank');">${escapeHtml(author)}</strong> font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(author)}</strong>
+              <strong title="View profile" style="cursor: pointer; color: var(--ink); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" onclick="event.stopPropagation(); window.open('${profileUrl}', '_blank');">${escapeHtml(author)}</strong>
             </div>
             <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0;">
               <span style="font-size: 10px; color: var(--muted);">${timeStr}</span>
