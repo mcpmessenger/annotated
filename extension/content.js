@@ -1186,7 +1186,6 @@
           if (!q) return false;
           // Check substring overlap in either direction
           if (hoveredQuote && (hoveredQuote.includes(q) || q.includes(hoveredQuote))) return true;
-          if (markText && (markText.includes(q) || q.includes(markText))) return true;
           return false;
         });
 
