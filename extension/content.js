@@ -470,15 +470,14 @@
           while ((n = walker.nextNode())) {
             const idx = n.nodeValue.indexOf(phrase);
             if (idx !== -1 && !n.parentElement?.closest('[data-annotated-highlight]')) {
-              const r = document.createRange();
-              r.setStart(n, idx);
-              r.setEnd(n, idx + phrase.length);
-              const mark = safeHighlightRange(r, annotation.id);
-              if (mark) {
-                triggerScroll(mark, annotation);
-                hasHighlightedAny = true;
-                matchedInWalker = true;
-              }
+              const p = n.parentElement;
+              // React-safe highlighting: just style the parent inline wrapper, do not split text nodes!
+              p.style.backgroundColor = 'rgba(255, 210, 26, 0.4)';
+              p.style.borderRadius = '2px';
+              p.dataset.annotatedHighlight = annotation.id;
+              triggerScroll(p, annotation);
+              hasHighlightedAny = true;
+              matchedInWalker = true;
             }
           }
 
