@@ -29,7 +29,7 @@ export default async function ProfilePage({
 
       <main className="flex-1">
         {/* Profile Header */}
-        <section className="border-b border-[hsl(var(--border))] bg-white">
+        <section className="border-b border-[hsl(var(--border))] bg-[hsl(var(--background))]">
           <div className="editorial-container py-12">
             <div className="mb-6">
               {user.avatar ? (
