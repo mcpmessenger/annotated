@@ -252,7 +252,7 @@
     phrases.add(raw.replace(/\s+/g, ' '));
 
     // Strip feed header metadata (e.g. "Author @handle · 12h ...")
-    const cleaned = raw.replace(/^.*?@[A-Za-z0-9_]+\s+[·•]\s+\d+[a-z]\s*(?:\.\s*)?/i, '').trim();
+    const cleaned = raw.replace(/^.*?@[A-Za-z0-9_]+\s+[·•]\s+\d+[a-z]\s*(?:\.\s*)?/i, '').replace(/^.*?Replying to @[A-Za-z0-9_]+\s*/i, '').trim();
     if (cleaned && cleaned.length > 5) {
       phrases.add(cleaned);
       phrases.add(cleaned.replace(/\s+/g, ' '));
@@ -414,11 +414,29 @@
         if (!textContainer) continue;
         
         const tweetText = textContainer.textContent || '';
-        const normalizedTweet = tweetText.replace(/\s+/g, '').trim();
-        const normalizedQuote = quote.replace(/\s+/g, '').trim();
+        const normalizedTweet = tweetText.replace(/[^a-zA-Z0-9]/g, '');
+        const normalizedQuote = quote.replace(/[^a-zA-Z0-9]/g, '');
 
         // If the user selected the entire tweet (or 95% of it), highlight the whole container block nicely
-        if (normalizedTweet.length > 20 && (normalizedQuote.includes(normalizedTweet) || normalizedTweet.includes(normalizedQuote))) {
+        
+        let shouldHighlightContainer = false;
+        if (normalizedTweet.length > 10 && normalizedQuote.includes(normalizedTweet)) {
+          shouldHighlightContainer = true;
+        } else if (normalizedQuote.length > 10 && normalizedTweet.includes(normalizedQuote)) {
+          if (normalizedQuote.length / normalizedTweet.length > 0.7) {
+            shouldHighlightContainer = true;
+          } else {
+            // Quote is a small part of the tweet. Add it to candidates to ensure it gets highlighted properly.
+            // Find the actual text in tweetText that matches to add as a phrase
+            const walker = document.createTreeWalker(textContainer, NodeFilter.SHOW_TEXT);
+            let n;
+            while ((n = walker.nextNode())) {
+              candidatePhrases.add(n.nodeValue.trim());
+            }
+          }
+        }
+        
+        if (shouldHighlightContainer) {
            textContainer.style.backgroundColor = 'rgba(255, 210, 26, 0.15)';
            textContainer.style.borderRadius = '8px';
            textContainer.style.padding = '8px';
