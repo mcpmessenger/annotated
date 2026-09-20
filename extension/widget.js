@@ -569,6 +569,23 @@ function showAnnotationDetail(ann) {
   const hasMedia = !!(ann.media_url || ann.audio_url);
   resizeWidget(hasMedia ? 740 : 660);
   loadWidgetComments(ann.id);
+
+  // Make the author block clickable to open their profile
+  const profileTarget = ann.username || (ann.author_profile?.email ? ann.author_profile.email.split('@')[0] : (currentUser?.email ? currentUser.email.split('@')[0] : ''));
+  if (profileTarget) {
+    const profileUrl = 'https://annotated-repo.vercel.app/u/' + encodeURIComponent(profileTarget);
+    if (avatarEl) {
+      avatarEl.onclick = (e) => { e.stopPropagation(); openExternalUrl(profileUrl); };
+      avatarEl.title = 'View profile';
+      avatarEl.style.cursor = 'pointer';
+    }
+    const authEl = document.getElementById('detailAuthorName');
+    if (authEl) {
+      authEl.onclick = (e) => { e.stopPropagation(); openExternalUrl(profileUrl); };
+      authEl.title = 'View profile';
+      authEl.style.cursor = 'pointer';
+    }
+  }
 }
 
 function showComposer() {
@@ -1409,16 +1426,20 @@ async function loadWidgetComments(annotationId) {
       const timeStr = c.created_at ? new Date(c.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : '';
       const commentTargetUrl = `${currentDetailWebUrl}#comment-${c.id}`;
 
+      const profileTargetUsername = prof.email ? prof.email.split('@')[0] : author.replace('@', '');
+      const profileUrl = `https://annotated-repo.vercel.app/u/${encodeURIComponent(profileTargetUsername)}`;
       const avatarMarkup = avatarUrl
         ? `<img src="${escapeHtml(avatarUrl)}" style="width: 18px; height: 18px; border-radius: 50%; object-fit: cover; flex-shrink: 0;" />`
         : `<div style="width: 18px; height: 18px; border-radius: 50%; background: var(--yellow); color: #000; font-size: 9px; font-weight: 800; display: grid; place-items: center; flex-shrink: 0;">${initial}</div>`;
+      
+      const clickableAvatarMarkup = `<div class="avatar-clickable" title="View profile" style="cursor: pointer; display: flex;" onclick="event.stopPropagation(); window.open('${profileUrl}', '_blank');">${avatarMarkup}</div>`;
 
       return `
         <div class="widget-comment-card" data-url="${escapeHtml(commentTargetUrl)}" title="View comment on website" style="background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; font-size: 11.5px; cursor: pointer; transition: background 0.15s ease, border-color 0.15s ease;">
           <div style="display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 3px;">
             <div style="display: flex; align-items: center; gap: 5px; overflow: hidden;">
-              ${avatarMarkup}
-              <strong style="color: var(--ink); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(author)}</strong>
+              ${clickableAvatarMarkup}
+              <strong title="View profile" style="cursor: pointer; color: var(--ink); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" onclick="event.stopPropagation(); window.open('${profileUrl}', '_blank');">${escapeHtml(author)}</strong> font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(author)}</strong>
             </div>
             <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0;">
               <span style="font-size: 10px; color: var(--muted);">${timeStr}</span>
