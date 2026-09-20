@@ -259,11 +259,11 @@ function renderFeed(items) {
         <div class="aheader" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
           <span style="font-weight:700; font-size:12px; color:#ffd21a;">${escapeHtml(a.intent || '💡')} ${tsStr ? `⏱️ ${tsStr}` : ''}</span>
           <div style="display:flex; align-items:center; gap:8px;">
-            <a class="web-link" href="${webUrl}" target="_blank" rel="noopener" style="color:#8899a6; text-decoration:none; font-size:12px; font-weight:600;" title="Open on Annotated Website">↗ View Web</a>
-            ${currentUser && (a.user_id === currentUser.id || !a.user_id) ? '<button class="feed-delete-btn" style="background:none; border:none; color:#8899a6; cursor:pointer; font-size:12px; padding:0 2px;" title="Delete annotation">🗑️</button>' : ''}
+            <a class="web-link" href="${webUrl}" target="_blank" rel="noopener" style="color:#8899a6; text-decoration:none; font-size:12px; font-weight:600;" data-tooltip="Open on Annotated Website">↗ View Web</a>
+            ${currentUser && (a.user_id === currentUser.id || !a.user_id) ? '<button class="feed-delete-btn" style="background:none; border:none; color:#8899a6; cursor:pointer; font-size:12px; padding:0 2px;" data-tooltip="Delete annotation">🗑️</button>' : ''}
           </div>
         </div>
-        <div class="aquote" style="cursor:pointer;" title="Click to seek video">"${escapeHtml(a.quote || a.quote_text || "")}"</div>
+        <div class="aquote" style="cursor:pointer;" data-tooltip="Click to seek video">"${escapeHtml(a.quote || a.quote_text || "")}"</div>
         ${a.media_url ? `
           <div class="feed-media-wrap">
             ${a.media_type === 'video' || a.media_url.includes('.webm') || a.media_url.includes('.mp4')
@@ -1432,14 +1432,14 @@ async function loadWidgetComments(annotationId) {
         ? `<img src="${escapeHtml(avatarUrl)}" style="width: 18px; height: 18px; border-radius: 50%; object-fit: cover; flex-shrink: 0;" />`
         : `<div style="width: 18px; height: 18px; border-radius: 50%; background: var(--yellow); color: #000; font-size: 9px; font-weight: 800; display: grid; place-items: center; flex-shrink: 0;">${initial}</div>`;
       
-      const clickableAvatarMarkup = `<div class="avatar-clickable" title="View profile" style="cursor: pointer; display: flex;" onclick="event.stopPropagation(); window.open('${profileUrl}', '_blank');">${avatarMarkup}</div>`;
+      const clickableAvatarMarkup = `<div class="avatar-clickable" data-tooltip="View profile" style="cursor: pointer; display: flex;" onclick="event.stopPropagation(); window.open('${profileUrl}', '_blank');">${avatarMarkup}</div>`;
 
       return `
-        <div class="widget-comment-card" data-url="${escapeHtml(commentTargetUrl)}" title="View comment on website" style="background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; font-size: 11.5px; cursor: pointer; transition: background 0.15s ease, border-color 0.15s ease;">
+        <div class="widget-comment-card" data-url="${escapeHtml(commentTargetUrl)}" data-tooltip="View comment on website" style="background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; font-size: 11.5px; cursor: pointer; transition: background 0.15s ease, border-color 0.15s ease;">
           <div style="display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 3px;">
             <div style="display: flex; align-items: center; gap: 5px; overflow: hidden;">
               ${clickableAvatarMarkup}
-              <strong title="View profile" style="cursor: pointer; color: var(--ink); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" onclick="event.stopPropagation(); window.open('${profileUrl}', '_blank');">${escapeHtml(author)}</strong>
+              <strong data-tooltip="View profile" style="cursor: pointer; color: var(--ink); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" onclick="event.stopPropagation(); window.open('${profileUrl}', '_blank');">${escapeHtml(author)}</strong>
             </div>
             <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0;">
               <span style="font-size: 10px; color: var(--muted);">${timeStr}</span>
