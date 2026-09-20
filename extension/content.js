@@ -472,9 +472,10 @@
             if (idx !== -1 && !n.parentElement?.closest('[data-annotated-highlight]')) {
               const p = n.parentElement;
               // React-safe highlighting: just style the parent inline wrapper, do not split text nodes!
-              p.style.backgroundColor = 'rgba(255, 210, 26, 0.4)';
+              p.style.backgroundColor = 'rgba(0, 170, 255, 0.35)';
               p.style.borderRadius = '2px';
               p.dataset.annotatedHighlight = annotation.id;
+              highlightMap.set(p, String(annotation.id));
               triggerScroll(p, annotation);
               hasHighlightedAny = true;
               matchedInWalker = true;
@@ -898,6 +899,7 @@
   // ─── Interactive Floating In-Page Preview Bubble ─────────────────────────────
   let hoverBubble = null;
   let hideBubbleTimeout = null;
+  const highlightMap = new WeakMap();
   let currentHoveredAnnotationId = null;
 
   function ensureBubble() {
@@ -1107,7 +1109,7 @@
   document.addEventListener('mouseover', (e) => {
     const mark = e.target.closest('.annotated-highlight');
     if (mark) {
-      const annotationId = mark.dataset.annotatedHighlight;
+      const annotationId = mark.dataset.annotatedHighlight || highlightMap.get(mark);
       const hoveredAnnotation = state.annotations.find(a => String(a.id) === String(annotationId));
       if (hoveredAnnotation) {
         // Collect ALL annotations whose quote overlaps with the hovered passage/mark
@@ -1145,7 +1147,7 @@
     e.preventDefault();
     e.stopPropagation();
 
-    const annotationId = mark.dataset.annotatedHighlight;
+    const annotationId = mark.dataset.annotatedHighlight || highlightMap.get(mark);
     const annotation = state.annotations.find(a => String(a.id) === String(annotationId));
     if (annotation) {
       if (hoverBubble) hoverBubble.style.display = 'none';
