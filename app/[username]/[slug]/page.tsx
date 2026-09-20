@@ -203,6 +203,19 @@ export default function AnnotationPage() {
             </blockquote>
           </section>
 
+          {/* Media */}
+          {annotation.media_url && (
+            <section className="mb-8">
+              <div className="rounded-lg overflow-hidden border border-[hsl(var(--border))] bg-black relative shadow-sm">
+                {(annotation.media_type === "video" || annotation.media_url.includes('.webm') || annotation.media_url.includes('.mp4')) ? (
+                  <video src={annotation.media_url} controls playsInline className="w-full max-h-[600px] object-contain" />
+                ) : (
+                  <img src={annotation.media_url} alt="Attached media" className="w-full max-h-[600px] object-contain" />
+                )}
+              </div>
+            </section>
+          )}
+
           {/* Commentary */}
           <section className="mb-8">
             <p className="text-xs text-[hsl(var(--text-subtle))] uppercase tracking-wide mb-3 font-bold">

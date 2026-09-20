@@ -156,7 +156,7 @@ export function AnnotationCard({
       
       {annotation.media_url && (
         <div className="my-4 rounded overflow-hidden border border-[hsl(var(--border))] bg-black relative z-20">
-          {annotation.media_type === "video" ? (
+          {(annotation.media_type === "video" || annotation.media_url.includes('.webm') || annotation.media_url.includes('.mp4')) ? (
             <video src={annotation.media_url} controls className="w-full max-h-64 object-contain" />
           ) : (
             <img src={annotation.media_url} alt="Attached media" className="w-full max-h-64 object-contain" />
