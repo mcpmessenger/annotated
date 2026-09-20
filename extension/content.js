@@ -475,10 +475,10 @@
         }
         
         if (shouldHighlightContainer) {
-           textContainer.style.backgroundColor = 'rgba(255, 210, 26, 0.15)';
-           textContainer.style.borderRadius = '8px';
-           textContainer.style.padding = '8px';
-           textContainer.style.outline = '2px solid rgba(255, 210, 26, 0.4)';
+           textContainer.style.backgroundColor = '#ffd21a';
+           textContainer.style.color = '#000';
+           textContainer.style.borderRadius = '4px';
+           textContainer.style.padding = '4px 6px';
            textContainer.dataset.annotatedHighlight = annotation.id;
            triggerScroll(textContainer, annotation);
            return true;
@@ -629,213 +629,17 @@
       const widthPct = Math.max(endPct - startPct, 0.6);
 
       const intent = ann.intent || '💡';
-      const commentText = (ann.comment || ann.commentary || ann.quote || ann.quote_text || 'Annotation').trim();
+        const commentRaw = (ann.comment || ann.commentary || ann.quote || ann.quote_text || 'Annotation note').trim();
+        const cleanComment = commentRaw.replace(/\[(?:⏱️\s*)?[0-9hms:]+\s*-\s*[0-9hms:]+\]/i, '').trim() || 'Annotation note';
+        
+        const profile = state.profiles ? (state.profiles[ann.user_id] || {}) : {};
+        const authorName = profile.full_name || (profile.email ? `@${profile.email.split('@')[0]}` : (ann.user_name || 'Annotator'));
+        const avatarUrl = profile.avatar_url;
+        const initial = (authorName || 'A')[0].toUpperCase();
 
-      const marker = document.createElement('div');
-      marker.className = 'annotated-yt-progress-marker-wrap';
-      marker.style.cssText = `
-        position: absolute;
-        left: ${startPct}%;
-        width: ${widthPct}%;
-        min-width: 14px;
-        top: -15px;
-        bottom: -15px;
-        cursor: pointer;
-        pointer-events: auto;
-        z-index: 1000;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-      `;
-
-      const visual = document.createElement('div');
-      visual.className = 'annotated-yt-progress-marker';
-      visual.style.cssText = `
-        width: 100%;
-        height: 6px;
-        background: rgba(255, 210, 26, 0.65);
-        border: 1px solid #ffd21a;
-        border-radius: 3px;
-        box-shadow: 0 0 10px rgba(255, 210, 26, 0.8), inset 0 0 4px rgba(255, 210, 26, 0.6);
-        transition: transform 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
-      `;
-      marker.appendChild(visual);
-
-      let markerTooltip = null;
-
-      marker.addEventListener('mouseenter', () => {
-        visual.style.transform = 'scaleY(1.8)';
-        visual.style.background = 'rgba(255, 255, 255, 0.9)';
-        visual.style.boxShadow = '0 0 14px #ffffff, 0 0 8px #ffd21a';
-
-        markerTooltip = document.createElement('div');
-        markerTooltip.className = 'annotated-yt-marker-tooltip';
-        markerTooltip.style.cssText = `
-          position: absolute;
-          bottom: 26px;
-          left: ${startPct}%;
-          transform: translateX(-20%);
-          background: #17242c;
-          border: 1.5px solid #ffd21a;
-          border-radius: 10px;
-          padding: 8px 12px;
-          color: #fff;
-          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-          font-size: 12px;
-          font-weight: 600;
-          white-space: nowrap;
-          pointer-events: none;
-          box-shadow: 0 8px 24px rgba(0,0,0,0.75);
-          z-index: 1001;
-          display: flex;
-          align-items: center;
-          gap: 8px;
-        `;
-        const timeRangeStr = range.end > range.start + 2
-          ? `${formatSeconds(range.start)} - ${formatSeconds(range.end)}`
-          : formatSeconds(range.start);
-
-        const cleanComment = commentText.replace(/\[(?:⏱️\s*)?[0-9hms:]+\s*-\s*[0-9hms:]+\]/i, '').trim();
-        markerTooltip.innerHTML = `
-          <span style="background:#ffd21a; color:#000; padding:2px 7px; border-radius:12px; font-weight:800; font-size:11px;">⏱️ ${timeRangeStr}</span>
-          ${intent ? `<span style="color:#ffd21a; font-weight:700;">${intent}</span>` : ''}
-          ${cleanComment ? `<span style="opacity:0.9; max-width:240px; overflow:hidden; text-overflow:ellipsis;">"${escapeHtml(cleanComment.slice(0, 50))}${cleanComment.length > 50 ? '…' : ''}"</span>` : ''}
-        `;
-        markersLayer.appendChild(markerTooltip);
-      });
-
-      marker.addEventListener('mouseleave', () => {
-        visual.style.transform = 'scale(1)';
-        visual.style.background = 'rgba(255, 210, 26, 0.65)';
-        visual.style.boxShadow = '0 0 10px rgba(255, 210, 26, 0.8), inset 0 0 4px rgba(255, 210, 26, 0.6)';
-        if (markerTooltip) {
-          markerTooltip.remove();
-          markerTooltip = null;
-        }
-      });
-
-      marker.addEventListener('click', (e) => {
-        e.stopPropagation();
-        e.preventDefault();
-        seekToTimestamp(range.start);
-        openAnnotationInWidget(ann, marker.getBoundingClientRect());
-      });
-
-      markersLayer.appendChild(marker);
-    });
-  }
-
-    function renderYouTubeVideoTag() {
-    const isYTWatch = location.hostname.includes('youtube.com') && location.pathname.includes('/watch');
-
-    // Remove static tag near title if present
-    const existingStatic = document.getElementById('annotated-yt-tag');
-    if (existingStatic) existingStatic.remove();
-
-    if (!isYTWatch || !state.annotations || state.annotations.length === 0) {
-      const existingBadge = document.getElementById('annotated-yt-floating-badge');
-      if (existingBadge) existingBadge.remove();
-      return;
-    }
-
-    const currentVId = new URLSearchParams(location.search).get('v');
-    const ytAnns = state.annotations.filter(ann => {
-      if (!ann) return false;
-      if (currentVId) return String(ann.url || '').includes(currentVId);
-      return true;
-    });
-
-    if (ytAnns.length === 0) {
-      const existingBadge = document.getElementById('annotated-yt-floating-badge');
-      if (existingBadge) existingBadge.remove();
-      return;
-    }
-
-        const count = ytAnns.length;
-    const currentIds = ytAnns.map(a => a.id).join(',');
-
-    let badge = document.getElementById('annotated-yt-floating-badge');
-    if (badge && badge.getAttribute('data-ann-ids') === currentIds) {
-      return; // no need to re-render
-    }
-    if (badge) badge.remove();
-
-    badge = document.createElement('div');
-    badge.id = 'annotated-yt-floating-badge';
-    badge.setAttribute('data-ann-ids', currentIds);
-    badge.style.cssText = `
-      position: fixed;
-      bottom: 70px;
-      left: 20px;
-      z-index: 2147483646;
-      background: #17242c;
-      border: 1.5px solid #ffd21a;
-      border-radius: 30px;
-      padding: 8px 16px;
-      color: #ffd21a;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      font-size: 13px;
-      font-weight: 800;
-      cursor: pointer;
-      box-shadow: 0 8px 28px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(255, 210, 26, 0.3);
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-    `;
-
-    badge.innerHTML = `<span>✏️ Annotated Video</span><span style="background:#ffd21a; color:#000; padding:2px 7px; border-radius:10px; font-size:11px; font-weight:900;">${count}</span>`;
-
-    badge.addEventListener('click', (e) => {
-      e.stopPropagation();
-      e.preventDefault();
-      const topAnn = ytAnns[0];
-      const tsRange = extractTimestampRange(topAnn.url, topAnn.comment || topAnn.commentary);
-      const ts = tsRange ? tsRange.start : extractTimestamp(topAnn.url, topAnn.comment || topAnn.commentary);
-      if (ts != null) seekToTimestamp(ts);
-      openAnnotationInWidget(topAnn, badge.getBoundingClientRect());
-    });
-
-    if (true) {
-      const menu = document.createElement('div');
-      menu.style.cssText = `
-        position: absolute;
-        bottom: calc(100% + 10px);
-        left: 0;
-        background: #17242c;
-        border: 1.5px solid #ffd21a;
-        border-radius: 12px;
-        padding: 8px;
-        display: none;
-        flex-direction: column;
-        gap: 6px;
-        box-shadow: 0 8px 28px rgba(0, 0, 0, 0.65);
-        min-width: 250px;
-        max-width: 350px;
-        max-height: 400px;
-        overflow-y: auto;
-        z-index: 2147483647;
-        cursor: default;
-      `;
-
-      ytAnns.forEach(ann => {
-        const item = document.createElement('div');
-        const tsRange = extractTimestampRange(ann.url, ann.comment || ann.commentary);
-        let tsStr = '';
-        let startSec = null;
-        if (tsRange) {
-          startSec = tsRange.start;
-          tsStr = tsRange.end > tsRange.start + 2
-            ? `${formatSeconds(tsRange.start)} - ${formatSeconds(tsRange.end)}`
-            : formatSeconds(tsRange.start);
-        } else {
-          startSec = extractTimestamp(ann.url, ann.comment || ann.commentary);
-          if (startSec != null) tsStr = formatSeconds(startSec);
-        }
-
-        const intent = ann.intent || '💡';
-        const commentRaw = (ann.comment || ann.commentary || ann.quote || ann.quote_text || 'Annotation').trim();
-        const cleanComment = commentRaw.replace(/\[(?:⏱️\s*)?[0-9hms:]+\s*-\s*[0-9hms:]+\]/i, '').trim();
+        const avatarHtml = avatarUrl
+          ? `<img src="${avatarUrl}" style="width: 18px; height: 18px; border-radius: 50%; object-fit: cover; flex-shrink: 0;">`
+          : `<div style="width: 18px; height: 18px; border-radius: 50%; background: #ffd21a; color: #000; font-size: 9px; font-weight: 800; display: grid; place-items: center; flex-shrink: 0;">${initial}</div>`;
 
         item.style.cssText = `
           display: flex;
@@ -860,11 +664,17 @@
         });
 
         item.innerHTML = `
-          <div style="display:flex; align-items:center; gap:6px;">
-            ${tsStr ? `<span style="background:#ffd21a; color:#000; padding:2px 6px; border-radius:10px; font-weight:800; font-size:10px;">⏱️ ${tsStr}</span>` : ''}
-            <span style="color:#ffd21a; font-size:12px;">${intent}</span>
+          <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 3px;">
+            <div style="display: flex; align-items: center; gap: 6px; overflow: hidden;">
+              ${avatarHtml}
+              <strong style="font-size: 11px; color: #ffd21a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(authorName)}</strong>
+            </div>
+            ${intent ? `<span style="font-size: 12px; flex-shrink: 0;">${intent}</span>` : ''}
           </div>
-          ${cleanComment ? `<div style="font-size:12px; color:#fff; opacity:0.9; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;">"${escapeHtml(cleanComment)}"</div>` : ''}
+          <div style="display:flex; align-items:center; gap:6px; margin-bottom: 2px;">
+            ${tsStr ? `<span style="background:#ffd21a; color:#000; padding:2px 6px; border-radius:10px; font-weight:800; font-size:10px;">⏱️ ${tsStr}</span>` : ''}
+          </div>
+          <div style="font-size: 12px; color: #edf3f5; word-break: break-word; max-height: 54px; overflow: hidden; text-overflow: ellipsis; line-height: 1.35;">${escapeHtml(cleanComment)}</div>
         `;
         menu.appendChild(item);
       });
