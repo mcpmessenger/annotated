@@ -38,6 +38,19 @@ export default async function Home() {
                   Search & Explore
                 </Link>
               </div>
+
+              {/* Video Embed */}
+              <div className="mt-12 relative w-full max-w-4xl rounded-[12px] overflow-hidden border border-[hsl(var(--border))] shadow-2xl bg-[hsl(var(--card))]">
+                <div className="aspect-video">
+                  <iframe 
+                    src="https://www.youtube.com/embed/o5HR5sKZ7ZE?autoplay=0&rel=0" 
+                    title="Annotated Demo"
+                    className="absolute top-0 left-0 w-full h-full"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                    allowFullScreen
+                  />
+                </div>
+              </div>
             </div>
           </div>
         </section>
