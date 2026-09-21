@@ -30,5 +30,6 @@
     "postcss": "^8.5",
     "tailwindcss": "^4.3.3",
     "typescript": "5.7.3"
-  }
+  },
+  "description": "The public annotation layer for the internet. Highlight text, drop your thoughts, and turn the web into a multiplayer experience."
 }
