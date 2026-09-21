@@ -3,7 +3,8 @@ import { Header } from "@/components/Header";
 import { HomeFeed } from "@/components/HomeFeed";
 import { getRecentAnnotations } from "@/lib/data";
 
-export const revalidate = 0; // Don't cache this page so new annotations appear instantly
+export const revalidate = 0;
+export const dynamic = 'force-dynamic'; // Don't cache this page so new annotations appear instantly
 
 export default async function Home() {
   const annotations = await getRecentAnnotations();
