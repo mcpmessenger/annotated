@@ -18,7 +18,7 @@ export default async function Home() {
           <div className="editorial-container">
             <div className="py-16 sm:py-20 space-y-6">
               <h1 className="editorial-heading">
-                Explore annotations that deepen understanding.
+                The public annotation layer for the internet.
               </h1>
               <p className="editorial-subheading max-w-2xl">
                 A public space to share commentary, questions, and insights about the web we read.
