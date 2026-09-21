@@ -1327,12 +1327,7 @@
           load();
         } else if ((e.data?.type === 'OPEN_TAB' || e.data?.type === 'OPEN_URL') && e.data.url) {
           console.log('[Annotated Content] Received tab open request for:', e.data.url);
-          try {
-            chrome.runtime.sendMessage({ type: 'openTab', url: e.data.url });
-          } catch (_) {}
-          try {
-            window.open(e.data.url, '_blank', 'noopener,noreferrer');
-          } catch (_) {}
+          try { chrome.runtime.sendMessage({ type: 'openTab', url: e.data.url }); } catch (_) {}
         }
       });
     } else if (!shadowRoot.contains(widgetIframe)) {

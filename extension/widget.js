@@ -26,38 +26,15 @@ function escapeHtml(v) {
 
 function openExternalUrl(url) {
   if (!url) return;
-  console.log('[Annotated Widget] openExternalUrl called for:', url);
-
-  // 1. Direct runtime message to background script
-  try {
-    if (chrome?.runtime?.sendMessage) {
-      chrome.runtime.sendMessage({ type: 'openTab', url }, (res) => {
-        if (chrome.runtime.lastError) {
-          console.warn('[Annotated Widget] runtime.sendMessage openTab failed:', chrome.runtime.lastError.message);
-        }
-      });
-    }
-  } catch (err) {
-    console.warn('[Annotated Widget] runtime.sendMessage exception:', err);
-  }
-
-  // 2. Parent postMessage relay to content script (handles cases where background worker is asleep or needs top frame)
+  // Send message to parent content script to handle opening the tab centrally via background
   try {
     if (window.parent && window.parent !== window) {
       window.parent.postMessage({ type: 'OPEN_TAB', url }, '*');
-    }
-  } catch (err) {
-    console.warn('[Annotated Widget] parent.postMessage exception:', err);
-  }
-
-  // 3. Native tabs API if directly available
-  try {
-    if (chrome?.tabs?.create) {
-      chrome.tabs.create({ url, active: true });
+      return;
     }
   } catch (_) {}
-
-  // 4. Direct window.open fallback
+  
+  // Fallback if not embedded
   try {
     window.open(url, '_blank', 'noopener,noreferrer');
   } catch (_) {}
