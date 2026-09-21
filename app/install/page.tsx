@@ -19,7 +19,7 @@ export default function InstallPage() {
                 The Annotated extension lets you highlight and annotate any webpage. Your annotations are instantly shared with our community.
               </p>
 
-              <div className="grid sm:grid-cols-1 max-w-md gap-6 mb-8">
+              <div className="grid sm:grid-cols-1 md:grid-cols-2 max-w-2xl gap-6 mb-8">
                 <div className="border border-[hsl(var(--border))] rounded-lg p-6">
                   <h3 className="font-bold text-lg mb-3">Chrome & Edge</h3>
                   <p className="text-sm text-[hsl(var(--text-muted))] mb-4">
@@ -30,6 +30,18 @@ export default function InstallPage() {
                     className="inline-flex items-center px-4 py-2 bg-[hsl(var(--foreground))] text-[hsl(var(--background))] rounded font-medium hover:opacity-90 transition-opacity"
                   >
                     Install on Chrome
+                  </a>
+                </div>
+                <div className="border border-[hsl(var(--border))] rounded-lg p-6 flex flex-col h-full">
+                  <h3 className="font-bold text-lg mb-3">Developer Version (Open Source)</h3>
+                  <p className="text-sm text-[hsl(var(--text-muted))] mb-4 flex-1">
+                    Annotated is open source! Want the bleeding-edge version or want to contribute to the code? You can load the unpacked extension directly from our repository.
+                  </p>
+                  <a
+                    href="https://github.com/mcpmessenger/annotated#%F0%9F%9A%80-how-to-install-the-latest-version-chrome" target="_blank" rel="noopener noreferrer"
+                    className="inline-flex justify-center items-center px-4 py-2 bg-transparent border border-[hsl(var(--border))] text-[hsl(var(--foreground))] rounded font-medium hover:bg-[hsl(var(--border))] transition-colors w-full"
+                  >
+                    View GitHub Instructions
                   </a>
                 </div>
               </div>
