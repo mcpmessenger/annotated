@@ -55,7 +55,7 @@ function SidebarContent({
           )}
         </div>
         <p className="text-sm text-[hsl(var(--text-muted))] leading-relaxed mb-4">
-          Highlight text on any webpage with the Annotated extension to record commentary, attach intent, and preserve context.
+          Highlight text on any webpage to drop your thoughts. Your notes become part of the public web—anyone else with the extension will instantly see your yellow highlights right where you left them.
         </p>
         <div className="flex flex-col gap-2">
           <Link
@@ -81,10 +81,10 @@ function SidebarContent({
       <div className="border border-[hsl(var(--border))] rounded-xl p-5 bg-[hsl(var(--background))] shadow-xs">
         <div className="flex items-center gap-2 mb-2 font-bold text-sm">
           <span className="text-[hsl(var(--accent))]">🌐</span>
-          <span>Editorial Network</span>
+          <span>The Multiplayer Web</span>
         </div>
         <p className="text-xs text-[hsl(var(--text-muted))] leading-relaxed">
-          Every annotation is indexed to its original source URL and permalinked for durable citations across research, social commentary, and journalism.
+          Every annotation is permanently tied to its source URL. When someone else visits a page you've annotated, they'll see your highlights, read your insights, and can reply directly in their browser to join the conversation.
         </p>
       </div>
 
