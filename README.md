@@ -5,6 +5,11 @@
   <a href="https://annotated-repo.vercel.app">Website</a> |
   <a href="https://annotated-repo.vercel.app/explore">Explore Feed</a> |
   <a href="https://annotated-repo.vercel.app/install">Install</a>
+  <br /><br />
+  <a href="https://youtu.be/o5HR5sKZ7ZE">
+    <img src="https://img.youtube.com/vi/o5HR5sKZ7ZE/maxresdefault.jpg" alt="Watch the Annotated v2.1.22 Demo" width="600" style="border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);" />
+  </a>
+  <p><i>Watch the Demo Video</i></p>
 </div>
 
 <br />
