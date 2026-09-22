@@ -7,7 +7,7 @@
   <a href="https://annotated-repo.vercel.app/install">Install</a>
   <br /><br />
   <a href="https://youtu.be/BbfvKGDYORY">
-    <img src="https://img.youtube.com/vi/BbfvKGDYORY/maxresdefault.jpg" alt="Watch the Annotated v2.1.24 Demo" width="600" style="border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);" />
+    <img src="https://img.youtube.com/vi/BbfvKGDYORY/maxresdefault.jpg" alt="Watch the Annotated v2.1.25 Demo" width="600" style="border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);" />
   </a>
   <p><i>Watch the Demo Video</i></p>
 </div>
@@ -18,7 +18,7 @@
 
 Want to get the absolute newest, stable version of Annotated directly from GitHub? Follow these quick steps:
 
-1. **Download the Extension:** Go to the [Releases](https://github.com/mcpmessenger/annotated/releases) page of this repository and download the source code zip for the latest release (e.g., `v2.1.24`).
+1. **Download the Extension:** Go to the [Releases](https://github.com/mcpmessenger/annotated/releases) page of this repository and download the source code zip for the latest release (e.g., `v2.1.25`).
 2. **Unzip the Folder:** Extract the downloaded `.zip` file to a folder on your computer (like your Desktop or Documents).
 3. **Open Chrome Extensions:** Open Google Chrome and type `chrome://extensions/` into the URL bar and hit Enter.
 4. **Enable Developer Mode:** In the top-right corner of the Extensions page, toggle on **Developer mode**.

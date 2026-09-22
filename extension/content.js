@@ -140,6 +140,40 @@
     return null;
   };
 
+  
+  const getSmartPageTitle = (resolvedUrl, targetEl = null) => {
+    let title = document.title;
+    try {
+      if (resolvedUrl && (resolvedUrl.includes('x.com/') || resolvedUrl.includes('twitter.com/')) && resolvedUrl.includes('/status/')) {
+        const usernameMatch = resolvedUrl.match(/\.com\/([^/]+)\/status/i);
+        if (usernameMatch && usernameMatch[1]) {
+          const username = usernameMatch[1];
+          if (!title.toLowerCase().includes(username.toLowerCase())) {
+             title = '@' + username + ' on X';
+             let element = targetEl || lastKnownElement;
+             if (!element) {
+               const selection = window.getSelection();
+               if (selection && selection.rangeCount > 0) {
+                 const anchorNode = selection.anchorNode;
+                 element = anchorNode?.nodeType === Node.ELEMENT_NODE ? anchorNode : anchorNode?.parentElement;
+               }
+             }
+             if (element) {
+               const tweetArticle = element.closest('article[data-testid="tweet"]');
+               if (tweetArticle) {
+                 const nameEl = tweetArticle.querySelector('[data-testid="User-Name"] span');
+                 if (nameEl && nameEl.textContent) {
+                   title = nameEl.textContent + ' on X';
+                 }
+               }
+             }
+          }
+        }
+      }
+    } catch (e) {}
+    return title;
+  };
+
   const getExactSourceUrl = (explicitTimestamp = null, targetEl = null) => {
     try {
       // 1. Twitter/X Tweet permalink
@@ -1309,7 +1343,7 @@
           const mediaTs = getMediaTimestamp();
           const info = {
             type: 'PAGE_INFO_RESPONSE',
-            title: document.title,
+            title: getSmartPageTitle(getExactSourceUrl(mediaTs || null, lastKnownElement), lastKnownElement),
             url: getExactSourceUrl(mediaTs, lastKnownElement),
             hostname: location.hostname,
             selectedText: window.getSelection()?.toString().replace(/\s+/g, ' ').trim() || lastKnownSelection || '',
@@ -1414,7 +1448,7 @@
     const payload = {
       quote,
       url: getExactSourceUrl(mediaTs, lastKnownElement),
-      title: document.title,
+      title: getSmartPageTitle(getExactSourceUrl(mediaTs || null, lastKnownElement), lastKnownElement),
       hostname: location.hostname,
       timestamp: Date.now(),
       media_timestamp: mediaTs,
@@ -2032,7 +2066,7 @@
     if (message.type === 'getPageInfo') {
       const mediaTs = getMediaTimestamp();
       sendResponse({
-        title: document.title,
+        title: getSmartPageTitle(getExactSourceUrl(mediaTs || null, lastKnownElement), lastKnownElement),
         url: getExactSourceUrl(mediaTs, lastKnownElement),
         hostname: location.hostname,
         selectedText: window.getSelection()?.toString().replace(/\s+/g, ' ').trim() || lastKnownSelection || '',
