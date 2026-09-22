@@ -28,6 +28,7 @@ export function Header() {
   const [user, setUser] = useState<any>(null);
   const [userStats, setUserStats] = useState({ followers: 0, following: 0, notes: 0 });
   const [menuOpen, setMenuOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const menuTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
@@ -225,11 +226,50 @@ export function Header() {
           <button onClick={toggleTheme} className="text-sm">
             {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
           </button>
-          <button className="text-sm text-[hsl(var(--text-muted))] hover:text-[hsl(var(--foreground))]">
-            Menu
+          <button 
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            className="text-sm text-[hsl(var(--text-muted))] hover:text-[hsl(var(--foreground))]"
+          >
+            {mobileMenuOpen ? "Close" : "Menu"}
           </button>
         </div>
       </div>
+
+      {mobileMenuOpen && (
+        <div className="sm:hidden border-t border-[hsl(var(--border))] bg-[hsl(var(--background))] px-4 py-4 space-y-4 shadow-lg absolute w-full left-0 animate-in slide-in-from-top-2">
+          {navItems.map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              onClick={() => setMobileMenuOpen(false)}
+              className="block text-sm font-medium text-[hsl(var(--foreground))]"
+            >
+              {item.label}
+            </Link>
+          ))}
+          <div className="pt-4 border-t border-[hsl(var(--border))]">
+            {user ? (
+              <div className="space-y-4">
+                <div className="flex items-center gap-3">
+                  <img src={avatarUrl} alt={displayName} className="w-8 h-8 rounded-full border border-[hsl(var(--border))]" />
+                  <div>
+                    <strong className="block text-sm font-bold text-[hsl(var(--foreground))]">{displayName}</strong>
+                    <span className="block text-xs text-[hsl(var(--text-muted))]">@{username}</span>
+                  </div>
+                </div>
+                <div className="flex flex-col gap-3 text-sm">
+                  <Link href={`/u/${username}`} onClick={() => setMobileMenuOpen(false)}>My profile</Link>
+                  <button onClick={() => { handleLogout(); setMobileMenuOpen(false); }} className="text-red-500 text-left">Sign out</button>
+                </div>
+              </div>
+            ) : (
+              <button onClick={() => { handleLogin(); setMobileMenuOpen(false); }} className="text-sm font-medium text-[hsl(var(--foreground))]">
+                Sign in with Google
+              </button>
+            )}
+          </div>
+        </div>
+      )}
     </header>
   );
 }

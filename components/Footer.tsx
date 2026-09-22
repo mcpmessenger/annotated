@@ -20,9 +20,6 @@ export function Footer() {
             <a href="https://github.com/mcpmessenger/annotated" target="_blank" rel="noopener noreferrer" className="hover:text-[hsl(var(--foreground))] transition-colors">
               GitHub
             </a>
-            <a href="mailto:magnetarsenti@gmail.com" className="hover:text-[hsl(var(--foreground))] transition-colors">
-              Contact
-            </a>
           </div>
         </div>
       </div>
