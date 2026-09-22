@@ -8,9 +8,16 @@ function mapRowToAnnotation(row: any): Annotation {
   const username = email.split("@")[0];
   
   let sourceUrl = row.url;
+  let title = row.page_title || row.hostname || "Webpage";
+
   // Resolve known historical tweet annotations that were captured on x.com/Jason
   if (sourceUrl === 'https://x.com/Jason' && row.quote?.includes('$5,000 prize')) {
     sourceUrl = 'https://x.com/Jason/status/2100272625289433254';
+  }
+
+  // Fix stale SPA title capture for the Joe Gebbia demo annotation
+  if (sourceUrl?.includes('jgebbia')) {
+    title = "Joe Gebbia on X: \"America's Golden Age...\"";
   }
 
   return {
@@ -20,7 +27,7 @@ function mapRowToAnnotation(row: any): Annotation {
     username: username,
     userDisplayName: profile.full_name || username,
     avatar_url: profile.avatar_url,
-    title: row.page_title || row.hostname || "Webpage",
+    title: title,
     sourceUrl: sourceUrl,
     sourceTitle: row.page_title || row.hostname,
     sourceDomain: row.hostname || "",
