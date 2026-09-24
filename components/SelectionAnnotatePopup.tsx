@@ -17,6 +17,18 @@ export function SelectionAnnotatePopup() {
       return;
     }
 
+    // STRICT MOBILE-ONLY: Never activate on desktop Chrome or mouse/keyboard devices.
+    // Desktop Chrome relies on the native Chrome extension, so we must never degrade desktop.
+    const isMobileTouch =
+      typeof window !== 'undefined' &&
+      window.innerWidth < 768 &&
+      ('ontouchstart' in window || navigator.maxTouchPoints > 0);
+
+    if (!isMobileTouch) {
+      setPosition(null);
+      return;
+    }
+
     const handleSelectionChange = () => {
       const selection = window.getSelection();
       if (!selection || selection.isCollapsed || !selection.toString().trim()) {

@@ -6,23 +6,21 @@ import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
 import { supabase } from '@/lib/supabaseClient';
 import {
-  Share2,
   Sparkles,
   ExternalLink,
   CheckCircle2,
   XCircle,
   AlertTriangle,
   Globe,
-  Quote,
   Copy,
   Check,
   Send,
   LogIn,
-  Scissors,
   Film,
-  Edit3,
 } from 'lucide-react';
 import { VideoClipTrimmer } from '@/components/VideoClipTrimmer';
+
+const SIGNATURE_EMOJIS = ['🔥', '🤔', '💡', '💯', '👎'];
 
 function ShareContent() {
   const router = useRouter();
@@ -166,26 +164,19 @@ function ShareContent() {
 
   return (
     <div className="max-w-xl mx-auto px-4 py-8 space-y-6">
-      {/* Mobile Card Header — Matches Extension Brand */}
+      {/* Signature Header — Canonical Logo */}
       <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-[#FFD21A] text-black flex items-center justify-center font-bold text-sm shadow-sm">
-            <Edit3 className="w-4 h-4" />
-          </div>
-          <div>
-            <h1 className="text-base font-bold text-[hsl(var(--foreground))] tracking-tight">
-              Annotate Content
-            </h1>
-            <p className="text-xs text-[hsl(var(--text-muted))]">
-              Editorial notes, quotes & verification
-            </p>
-          </div>
+        <div className="flex items-center gap-2">
+          <img src="/logo.png" alt="Annotated Logo" className="w-7 h-7 object-contain" />
+          <span className="font-extrabold text-2xl tracking-tight text-[hsl(var(--foreground))] select-none">
+            annotated<span className="text-[#FFD21A]">.</span>
+          </span>
         </div>
 
         {targetUrl && (
           <button
             onClick={handleCopy}
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium text-[hsl(var(--text-muted))] hover:text-[hsl(var(--foreground))] border border-[hsl(var(--border))] hover:bg-[hsl(var(--border))]/40 transition"
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium text-[hsl(var(--text-muted))] hover:text-[hsl(var(--foreground))] border border-[hsl(var(--border))] hover:bg-[hsl(var(--border))]/40 transition cursor-pointer"
             title="Copy URL"
           >
             {copied ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
@@ -257,34 +248,30 @@ function ShareContent() {
             <span>🎉 Annotation published successfully!</span>
             <button
               onClick={() => router.push(`/explore`)}
-              className="px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold transition"
+              className="px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold transition cursor-pointer"
             >
               View in Feed
             </button>
           </div>
         ) : (
           <div className="space-y-4 pt-1">
-            {/* Intent Emojis — Identical to Extension */}
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-xs text-[hsl(var(--text-muted))] font-medium">Quick React:</span>
-              <div className="flex items-center gap-1.5 flex-wrap">
-                {[
-                  { emoji: '💡', label: 'Insight' },
-                  { emoji: '🤔', label: 'Question' },
-                  { emoji: '🔥', label: 'Hot Take' },
-                  { emoji: '💯', label: 'Agree' },
-                ].map((item) => (
+            {/* Signature Emoji Bar — Exact match to extension widget */}
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-[hsl(var(--text-muted))]">Quick React:</span>
+              <div className="flex items-center gap-1.5">
+                {SIGNATURE_EMOJIS.map((emoji) => (
                   <button
-                    key={item.emoji}
+                    key={emoji}
                     type="button"
-                    onClick={() => setIntent(item.emoji)}
-                    className={`px-3 py-1 rounded-full text-xs font-semibold border transition ${
-                      intent === item.emoji
-                        ? 'bg-[#FFD21A] text-black border-[#FFD21A] shadow-sm'
-                        : 'bg-[hsl(var(--border))]/20 text-[hsl(var(--foreground))] border-[hsl(var(--border))] hover:bg-[hsl(var(--border))]/40'
+                    onClick={() => setIntent(intent === emoji ? '' : emoji)}
+                    className={`w-8 h-8 rounded-full flex items-center justify-center text-sm transition-transform active:scale-95 cursor-pointer ${
+                      intent === emoji
+                        ? 'bg-[#FFD21A] text-black shadow-sm ring-2 ring-[#FFD21A]'
+                        : 'bg-[hsl(var(--border))]/30 hover:bg-[hsl(var(--border))]/60 text-[hsl(var(--foreground))] border border-[hsl(var(--border))]'
                     }`}
+                    title={emoji}
                   >
-                    <span>{item.emoji} {item.label}</span>
+                    {emoji}
                   </button>
                 ))}
               </div>
@@ -299,25 +286,27 @@ function ShareContent() {
               className="w-full rounded-lg bg-[hsl(var(--border))]/15 border border-[hsl(var(--border))] p-3 text-sm text-[hsl(var(--foreground))] placeholder-[hsl(var(--text-muted))] focus:outline-none focus:border-[#FFD21A] transition resize-none leading-relaxed"
             />
 
-            {/* Action Bar */}
-            <div className="flex items-center justify-between gap-3 pt-1 flex-wrap">
+            {/* Action Bar — Signature extension-styled Publish button */}
+            <div className="space-y-2 pt-1">
               <button
                 onClick={handlePublish}
                 disabled={publishing}
-                className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-[#FFD21A] hover:bg-[#ffe053] text-black text-xs font-bold shadow-sm transition active:scale-95 disabled:opacity-50 cursor-pointer"
+                className="w-full py-2.5 px-4 rounded-lg bg-[#000] text-white hover:bg-black/90 font-bold text-sm flex items-center justify-center gap-2 transition disabled:opacity-50 cursor-pointer shadow-sm active:scale-[0.99]"
               >
-                {session ? <Send className="w-3.5 h-3.5" /> : <LogIn className="w-3.5 h-3.5" />}
-                <span>{publishing ? 'Publishing...' : session ? 'Publish Annotation' : 'Sign in to Annotate'}</span>
+                <span>{publishing ? 'Publishing...' : session ? 'Publish' : 'Sign in to Publish'}</span>
+                <span className="text-[#FFD21A] font-extrabold text-base">→</span>
               </button>
 
-              <button
-                onClick={handleFactCheck}
-                disabled={factCheckLoading}
-                className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-[hsl(var(--border))]/20 hover:bg-[hsl(var(--border))]/40 text-[hsl(var(--foreground))] text-xs font-semibold border border-[hsl(var(--border))] transition disabled:opacity-50 cursor-pointer"
-              >
-                <Sparkles className="w-3.5 h-3.5 text-purple-400" />
-                <span>{factCheckLoading ? 'Verifying...' : 'Fact Check'}</span>
-              </button>
+              <div className="flex items-center justify-end">
+                <button
+                  onClick={handleFactCheck}
+                  disabled={factCheckLoading}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[hsl(var(--border))]/20 hover:bg-[hsl(var(--border))]/40 text-[hsl(var(--foreground))] text-xs font-semibold border border-[hsl(var(--border))] transition disabled:opacity-50 cursor-pointer"
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-purple-400" />
+                  <span>{factCheckLoading ? 'Verifying...' : 'Fact Check with Gemini'}</span>
+                </button>
+              </div>
             </div>
           </div>
         )}
