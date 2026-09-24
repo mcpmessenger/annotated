@@ -44,19 +44,19 @@ export function wireFactCheck(
   const fb = $('#detailFactCheckBox');
   const ft = $('#detailFactCheckText');
   const fbadge = $('#detailFactCheckBadge');
-  const fnote = $('#detailFactCheckCommunityNote');
-  const ftweet = $('#detailFactCheckTweetBtn') as HTMLAnchorElement | null;
   const closeBtn = $('#detailFactCheckCloseBtn');
 
   const hasMedia = !!(ann.media_url || ann.audio_url);
 
   const updateBtnState = (isOpen: boolean) => {
     if (factBtn) {
-      factBtn.innerHTML = `<span>&#9889; ${isOpen ? 'Hide Fact Check' : 'Show Fact Check'}</span>`;
+      factBtn.innerHTML = '&#9889;';
       factBtn.setAttribute('data-tooltip', isOpen ? 'Hide Fact Check' : 'Show Fact Check');
+      factBtn.style.background = isOpen ? 'var(--soft)' : 'var(--surface)';
+      factBtn.style.borderColor = isOpen ? 'var(--yellow)' : 'var(--line)';
     }
     if (onResize) {
-      onResize(isOpen ? (hasMedia ? 740 : 660) : (hasMedia ? 600 : 520));
+      onResize(isOpen ? (hasMedia ? 690 : 610) : (hasMedia ? 590 : 510));
     }
   };
 
@@ -72,14 +72,6 @@ export function wireFactCheck(
     }
     if (ft) {
       ft.innerHTML = `<strong>${escapeHtml(data.headline || '')}</strong><br><span style="font-size:10px; color:var(--muted);">${escapeHtml(data.explanation || '')}</span>`;
-    }
-    if (data.communityNote && fnote) {
-      fnote.textContent = data.communityNote;
-      fnote.style.display = 'block';
-    }
-    if (data.tweetIntentUrl && ftweet) {
-      ftweet.href = data.tweetIntentUrl;
-      ftweet.style.display = 'inline-block';
     }
   };
 
@@ -105,8 +97,6 @@ export function wireFactCheck(
       fbadge.style.color = 'var(--muted)';
     }
     if (ft) ft.textContent = 'Analyzing claim and context with Google Gemini...';
-    if (fnote) fnote.style.display = 'none';
-    if (ftweet) ftweet.style.display = 'none';
 
     (async () => {
       try {

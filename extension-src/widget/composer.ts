@@ -41,11 +41,7 @@ export function getComposerHeight(): number {
   }
   const factBox = $('#composerFactCheckBox');
   if (factBox && factBox.style.display !== 'none') {
-    base += 140;
-    const fnote = $('#composerFactCheckCommunityNote');
-    if (fnote && fnote.style.display !== 'none') {
-      base += 35;
-    }
+    base += 130;
   }
   return base;
 }
@@ -312,7 +308,6 @@ export function initComposer(
   const composerFactCheckBox = $('#composerFactCheckBox');
   const composerFactCheckBadge = $('#composerFactCheckBadge');
   const composerFactCheckText = $('#composerFactCheckText');
-  const composerFactCheckNote = $('#composerFactCheckCommunityNote');
   const composerFactCheckCloseBtn = $('#composerFactCheckCloseBtn');
 
   composerFactCheckCloseBtn?.addEventListener('click', (e) => {
@@ -348,9 +343,6 @@ export function initComposer(
     if (composerFactCheckText) {
       composerFactCheckText.textContent = 'Analyzing claim and context with Google Gemini...';
     }
-    if (composerFactCheckNote) {
-      composerFactCheckNote.style.display = 'none';
-    }
     onResize(getComposerHeight());
 
     try {
@@ -375,10 +367,6 @@ export function initComposer(
       }
       if (composerFactCheckText) {
         composerFactCheckText.innerHTML = `<strong>${escapeHtml(data.headline || '')}</strong><br><span style="font-size:10px; color:var(--muted);">${escapeHtml(data.explanation || '')}</span>`;
-      }
-      if (data.communityNote && composerFactCheckNote) {
-        composerFactCheckNote.textContent = data.communityNote;
-        composerFactCheckNote.style.display = 'block';
       }
       onResize(getComposerHeight());
     } catch (err: unknown) {

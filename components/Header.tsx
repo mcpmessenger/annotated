@@ -350,23 +350,24 @@ export function Header() {
 
         <div className="sm:hidden flex items-center gap-2.5">
           {user && (
-            <button
-              onClick={() => {
-                const opening = !notifOpen;
-                setNotifOpen(opening);
-                if (opening && unreadCount > 0) markAllRead(user.id);
-                if (opening) setMobileMenuOpen(false);
-              }}
-              className="relative w-8 h-8 flex items-center justify-center rounded-full hover:bg-[hsl(var(--border))] text-[hsl(var(--text-muted))] hover:text-[hsl(var(--foreground))] transition-colors"
-              title="Notifications"
-            >
-              <Bell size={18} />
-              {unreadCount > 0 && (
-                <span className="absolute top-0.5 right-0.5 min-w-[15px] h-3.5 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center px-0.5 leading-none pointer-events-none">
-                  {unreadCount > 9 ? "9+" : unreadCount}
-                </span>
-              )}
-            </button>
+            <Tooltip content="Notifications" position="bottom">
+              <button
+                onClick={() => {
+                  const opening = !notifOpen;
+                  setNotifOpen(opening);
+                  if (opening && unreadCount > 0) markAllRead(user.id);
+                  if (opening) setMobileMenuOpen(false);
+                }}
+                className="relative w-8 h-8 flex items-center justify-center rounded-full hover:bg-[hsl(var(--border))] text-[hsl(var(--text-muted))] hover:text-[hsl(var(--foreground))] transition-colors"
+              >
+                <Bell size={18} />
+                {unreadCount > 0 && (
+                  <span className="absolute top-0.5 right-0.5 min-w-[15px] h-3.5 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center px-0.5 leading-none pointer-events-none">
+                    {unreadCount > 9 ? "9+" : unreadCount}
+                  </span>
+                )}
+              </button>
+            </Tooltip>
           )}
           <button onClick={toggleTheme} className="text-sm">
             {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}

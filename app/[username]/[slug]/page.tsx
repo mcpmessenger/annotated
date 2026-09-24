@@ -349,23 +349,22 @@ export default function AnnotationPage() {
           {/* Reactions and Quick Fact Check Trigger */}
           <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
             <ReactionRow annotationId={annotation.id} />
-            <button
-              onClick={handleFactCheck}
-              disabled={factCheckLoading}
-              className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full border border-[hsl(var(--accent))] text-[hsl(var(--accent))] hover:bg-[hsl(var(--accent))]/10 transition-colors cursor-pointer disabled:opacity-50"
-              title="Fact check this annotation with Gemini AI"
-            >
-              <Sparkles size={13} className="text-purple-400" />
-              <span>
-                {factCheckLoading
-                  ? "Analyzing..."
-                  : factCheckData
-                  ? isFactCheckMinimized
+            <Tooltip content={factCheckLoading ? "Analyzing claim with Gemini..." : isFactCheckMinimized ? "Show Fact Check" : "Hide Fact Check"} position="top">
+              <button
+                onClick={handleFactCheck}
+                disabled={factCheckLoading}
+                className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full border border-[hsl(var(--accent))] text-[hsl(var(--accent))] hover:bg-[hsl(var(--accent))]/10 transition-colors cursor-pointer disabled:opacity-50"
+              >
+                <Sparkles size={13} className={factCheckLoading ? "animate-spin text-purple-400" : "text-purple-400"} />
+                <span className="hidden sm:inline">
+                  {factCheckLoading
+                    ? "Analyzing..."
+                    : isFactCheckMinimized
                     ? "Show Fact Check"
-                    : "Hide Fact Check"
-                  : "Fact Check"}
-              </span>
-            </button>
+                    : "Hide Fact Check"}
+                </span>
+              </button>
+            </Tooltip>
           </div>
 
           {/* Fact Check Section (Persistent & Minimizable) */}
@@ -414,17 +413,19 @@ export default function AnnotationPage() {
                       {factCheckData?.headline}
                     </span>
                   </div>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      toggleFactCheckMinimize(false);
-                    }}
-                    className="text-[hsl(var(--text-muted))] group-hover:text-[hsl(var(--foreground))] font-semibold px-2.5 py-1 rounded hover:bg-[hsl(var(--border))] transition-colors flex items-center gap-1 shrink-0 cursor-pointer"
-                  >
-                    <span>Expand</span>
-                    <ChevronDown size={12} />
-                  </button>
+                  <Tooltip content="Expand Fact Check" position="top">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleFactCheckMinimize(false);
+                      }}
+                      className="text-[hsl(var(--text-muted))] group-hover:text-[hsl(var(--foreground))] font-semibold px-2.5 py-1 rounded hover:bg-[hsl(var(--border))] transition-colors flex items-center gap-1 shrink-0 cursor-pointer"
+                    >
+                      <span>Expand</span>
+                      <ChevronDown size={12} />
+                    </button>
+                  </Tooltip>
                 </div>
               ) : factCheckData ? (
                 /* Expanded state: full comprehensive card */
@@ -455,15 +456,16 @@ export default function AnnotationPage() {
                           <span>{factCheckData.verdict.replace("_", " ")}</span>
                         </span>
                       )}
-                      <button
-                        type="button"
-                        onClick={() => toggleFactCheckMinimize(true)}
-                        className="text-[hsl(var(--text-muted))] hover:text-[hsl(var(--foreground))] text-xs font-semibold px-2.5 py-1 rounded hover:bg-[hsl(var(--border))] transition-colors cursor-pointer flex items-center gap-1"
-                        title="Hide Fact Check"
-                      >
-                        <span>Hide</span>
-                        <ChevronUp size={12} />
-                      </button>
+                      <Tooltip content="Hide Fact Check" position="top">
+                        <button
+                          type="button"
+                          onClick={() => toggleFactCheckMinimize(true)}
+                          className="text-[hsl(var(--text-muted))] hover:text-[hsl(var(--foreground))] text-xs font-semibold px-2.5 py-1 rounded hover:bg-[hsl(var(--border))] transition-colors cursor-pointer flex items-center gap-1"
+                        >
+                          <span>Hide</span>
+                          <ChevronUp size={12} />
+                        </button>
+                      </Tooltip>
                     </div>
                   </div>
 
@@ -474,43 +476,19 @@ export default function AnnotationPage() {
                     {factCheckData.explanation}
                   </p>
 
-                  {factCheckData.communityNote && (
-                    <div className="p-3 rounded-lg bg-[hsl(var(--background))] border border-[hsl(var(--border))] text-xs space-y-1">
-                      <span className="font-bold text-[hsl(var(--foreground))] block">
-                        𝕏 Community Note Format:
-                      </span>
-                      <p className="text-[hsl(var(--text-muted))] italic leading-relaxed">
-                        {factCheckData.communityNote}
-                      </p>
-                    </div>
-                  )}
-
-                  <div className="flex items-center justify-between pt-1 flex-wrap gap-2">
-                    {factCheckData.sources?.length > 0 && (
-                      <div className="flex items-center gap-1 text-[11px] text-[hsl(var(--text-muted))]">
-                        <span>Source:</span>
-                        <a
-                          href={factCheckData.sources[0].url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="underline text-[hsl(var(--accent))] truncate max-w-[200px]"
-                        >
-                          {factCheckData.sources[0].title || "Primary Source"}
-                        </a>
-                      </div>
-                    )}
-                    {factCheckData.tweetIntentUrl && (
+                  {factCheckData.sources?.length > 0 && (
+                    <div className="flex items-center gap-1 text-[11px] text-[hsl(var(--text-muted))] pt-1">
+                      <span>Source:</span>
                       <a
-                        href={factCheckData.tweetIntentUrl}
+                        href={factCheckData.sources[0].url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-black text-white hover:bg-neutral-800 text-xs font-bold transition-colors ml-auto shadow-sm"
+                        className="underline text-[hsl(var(--accent))] truncate max-w-[200px]"
                       >
-                        <span>Post as 𝕏 Note</span>
-                        <ExternalLink size={11} />
+                        {factCheckData.sources[0].title || "Primary Source"}
                       </a>
-                    )}
-                  </div>
+                    </div>
+                  )}
                 </div>
               ) : null}
             </div>
@@ -534,23 +512,35 @@ export default function AnnotationPage() {
                     <span>{isDeleting ? "Deleting..." : "Delete Note"}</span>
                   </button>
                 )}
-                <button
-                  onClick={handleFactCheck}
-                  disabled={factCheckLoading}
-                  className="px-4 py-2 rounded text-sm font-medium border border-[hsl(var(--accent))] text-[hsl(var(--accent))] hover:bg-[hsl(var(--accent))]/10 transition-colors w-full sm:w-auto flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
-                  title="Fact check this annotation with Gemini AI"
-                >
-                  <Sparkles size={14} className="text-purple-400" />
-                  <span>
-                    {factCheckLoading
-                      ? "Analyzing..."
+                <Tooltip
+                  content={
+                    factCheckLoading
+                      ? "Analyzing claims..."
                       : factCheckData
                       ? isFactCheckMinimized
                         ? "Show Fact Check"
                         : "Hide Fact Check"
-                      : "Fact Check"}
-                  </span>
-                </button>
+                      : "Fact check this annotation with Gemini AI"
+                  }
+                  position="top"
+                >
+                  <button
+                    onClick={handleFactCheck}
+                    disabled={factCheckLoading}
+                    className="px-4 py-2 rounded text-sm font-medium border border-[hsl(var(--accent))] text-[hsl(var(--accent))] hover:bg-[hsl(var(--accent))]/10 transition-colors w-full sm:w-auto flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+                  >
+                    <Sparkles size={14} className="text-purple-400" />
+                    <span>
+                      {factCheckLoading
+                        ? "Analyzing..."
+                        : factCheckData
+                        ? isFactCheckMinimized
+                          ? "Show Fact Check"
+                          : "Hide Fact Check"
+                        : "Fact Check"}
+                    </span>
+                  </button>
+                </Tooltip>
                 <button
                   onClick={handleCopyLink}
                   className={`px-4 py-2 rounded text-sm font-medium transition-colors w-full sm:w-auto ${

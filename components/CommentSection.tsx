@@ -5,6 +5,7 @@ import { SpeechToTextButton } from "@/components/SpeechToTextButton";
 import { useState, useEffect, useRef, useMemo } from "react";
 import { Trash2, Reply, AtSign, Plus, X, Sparkles, CheckCircle2, AlertTriangle, XCircle, ExternalLink } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
+import { Tooltip } from "@/components/Tooltip";
 
 const QUICK_EMOJIS = ["🔥", "🤔", "💡", "💯", "👎"];
 
@@ -632,13 +633,14 @@ export function CommentSection({
                   })()}
                 </span>
                 {user && comment.user_id === user.id && (
-                  <button
-                    onClick={() => deleteComment(comment.id)}
-                    className="p-1 text-[hsl(var(--text-muted))] hover:text-red-500 transition-colors cursor-pointer rounded"
-                    title="Delete your comment"
-                  >
-                    <Trash2 size={13} />
-                  </button>
+                  <Tooltip content="Delete comment" position="top">
+                    <button
+                      onClick={() => deleteComment(comment.id)}
+                      className="p-1 text-[hsl(var(--text-muted))] hover:text-red-500 transition-colors cursor-pointer rounded"
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  </Tooltip>
                 )}
               </div>
             </div>
@@ -648,25 +650,16 @@ export function CommentSection({
             <div className="flex items-center justify-between mt-2 pl-8">
               <CommentReactionRow commentId={comment.id} />
               <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => handleFactCheckComment(comment)}
-                  className="inline-flex items-center gap-1 text-[11px] font-semibold text-[hsl(var(--accent))] hover:bg-[hsl(var(--background))] transition-colors px-1.5 py-0.5 rounded border border-[hsl(var(--accent))]/30 cursor-pointer"
-                  title="Fact check this comment with Gemini AI"
-                >
-                  <Sparkles size={11} />
-                  <span>Fact Check</span>
-                </button>
-                <a
-                  href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(`Replying to @${comment.user_name?.replace(/[^a-zA-Z0-9_]/g, '') || 'user'} on @Annotated:\n"${comment.text?.slice(0, 90)}..."\n`)}&url=${encodeURIComponent(typeof window !== "undefined" ? window.location.href : "")}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 text-[11px] font-semibold text-[hsl(var(--text-muted))] hover:text-[hsl(var(--foreground))] transition-colors px-1.5 py-0.5 rounded hover:bg-[hsl(var(--background))]"
-                  title="Notify on X"
-                >
-                  <span className="font-bold">𝕏</span>
-                  <span>Notify</span>
-                </a>
+                <Tooltip content="Fact check this comment with Gemini AI" position="top">
+                  <button
+                    type="button"
+                    onClick={() => handleFactCheckComment(comment)}
+                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-[hsl(var(--accent))] hover:bg-[hsl(var(--background))] transition-colors px-1.5 py-0.5 rounded border border-[hsl(var(--accent))]/30 cursor-pointer"
+                  >
+                    <Sparkles size={11} />
+                    <span>Fact Check</span>
+                  </button>
+                </Tooltip>
                 {user && (
                   <button
                     type="button"
@@ -701,14 +694,15 @@ export function CommentSection({
                         <span>{commentFactChecks[comment.id].data.verdict.replace("_", " ")}</span>
                       </span>
                     )}
-                    <button
-                      type="button"
-                      onClick={() => handleFactCheckComment(comment)}
-                      className="text-[hsl(var(--text-muted))] hover:text-[hsl(var(--foreground))] text-xs font-semibold px-1.5 py-0.5 rounded hover:bg-[hsl(var(--border))] transition-colors cursor-pointer"
-                      title="Hide comment fact check"
-                    >
-                      ✕ Hide
-                    </button>
+                    <Tooltip content="Hide comment fact check" position="top">
+                      <button
+                        type="button"
+                        onClick={() => handleFactCheckComment(comment)}
+                        className="text-[hsl(var(--text-muted))] hover:text-[hsl(var(--foreground))] text-xs font-semibold px-1.5 py-0.5 rounded hover:bg-[hsl(var(--border))] transition-colors cursor-pointer"
+                      >
+                        ✕ Hide
+                      </button>
+                    </Tooltip>
                   </div>
                 </div>
 
@@ -725,24 +719,6 @@ export function CommentSection({
                     <p className="text-[hsl(var(--text-muted))] text-[11px] leading-relaxed">
                       {commentFactChecks[comment.id].data.explanation}
                     </p>
-                    {commentFactChecks[comment.id].data.communityNote && (
-                      <div className="p-2 rounded bg-[hsl(var(--secondary))] text-[11px] italic text-[hsl(var(--text-muted))]">
-                        {commentFactChecks[comment.id].data.communityNote}
-                      </div>
-                    )}
-                    {commentFactChecks[comment.id].data.tweetIntentUrl && (
-                      <div className="flex justify-end pt-1">
-                        <a
-                          href={commentFactChecks[comment.id].data.tweetIntentUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-black text-white hover:bg-neutral-800 text-[10px] font-bold transition-colors"
-                        >
-                          <span>Post as 𝕏 Note</span>
-                          <ExternalLink size={10} />
-                        </a>
-                      </div>
-                    )}
                   </>
                 ) : null}
               </div>
@@ -763,29 +739,30 @@ export function CommentSection({
             <div className="flex items-center gap-2">
               <span className="text-xs text-[hsl(var(--text-subtle))] font-medium">Quick React:</span>
               {QUICK_EMOJIS.map((emoji) => (
-                <button
-                  key={emoji}
-                  type="button"
-                  onClick={() => insertEmoji(emoji)}
-                  className="text-lg hover:scale-125 transition-transform p-1 rounded hover:bg-[hsl(var(--border))]"
-                  title={`Insert ${emoji}`}
-                >
-                  {emoji}
-                </button>
+                <Tooltip key={emoji} content={`React with ${emoji}`} position="top">
+                  <button
+                    type="button"
+                    onClick={() => insertEmoji(emoji)}
+                    className="text-lg hover:scale-125 transition-transform p-1 rounded hover:bg-[hsl(var(--border))]"
+                  >
+                    {emoji}
+                  </button>
+                </Tooltip>
               ))}
             </div>
 
             {/* Simplified Reply button */}
             {author && (author.username || author.displayName) && (
-              <button
-                type="button"
-                onClick={tagAuthor}
-                className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-full bg-[hsl(var(--secondary))] text-[hsl(var(--foreground))] hover:bg-[hsl(var(--border))] transition-colors border border-[hsl(var(--border))] cursor-pointer"
-                title="Reply to original author"
-              >
-                <Reply size={13} className="text-[hsl(var(--accent))]" />
-                <span>Reply</span>
-              </button>
+              <Tooltip content="Reply to original author" position="top">
+                <button
+                  type="button"
+                  onClick={tagAuthor}
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-full bg-[hsl(var(--secondary))] text-[hsl(var(--foreground))] hover:bg-[hsl(var(--border))] transition-colors border border-[hsl(var(--border))] cursor-pointer"
+                >
+                  <Reply size={13} className="text-[hsl(var(--accent))]" />
+                  <span>Reply</span>
+                </button>
+              </Tooltip>
             )}
           </div>
 
@@ -800,14 +777,15 @@ export function CommentSection({
                   className="inline-flex items-center gap-1 bg-[hsl(var(--background))] border border-[hsl(var(--border))] px-2 py-0.5 rounded-full font-semibold text-[hsl(var(--foreground))] text-[11px]"
                 >
                   <span>@{recip.handle}</span>
-                  <button
-                    type="button"
-                    onClick={() => removeRecipient(recip.handle)}
-                    className="text-[hsl(var(--text-muted))] hover:text-red-500 font-bold text-xs ml-0.5 cursor-pointer"
-                    title={`Remove @${recip.handle}`}
-                  >
-                    <X size={11} />
-                  </button>
+                  <Tooltip content={`Remove @${recip.handle}`} position="top">
+                    <button
+                      type="button"
+                      onClick={() => removeRecipient(recip.handle)}
+                      className="text-[hsl(var(--text-muted))] hover:text-red-500 font-bold text-xs ml-0.5 cursor-pointer"
+                    >
+                      <X size={11} />
+                    </button>
+                  </Tooltip>
                 </span>
               ))}
 
@@ -876,14 +854,15 @@ export function CommentSection({
               </div>
 
               {/* Clear all recipients button */}
-              <button
-                type="button"
-                onClick={() => setReplyRecipients([])}
-                className="text-[hsl(var(--text-muted))] hover:text-[hsl(var(--foreground))] text-xs font-bold cursor-pointer ml-auto pl-2"
-                title="Cancel reply"
-              >
-                ✕
-              </button>
+              <Tooltip content="Cancel reply" position="top">
+                <button
+                  type="button"
+                  onClick={() => setReplyRecipients([])}
+                  className="text-[hsl(var(--text-muted))] hover:text-[hsl(var(--foreground))] text-xs font-bold cursor-pointer ml-auto pl-2"
+                >
+                  ✕
+                </button>
+              </Tooltip>
             </div>
           )}
 

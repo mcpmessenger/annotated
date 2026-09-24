@@ -587,17 +587,17 @@
     const fb = $("#detailFactCheckBox");
     const ft = $("#detailFactCheckText");
     const fbadge = $("#detailFactCheckBadge");
-    const fnote = $("#detailFactCheckCommunityNote");
-    const ftweet = $("#detailFactCheckTweetBtn");
     const closeBtn = $("#detailFactCheckCloseBtn");
     const hasMedia = !!(ann.media_url || ann.audio_url);
     const updateBtnState = (isOpen) => {
       if (factBtn) {
-        factBtn.innerHTML = `<span>&#9889; ${isOpen ? "Hide Fact Check" : "Show Fact Check"}</span>`;
+        factBtn.innerHTML = "&#9889;";
         factBtn.setAttribute("data-tooltip", isOpen ? "Hide Fact Check" : "Show Fact Check");
+        factBtn.style.background = isOpen ? "var(--soft)" : "var(--surface)";
+        factBtn.style.borderColor = isOpen ? "var(--yellow)" : "var(--line)";
       }
       if (onResize) {
-        onResize(isOpen ? hasMedia ? 740 : 660 : hasMedia ? 600 : 520);
+        onResize(isOpen ? hasMedia ? 690 : 610 : hasMedia ? 590 : 510);
       }
     };
     const renderData = (data) => {
@@ -607,14 +607,6 @@
       }
       if (ft) {
         ft.innerHTML = `<strong>${escapeHtml(data.headline || "")}</strong><br><span style="font-size:10px; color:var(--muted);">${escapeHtml(data.explanation || "")}</span>`;
-      }
-      if (data.communityNote && fnote) {
-        fnote.textContent = data.communityNote;
-        fnote.style.display = "block";
-      }
-      if (data.tweetIntentUrl && ftweet) {
-        ftweet.href = data.tweetIntentUrl;
-        ftweet.style.display = "inline-block";
       }
     };
     if (factBox) factBox.style.display = "block";
@@ -636,8 +628,6 @@
         fbadge.style.color = "var(--muted)";
       }
       if (ft) ft.textContent = "Analyzing claim and context with Google Gemini...";
-      if (fnote) fnote.style.display = "none";
-      if (ftweet) ftweet.style.display = "none";
       (async () => {
         try {
           const data = await callFactCheckApi({
@@ -707,11 +697,7 @@
     }
     const factBox = $("#composerFactCheckBox");
     if (factBox && factBox.style.display !== "none") {
-      base += 140;
-      const fnote = $("#composerFactCheckCommunityNote");
-      if (fnote && fnote.style.display !== "none") {
-        base += 35;
-      }
+      base += 130;
     }
     return base;
   }
@@ -923,7 +909,6 @@
     const composerFactCheckBox = $("#composerFactCheckBox");
     const composerFactCheckBadge = $("#composerFactCheckBadge");
     const composerFactCheckText = $("#composerFactCheckText");
-    const composerFactCheckNote = $("#composerFactCheckCommunityNote");
     const composerFactCheckCloseBtn = $("#composerFactCheckCloseBtn");
     composerFactCheckCloseBtn?.addEventListener("click", (e) => {
       e.stopPropagation();
@@ -954,9 +939,6 @@
       if (composerFactCheckText) {
         composerFactCheckText.textContent = "Analyzing claim and context with Google Gemini...";
       }
-      if (composerFactCheckNote) {
-        composerFactCheckNote.style.display = "none";
-      }
       onResize(getComposerHeight());
       try {
         const pageCtx = getPage();
@@ -974,10 +956,6 @@
         }
         if (composerFactCheckText) {
           composerFactCheckText.innerHTML = `<strong>${escapeHtml(data.headline || "")}</strong><br><span style="font-size:10px; color:var(--muted);">${escapeHtml(data.explanation || "")}</span>`;
-        }
-        if (data.communityNote && composerFactCheckNote) {
-          composerFactCheckNote.textContent = data.communityNote;
-          composerFactCheckNote.style.display = "block";
         }
         onResize(getComposerHeight());
       } catch (err) {
@@ -1662,13 +1640,19 @@
         mediaBox.classList.add("hidden");
       }
     }
-    const twitterShareBtn = $("#detailTwitterShareBtn");
-    if (twitterShareBtn) {
-      const tweetText = `Interesting annotation on "${ann.title || "Page"}":
-"${(ann.comment || ann.quote || "").slice(0, 90)}..."
-`;
-      const shareUrl = `${SITE_URL}/annotations/${ann.id}`;
-      twitterShareBtn.href = `https://twitter.com/intent/tweet?text=${encodeURIComponent(tweetText)}&url=${encodeURIComponent(shareUrl)}`;
+    const copyLinkBtn = $("#detailCopyLinkBtn");
+    if (copyLinkBtn) {
+      copyLinkBtn.onclick = async (e) => {
+        e.stopPropagation();
+        try {
+          await navigator.clipboard.writeText(detailUrl);
+          copyLinkBtn.setAttribute("data-tooltip", "Copied to clipboard!");
+          setTimeout(() => {
+            copyLinkBtn.setAttribute("data-tooltip", "Copy annotation link");
+          }, 2200);
+        } catch (_) {
+        }
+      };
     }
     wireDetailReactions(ann.id || ann.slug || "", activeUser);
     wireFactCheck(ann, ann.title || "Page", ann.url || location.href, onResize);

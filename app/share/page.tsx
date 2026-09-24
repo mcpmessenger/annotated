@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import React, { Suspense, useState, useEffect } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
@@ -19,6 +19,7 @@ import {
   Film,
 } from 'lucide-react';
 import { VideoClipTrimmer } from '@/components/VideoClipTrimmer';
+import { Tooltip } from '@/components/Tooltip';
 
 const SIGNATURE_EMOJIS = ['🔥', '🤔', '💡', '💯', '👎'];
 
@@ -174,14 +175,15 @@ function ShareContent() {
         </div>
 
         {targetUrl && (
-          <button
-            onClick={handleCopy}
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium text-[hsl(var(--text-muted))] hover:text-[hsl(var(--foreground))] border border-[hsl(var(--border))] hover:bg-[hsl(var(--border))]/40 transition cursor-pointer"
-            title="Copy URL"
-          >
-            {copied ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
-            <span>{copied ? 'Copied' : 'Copy Link'}</span>
-          </button>
+          <Tooltip content="Copy URL" position="top">
+            <button
+              onClick={handleCopy}
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium text-[hsl(var(--text-muted))] hover:text-[hsl(var(--foreground))] border border-[hsl(var(--border))] hover:bg-[hsl(var(--border))]/40 transition cursor-pointer"
+            >
+              {copied ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
+              <span>{copied ? 'Copied' : 'Copy Link'}</span>
+            </button>
+          </Tooltip>
         )}
       </div>
 
@@ -260,19 +262,19 @@ function ShareContent() {
               <span className="text-xs font-bold text-[hsl(var(--text-muted))]">Quick React:</span>
               <div className="flex items-center gap-1.5">
                 {SIGNATURE_EMOJIS.map((emoji) => (
-                  <button
-                    key={emoji}
-                    type="button"
-                    onClick={() => setIntent(intent === emoji ? '' : emoji)}
-                    className={`w-8 h-8 rounded-full flex items-center justify-center text-sm transition-transform active:scale-95 cursor-pointer ${
-                      intent === emoji
-                        ? 'bg-[#FFD21A] text-black shadow-sm ring-2 ring-[#FFD21A]'
-                        : 'bg-[hsl(var(--border))]/30 hover:bg-[hsl(var(--border))]/60 text-[hsl(var(--foreground))] border border-[hsl(var(--border))]'
-                    }`}
-                    title={emoji}
-                  >
-                    {emoji}
-                  </button>
+                  <Tooltip key={emoji} content={`React with ${emoji}`} position="top">
+                    <button
+                      type="button"
+                      onClick={() => setIntent(intent === emoji ? '' : emoji)}
+                      className={`w-8 h-8 rounded-full flex items-center justify-center text-sm transition-transform active:scale-95 cursor-pointer ${
+                        intent === emoji
+                          ? 'bg-[#FFD21A] text-black shadow-sm ring-2 ring-[#FFD21A]'
+                          : 'bg-[hsl(var(--border))]/30 hover:bg-[hsl(var(--border))]/60 text-[hsl(var(--foreground))] border border-[hsl(var(--border))]'
+                      }`}
+                    >
+                      {emoji}
+                    </button>
+                  </Tooltip>
                 ))}
               </div>
             </div>
@@ -351,13 +353,6 @@ function ShareContent() {
           <p className="text-xs text-[hsl(var(--text-muted))] leading-relaxed">
             {factCheckData.explanation}
           </p>
-
-          {factCheckData.communityNote && (
-            <div className="rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--border))]/30 p-3 text-xs text-[hsl(var(--foreground))] leading-relaxed">
-              <span className="font-semibold text-[#FFD21A]">Readers added context: </span>
-              {factCheckData.communityNote.replace(/^Readers added context:\s*/i, '')}
-            </div>
-          )}
 
           {factCheckData.sources?.length > 0 && (
             <div className="border-t border-[hsl(var(--border))] pt-3">

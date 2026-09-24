@@ -47,15 +47,13 @@ User Commentary / Claim: "${commentary}"
 Instructions:
 1. Evaluate if the claim or quoted statement is accurate, misleading, false, or needs important context.
 2. If this is a video with a timestamp, evaluate the surrounding context.
-3. Formulate an X/Twitter Community Note style clarification ("Readers added context...").
-4. Respond ONLY with a valid JSON object matching this schema (do not add conversational text outside JSON):
+3. Respond ONLY with a valid JSON object matching this schema (do not add conversational text outside JSON):
 {
   "verdict": "VERIFIED" | "MISLEADING" | "FALSE" | "CONTEXT_NEEDED",
   "headline": "Brief 1-sentence verdict",
   "explanation": "2-3 sentences explaining why, referencing facts",
   "confidence": "HIGH" | "MEDIUM" | "LOW",
   "timestampAnalysis": "Short note about timestamp or N/A",
-  "communityNote": "Readers added context: [clear 1-2 sentence clarification]",
   "sources": [
     { "title": "Source name", "url": "https://..." }
   ]
@@ -95,11 +93,6 @@ Instructions:
             }
 
             const parsed = JSON.parse(rawText);
-            const rawNote = parsed.communityNote || parsed.headline || "Readers added context";
-            const trimmedNote = rawNote.length > 200 ? rawNote.slice(0, 197) + "..." : rawNote;
-            const tweetText = `𝕏 Community Note via @Annotated:\n${trimmedNote}`;
-            const shareTarget = sourceUrl || "https://annotated-repo.vercel.app";
-            parsed.tweetIntentUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(tweetText)}&url=${encodeURIComponent(shareTarget)}`;
             parsed.geminiConfigured = true;
             return NextResponse.json(parsed, { headers: CORS_HEADERS });
           } else {
@@ -123,9 +116,7 @@ Instructions:
         : `This annotation highlights an excerpt on ${sourceTitle || "the page"}. Primary source verification recommended.`,
       confidence: "MEDIUM",
       timestampAnalysis: hasTimestamp ? `Anchored at ${timestamp} seconds in media stream.` : "No video timestamp specified.",
-      communityNote: `Readers added context: The highlighted statement requires checking primary records or the full media stream.`,
       sources: sourceUrl ? [{ title: sourceTitle || "Source Webpage", url: sourceUrl }] : [],
-      tweetIntentUrl: `https://twitter.com/intent/tweet?text=${encodeURIComponent(`Fact check via @Annotated:\n"${claim}..."`)}&url=${encodeURIComponent(sourceUrl || "https://annotated-repo.vercel.app")}`,
       geminiConfigured: !!geminiKey,
     };
 

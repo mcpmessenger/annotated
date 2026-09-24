@@ -25,6 +25,7 @@ export function AnnotationCard({
   const [factCheckLoading, setFactCheckLoading] = useState(false);
   const [factCheckData, setFactCheckData] = useState<any>(null);
   const [isFactCheckMinimized, setIsFactCheckMinimized] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     if (annotation?.id && typeof window !== "undefined") {
@@ -166,6 +167,34 @@ export function AnnotationCard({
 
   const detailLink = `/${annotation.username}/${annotation.slug}`;
 
+  const handleShare = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const fullUrl = typeof window !== "undefined"
+      ? `${window.location.origin}${detailLink}`
+      : `https://annotated-repo.vercel.app${detailLink}`;
+
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: annotation.title || "Annotated Note",
+          text: `Check out this annotation on "${annotation.sourceTitle || annotation.title}":`,
+          url: fullUrl,
+        });
+        return;
+      } catch (err) {
+        // Fallback to clipboard if share was dismissed or unsupported
+      }
+    }
+    try {
+      await navigator.clipboard.writeText(fullUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error("Failed to copy link:", err);
+    }
+  };
+
   // Only show "See more" if the quote or commentary is genuinely long (> 240 chars)
   const isLongQuote = annotation.quoteText.length > 240;
   const isLongCommentary = annotation.commentary.length > 240;
@@ -305,7 +334,6 @@ export function AnnotationCard({
                 }
               }}
               className="p-2.5 rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--secondary))] hover:bg-[hsl(var(--border))]/40 transition-colors flex items-center justify-between gap-2 cursor-pointer text-xs group"
-              title="Click to expand Gemini Fact Check"
             >
               <div className="flex items-center gap-2 min-w-0">
                 <Sparkles size={12} className="text-purple-400 shrink-0" />
@@ -336,22 +364,24 @@ export function AnnotationCard({
                   {factCheckData?.headline}
                 </span>
               </div>
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setIsFactCheckMinimized(false);
-                  if (typeof window !== "undefined" && annotation.id) {
-                    try {
-                      localStorage.setItem(`annotated_factcheck_minimized_${annotation.id}`, "false");
-                    } catch (err) {}
-                  }
-                }}
-                className="text-[hsl(var(--text-muted))] group-hover:text-[hsl(var(--foreground))] font-semibold px-2 py-0.5 rounded hover:bg-[hsl(var(--border))] transition-colors flex items-center gap-1 shrink-0 cursor-pointer"
-              >
-                <span>Expand</span>
-                <ChevronDown size={11} />
-              </button>
+              <Tooltip content="Expand Fact Check" position="top">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsFactCheckMinimized(false);
+                    if (typeof window !== "undefined" && annotation.id) {
+                      try {
+                        localStorage.setItem(`annotated_factcheck_minimized_${annotation.id}`, "false");
+                      } catch (err) {}
+                    }
+                  }}
+                  className="text-[hsl(var(--text-muted))] group-hover:text-[hsl(var(--foreground))] font-semibold px-2 py-0.5 rounded hover:bg-[hsl(var(--border))] transition-colors flex items-center gap-1 shrink-0 cursor-pointer"
+                >
+                  <span>Expand</span>
+                  <ChevronDown size={11} />
+                </button>
+              </Tooltip>
             </div>
           ) : factCheckData ? (
             /* Expanded state: full comprehensive card */
@@ -373,33 +403,34 @@ export function AnnotationCard({
                       }`}
                     >
                       {factCheckData.verdict === "VERIFIED" ? (
-                        <CheckCircle2 size={11} />
+                        <CheckCircle2 size={10} />
                       ) : factCheckData.verdict === "MISLEADING" ? (
-                        <XCircle size={11} />
+                        <XCircle size={10} />
                       ) : (
-                        <AlertTriangle size={11} />
+                        <AlertTriangle size={10} />
                       )}
                       <span>{factCheckData.verdict.replace("_", " ")}</span>
                     </span>
                   )}
 
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setIsFactCheckMinimized(true);
-                      if (typeof window !== "undefined" && annotation.id) {
-                        try {
-                          localStorage.setItem(`annotated_factcheck_minimized_${annotation.id}`, "true");
-                        } catch (err) {}
-                      }
-                    }}
-                    className="text-[hsl(var(--text-muted))] hover:text-[hsl(var(--foreground))] text-xs font-semibold px-2 py-0.5 rounded hover:bg-[hsl(var(--border))] transition-colors cursor-pointer flex items-center gap-1"
-                    title="Minimize Fact Check"
-                  >
-                    <span>Minimize</span>
-                    <ChevronUp size={11} />
-                  </button>
+                  <Tooltip content="Minimize Fact Check" position="top">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setIsFactCheckMinimized(true);
+                        if (typeof window !== "undefined" && annotation.id) {
+                          try {
+                            localStorage.setItem(`annotated_factcheck_minimized_${annotation.id}`, "true");
+                          } catch (err) {}
+                        }
+                      }}
+                      className="text-[hsl(var(--text-muted))] hover:text-[hsl(var(--foreground))] text-xs font-semibold px-2 py-0.5 rounded hover:bg-[hsl(var(--border))] transition-colors cursor-pointer flex items-center gap-1"
+                    >
+                      <span>Minimize</span>
+                      <ChevronUp size={11} />
+                    </button>
+                  </Tooltip>
                 </div>
               </div>
 
@@ -409,40 +440,20 @@ export function AnnotationCard({
               <p className="text-[hsl(var(--text-muted))] leading-relaxed text-[11px]">
                 {factCheckData.explanation}
               </p>
-              {factCheckData.communityNote && (
-                <div className="p-2.5 rounded-lg bg-[hsl(var(--background))] border border-[hsl(var(--border))] text-[11px] space-y-1">
-                  <span className="font-bold text-[hsl(var(--foreground))] block">𝕏 Community Note Format:</span>
-                  <p className="text-[hsl(var(--text-muted))] italic">{factCheckData.communityNote}</p>
-                </div>
-              )}
-              <div className="flex items-center justify-between pt-1 flex-wrap gap-2">
-                {factCheckData.sources?.length > 0 && (
-                  <div className="flex items-center gap-1 text-[10px] text-[hsl(var(--text-muted))]">
-                    <span>Source:</span>
-                    <a
-                      href={factCheckData.sources[0].url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="underline text-[hsl(var(--accent))] truncate max-w-[150px]"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      {factCheckData.sources[0].title || "Web Link"}
-                    </a>
-                  </div>
-                )}
-                {factCheckData.tweetIntentUrl && (
+              {factCheckData.sources?.length > 0 && (
+                <div className="flex items-center gap-1 text-[10px] text-[hsl(var(--text-muted))] pt-1">
+                  <span>Source:</span>
                   <a
-                    href={factCheckData.tweetIntentUrl}
+                    href={factCheckData.sources[0].url}
                     target="_blank"
                     rel="noopener noreferrer"
+                    className="underline text-[hsl(var(--accent))] truncate max-w-[150px]"
                     onClick={(e) => e.stopPropagation()}
-                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-black text-white hover:bg-neutral-800 text-[11px] font-bold transition-colors ml-auto"
                   >
-                    <span>Post as 𝕏 Note</span>
-                    <ExternalLink size={10} />
+                    {factCheckData.sources[0].title || "Web Link"}
                   </a>
-                )}
-              </div>
+                </div>
+              )}
             </div>
           ) : null}
         </div>
@@ -457,73 +468,90 @@ export function AnnotationCard({
           })}
         </span>
 
-        <div className="flex items-center gap-4 relative z-20">
+        <div className="flex items-center gap-2 sm:gap-3 relative z-20">
           {/* Fact Check Toggle */}
-          <button
-            onClick={handleFactCheck}
-            className="flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full border border-[hsl(var(--accent))] text-[hsl(var(--accent))] hover:bg-[hsl(var(--accent))]/10 transition-colors cursor-pointer"
-            title="Ask Gemini AI to verify claims"
-          >
-            <Sparkles size={11} />
-            <span>
-              {factCheckLoading
-                ? "Analyzing..."
+          <Tooltip
+            content={
+              factCheckLoading
+                ? "Analyzing with Gemini AI..."
                 : factCheckData
                 ? isFactCheckMinimized
                   ? "Show Fact Check"
                   : "Hide Fact Check"
-                : "Fact Check"}
-            </span>
-          </button>
-
-          {/* Twitter / X Share Button */}
-          <a
-            href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(`Interesting annotation on "${annotation.sourceTitle}":\n"${annotation.quoteText?.slice(0, 100)}..."\n`)}&url=${encodeURIComponent(`https://annotated-repo.vercel.app/annotations/${annotation.id}`)}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={(e) => e.stopPropagation()}
-            className="flex items-center gap-1 text-xs text-[hsl(var(--text-muted))] hover:text-[hsl(var(--foreground))] transition-colors font-medium"
-            title="Share to X"
+                : "Fact Check with Gemini AI"
+            }
+            position="top"
           >
-            <span className="font-bold">𝕏</span>
-            <span>Share</span>
-          </a>
+            <button
+              type="button"
+              onClick={handleFactCheck}
+              className="flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded-full border border-[hsl(var(--accent))] text-[hsl(var(--accent))] hover:bg-[hsl(var(--accent))]/10 transition-colors cursor-pointer"
+            >
+              <Sparkles size={12} className="text-purple-400" />
+              <span className="hidden sm:inline">
+                {factCheckLoading
+                  ? "Analyzing..."
+                  : factCheckData
+                  ? isFactCheckMinimized
+                    ? "Show Fact Check"
+                    : "Hide Fact Check"
+                  : "Fact Check"}
+              </span>
+            </button>
+          </Tooltip>
+
+          {/* Share / Copy Link Button */}
+          <Tooltip content={copied ? "Copied link to clipboard!" : "Share & copy link"} position="top">
+            <button
+              type="button"
+              onClick={handleShare}
+              className={`flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full border transition-colors cursor-pointer ${
+                copied
+                  ? "border-green-500/50 bg-green-500/10 text-green-500"
+                  : "border-[hsl(var(--border))] text-[hsl(var(--text-muted))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--border))]/50"
+              }`}
+            >
+              <Share2 size={12} />
+              <span className="hidden sm:inline">{copied ? "Copied!" : "Share"}</span>
+            </button>
+          </Tooltip>
 
           {isOwner && (
-            <Tooltip content="Delete your annotation" position="top">
+            <Tooltip content="Delete annotation" position="top">
               <button
                 type="button"
                 onClick={handleDelete}
                 disabled={isDeleting}
-                className="flex items-center gap-1 text-xs text-[hsl(var(--text-muted))] hover:text-[hsl(var(--foreground))] transition-colors font-medium cursor-pointer disabled:opacity-50"
+                className="flex items-center justify-center p-1.5 rounded-md text-[hsl(var(--text-muted))] hover:text-red-500 hover:bg-[hsl(var(--border))]/40 transition-colors cursor-pointer disabled:opacity-50"
               >
-                <Trash2 size={12} />
-                <span>{isDeleting ? "Deleting..." : "Delete"}</span>
+                <Trash2 size={13} />
               </button>
             </Tooltip>
           )}
+
           <Tooltip content="File a DMCA / Fair Use dispute for this content" position="top">
             <Link
               href={`/dmca?annotation_id=${annotation.id}&url=${encodeURIComponent(annotation.sourceUrl || "")}`}
               onClick={(e) => e.stopPropagation()}
-              className="text-xs text-[hsl(var(--text-muted))] hover:text-[hsl(var(--foreground))] transition-colors font-medium"
+              className="text-xs text-[hsl(var(--text-muted))] hover:text-[hsl(var(--foreground))] transition-colors font-medium hidden sm:inline"
             >
-              File a claim
+              Dispute
             </Link>
           </Tooltip>
 
-          <Link
-            href={`${detailLink}#comments`}
-            className="flex items-center gap-1.5 text-xs font-medium text-[hsl(var(--text-muted))] hover:text-[hsl(var(--foreground))] transition-colors"
-          >
-            <MessageSquare size={14} />
-            <span>Comments</span>
-            {commentCount !== null && (
-              <span className="inline-flex items-center justify-center text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-[hsl(var(--secondary))] text-[hsl(var(--foreground))] leading-none">
-                {commentCount}
-              </span>
-            )}
-          </Link>
+          <Tooltip content="Discussion & comments" position="top">
+            <Link
+              href={`${detailLink}#comments`}
+              className="flex items-center gap-1 text-xs font-medium text-[hsl(var(--text-muted))] hover:text-[hsl(var(--foreground))] transition-colors p-1"
+            >
+              <MessageSquare size={13} />
+              {commentCount !== null && (
+                <span className="inline-flex items-center justify-center text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-[hsl(var(--secondary))] text-[hsl(var(--foreground))] leading-none">
+                  {commentCount}
+                </span>
+              )}
+            </Link>
+          </Tooltip>
         </div>
       </div>
     </article>

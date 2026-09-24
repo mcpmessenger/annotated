@@ -111,7 +111,6 @@
           </div>
         </div>
         <div id="composerFactCheckText" style="line-height: 1.4; color: var(--ink);">Checking claims with Gemini...</div>
-        <div id="composerFactCheckCommunityNote" style="display:none; margin-top: 6px; padding: 6px; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; font-style: italic; color: var(--muted); font-size: 10px;"></div>
       </div>
 
       <div class="textarea-footer" style="display: flex; gap: 6px; justify-content: space-between; align-items: center; border-top: 1px solid var(--border); padding-top: 12px; margin-top: 12px;">
@@ -191,20 +190,12 @@
           </div>
         </div>
         <div id="detailFactCheckText" style="line-height: 1.4; color: var(--ink);">Checking claims with Gemini...</div>
-        <div id="detailFactCheckCommunityNote" style="display:none; margin-top: 6px; padding: 6px; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; font-style: italic; color: var(--muted); font-size: 10px;"></div>
-        <div style="margin-top: 6px; display: flex; justify-content: flex-end;">
-          <a id="detailFactCheckTweetBtn" href="#" target="_blank" data-tooltip="Post Note to 𝕏" data-tooltip-pos="top" style="display:none; font-size: 10px; font-weight: 700; color: #fff; background: #000; padding: 3px 8px; border-radius: 4px; text-decoration: none;">Post as &#120143; Note &#8599;</a>
-        </div>
       </div>
 
-      <div class="detail-actions" style="margin-top: 14px; display: flex; gap: 8px;">
-        <button id="detailFactCheckBtn" type="button" data-tooltip="Hide Fact Check" data-tooltip-pos="top" style="border: 1px solid var(--line); cursor: pointer; padding: 9px 12px; background: var(--surface); color: var(--ink); font-weight: 700; font-size: 11px; border-radius: 6px; display: inline-flex; align-items: center; gap: 4px;">
-          <span>&#9889; Hide Fact Check</span>
-        </button>
-        <a id="detailTwitterShareBtn" href="#" target="_blank" rel="noopener noreferrer" data-tooltip="Share on 𝕏" data-tooltip-pos="top" style="border: 1px solid var(--line); cursor: pointer; padding: 9px 10px; background: var(--surface); color: var(--ink); font-weight: 700; font-size: 11px; border-radius: 6px; display: inline-flex; align-items: center; gap: 4px; text-decoration: none;">
-          <span>&#120143; Share</span>
-        </a>
-        <a id="detailOpenWebBtn" href="https://annotated-repo.vercel.app" target="_blank" rel="noopener noreferrer" class="detail-web-btn" style="flex: 1; text-align: center; border: none; cursor: pointer; padding: 9px 12px; background: #000; color: #fff; font-weight: 700; font-size: 12px; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; text-decoration: none;">
+      <div class="detail-actions" style="margin-top: 14px; display: flex; gap: 8px; align-items: center;">
+        <button id="detailFactCheckBtn" type="button" data-tooltip="Hide Fact Check" data-tooltip-pos="top" style="width: 36px; min-width: 36px; height: 36px; padding: 0; border: 1px solid var(--line); cursor: pointer; background: var(--surface); color: var(--ink); font-size: 16px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; flex: 0 0 36px; transition: all 0.15s ease;">&#9889;</button>
+        <button id="detailCopyLinkBtn" type="button" data-tooltip="Copy annotation link" data-tooltip-pos="top" style="width: 36px; min-width: 36px; height: 36px; padding: 0; border: 1px solid var(--line); cursor: pointer; background: var(--surface); color: var(--ink); font-size: 15px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; flex: 0 0 36px; transition: all 0.15s ease;">&#128279;</button>
+        <a id="detailOpenWebBtn" href="https://annotated-repo.vercel.app" target="_blank" rel="noopener noreferrer" class="detail-web-btn" data-tooltip="Open on Annotated" data-tooltip-pos="top" style="flex: 1; text-align: center; border: none; cursor: pointer; padding: 0 14px; height: 36px; background: #000; color: #fff; font-weight: 700; font-size: 12px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; text-decoration: none;">
           <span>Open on Annotated</span><span>&#8599;</span>
         </a>
       </div>

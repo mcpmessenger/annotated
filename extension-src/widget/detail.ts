@@ -201,12 +201,19 @@ export async function showAnnotationDetail(
     }
   }
 
-  // Twitter share button
-  const twitterShareBtn = $('#detailTwitterShareBtn') as HTMLAnchorElement | null;
-  if (twitterShareBtn) {
-    const tweetText = `Interesting annotation on "${ann.title || 'Page'}":\n"${(ann.comment || ann.quote || '').slice(0, 90)}..."\n`;
-    const shareUrl = `${SITE_URL}/annotations/${ann.id}`;
-    twitterShareBtn.href = `https://twitter.com/intent/tweet?text=${encodeURIComponent(tweetText)}&url=${encodeURIComponent(shareUrl)}`;
+  // Copy annotation link button (keeps users on Annotated)
+  const copyLinkBtn = $('#detailCopyLinkBtn');
+  if (copyLinkBtn) {
+    copyLinkBtn.onclick = async (e) => {
+      e.stopPropagation();
+      try {
+        await navigator.clipboard.writeText(detailUrl);
+        copyLinkBtn.setAttribute('data-tooltip', 'Copied to clipboard!');
+        setTimeout(() => {
+          copyLinkBtn.setAttribute('data-tooltip', 'Copy annotation link');
+        }, 2200);
+      } catch (_) {}
+    };
   }
 
   // Wire reactions

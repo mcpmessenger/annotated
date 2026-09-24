@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Annotation } from "@/lib/types";
 import { AnnotationCard } from "@/components/AnnotationCard";
 import { PanelRightClose, PanelRightOpen, Info, X } from "lucide-react";
+import { Tooltip } from "@/components/Tooltip";
 
 interface HomeFeedProps {
   initialAnnotations: Annotation[];
@@ -44,14 +45,15 @@ function SidebarContent({
             <span>How It Works</span>
           </div>
           {!isDrawer && onClose && (
-            <button
-              onClick={onClose}
-              className="p-1 rounded-md text-[hsl(var(--text-muted))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--border))] transition-colors"
-              title="Collapse sidebar"
-              aria-label="Collapse sidebar"
-            >
-              <PanelRightClose className="w-4 h-4" />
-            </button>
+            <Tooltip content="Collapse sidebar" position="left">
+              <button
+                onClick={onClose}
+                className="p-1 rounded-md text-[hsl(var(--text-muted))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--border))] transition-colors"
+                aria-label="Collapse sidebar"
+              >
+                <PanelRightClose className="w-4 h-4" />
+              </button>
+            </Tooltip>
           )}
         </div>
         <p className="text-sm text-[hsl(var(--text-muted))] leading-relaxed mb-4">
@@ -237,15 +239,16 @@ export function HomeFeed({ initialAnnotations }: HomeFeedProps) {
 
               {/* Desktop Toggle Button: When Open, Quick Collapse Button */}
               {isDesktopSidebarOpen && (
-                <button
-                  onClick={() => setIsDesktopSidebarOpen(false)}
-                  className="hidden lg:inline-flex items-center gap-1.5 px-2.5 py-1 text-xs text-[hsl(var(--text-muted))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--border))] rounded-lg transition-colors cursor-pointer"
-                  title="Collapse side panel"
-                  aria-label="Collapse side panel"
-                >
-                  <PanelRightClose className="w-3.5 h-3.5" />
-                  <span>Hide Panel</span>
-                </button>
+                <Tooltip content="Collapse side panel" position="top">
+                  <button
+                    onClick={() => setIsDesktopSidebarOpen(false)}
+                    className="hidden lg:inline-flex items-center gap-1.5 px-2.5 py-1 text-xs text-[hsl(var(--text-muted))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--border))] rounded-lg transition-colors cursor-pointer"
+                    aria-label="Collapse side panel"
+                  >
+                    <PanelRightClose className="w-3.5 h-3.5" />
+                    <span>Hide Panel</span>
+                  </button>
+                </Tooltip>
               )}
             </div>
           </div>
