@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import React, { useEffect, useState, useRef } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
@@ -36,8 +36,13 @@ export function SelectionAnnotatePopup() {
         const rect = range.getBoundingClientRect();
 
         if (rect && (rect.width > 0 || rect.height > 0)) {
-          const top = rect.top < 60 ? rect.bottom + 10 : rect.top - 46;
-          const left = Math.max(16, Math.min(window.innerWidth - 120, rect.left + rect.width / 2 - 50));
+          const isTouch = typeof window !== 'undefined' && ('ontouchstart' in window || navigator.maxTouchPoints > 0);
+          // On mobile/touch devices, Android renders its native toolbar above the text,
+          // so we place the Annotate pill comfortably BELOW the selection.
+          const top = isTouch
+            ? rect.bottom + 14
+            : (rect.top < 60 ? rect.bottom + 10 : rect.top - 46);
+          const left = Math.max(16, Math.min(window.innerWidth - 130, rect.left + rect.width / 2 - 55));
 
           setSelectedText(text);
           setPosition({
