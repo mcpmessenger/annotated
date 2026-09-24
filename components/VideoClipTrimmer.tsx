@@ -1,7 +1,7 @@
 ﻿'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Film, Play, Pause, Download, Clock, Scissors } from 'lucide-react';
+import { Film, Download, Clock, Scissors, Play, Pause } from 'lucide-react';
 
 interface VideoClipTrimmerProps {
   videoUrl: string;
@@ -26,9 +26,7 @@ export function VideoClipTrimmer({
 }: VideoClipTrimmerProps) {
   const [startSec, setStartSec] = useState(initialStart);
   const [endSec, setEndSec] = useState(Math.min(initialStart + 90, Math.max(initialStart + 10, initialEnd)));
-  const [videoDuration, setVideoDuration] = useState(300); // default 5 mins if unknown
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [copiedClip, setCopiedClip] = useState(false);
+  const [videoDuration, setVideoDuration] = useState(300); // default 5 mins
   const videoRef = useRef<HTMLVideoElement | null>(null);
 
   const clipDuration = Math.max(1, endSec - startSec);
@@ -46,7 +44,6 @@ export function VideoClipTrimmer({
   const handleStartChange = (val: number) => {
     const clampedStart = Math.max(0, Math.min(val, videoDuration - 1));
     setStartSec(clampedStart);
-    // Keep end within 90s, and at least start + 1
     if (endSec <= clampedStart) {
       setEndSec(Math.min(clampedStart + 30, videoDuration));
     } else if (endSec - clampedStart > 90) {
@@ -68,25 +65,25 @@ export function VideoClipTrimmer({
   };
 
   return (
-    <div className="rounded-2xl border border-amber-500/30 bg-slate-900/90 p-4 space-y-4 shadow-xl">
+    <div className="rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--border))]/20 p-4 space-y-4 shadow-sm">
       {/* Header */}
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex items-center justify-between gap-2 flex-wrap">
         <div className="flex items-center gap-2">
-          <div className="p-1.5 rounded-lg bg-amber-500/10 text-amber-400">
+          <div className="p-1.5 rounded-lg bg-[#FFD21A]/20 text-black dark:text-[#FFD21A]">
             <Film className="w-4 h-4" />
           </div>
-          <span className="text-xs font-bold text-slate-200 uppercase tracking-wider">
+          <span className="text-xs font-bold text-[hsl(var(--foreground))] tracking-wide">
             90s Video Clip Trimmer
           </span>
         </div>
-        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-300 font-mono text-xs font-bold">
+        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#FFD21A] text-black font-mono text-xs font-bold shadow-sm">
           <Clock className="w-3.5 h-3.5" />
-          <span>{formatTime(startSec)} - {formatTime(endSec)} ({clipDuration}s / max 90s)</span>
+          <span>{formatTime(startSec)} - {formatTime(endSec)} ({clipDuration}s)</span>
         </div>
       </div>
 
       {/* Video Preview */}
-      <div className="rounded-xl overflow-hidden bg-black border border-slate-800 relative aspect-video flex items-center justify-center">
+      <div className="rounded-lg overflow-hidden bg-black border border-[hsl(var(--border))] relative aspect-video flex items-center justify-center">
         {youtubeId ? (
           <iframe
             key={`${youtubeId}-${startSec}-${endSec}`}
@@ -113,59 +110,57 @@ export function VideoClipTrimmer({
 
       {/* Scrubber Controls */}
       <div className="space-y-3 pt-1">
-        {/* Dual Range Controls */}
-        <div className="space-y-2">
-          <div className="flex items-center justify-between text-[11px] font-mono text-slate-400">
-            <span className="flex items-center gap-1">
-              <span className="inline-block w-2.5 h-2.5 rounded-full bg-amber-400"></span>
-              Start: <strong className="text-amber-300">{formatTime(startSec)}</strong>
-            </span>
-            <span className="flex items-center gap-1">
-              End: <strong className="text-amber-300">{formatTime(endSec)}</strong>
-              <span className="inline-block w-2.5 h-2.5 rounded-full bg-amber-400"></span>
-            </span>
-          </div>
-
-          {/* Visual Dual-slider */}
-          <div className="relative pt-1 pb-2">
-            <div className="h-2 rounded-full bg-slate-800 relative overflow-hidden">
-              <div
-                className="absolute top-0 bottom-0 bg-gradient-to-r from-amber-500 to-yellow-400 rounded-full"
-                style={{
-                  left: `${(startSec / videoDuration) * 100}%`,
-                  width: `${((endSec - startSec) / videoDuration) * 100}%`,
-                }}
-              />
-            </div>
-
-            {/* Slider 1: Start Handle */}
-            <input
-              type="range"
-              min={0}
-              max={videoDuration}
-              value={startSec}
-              onChange={(e) => handleStartChange(Number(e.target.value))}
-              className="absolute top-0 left-0 w-full opacity-70 accent-amber-400 cursor-pointer h-4"
-              title={`Clip Start: ${formatTime(startSec)}`}
-            />
-
-            {/* Slider 2: End Handle */}
-            <input
-              type="range"
-              min={0}
-              max={videoDuration}
-              value={endSec}
-              onChange={(e) => handleEndChange(Number(e.target.value))}
-              className="absolute top-0 left-0 w-full opacity-70 accent-amber-400 cursor-pointer h-4"
-              title={`Clip End: ${formatTime(endSec)}`}
-            />
-          </div>
+        {/* Dual Range Labels */}
+        <div className="flex items-center justify-between text-[11px] font-mono text-[hsl(var(--text-muted))]">
+          <span className="flex items-center gap-1">
+            <span className="inline-block w-2.5 h-2.5 rounded-full bg-[#FFD21A]"></span>
+            Start: <strong className="text-[hsl(var(--foreground))]">{formatTime(startSec)}</strong>
+          </span>
+          <span className="flex items-center gap-1">
+            End: <strong className="text-[hsl(var(--foreground))]">{formatTime(endSec)}</strong>
+            <span className="inline-block w-2.5 h-2.5 rounded-full bg-[#FFD21A]"></span>
+          </span>
         </div>
 
-        {/* Quick Presets & Download Button */}
+        {/* Visual Dual-slider Track */}
+        <div className="relative pt-1 pb-2">
+          <div className="h-2 rounded-full bg-[hsl(var(--border))] relative overflow-hidden">
+            <div
+              className="absolute top-0 bottom-0 bg-[#FFD21A] rounded-full"
+              style={{
+                left: `${(startSec / videoDuration) * 100}%`,
+                width: `${((endSec - startSec) / videoDuration) * 100}%`,
+              }}
+            />
+          </div>
+
+          {/* Slider 1: Start Handle */}
+          <input
+            type="range"
+            min={0}
+            max={videoDuration}
+            value={startSec}
+            onChange={(e) => handleStartChange(Number(e.target.value))}
+            className="absolute top-0 left-0 w-full opacity-70 accent-[#FFD21A] cursor-pointer h-4"
+            title={`Clip Start: ${formatTime(startSec)}`}
+          />
+
+          {/* Slider 2: End Handle */}
+          <input
+            type="range"
+            min={0}
+            max={videoDuration}
+            value={endSec}
+            onChange={(e) => handleEndChange(Number(e.target.value))}
+            className="absolute top-0 left-0 w-full opacity-70 accent-[#FFD21A] cursor-pointer h-4"
+            title={`Clip End: ${formatTime(endSec)}`}
+          />
+        </div>
+
+        {/* Quick Presets & Buttons */}
         <div className="flex items-center justify-between gap-2 pt-1 flex-wrap">
           <div className="flex items-center gap-1.5">
-            <span className="text-[11px] text-slate-400 font-medium">Quick Length:</span>
+            <span className="text-[11px] text-[hsl(var(--text-muted))] font-medium">Quick Length:</span>
             {[15, 30, 60, 90].map((dur) => (
               <button
                 key={dur}
@@ -173,8 +168,8 @@ export function VideoClipTrimmer({
                 onClick={() => setPreset(dur)}
                 className={`px-2 py-0.5 rounded text-[11px] font-semibold transition ${
                   clipDuration === dur
-                    ? 'bg-amber-500 text-black shadow-sm'
-                    : 'bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700'
+                    ? 'bg-[#FFD21A] text-black shadow-sm font-bold'
+                    : 'bg-[hsl(var(--background))] hover:bg-[hsl(var(--border))]/50 text-[hsl(var(--foreground))] border border-[hsl(var(--border))]'
                 }`}
               >
                 {dur}s
@@ -188,18 +183,18 @@ export function VideoClipTrimmer({
                 href={`https://youtube.com/watch?v=${youtubeId}&t=${startSec}s`}
                 target="_blank"
                 rel="noreferrer"
-                className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-slate-700 transition"
+                className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-[hsl(var(--background))] hover:bg-[hsl(var(--border))]/50 text-[hsl(var(--foreground))] text-xs font-semibold border border-[hsl(var(--border))] transition"
               >
-                <Scissors className="w-3.5 h-3.5 text-amber-400" />
+                <Scissors className="w-3.5 h-3.5 text-[#FFD21A]" />
                 <span>Open at {formatTime(startSec)}</span>
               </a>
             ) : (
               <a
                 href={videoUrl}
                 download={`annotated_clip_${startSec}_${endSec}.mp4`}
-                className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-slate-700 transition"
+                className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-[hsl(var(--background))] hover:bg-[hsl(var(--border))]/50 text-[hsl(var(--foreground))] text-xs font-semibold border border-[hsl(var(--border))] transition"
               >
-                <Download className="w-3.5 h-3.5 text-amber-400" />
+                <Download className="w-3.5 h-3.5 text-[#FFD21A]" />
                 <span>Download Clip</span>
               </a>
             )}

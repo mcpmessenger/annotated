@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { Suspense, useState, useEffect } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
@@ -20,6 +20,7 @@ import {
   LogIn,
   Scissors,
   Film,
+  Edit3,
 } from 'lucide-react';
 import { VideoClipTrimmer } from '@/components/VideoClipTrimmer';
 
@@ -164,56 +165,77 @@ function ShareContent() {
   };
 
   return (
-    <div className="max-w-2xl mx-auto px-4 py-8">
-      {/* Mobile Card Header */}
-      <div className="flex items-center gap-3 mb-6">
-        <div className="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400">
-          <Share2 className="w-5 h-5" />
+    <div className="max-w-xl mx-auto px-4 py-8 space-y-6">
+      {/* Mobile Card Header — Matches Extension Brand */}
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-lg bg-[#FFD21A] text-black flex items-center justify-center font-bold text-sm shadow-sm">
+            <Edit3 className="w-4 h-4" />
+          </div>
+          <div>
+            <h1 className="text-base font-bold text-[hsl(var(--foreground))] tracking-tight">
+              Annotate Content
+            </h1>
+            <p className="text-xs text-[hsl(var(--text-muted))]">
+              Editorial notes, quotes & verification
+            </p>
+          </div>
         </div>
-        <div>
-          <h1 className="text-xl font-bold text-slate-100">Share to Annotated</h1>
-          <p className="text-xs text-slate-400">Annotate, Fact-Check & Share from Android</p>
-        </div>
+
+        {targetUrl && (
+          <button
+            onClick={handleCopy}
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium text-[hsl(var(--text-muted))] hover:text-[hsl(var(--foreground))] border border-[hsl(var(--border))] hover:bg-[hsl(var(--border))]/40 transition"
+            title="Copy URL"
+          >
+            {copied ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
+            <span>{copied ? 'Copied' : 'Copy Link'}</span>
+          </button>
+        )}
       </div>
 
-      {/* Shared Target Box */}
-      <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 backdrop-blur mb-6 shadow-xl space-y-4">
+      {/* Main Composer Box — Harmonious with Extension & Header */}
+      <div className="rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--background))] p-5 shadow-sm space-y-4">
+        {/* Source Link Chip */}
         {targetUrl && (
-          <div className="flex items-center gap-2 text-xs text-blue-400 font-mono break-all">
-            <Globe className="w-3.5 h-3.5 shrink-0" />
-            <a href={targetUrl} target="_blank" rel="noreferrer" className="hover:underline">
-              {targetUrl}
+          <div className="flex items-center gap-2 text-xs text-[hsl(var(--text-muted))]">
+            <Globe className="w-3.5 h-3.5 text-[#FFD21A] shrink-0" />
+            <a
+              href={targetUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="hover:underline truncate text-[hsl(var(--foreground))] font-medium"
+            >
+              {displayTitle}
             </a>
           </div>
         )}
 
-        <h2 className="text-lg font-semibold text-slate-200 leading-snug">{displayTitle}</h2>
-
+        {/* Quoted Text Box — Extension Signature Styling */}
         {quoteText && (
-          <div className="relative pl-4 border-l-2 border-blue-500/40 my-3 text-slate-300 italic text-sm leading-relaxed">
-            <Quote className="w-3.5 h-3.5 text-blue-400 absolute -left-1.5 -top-1 bg-slate-900" />
-            "{quoteText}"
+          <div className="pl-3.5 border-l-4 border-[#FFD21A] bg-[hsl(var(--border))]/25 py-2.5 pr-3 rounded-r-lg italic text-[hsl(var(--foreground))] text-sm leading-relaxed font-serif">
+            &ldquo;{quoteText}&rdquo;
           </div>
         )}
 
         {/* 90s Video Clip Trimmer */}
         {(isVideoUrl || targetUrl) && (
-          <div className="space-y-3 pt-2 border-t border-slate-800">
+          <div className="space-y-3 pt-1">
             <div className="flex items-center justify-between">
               <button
                 type="button"
                 onClick={() => setShowVideoTrimmer(!showVideoTrimmer)}
-                className={`flex items-center gap-2 text-xs font-semibold px-3 py-1.5 rounded-xl border transition ${
+                className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border transition ${
                   showVideoTrimmer
-                    ? 'bg-amber-500/15 border-amber-500/40 text-amber-300'
-                    : 'bg-slate-800/60 border-slate-700 text-slate-300 hover:text-white'
+                    ? 'bg-[#FFD21A] text-black border-[#FFD21A] shadow-sm font-bold'
+                    : 'bg-[hsl(var(--border))]/20 border-[hsl(var(--border))] text-[hsl(var(--foreground))] hover:bg-[hsl(var(--border))]/40'
                 }`}
               >
                 <Film className="w-3.5 h-3.5" />
-                <span>{showVideoTrimmer ? 'Hide 90s Clip Trimmer' : '✂️ Trim 90s Video Clip'}</span>
+                <span>{showVideoTrimmer ? 'Hide 90s Trimmer' : '✂️ Trim 90s Video Clip'}</span>
               </button>
               {clipRange && showVideoTrimmer && (
-                <span className="text-[11px] font-mono text-amber-400 font-bold">
+                <span className="text-xs font-mono text-[hsl(var(--text-muted))] font-bold">
                   {clipRange.formatted}
                 </span>
               )}
@@ -229,22 +251,23 @@ function ShareContent() {
           </div>
         )}
 
-        {/* Inline Mobile Annotation Composer */}
+        {/* Inline Annotation Composer */}
         {publishedSlug ? (
-          <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs flex items-center justify-between gap-3">
+          <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs flex items-center justify-between gap-3">
             <span>🎉 Annotation published successfully!</span>
             <button
               onClick={() => router.push(`/explore`)}
-              className="px-3 py-1.5 rounded-lg bg-emerald-600 text-white font-semibold hover:bg-emerald-500 transition"
+              className="px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold transition"
             >
               View in Feed
             </button>
           </div>
         ) : (
-          <div className="pt-2 space-y-3">
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-slate-400 font-medium">Intent:</span>
-              <div className="flex items-center gap-1.5">
+          <div className="space-y-4 pt-1">
+            {/* Intent Emojis — Identical to Extension */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-xs text-[hsl(var(--text-muted))] font-medium">Quick React:</span>
+              <div className="flex items-center gap-1.5 flex-wrap">
                 {[
                   { emoji: '💡', label: 'Insight' },
                   { emoji: '🤔', label: 'Question' },
@@ -255,10 +278,10 @@ function ShareContent() {
                     key={item.emoji}
                     type="button"
                     onClick={() => setIntent(item.emoji)}
-                    className={`px-2.5 py-1 rounded-full text-xs font-medium border transition ${
+                    className={`px-3 py-1 rounded-full text-xs font-semibold border transition ${
                       intent === item.emoji
-                        ? 'bg-blue-600/20 text-blue-300 border-blue-500/50 shadow-sm'
-                        : 'bg-slate-800/60 text-slate-400 border-slate-700 hover:text-slate-200'
+                        ? 'bg-[#FFD21A] text-black border-[#FFD21A] shadow-sm'
+                        : 'bg-[hsl(var(--border))]/20 text-[hsl(var(--foreground))] border-[hsl(var(--border))] hover:bg-[hsl(var(--border))]/40'
                     }`}
                   >
                     <span>{item.emoji} {item.label}</span>
@@ -267,92 +290,89 @@ function ShareContent() {
               </div>
             </div>
 
+            {/* Commentary Input */}
             <textarea
               value={comment}
               onChange={(e) => setComment(e.target.value)}
               placeholder="Drop your thoughts, context, or question on this..."
               rows={3}
-              className="w-full rounded-xl bg-slate-800/50 border border-slate-700/80 p-3 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-blue-500 transition resize-none"
+              className="w-full rounded-lg bg-[hsl(var(--border))]/15 border border-[hsl(var(--border))] p-3 text-sm text-[hsl(var(--foreground))] placeholder-[hsl(var(--text-muted))] focus:outline-none focus:border-[#FFD21A] transition resize-none leading-relaxed"
             />
 
-            <div className="flex items-center justify-between gap-2 pt-1 flex-wrap">
+            {/* Action Bar */}
+            <div className="flex items-center justify-between gap-3 pt-1 flex-wrap">
               <button
                 onClick={handlePublish}
                 disabled={publishing}
-                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow-md shadow-blue-600/30 transition disabled:opacity-50"
+                className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-[#FFD21A] hover:bg-[#ffe053] text-black text-xs font-bold shadow-sm transition active:scale-95 disabled:opacity-50 cursor-pointer"
               >
                 {session ? <Send className="w-3.5 h-3.5" /> : <LogIn className="w-3.5 h-3.5" />}
-                {publishing ? 'Publishing...' : session ? 'Publish Annotation' : 'Sign in to Annotate'}
+                <span>{publishing ? 'Publishing...' : session ? 'Publish Annotation' : 'Sign in to Annotate'}</span>
               </button>
 
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={handleFactCheck}
-                  disabled={factCheckLoading}
-                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium border border-slate-700 transition disabled:opacity-50"
-                >
-                  <Sparkles className="w-3.5 h-3.5 text-purple-400" />
-                  {factCheckLoading ? 'Verifying...' : 'Fact Check'}
-                </button>
-
-                {targetUrl && (
-                  <button
-                    onClick={handleCopy}
-                    className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition"
-                    title="Copy Link"
-                  >
-                    {copied ? <Check className="w-4 h-4 text-green-400" /> : <Copy className="w-4 h-4" />}
-                  </button>
-                )}
-              </div>
+              <button
+                onClick={handleFactCheck}
+                disabled={factCheckLoading}
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-[hsl(var(--border))]/20 hover:bg-[hsl(var(--border))]/40 text-[hsl(var(--foreground))] text-xs font-semibold border border-[hsl(var(--border))] transition disabled:opacity-50 cursor-pointer"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-purple-400" />
+                <span>{factCheckLoading ? 'Verifying...' : 'Fact Check'}</span>
+              </button>
             </div>
           </div>
         )}
       </div>
 
-      {/* Fact Check Results Card */}
+      {/* Fact Check Results Card — Matching AnnotationCard Nordic Styling */}
       {factCheckData && (
-        <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-6 backdrop-blur shadow-2xl animate-fade-in">
-          <div className="flex items-center justify-between gap-2 mb-4">
+        <div className="rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--border))]/15 p-5 shadow-sm space-y-3 animate-in fade-in duration-200">
+          <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2">
-              {factCheckData.verdict === 'VERIFIED' && (
-                <span className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                  <CheckCircle2 className="w-3.5 h-3.5" /> VERIFIED
+              <span className="inline-flex items-center gap-1 font-bold text-[#FFD21A] dark:text-[#FFD21A] text-xs uppercase tracking-wide">
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>Gemini Fact Check</span>
+              </span>
+              {factCheckData.verdict && (
+                <span
+                  className={`inline-flex items-center gap-1 font-bold px-2 py-0.5 rounded-full text-[10px] ${
+                    factCheckData.verdict === 'VERIFIED'
+                      ? 'bg-green-500/10 text-green-600 dark:text-green-400 border border-green-500/20'
+                      : factCheckData.verdict === 'FALSE'
+                      ? 'bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20'
+                      : 'bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 border border-yellow-500/20'
+                  }`}
+                >
+                  {factCheckData.verdict === 'VERIFIED' ? (
+                    <CheckCircle2 className="w-3 h-3" />
+                  ) : factCheckData.verdict === 'FALSE' ? (
+                    <XCircle className="w-3 h-3" />
+                  ) : (
+                    <AlertTriangle className="w-3 h-3" />
+                  )}
+                  <span>{factCheckData.verdict.replace('_', ' ')}</span>
                 </span>
               )}
-              {factCheckData.verdict === 'FALSE' && (
-                <span className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-red-500/10 text-red-400 border border-red-500/20">
-                  <XCircle className="w-3.5 h-3.5" /> FALSE
-                </span>
-              )}
-              {(factCheckData.verdict === 'MISLEADING' ||
-                factCheckData.verdict === 'CONTEXT_NEEDED') && (
-                <span className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20">
-                  <AlertTriangle className="w-3.5 h-3.5" /> {factCheckData.verdict.replace('_', ' ')}
-                </span>
-              )}
-              <span className="text-[11px] text-slate-400">Gemini AI Analysis</span>
             </div>
           </div>
 
-          <h3 className="text-sm font-semibold text-slate-100 mb-2 leading-snug">
+          <h3 className="text-sm font-semibold text-[hsl(var(--foreground))] leading-snug">
             {factCheckData.headline}
           </h3>
 
-          <p className="text-xs text-slate-300 leading-relaxed mb-4">
+          <p className="text-xs text-[hsl(var(--text-muted))] leading-relaxed">
             {factCheckData.explanation}
           </p>
 
           {factCheckData.communityNote && (
-            <div className="rounded-xl border border-blue-500/20 bg-blue-950/20 p-3 text-xs text-blue-200/90 leading-relaxed mb-4">
-              <span className="font-semibold text-blue-400">Readers added context: </span>
+            <div className="rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--border))]/30 p-3 text-xs text-[hsl(var(--foreground))] leading-relaxed">
+              <span className="font-semibold text-[#FFD21A]">Readers added context: </span>
               {factCheckData.communityNote.replace(/^Readers added context:\s*/i, '')}
             </div>
           )}
 
           {factCheckData.sources?.length > 0 && (
-            <div className="border-t border-slate-800/80 pt-3">
-              <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block mb-2">
+            <div className="border-t border-[hsl(var(--border))] pt-3">
+              <span className="text-[11px] font-semibold text-[hsl(var(--text-muted))] uppercase tracking-wider block mb-2">
                 Primary Sources
               </span>
               <div className="space-y-1.5">
@@ -362,10 +382,10 @@ function ShareContent() {
                     href={s.url}
                     target="_blank"
                     rel="noreferrer"
-                    className="flex items-center gap-1.5 text-xs text-blue-400 hover:underline"
+                    className="flex items-center gap-1.5 text-xs text-[hsl(var(--foreground))] hover:text-[#FFD21A] hover:underline"
                   >
-                    <ExternalLink className="w-3 h-3 shrink-0" />
-                    <span>{s.title || s.url}</span>
+                    <ExternalLink className="w-3 h-3 shrink-0 text-[#FFD21A]" />
+                    <span className="truncate">{s.title || s.url}</span>
                   </a>
                 ))}
               </div>
@@ -379,12 +399,12 @@ function ShareContent() {
 
 export default function SharePage() {
   return (
-    <div className="flex flex-col min-h-screen bg-[#0B0F19] text-slate-100">
+    <div className="flex flex-col min-h-screen bg-[hsl(var(--background))] text-[hsl(var(--foreground))]">
       <Header />
       <main className="flex-1">
         <Suspense
           fallback={
-            <div className="flex items-center justify-center p-12 text-slate-400">
+            <div className="flex items-center justify-center p-12 text-[hsl(var(--text-muted))]">
               Loading shared content...
             </div>
           }
