@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { MessageSquare, Trash2, Sparkles, Share2, CheckCircle2, AlertTriangle, XCircle, Info, ExternalLink, ChevronDown, ChevronUp } from "lucide-react";
+import { MessageSquare, Trash2, Sparkles, Share2, CheckCircle2, AlertTriangle, XCircle, Info, ExternalLink, ChevronDown, ChevronUp, RotateCw } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { Annotation } from "@/lib/types";
 import { ReactionRow } from "./ReactionRow";
@@ -31,35 +31,43 @@ export function AnnotationCard({
       try {
         const cached = localStorage.getItem(`annotated_factcheck_${annotation.id}`);
         if (cached) {
-          setFactCheckData(JSON.parse(cached));
-          const minCached = localStorage.getItem(`annotated_factcheck_minimized_${annotation.id}`);
-          setIsFactCheckMinimized(minCached === "true");
-          setShowFactCheck(true);
+          const parsed = JSON.parse(cached);
+          // Auto-delete stale fallback placeholders
+          if (
+            parsed.geminiConfigured === false ||
+            parsed.headline?.includes("Context analysis for:") ||
+            parsed.communityNote?.includes("requires checking primary records")
+          ) {
+            localStorage.removeItem(`annotated_factcheck_${annotation.id}`);
+            localStorage.removeItem(`annotated_factcheck_minimized_${annotation.id}`);
+            setFactCheckData(null);
+            setShowFactCheck(false);
+          } else {
+            setFactCheckData(parsed);
+            const minCached = localStorage.getItem(`annotated_factcheck_minimized_${annotation.id}`);
+            setIsFactCheckMinimized(minCached === "true");
+            setShowFactCheck(true);
+          }
         }
       } catch (e) {}
     }
   }, [annotation?.id]);
 
-  const handleFactCheck = async (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (factCheckData) {
-      if (!showFactCheck) {
-        setShowFactCheck(true);
-        setIsFactCheckMinimized(false);
-      } else {
-        setIsFactCheckMinimized((prev) => {
-          const next = !prev;
-          if (typeof window !== "undefined" && annotation.id) {
-            try {
-              localStorage.setItem(`annotated_factcheck_minimized_${annotation.id}`, String(next));
-            } catch (err) {}
-          }
-          return next;
-        });
-      }
-      return;
+  const handleDeleteFactCheck = (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    if (typeof window !== "undefined" && annotation?.id) {
+      try {
+        localStorage.removeItem(`annotated_factcheck_${annotation.id}`);
+        localStorage.removeItem(`annotated_factcheck_minimized_${annotation.id}`);
+      } catch (err) {}
     }
+    setFactCheckData(null);
+    setShowFactCheck(false);
+    setIsFactCheckMinimized(false);
+  };
 
+  const executeFactCheck = async (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
     setShowFactCheck(true);
     setIsFactCheckMinimized(false);
     setFactCheckLoading(true);
@@ -89,6 +97,29 @@ export function AnnotationCard({
     } finally {
       setFactCheckLoading(false);
     }
+  };
+
+  const handleFactCheck = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (factCheckData) {
+      if (!showFactCheck) {
+        setShowFactCheck(true);
+        setIsFactCheckMinimized(false);
+      } else {
+        setIsFactCheckMinimized((prev) => {
+          const next = !prev;
+          if (typeof window !== "undefined" && annotation.id) {
+            try {
+              localStorage.setItem(`annotated_factcheck_minimized_${annotation.id}`, String(next));
+            } catch (err) {}
+          }
+          return next;
+        });
+      }
+      return;
+    }
+
+    executeFactCheck(e);
   };
 
   useEffect(() => {
@@ -316,22 +347,32 @@ export function AnnotationCard({
                   {factCheckData?.headline}
                 </span>
               </div>
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setIsFactCheckMinimized(false);
-                  if (typeof window !== "undefined" && annotation.id) {
-                    try {
-                      localStorage.setItem(`annotated_factcheck_minimized_${annotation.id}`, "false");
-                    } catch (err) {}
-                  }
-                }}
-                className="text-[hsl(var(--text-muted))] group-hover:text-[hsl(var(--foreground))] font-semibold px-2 py-0.5 rounded hover:bg-[hsl(var(--border))] transition-colors flex items-center gap-1 shrink-0 cursor-pointer"
-              >
-                <span>Expand</span>
-                <ChevronDown size={11} />
-              </button>
+              <div className="flex items-center gap-1 shrink-0">
+                <button
+                  type="button"
+                  onClick={handleDeleteFactCheck}
+                  className="text-[hsl(var(--text-muted))] hover:text-red-500 font-semibold p-1 rounded hover:bg-red-500/10 transition-colors cursor-pointer"
+                  title="Delete Fact Check"
+                >
+                  <Trash2 size={11} />
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsFactCheckMinimized(false);
+                    if (typeof window !== "undefined" && annotation.id) {
+                      try {
+                        localStorage.setItem(`annotated_factcheck_minimized_${annotation.id}`, "false");
+                      } catch (err) {}
+                    }
+                  }}
+                  className="text-[hsl(var(--text-muted))] group-hover:text-[hsl(var(--foreground))] font-semibold px-2 py-0.5 rounded hover:bg-[hsl(var(--border))] transition-colors flex items-center gap-1 cursor-pointer"
+                >
+                  <span>Expand</span>
+                  <ChevronDown size={11} />
+                </button>
+              </div>
             </div>
           ) : factCheckData ? (
             /* Expanded state: full comprehensive card */
@@ -341,7 +382,7 @@ export function AnnotationCard({
                   <Sparkles size={13} />
                   <span>Gemini Fact Check</span>
                 </span>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5">
                   {factCheckData?.verdict && (
                     <span
                       className={`inline-flex items-center gap-1 font-bold px-2 py-0.5 rounded-full text-[10px] ${
@@ -362,6 +403,24 @@ export function AnnotationCard({
                       <span>{factCheckData.verdict.replace("_", " ")}</span>
                     </span>
                   )}
+                  <button
+                    type="button"
+                    onClick={(e) => executeFactCheck(e)}
+                    className="text-[hsl(var(--text-muted))] hover:text-[hsl(var(--accent))] text-xs font-semibold px-2 py-0.5 rounded hover:bg-[hsl(var(--border))] transition-colors cursor-pointer flex items-center gap-1"
+                    title="Re-run fact check with Gemini"
+                  >
+                    <RotateCw size={11} />
+                    <span>Re-check</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleDeleteFactCheck}
+                    className="text-[hsl(var(--text-muted))] hover:text-red-500 text-xs font-semibold px-2 py-0.5 rounded hover:bg-red-500/10 transition-colors cursor-pointer flex items-center gap-1"
+                    title="Delete Fact Check"
+                  >
+                    <Trash2 size={11} />
+                    <span>Delete</span>
+                  </button>
                   <button
                     type="button"
                     onClick={(e) => {

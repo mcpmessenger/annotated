@@ -10,7 +10,8 @@ import {
   AlertTriangle, 
   ExternalLink, 
   ChevronDown, 
-  ChevronUp 
+  ChevronUp,
+  RotateCw 
 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import Link from "next/link";
@@ -69,10 +70,22 @@ export default function AnnotationPage() {
       try {
         const cached = localStorage.getItem(`annotated_factcheck_${annotation.id}`);
         if (cached) {
-          setFactCheckData(JSON.parse(cached));
-          const minCached = localStorage.getItem(`annotated_factcheck_minimized_${annotation.id}`);
-          if (minCached !== null) {
-            setIsFactCheckMinimized(minCached === "true");
+          const parsed = JSON.parse(cached);
+          // Auto-delete stale fallback placeholders
+          if (
+            parsed.geminiConfigured === false ||
+            parsed.headline?.includes("Context analysis for:") ||
+            parsed.communityNote?.includes("requires checking primary records")
+          ) {
+            localStorage.removeItem(`annotated_factcheck_${annotation.id}`);
+            localStorage.removeItem(`annotated_factcheck_minimized_${annotation.id}`);
+            setFactCheckData(null);
+          } else {
+            setFactCheckData(parsed);
+            const minCached = localStorage.getItem(`annotated_factcheck_minimized_${annotation.id}`);
+            if (minCached !== null) {
+              setIsFactCheckMinimized(minCached === "true");
+            }
           }
         }
       } catch (e) {}
@@ -137,20 +150,20 @@ export default function AnnotationPage() {
     }
   };
 
-  const handleFactCheck = async () => {
-    if (factCheckData) {
-      setIsFactCheckMinimized((prev) => {
-        const next = !prev;
-        if (annotation?.id && typeof window !== "undefined") {
-          try {
-            localStorage.setItem(`annotated_factcheck_minimized_${annotation.id}`, String(next));
-          } catch (e) {}
-        }
-        return next;
-      });
-      return;
+  const handleDeleteFactCheck = (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    if (annotation?.id && typeof window !== "undefined") {
+      try {
+        localStorage.removeItem(`annotated_factcheck_${annotation.id}`);
+        localStorage.removeItem(`annotated_factcheck_minimized_${annotation.id}`);
+      } catch (e) {}
     }
+    setFactCheckData(null);
+    setIsFactCheckMinimized(false);
+  };
 
+  const executeFactCheck = async (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
     if (!annotation) return;
 
     setFactCheckLoading(true);
@@ -182,6 +195,24 @@ export default function AnnotationPage() {
     } finally {
       setFactCheckLoading(false);
     }
+  };
+
+  const handleFactCheck = async (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    if (factCheckData) {
+      setIsFactCheckMinimized((prev) => {
+        const next = !prev;
+        if (annotation?.id && typeof window !== "undefined") {
+          try {
+            localStorage.setItem(`annotated_factcheck_minimized_${annotation.id}`, String(next));
+          } catch (e) {}
+        }
+        return next;
+      });
+      return;
+    }
+
+    executeFactCheck(e);
   };
 
   const toggleFactCheckMinimize = (minimized: boolean) => {
@@ -391,17 +422,27 @@ export default function AnnotationPage() {
                       {factCheckData?.headline}
                     </span>
                   </div>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      toggleFactCheckMinimize(false);
-                    }}
-                    className="text-[hsl(var(--text-muted))] group-hover:text-[hsl(var(--foreground))] font-semibold px-2.5 py-1 rounded hover:bg-[hsl(var(--border))] transition-colors flex items-center gap-1 shrink-0 cursor-pointer"
-                  >
-                    <span>Expand</span>
-                    <ChevronDown size={12} />
-                  </button>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <button
+                      type="button"
+                      onClick={handleDeleteFactCheck}
+                      className="text-[hsl(var(--text-muted))] hover:text-red-500 font-semibold p-1 rounded hover:bg-red-500/10 transition-colors cursor-pointer"
+                      title="Delete Fact Check"
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleFactCheckMinimize(false);
+                      }}
+                      className="text-[hsl(var(--text-muted))] group-hover:text-[hsl(var(--foreground))] font-semibold px-2.5 py-1 rounded hover:bg-[hsl(var(--border))] transition-colors flex items-center gap-1 cursor-pointer"
+                    >
+                      <span>Expand</span>
+                      <ChevronDown size={12} />
+                    </button>
+                  </div>
                 </div>
               ) : factCheckData ? (
                 /* Expanded state: full comprehensive card */
@@ -411,7 +452,7 @@ export default function AnnotationPage() {
                       <Sparkles size={14} className="text-purple-400" />
                       <span>Gemini Fact Check</span>
                     </span>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5">
                       {factCheckData?.verdict && (
                         <span
                           className={`inline-flex items-center gap-1 font-bold px-2.5 py-0.5 rounded-full text-[11px] ${
@@ -432,6 +473,24 @@ export default function AnnotationPage() {
                           <span>{factCheckData.verdict.replace("_", " ")}</span>
                         </span>
                       )}
+                      <button
+                        type="button"
+                        onClick={(e) => executeFactCheck(e)}
+                        className="text-[hsl(var(--text-muted))] hover:text-[hsl(var(--accent))] text-xs font-semibold px-2 py-0.5 rounded hover:bg-[hsl(var(--border))] transition-colors cursor-pointer flex items-center gap-1"
+                        title="Re-run fact check with Gemini"
+                      >
+                        <RotateCw size={11} />
+                        <span>Re-check</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleDeleteFactCheck}
+                        className="text-[hsl(var(--text-muted))] hover:text-red-500 text-xs font-semibold px-2 py-0.5 rounded hover:bg-red-500/10 transition-colors cursor-pointer flex items-center gap-1"
+                        title="Delete Fact Check"
+                      >
+                        <Trash2 size={11} />
+                        <span>Delete</span>
+                      </button>
                       <button
                         type="button"
                         onClick={() => toggleFactCheckMinimize(true)}
