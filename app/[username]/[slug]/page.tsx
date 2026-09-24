@@ -50,10 +50,15 @@ export default function AnnotationPage() {
 
   useEffect(() => {
     if (rawSlug) {
-      getAnnotationBySlug(rawSlug).then((data) => {
-        setAnnotation(data);
-        setLoading(false);
-      });
+      getAnnotationBySlug(rawSlug)
+        .then((data) => {
+          setAnnotation(data);
+          setLoading(false);
+        })
+        .catch((err) => {
+          console.error("Failed to load annotation:", err);
+          setLoading(false);
+        });
     } else {
       setLoading(false);
     }
