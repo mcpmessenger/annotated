@@ -99,6 +99,16 @@ async function build() {
       }
     }
 
+    // Auto-package into fresh zip files for distribution
+    try {
+      const { execSync } = await import('node:child_process');
+      const zipCmd = `powershell -NoProfile -Command "Compress-Archive -Path '${desktopDir}\\*' -DestinationPath 'C:\\Users\\senti\\OneDrive\\Desktop\\annotated-v2.2.0.zip' -Force; Copy-Item 'C:\\Users\\senti\\OneDrive\\Desktop\\annotated-v2.2.0.zip' -Destination 'C:\\Users\\senti\\OneDrive\\Desktop\\Extensions\\Annotated\\annotated-extension-v2.2.0.zip' -Force"`;
+      execSync(zipCmd);
+      console.log('🗜️  Generated fresh zip: C:\\Users\\senti\\OneDrive\\Desktop\\annotated-v2.2.0.zip');
+    } catch (zipErr) {
+      console.warn('⚠️ Could not generate zip:', zipErr.message);
+    }
+
     console.log(`✨ Build completed in ${Date.now() - startTime}ms`);
   }
 }
