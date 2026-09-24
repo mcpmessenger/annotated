@@ -76,17 +76,27 @@ async function build() {
     await context.rebuild();
     await context.dispose();
 
-    // Mirror to desktop v2.2.0
-    try {
-      copyStaticAssets(desktopDir);
-      ['background.js', 'content.js', 'widget.js'].forEach((f) => {
-        const src = path.join(outDir, f);
-        const dest = path.join(desktopDir, f);
-        if (fs.existsSync(src)) fs.copyFileSync(src, dest);
-      });
-      console.log(`📦 Synced build to Desktop: ${desktopDir}`);
-    } catch (err) {
-      console.warn('⚠️ Could not sync to Desktop folder:', err.message);
+    // Mirror to all unpacked extension locations
+    const targetDirs = [
+      desktopDir,
+      'C:\\Users\\senti\\OneDrive\\Desktop\\Extensions\\Annotated\\annotated-extension-unpacked',
+      'C:\\Users\\senti\\OneDrive\\Desktop\\Extensions\\Annotated\\annotated-extension-w-logos',
+    ];
+
+    for (const dir of targetDirs) {
+      try {
+        if (fs.existsSync(dir)) {
+          copyStaticAssets(dir);
+          ['background.js', 'content.js', 'widget.js'].forEach((f) => {
+            const src = path.join(outDir, f);
+            const dest = path.join(dir, f);
+            if (fs.existsSync(src)) fs.copyFileSync(src, dest);
+          });
+          console.log(`📦 Synced build to: ${dir}`);
+        }
+      } catch (err) {
+        console.warn(`⚠️ Could not sync to ${dir}:`, err.message);
+      }
     }
 
     console.log(`✨ Build completed in ${Date.now() - startTime}ms`);

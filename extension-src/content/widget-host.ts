@@ -37,19 +37,20 @@ export function ensureWidgetContainer(): { container: HTMLElement; shadow: Shado
   return { container: widgetContainer, shadow: shadowRoot };
 }
 
-export function positionWidget(iframe: HTMLIFrameElement, x?: number, y?: number): void {
+let hasUserDragged = false;
+
+export function positionWidget(iframe: HTMLIFrameElement): void {
   const width = 360;
-  const height = parseInt(iframe.style.height || '390', 10);
-  const padding = 16;
+  const padding = 20;
 
-  let targetX = x !== undefined ? x : window.innerWidth - width - padding;
-  let targetY = y !== undefined ? y : padding;
-
-  targetX = Math.max(padding, Math.min(window.innerWidth - width - padding, targetX));
-  targetY = Math.max(padding, Math.min(window.innerHeight - height - padding, targetY));
+  // Always anchor in top right corner like a standard sidebar
+  const targetX = Math.max(padding, window.innerWidth - width - padding);
+  const targetY = padding;
 
   iframe.style.left = `${targetX}px`;
   iframe.style.top = `${targetY}px`;
+  iframe.style.right = 'auto';
+  iframe.style.bottom = 'auto';
 }
 
 export function createWidget(): HTMLIFrameElement {
@@ -57,6 +58,9 @@ export function createWidget(): HTMLIFrameElement {
 
   if (widgetIframe && shadow.contains(widgetIframe)) {
     widgetIframe.style.display = 'block';
+    if (!hasUserDragged) {
+      positionWidget(widgetIframe);
+    }
     return widgetIframe;
   }
 
@@ -66,7 +70,6 @@ export function createWidget(): HTMLIFrameElement {
   widgetIframe.style.cssText = `
     position: fixed;
     top: 20px;
-    right: 20px;
     width: 360px;
     height: 390px;
     border: none;
@@ -85,14 +88,33 @@ export function createWidget(): HTMLIFrameElement {
   // Wire dragging handlers on document
   document.addEventListener('mousemove', (e) => {
     if (!isDragging || !widgetIframe) return;
-    widgetIframe.style.left = `${e.clientX - dragOffset.x}px`;
-    widgetIframe.style.top = `${e.clientY - dragOffset.y}px`;
+    hasUserDragged = true;
+    const width = 360;
+    const height = parseInt(widgetIframe.style.height || '390', 10);
+    const padding = 8;
+
+    let nextLeft = e.clientX - dragOffset.x;
+    let nextTop = e.clientY - dragOffset.y;
+
+    // Viewport clamp so widget is never dragged off screen
+    nextLeft = Math.max(padding, Math.min(window.innerWidth - width - padding, nextLeft));
+    nextTop = Math.max(padding, Math.min(window.innerHeight - height - padding, nextTop));
+
+    widgetIframe.style.left = `${nextLeft}px`;
+    widgetIframe.style.top = `${nextTop}px`;
+    widgetIframe.style.right = 'auto';
   });
 
   document.addEventListener('mouseup', () => {
     if (isDragging && widgetIframe) {
       isDragging = false;
       widgetIframe.style.pointerEvents = 'auto';
+    }
+  });
+
+  window.addEventListener('resize', () => {
+    if (widgetIframe && !hasUserDragged) {
+      positionWidget(widgetIframe);
     }
   });
 
@@ -119,8 +141,12 @@ export function setupMessageRouter(onReloadAnnotations: () => void): void {
       case 'DRAG_START':
         if (widgetIframe) {
           isDragging = true;
-          const rect = widgetIframe.getBoundingClientRect();
-          dragOffset = { x: data.clientX - rect.left, y: data.clientY - rect.top };
+          hasUserDragged = true;
+          // data.clientX and data.clientY from the iframe are already the click offset relative to the iframe's top-left corner
+          dragOffset = {
+            x: typeof data.clientX === 'number' ? data.clientX : 50,
+            y: typeof data.clientY === 'number' ? data.clientY : 20,
+          };
           widgetIframe.style.pointerEvents = 'none';
         }
         break;

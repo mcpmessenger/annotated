@@ -1225,21 +1225,24 @@
     document.body.appendChild(widgetContainer);
     return { container: widgetContainer, shadow: shadowRoot };
   }
-  function positionWidget(iframe, x, y) {
+  var hasUserDragged = false;
+  function positionWidget(iframe) {
     const width = 360;
-    const height = parseInt(iframe.style.height || "390", 10);
-    const padding = 16;
-    let targetX = x !== void 0 ? x : window.innerWidth - width - padding;
-    let targetY = y !== void 0 ? y : padding;
-    targetX = Math.max(padding, Math.min(window.innerWidth - width - padding, targetX));
-    targetY = Math.max(padding, Math.min(window.innerHeight - height - padding, targetY));
+    const padding = 20;
+    const targetX = Math.max(padding, window.innerWidth - width - padding);
+    const targetY = padding;
     iframe.style.left = `${targetX}px`;
     iframe.style.top = `${targetY}px`;
+    iframe.style.right = "auto";
+    iframe.style.bottom = "auto";
   }
   function createWidget() {
     const { shadow } = ensureWidgetContainer();
     if (widgetIframe && shadow.contains(widgetIframe)) {
       widgetIframe.style.display = "block";
+      if (!hasUserDragged) {
+        positionWidget(widgetIframe);
+      }
       return widgetIframe;
     }
     widgetIframe = document.createElement("iframe");
@@ -1248,7 +1251,6 @@
     widgetIframe.style.cssText = `
     position: fixed;
     top: 20px;
-    right: 20px;
     width: 360px;
     height: 390px;
     border: none;
@@ -1264,13 +1266,27 @@
     positionWidget(widgetIframe);
     document.addEventListener("mousemove", (e) => {
       if (!isDragging || !widgetIframe) return;
-      widgetIframe.style.left = `${e.clientX - dragOffset.x}px`;
-      widgetIframe.style.top = `${e.clientY - dragOffset.y}px`;
+      hasUserDragged = true;
+      const width = 360;
+      const height = parseInt(widgetIframe.style.height || "390", 10);
+      const padding = 8;
+      let nextLeft = e.clientX - dragOffset.x;
+      let nextTop = e.clientY - dragOffset.y;
+      nextLeft = Math.max(padding, Math.min(window.innerWidth - width - padding, nextLeft));
+      nextTop = Math.max(padding, Math.min(window.innerHeight - height - padding, nextTop));
+      widgetIframe.style.left = `${nextLeft}px`;
+      widgetIframe.style.top = `${nextTop}px`;
+      widgetIframe.style.right = "auto";
     });
     document.addEventListener("mouseup", () => {
       if (isDragging && widgetIframe) {
         isDragging = false;
         widgetIframe.style.pointerEvents = "auto";
+      }
+    });
+    window.addEventListener("resize", () => {
+      if (widgetIframe && !hasUserDragged) {
+        positionWidget(widgetIframe);
       }
     });
     return widgetIframe;
@@ -1293,8 +1309,11 @@
         case "DRAG_START":
           if (widgetIframe) {
             isDragging = true;
-            const rect = widgetIframe.getBoundingClientRect();
-            dragOffset = { x: data.clientX - rect.left, y: data.clientY - rect.top };
+            hasUserDragged = true;
+            dragOffset = {
+              x: typeof data.clientX === "number" ? data.clientX : 50,
+              y: typeof data.clientY === "number" ? data.clientY : 20
+            };
             widgetIframe.style.pointerEvents = "none";
           }
           break;
