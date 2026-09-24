@@ -11,7 +11,9 @@ const rootDir = path.resolve(__dirname, '..');
 
 const srcDir = path.join(rootDir, 'extension-src');
 const outDir = path.join(rootDir, 'extension');
-const desktopDir = 'C:\\Users\\senti\\OneDrive\\Desktop\\annotated-v2.2.0';
+const manifest = JSON.parse(fs.readFileSync(path.join(rootDir, 'extension', 'manifest.json'), 'utf8'));
+const version = manifest.version || '2.2.1';
+const desktopDir = `C:\\Users\\senti\\OneDrive\\Desktop\\annotated-v${version}`;
 
 const isWatch = process.argv.includes('--watch');
 
@@ -48,7 +50,7 @@ async function copyStaticAssets(destination) {
 }
 
 async function build() {
-  console.log('🚀 Building Annotated Chrome Extension v2.2.0 with esbuild...');
+  console.log(`🚀 Building Annotated Chrome Extension v${version} with esbuild...`);
   const startTime = Date.now();
 
   const entryPoints = {
@@ -85,15 +87,16 @@ async function build() {
 
     for (const dir of targetDirs) {
       try {
-        if (fs.existsSync(dir)) {
-          copyStaticAssets(dir);
-          ['background.js', 'content.js', 'widget.js'].forEach((f) => {
-            const src = path.join(outDir, f);
-            const dest = path.join(dir, f);
-            if (fs.existsSync(src)) fs.copyFileSync(src, dest);
-          });
-          console.log(`📦 Synced build to: ${dir}`);
+        if (!fs.existsSync(dir)) {
+          fs.mkdirSync(dir, { recursive: true });
         }
+        copyStaticAssets(dir);
+        ['background.js', 'content.js', 'widget.js'].forEach((f) => {
+          const src = path.join(outDir, f);
+          const dest = path.join(dir, f);
+          if (fs.existsSync(src)) fs.copyFileSync(src, dest);
+        });
+        console.log(`📦 Synced build to: ${dir}`);
       } catch (err) {
         console.warn(`⚠️ Could not sync to ${dir}:`, err.message);
       }
@@ -102,9 +105,9 @@ async function build() {
     // Auto-package into fresh zip files for distribution
     try {
       const { execSync } = await import('node:child_process');
-      const zipCmd = `powershell -NoProfile -Command "Compress-Archive -Path '${desktopDir}\\*' -DestinationPath 'C:\\Users\\senti\\OneDrive\\Desktop\\annotated-v2.2.0.zip' -Force; Copy-Item 'C:\\Users\\senti\\OneDrive\\Desktop\\annotated-v2.2.0.zip' -Destination 'C:\\Users\\senti\\OneDrive\\Desktop\\Extensions\\Annotated\\annotated-extension-v2.2.0.zip' -Force"`;
+      const zipCmd = `powershell -NoProfile -Command "Compress-Archive -Path '${desktopDir}\\*' -DestinationPath 'C:\\Users\\senti\\OneDrive\\Desktop\\annotated-v${version}.zip' -Force; Copy-Item 'C:\\Users\\senti\\OneDrive\\Desktop\\annotated-v${version}.zip' -Destination 'C:\\Users\\senti\\OneDrive\\Desktop\\Extensions\\Annotated\\annotated-extension-v${version}.zip' -Force"`;
       execSync(zipCmd);
-      console.log('🗜️  Generated fresh zip: C:\\Users\\senti\\OneDrive\\Desktop\\annotated-v2.2.0.zip');
+      console.log(`🗜️  Generated fresh zip: C:\\Users\\senti\\OneDrive\\Desktop\\annotated-v${version}.zip`);
     } catch (zipErr) {
       console.warn('⚠️ Could not generate zip:', zipErr.message);
     }
