@@ -212,8 +212,8 @@ export async function showAnnotationDetail(
   // Wire reactions
   wireDetailReactions(ann.id || ann.slug || '', activeUser);
 
-  // Wire Fact Check
-  wireFactCheck(ann, ann.title || 'Page', ann.url || location.href);
+  // Wire Fact Check (defaults to open with hide toggle)
+  wireFactCheck(ann, ann.title || 'Page', ann.url || location.href, onResize);
 
   // Wire Comments
   if (ann.id || ann.slug) loadWidgetComments(ann.id || ann.slug || '', activeUser);

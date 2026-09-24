@@ -64,6 +64,41 @@ export default function AnnotationPage() {
     }
   }, [rawSlug]);
 
+  const executeFactCheck = async (targetAnnotation?: any) => {
+    const ann = targetAnnotation || annotation;
+    if (!ann) return;
+
+    setFactCheckLoading(true);
+    setIsFactCheckMinimized(false);
+
+    try {
+      const res = await fetch("/api/ai/factcheck", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          quote: ann.quoteText || "",
+          commentary: ann.commentary || "",
+          sourceUrl: ann.sourceUrl || "",
+          sourceTitle: ann.sourceTitle || "",
+          mediaUrl: ann.media_url || null,
+        }),
+      });
+
+      const data = await res.json();
+      setFactCheckData(data);
+      if (typeof window !== "undefined" && ann.id) {
+        try {
+          localStorage.setItem(`annotated_factcheck_${ann.id}`, JSON.stringify(data));
+          localStorage.setItem(`annotated_factcheck_minimized_${ann.id}`, "false");
+        } catch (e) {}
+      }
+    } catch (err) {
+      console.error("Fact-check request failed:", err);
+    } finally {
+      setFactCheckLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (annotation?.id && typeof window !== "undefined") {
       try {
@@ -79,15 +114,18 @@ export default function AnnotationPage() {
             localStorage.removeItem(`annotated_factcheck_${annotation.id}`);
             localStorage.removeItem(`annotated_factcheck_minimized_${annotation.id}`);
             setFactCheckData(null);
+            executeFactCheck(annotation);
           } else {
             setFactCheckData(parsed);
-            const minCached = localStorage.getItem(`annotated_factcheck_minimized_${annotation.id}`);
-            if (minCached !== null) {
-              setIsFactCheckMinimized(minCached === "true");
-            }
+            setIsFactCheckMinimized(false);
           }
+        } else {
+          // Default open with fact check open!
+          executeFactCheck(annotation);
         }
-      } catch (e) {}
+      } catch (e) {
+        executeFactCheck(annotation);
+      }
     }
   }, [annotation?.id]);
 
@@ -151,41 +189,6 @@ export default function AnnotationPage() {
 
 
 
-  const executeFactCheck = async (e?: React.MouseEvent) => {
-    if (e) e.stopPropagation();
-    if (!annotation) return;
-
-    setFactCheckLoading(true);
-    setIsFactCheckMinimized(false);
-
-    try {
-      const res = await fetch("/api/ai/factcheck", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          quote: annotation.quoteText || "",
-          commentary: annotation.commentary || "",
-          sourceUrl: annotation.sourceUrl || "",
-          sourceTitle: annotation.sourceTitle || "",
-          mediaUrl: annotation.media_url || null,
-        }),
-      });
-
-      const data = await res.json();
-      setFactCheckData(data);
-      if (typeof window !== "undefined" && annotation.id) {
-        try {
-          localStorage.setItem(`annotated_factcheck_${annotation.id}`, JSON.stringify(data));
-          localStorage.setItem(`annotated_factcheck_minimized_${annotation.id}`, "false");
-        } catch (e) {}
-      }
-    } catch (err) {
-      console.error("Fact-check request failed:", err);
-    } finally {
-      setFactCheckLoading(false);
-    }
-  };
-
   const handleFactCheck = async (e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
     if (factCheckData) {
@@ -201,7 +204,7 @@ export default function AnnotationPage() {
       return;
     }
 
-    executeFactCheck(e);
+    executeFactCheck();
   };
 
   const toggleFactCheckMinimize = (minimized: boolean) => {
@@ -359,7 +362,7 @@ export default function AnnotationPage() {
                   : factCheckData
                   ? isFactCheckMinimized
                     ? "Show Fact Check"
-                    : "Minimize Fact Check"
+                    : "Hide Fact Check"
                   : "Fact Check"}
               </span>
             </button>
@@ -456,9 +459,9 @@ export default function AnnotationPage() {
                         type="button"
                         onClick={() => toggleFactCheckMinimize(true)}
                         className="text-[hsl(var(--text-muted))] hover:text-[hsl(var(--foreground))] text-xs font-semibold px-2.5 py-1 rounded hover:bg-[hsl(var(--border))] transition-colors cursor-pointer flex items-center gap-1"
-                        title="Minimize Fact Check"
+                        title="Hide Fact Check"
                       >
-                        <span>Minimize</span>
+                        <span>Hide</span>
                         <ChevronUp size={12} />
                       </button>
                     </div>

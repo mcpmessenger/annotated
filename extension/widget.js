@@ -581,24 +581,56 @@
     }
     return await res.json();
   }
-  function wireFactCheck(ann, pageTitle, pageUrl) {
+  function wireFactCheck(ann, pageTitle, pageUrl, onResize) {
     const factBox = $("#detailFactCheckBox");
-    if (factBox) factBox.style.display = "none";
     const factBtn = $("#detailFactCheckBtn");
-    if (!factBtn) return;
-    factBtn.onclick = async (e) => {
-      e.stopPropagation();
-      const fb = $("#detailFactCheckBox");
-      const ft = $("#detailFactCheckText");
-      const fbadge = $("#detailFactCheckBadge");
-      const fnote = $("#detailFactCheckCommunityNote");
-      const ftweet = $("#detailFactCheckTweetBtn");
-      if (!fb) return;
-      if (fb.style.display === "block") {
-        fb.style.display = "none";
-        return;
+    const fb = $("#detailFactCheckBox");
+    const ft = $("#detailFactCheckText");
+    const fbadge = $("#detailFactCheckBadge");
+    const fnote = $("#detailFactCheckCommunityNote");
+    const ftweet = $("#detailFactCheckTweetBtn");
+    const closeBtn = $("#detailFactCheckCloseBtn");
+    const hasMedia = !!(ann.media_url || ann.audio_url);
+    const updateBtnState = (isOpen) => {
+      if (factBtn) {
+        factBtn.innerHTML = `<span>&#9889; ${isOpen ? "Hide Fact Check" : "Show Fact Check"}</span>`;
+        factBtn.setAttribute("data-tooltip", isOpen ? "Hide Fact Check" : "Show Fact Check");
       }
-      fb.style.display = "block";
+      if (onResize) {
+        onResize(isOpen ? hasMedia ? 740 : 660 : hasMedia ? 600 : 520);
+      }
+    };
+    const renderData = (data) => {
+      if (fbadge) {
+        fbadge.textContent = (data.verdict || "ANALYZED").replace("_", " ");
+        fbadge.style.color = data.verdict === "VERIFIED" ? "#22c55e" : data.verdict === "MISLEADING" || data.verdict === "FALSE" ? "#ef4444" : "#eab308";
+      }
+      if (ft) {
+        ft.innerHTML = `<strong>${escapeHtml(data.headline || "")}</strong><br><span style="font-size:10px; color:var(--muted);">${escapeHtml(data.explanation || "")}</span>`;
+      }
+      if (data.communityNote && fnote) {
+        fnote.textContent = data.communityNote;
+        fnote.style.display = "block";
+      }
+      if (data.tweetIntentUrl && ftweet) {
+        ftweet.href = data.tweetIntentUrl;
+        ftweet.style.display = "inline-block";
+      }
+    };
+    if (factBox) factBox.style.display = "block";
+    updateBtnState(true);
+    const cacheKey = `annotated_fc_${ann.id || ann.slug || ""}`;
+    let cachedData = null;
+    if (typeof window !== "undefined" && (ann.id || ann.slug)) {
+      try {
+        const stored = localStorage.getItem(cacheKey);
+        if (stored) cachedData = JSON.parse(stored);
+      } catch (_) {
+      }
+    }
+    if (cachedData) {
+      renderData(cachedData);
+    } else {
       if (fbadge) {
         fbadge.textContent = "ANALYZING";
         fbadge.style.color = "var(--muted)";
@@ -606,42 +638,49 @@
       if (ft) ft.textContent = "Analyzing claim and context with Google Gemini...";
       if (fnote) fnote.style.display = "none";
       if (ftweet) ftweet.style.display = "none";
-      try {
-        const data = await callFactCheckApi({
-          quote: ann.quote || ann.quote_text,
-          commentary: ann.comment || ann.commentary,
-          sourceUrl: ann.url || pageUrl,
-          sourceTitle: ann.title || pageTitle,
-          timestamp: ann.media_timestamp,
-          mediaUrl: ann.media_url
-        });
-        if (fbadge) {
-          fbadge.textContent = (data.verdict || "ANALYZED").replace("_", " ");
-          fbadge.style.color = data.verdict === "VERIFIED" ? "#22c55e" : data.verdict === "MISLEADING" || data.verdict === "FALSE" ? "#ef4444" : "#eab308";
+      (async () => {
+        try {
+          const data = await callFactCheckApi({
+            quote: ann.quote || ann.quote_text,
+            commentary: ann.comment || ann.commentary,
+            sourceUrl: ann.url || pageUrl,
+            sourceTitle: ann.title || pageTitle,
+            timestamp: ann.media_timestamp,
+            mediaUrl: ann.media_url
+          });
+          renderData(data);
+          if (typeof window !== "undefined" && (ann.id || ann.slug)) {
+            try {
+              localStorage.setItem(cacheKey, JSON.stringify(data));
+            } catch (_) {
+            }
+          }
+        } catch (err) {
+          if (ft) {
+            ft.textContent = `Fact-check error: ${err instanceof Error ? err.message : String(err)}`;
+          }
         }
-        if (ft) {
-          ft.innerHTML = `<strong>${escapeHtml(data.headline || "")}</strong><br><span style="font-size:10px; color:var(--muted);">${escapeHtml(data.explanation || "")}</span>`;
+      })();
+    }
+    if (factBtn) {
+      factBtn.onclick = (e) => {
+        e.stopPropagation();
+        if (!fb) return;
+        const isCurrentlyOpen = fb.style.display !== "none";
+        if (isCurrentlyOpen) {
+          fb.style.display = "none";
+          updateBtnState(false);
+        } else {
+          fb.style.display = "block";
+          updateBtnState(true);
         }
-        if (data.communityNote && fnote) {
-          fnote.textContent = data.communityNote;
-          fnote.style.display = "block";
-        }
-        if (data.tweetIntentUrl && ftweet) {
-          ftweet.href = data.tweetIntentUrl;
-          ftweet.style.display = "inline-block";
-        }
-      } catch (err) {
-        if (ft) {
-          ft.textContent = `Fact-check error: ${err instanceof Error ? err.message : String(err)}`;
-        }
-      }
-    };
-    const closeBtn = $("#detailFactCheckCloseBtn");
+      };
+    }
     if (closeBtn) {
       closeBtn.onclick = (e) => {
         e.stopPropagation();
-        const fb = $("#detailFactCheckBox");
         if (fb) fb.style.display = "none";
+        updateBtnState(false);
       };
     }
   }
@@ -1632,7 +1671,7 @@
       twitterShareBtn.href = `https://twitter.com/intent/tweet?text=${encodeURIComponent(tweetText)}&url=${encodeURIComponent(shareUrl)}`;
     }
     wireDetailReactions(ann.id || ann.slug || "", activeUser);
-    wireFactCheck(ann, ann.title || "Page", ann.url || location.href);
+    wireFactCheck(ann, ann.title || "Page", ann.url || location.href, onResize);
     if (ann.id || ann.slug) loadWidgetComments(ann.id || ann.slug || "", activeUser);
     const hasMedia = !!(ann.media_url || ann.audio_url);
     onResize(hasMedia ? 740 : 660);
