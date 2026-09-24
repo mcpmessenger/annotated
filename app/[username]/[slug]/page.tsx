@@ -2,7 +2,16 @@
 
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { Trash2 } from "lucide-react";
+import { 
+  Trash2, 
+  Sparkles, 
+  CheckCircle2, 
+  XCircle, 
+  AlertTriangle, 
+  ExternalLink, 
+  ChevronDown, 
+  ChevronUp 
+} from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import Link from "next/link";
 import { Header } from "@/components/Header";
@@ -23,6 +32,9 @@ export default function AnnotationPage() {
   const [copied, setCopied] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [factCheckData, setFactCheckData] = useState<any>(null);
+  const [factCheckLoading, setFactCheckLoading] = useState(false);
+  const [isFactCheckMinimized, setIsFactCheckMinimized] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -102,6 +114,77 @@ export default function AnnotationPage() {
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
       console.error("Failed to copy:", err);
+    }
+  };
+
+  useEffect(() => {
+    if (annotation?.id && typeof window !== "undefined") {
+      try {
+        const cached = localStorage.getItem(`annotated_factcheck_${annotation.id}`);
+        if (cached) {
+          setFactCheckData(JSON.parse(cached));
+          const minCached = localStorage.getItem(`annotated_factcheck_minimized_${annotation.id}`);
+          if (minCached !== null) {
+            setIsFactCheckMinimized(minCached === "true");
+          }
+        }
+      } catch (e) {}
+    }
+  }, [annotation?.id]);
+
+  const handleFactCheck = async () => {
+    if (factCheckData) {
+      setIsFactCheckMinimized((prev) => {
+        const next = !prev;
+        if (annotation?.id && typeof window !== "undefined") {
+          try {
+            localStorage.setItem(`annotated_factcheck_minimized_${annotation.id}`, String(next));
+          } catch (e) {}
+        }
+        return next;
+      });
+      return;
+    }
+
+    if (!annotation) return;
+
+    setFactCheckLoading(true);
+    setIsFactCheckMinimized(false);
+
+    try {
+      const res = await fetch("/api/ai/factcheck", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          quote: annotation.quoteText || "",
+          commentary: annotation.commentary || "",
+          sourceUrl: annotation.sourceUrl || "",
+          sourceTitle: annotation.sourceTitle || "",
+          mediaUrl: annotation.media_url || null,
+        }),
+      });
+
+      const data = await res.json();
+      setFactCheckData(data);
+      if (typeof window !== "undefined" && annotation.id) {
+        try {
+          localStorage.setItem(`annotated_factcheck_${annotation.id}`, JSON.stringify(data));
+          localStorage.setItem(`annotated_factcheck_minimized_${annotation.id}`, "false");
+        } catch (e) {}
+      }
+    } catch (err) {
+      console.error("Fact-check request failed:", err);
+    } finally {
+      setFactCheckLoading(false);
+    }
+  };
+
+  const toggleFactCheckMinimize = (minimized: boolean) => {
+    setIsFactCheckMinimized(minimized);
+    if (annotation?.id && typeof window !== "undefined") {
+      try {
+        localStorage.setItem(`annotated_factcheck_minimized_${annotation.id}`, String(minimized));
+      } catch (e) {}
     }
   };
 
@@ -235,10 +318,175 @@ export default function AnnotationPage() {
             )}
           </section>
 
-          {/* Reactions */}
-          <div className="mb-8">
+          {/* Reactions and Quick Fact Check Trigger */}
+          <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
             <ReactionRow annotationId={annotation.id} />
+            <button
+              onClick={handleFactCheck}
+              disabled={factCheckLoading}
+              className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full border border-[hsl(var(--accent))] text-[hsl(var(--accent))] hover:bg-[hsl(var(--accent))]/10 transition-colors cursor-pointer disabled:opacity-50"
+              title="Fact check this annotation with Gemini AI"
+            >
+              <Sparkles size={13} className="text-purple-400" />
+              <span>
+                {factCheckLoading
+                  ? "Analyzing..."
+                  : factCheckData
+                  ? isFactCheckMinimized
+                    ? "Show Fact Check"
+                    : "Minimize Fact Check"
+                  : "Fact Check"}
+              </span>
+            </button>
           </div>
+
+          {/* Fact Check Section (Persistent & Minimizable) */}
+          {(factCheckLoading || factCheckData) && (
+            <div className="mb-8">
+              {factCheckLoading ? (
+                <div className="p-4 rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--secondary))] text-xs">
+                  <div className="flex items-center gap-2 text-[hsl(var(--text-muted))] italic">
+                    <Sparkles size={14} className="text-purple-400 animate-spin" />
+                    <span>Analyzing claims, quote, and video context with Google Gemini AI...</span>
+                  </div>
+                </div>
+              ) : factCheckData && isFactCheckMinimized ? (
+                /* Minimized state: sleek compact banner */
+                <div
+                  onClick={() => toggleFactCheckMinimize(false)}
+                  className="p-3 rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--secondary))] hover:bg-[hsl(var(--border))]/40 transition-colors flex items-center justify-between gap-3 cursor-pointer text-xs group"
+                  title="Click to expand Gemini Fact Check"
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <Sparkles size={14} className="text-purple-400 shrink-0" />
+                    <span className="font-bold text-[hsl(var(--accent))] text-[11px] uppercase tracking-wide shrink-0">
+                      Gemini Fact Check:
+                    </span>
+                    {factCheckData?.verdict && (
+                      <span
+                        className={`inline-flex items-center gap-1 font-bold px-2 py-0.5 rounded-full text-[10px] shrink-0 ${
+                          factCheckData.verdict === "VERIFIED"
+                            ? "bg-green-500/10 text-green-600 border border-green-500/20"
+                            : factCheckData.verdict === "FALSE" || factCheckData.verdict === "MISLEADING"
+                            ? "bg-red-500/10 text-red-600 border border-red-500/20"
+                            : "bg-yellow-500/10 text-yellow-600 border border-yellow-500/20"
+                        }`}
+                      >
+                        {factCheckData.verdict === "VERIFIED" ? (
+                          <CheckCircle2 size={10} />
+                        ) : factCheckData.verdict === "MISLEADING" ? (
+                          <XCircle size={10} />
+                        ) : (
+                          <AlertTriangle size={10} />
+                        )}
+                        <span>{factCheckData.verdict.replace("_", " ")}</span>
+                      </span>
+                    )}
+                    <span className="text-[hsl(var(--foreground))] truncate font-medium">
+                      {factCheckData?.headline}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleFactCheckMinimize(false);
+                    }}
+                    className="text-[hsl(var(--text-muted))] group-hover:text-[hsl(var(--foreground))] font-semibold px-2.5 py-1 rounded hover:bg-[hsl(var(--border))] transition-colors flex items-center gap-1 shrink-0 cursor-pointer"
+                  >
+                    <span>Expand</span>
+                    <ChevronDown size={12} />
+                  </button>
+                </div>
+              ) : factCheckData ? (
+                /* Expanded state: full comprehensive card */
+                <div className="p-4 rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--secondary))] text-xs space-y-3 animate-in fade-in duration-150 shadow-sm">
+                  <div className="flex items-center justify-between">
+                    <span className="inline-flex items-center gap-1.5 font-bold text-[hsl(var(--accent))] text-xs uppercase tracking-wide">
+                      <Sparkles size={14} className="text-purple-400" />
+                      <span>Gemini Fact Check</span>
+                    </span>
+                    <div className="flex items-center gap-2">
+                      {factCheckData?.verdict && (
+                        <span
+                          className={`inline-flex items-center gap-1 font-bold px-2.5 py-0.5 rounded-full text-[11px] ${
+                            factCheckData.verdict === "VERIFIED"
+                              ? "bg-green-500/10 text-green-600 border border-green-500/20"
+                              : factCheckData.verdict === "FALSE" || factCheckData.verdict === "MISLEADING"
+                              ? "bg-red-500/10 text-red-600 border border-red-500/20"
+                              : "bg-yellow-500/10 text-yellow-600 border border-yellow-500/20"
+                          }`}
+                        >
+                          {factCheckData.verdict === "VERIFIED" ? (
+                            <CheckCircle2 size={11} />
+                          ) : factCheckData.verdict === "MISLEADING" ? (
+                            <XCircle size={11} />
+                          ) : (
+                            <AlertTriangle size={11} />
+                          )}
+                          <span>{factCheckData.verdict.replace("_", " ")}</span>
+                        </span>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => toggleFactCheckMinimize(true)}
+                        className="text-[hsl(var(--text-muted))] hover:text-[hsl(var(--foreground))] text-xs font-semibold px-2.5 py-1 rounded hover:bg-[hsl(var(--border))] transition-colors cursor-pointer flex items-center gap-1"
+                        title="Minimize Fact Check"
+                      >
+                        <span>Minimize</span>
+                        <ChevronUp size={12} />
+                      </button>
+                    </div>
+                  </div>
+
+                  <p className="font-semibold text-sm text-[hsl(var(--foreground))] leading-snug">
+                    {factCheckData.headline}
+                  </p>
+                  <p className="text-[hsl(var(--text-muted))] leading-relaxed text-xs">
+                    {factCheckData.explanation}
+                  </p>
+
+                  {factCheckData.communityNote && (
+                    <div className="p-3 rounded-lg bg-[hsl(var(--background))] border border-[hsl(var(--border))] text-xs space-y-1">
+                      <span className="font-bold text-[hsl(var(--foreground))] block">
+                        𝕏 Community Note Format:
+                      </span>
+                      <p className="text-[hsl(var(--text-muted))] italic leading-relaxed">
+                        {factCheckData.communityNote}
+                      </p>
+                    </div>
+                  )}
+
+                  <div className="flex items-center justify-between pt-1 flex-wrap gap-2">
+                    {factCheckData.sources?.length > 0 && (
+                      <div className="flex items-center gap-1 text-[11px] text-[hsl(var(--text-muted))]">
+                        <span>Source:</span>
+                        <a
+                          href={factCheckData.sources[0].url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="underline text-[hsl(var(--accent))] truncate max-w-[200px]"
+                        >
+                          {factCheckData.sources[0].title || "Primary Source"}
+                        </a>
+                      </div>
+                    )}
+                    {factCheckData.tweetIntentUrl && (
+                      <a
+                        href={factCheckData.tweetIntentUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-black text-white hover:bg-neutral-800 text-xs font-bold transition-colors ml-auto shadow-sm"
+                      >
+                        <span>Post as 𝕏 Note</span>
+                        <ExternalLink size={11} />
+                      </a>
+                    )}
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          )}
 
           {/* Metadata and Actions */}
           <footer className="border-t border-[hsl(var(--border))] pt-6 mb-8">
@@ -258,6 +506,23 @@ export default function AnnotationPage() {
                     <span>{isDeleting ? "Deleting..." : "Delete Note"}</span>
                   </button>
                 )}
+                <button
+                  onClick={handleFactCheck}
+                  disabled={factCheckLoading}
+                  className="px-4 py-2 rounded text-sm font-medium border border-[hsl(var(--accent))] text-[hsl(var(--accent))] hover:bg-[hsl(var(--accent))]/10 transition-colors w-full sm:w-auto flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+                  title="Fact check this annotation with Gemini AI"
+                >
+                  <Sparkles size={14} className="text-purple-400" />
+                  <span>
+                    {factCheckLoading
+                      ? "Analyzing..."
+                      : factCheckData
+                      ? isFactCheckMinimized
+                        ? "Show Fact Check"
+                        : "Hide Fact Check"
+                      : "Fact Check"}
+                  </span>
+                </button>
                 <button
                   onClick={handleCopyLink}
                   className={`px-4 py-2 rounded text-sm font-medium transition-colors w-full sm:w-auto ${

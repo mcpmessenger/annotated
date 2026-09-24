@@ -58,21 +58,48 @@ export function CommentSection({
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [commentFactChecks, setCommentFactChecks] = useState<Record<string, { loading: boolean; data: any; open: boolean }>>({});
 
+  useEffect(() => {
+    if (annotationId && typeof window !== "undefined") {
+      try {
+        const cached = localStorage.getItem(`annotated_comment_factchecks_${annotationId}`);
+        if (cached) {
+          setCommentFactChecks(JSON.parse(cached));
+        }
+      } catch (e) {}
+    }
+  }, [annotationId]);
+
   const handleFactCheckComment = async (comment: any) => {
     const existing = commentFactChecks[comment.id];
     if (existing?.open) {
-      setCommentFactChecks((prev) => ({
-        ...prev,
-        [comment.id]: { ...prev[comment.id], open: false },
-      }));
+      setCommentFactChecks((prev) => {
+        const next = {
+          ...prev,
+          [comment.id]: { ...prev[comment.id], open: false },
+        };
+        if (annotationId && typeof window !== "undefined") {
+          try {
+            localStorage.setItem(`annotated_comment_factchecks_${annotationId}`, JSON.stringify(next));
+          } catch (e) {}
+        }
+        return next;
+      });
       return;
     }
 
     if (existing?.data) {
-      setCommentFactChecks((prev) => ({
-        ...prev,
-        [comment.id]: { ...prev[comment.id], open: true },
-      }));
+      setCommentFactChecks((prev) => {
+        const next = {
+          ...prev,
+          [comment.id]: { ...prev[comment.id], open: true },
+        };
+        if (annotationId && typeof window !== "undefined") {
+          try {
+            localStorage.setItem(`annotated_comment_factchecks_${annotationId}`, JSON.stringify(next));
+          } catch (e) {}
+        }
+        return next;
+      });
       return;
     }
 
@@ -100,10 +127,18 @@ export function CommentSection({
         }),
       });
       const data = await res.json();
-      setCommentFactChecks((prev) => ({
-        ...prev,
-        [comment.id]: { loading: false, data, open: true },
-      }));
+      setCommentFactChecks((prev) => {
+        const next = {
+          ...prev,
+          [comment.id]: { loading: false, data, open: true },
+        };
+        if (annotationId && typeof window !== "undefined") {
+          try {
+            localStorage.setItem(`annotated_comment_factchecks_${annotationId}`, JSON.stringify(next));
+          } catch (e) {}
+        }
+        return next;
+      });
     } catch (err: any) {
       setCommentFactChecks((prev) => ({
         ...prev,

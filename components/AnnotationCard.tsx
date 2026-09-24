@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { MessageSquare, Trash2, Sparkles, Share2, CheckCircle2, AlertTriangle, XCircle, Info, ExternalLink } from "lucide-react";
+import { MessageSquare, Trash2, Sparkles, Share2, CheckCircle2, AlertTriangle, XCircle, Info, ExternalLink, ChevronDown, ChevronUp } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { Annotation } from "@/lib/types";
 import { ReactionRow } from "./ReactionRow";
@@ -24,17 +24,46 @@ export function AnnotationCard({
   const [showFactCheck, setShowFactCheck] = useState(false);
   const [factCheckLoading, setFactCheckLoading] = useState(false);
   const [factCheckData, setFactCheckData] = useState<any>(null);
+  const [isFactCheckMinimized, setIsFactCheckMinimized] = useState(false);
+
+  useEffect(() => {
+    if (annotation?.id && typeof window !== "undefined") {
+      try {
+        const cached = localStorage.getItem(`annotated_factcheck_${annotation.id}`);
+        if (cached) {
+          setFactCheckData(JSON.parse(cached));
+          const minCached = localStorage.getItem(`annotated_factcheck_minimized_${annotation.id}`);
+          setIsFactCheckMinimized(minCached === "true");
+          setShowFactCheck(true);
+        }
+      } catch (e) {}
+    }
+  }, [annotation?.id]);
 
   const handleFactCheck = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (showFactCheck) {
-      setShowFactCheck(false);
+    if (factCheckData) {
+      if (!showFactCheck) {
+        setShowFactCheck(true);
+        setIsFactCheckMinimized(false);
+      } else {
+        setIsFactCheckMinimized((prev) => {
+          const next = !prev;
+          if (typeof window !== "undefined" && annotation.id) {
+            try {
+              localStorage.setItem(`annotated_factcheck_minimized_${annotation.id}`, String(next));
+            } catch (err) {}
+          }
+          return next;
+        });
+      }
       return;
     }
-    setShowFactCheck(true);
-    if (factCheckData) return;
 
+    setShowFactCheck(true);
+    setIsFactCheckMinimized(false);
     setFactCheckLoading(true);
+
     try {
       const res = await fetch("/api/ai/factcheck", {
         method: "POST",
@@ -49,6 +78,12 @@ export function AnnotationCard({
       });
       const data = await res.json();
       setFactCheckData(data);
+      if (typeof window !== "undefined" && annotation.id) {
+        try {
+          localStorage.setItem(`annotated_factcheck_${annotation.id}`, JSON.stringify(data));
+          localStorage.setItem(`annotated_factcheck_minimized_${annotation.id}`, "false");
+        } catch (err) {}
+      }
     } catch (err) {
       console.error("Fact-check request failed:", err);
     } finally {
@@ -229,46 +264,124 @@ export function AnnotationCard({
 
       {/* Fact Check Result Box */}
       {showFactCheck && (
-        <div className="mt-3 p-3.5 rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--secondary))] text-xs space-y-2 animate-in fade-in duration-150">
-          <div className="flex items-center justify-between">
-            <span className="inline-flex items-center gap-1 font-bold text-[hsl(var(--accent))] text-[11px] uppercase tracking-wide">
-              <Sparkles size={13} />
-              <span>Gemini Fact Check</span>
-            </span>
-            <div className="flex items-center gap-2">
-              {factCheckData?.verdict && (
-                <span className={`inline-flex items-center gap-1 font-bold px-2 py-0.5 rounded-full text-[10px] ${
-                  factCheckData.verdict === "VERIFIED"
-                    ? "bg-green-500/10 text-green-600 border border-green-500/20"
-                    : factCheckData.verdict === "FALSE" || factCheckData.verdict === "MISLEADING"
-                    ? "bg-red-500/10 text-red-600 border border-red-500/20"
-                    : "bg-yellow-500/10 text-yellow-600 border border-yellow-500/20"
-                }`}>
-                  {factCheckData.verdict === "VERIFIED" ? <CheckCircle2 size={11} /> : factCheckData.verdict === "MISLEADING" ? <XCircle size={11} /> : <AlertTriangle size={11} />}
-                  <span>{factCheckData.verdict.replace("_", " ")}</span>
+        <div className="mt-3">
+          {factCheckLoading ? (
+            <div className="p-3.5 rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--secondary))] text-xs">
+              <div className="py-1 text-[hsl(var(--text-muted))] italic flex items-center gap-2">
+                <span className="inline-block animate-spin">⚡</span>
+                <span>Analyzing claims and context with Gemini...</span>
+              </div>
+            </div>
+          ) : factCheckData && isFactCheckMinimized ? (
+            /* Minimized state: compact single-line bar */
+            <div
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsFactCheckMinimized(false);
+                if (typeof window !== "undefined" && annotation.id) {
+                  try {
+                    localStorage.setItem(`annotated_factcheck_minimized_${annotation.id}`, "false");
+                  } catch (err) {}
+                }
+              }}
+              className="p-2.5 rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--secondary))] hover:bg-[hsl(var(--border))]/40 transition-colors flex items-center justify-between gap-2 cursor-pointer text-xs group"
+              title="Click to expand Gemini Fact Check"
+            >
+              <div className="flex items-center gap-2 min-w-0">
+                <Sparkles size={12} className="text-purple-400 shrink-0" />
+                <span className="font-bold text-[hsl(var(--accent))] text-[10px] uppercase tracking-wide shrink-0">
+                  Gemini Fact Check:
                 </span>
-              )}
+                {factCheckData?.verdict && (
+                  <span
+                    className={`inline-flex items-center gap-1 font-bold px-1.5 py-0.5 rounded-full text-[9px] shrink-0 ${
+                      factCheckData.verdict === "VERIFIED"
+                        ? "bg-green-500/10 text-green-600 border border-green-500/20"
+                        : factCheckData.verdict === "FALSE" || factCheckData.verdict === "MISLEADING"
+                        ? "bg-red-500/10 text-red-600 border border-red-500/20"
+                        : "bg-yellow-500/10 text-yellow-600 border border-yellow-500/20"
+                    }`}
+                  >
+                    {factCheckData.verdict === "VERIFIED" ? (
+                      <CheckCircle2 size={10} />
+                    ) : factCheckData.verdict === "MISLEADING" ? (
+                      <XCircle size={10} />
+                    ) : (
+                      <AlertTriangle size={10} />
+                    )}
+                    <span>{factCheckData.verdict.replace("_", " ")}</span>
+                  </span>
+                )}
+                <span className="text-[hsl(var(--foreground))] truncate text-[11px] font-medium">
+                  {factCheckData?.headline}
+                </span>
+              </div>
               <button
                 type="button"
                 onClick={(e) => {
                   e.stopPropagation();
-                  setShowFactCheck(false);
+                  setIsFactCheckMinimized(false);
+                  if (typeof window !== "undefined" && annotation.id) {
+                    try {
+                      localStorage.setItem(`annotated_factcheck_minimized_${annotation.id}`, "false");
+                    } catch (err) {}
+                  }
                 }}
-                className="text-[hsl(var(--text-muted))] hover:text-[hsl(var(--foreground))] text-xs font-semibold px-2 py-0.5 rounded hover:bg-[hsl(var(--border))] transition-colors cursor-pointer"
-                title="Hide Fact Check"
+                className="text-[hsl(var(--text-muted))] group-hover:text-[hsl(var(--foreground))] font-semibold px-2 py-0.5 rounded hover:bg-[hsl(var(--border))] transition-colors flex items-center gap-1 shrink-0 cursor-pointer"
               >
-                ✕ Hide
+                <span>Expand</span>
+                <ChevronDown size={11} />
               </button>
             </div>
-          </div>
-
-          {factCheckLoading ? (
-            <div className="py-2 text-[hsl(var(--text-muted))] italic flex items-center gap-2">
-              <span className="inline-block animate-spin">⚡</span>
-              <span>Analyzing claims and context with Gemini...</span>
-            </div>
           ) : factCheckData ? (
-            <>
+            /* Expanded state: full comprehensive card */
+            <div className="p-3.5 rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--secondary))] text-xs space-y-2 animate-in fade-in duration-150">
+              <div className="flex items-center justify-between">
+                <span className="inline-flex items-center gap-1 font-bold text-[hsl(var(--accent))] text-[11px] uppercase tracking-wide">
+                  <Sparkles size={13} />
+                  <span>Gemini Fact Check</span>
+                </span>
+                <div className="flex items-center gap-2">
+                  {factCheckData?.verdict && (
+                    <span
+                      className={`inline-flex items-center gap-1 font-bold px-2 py-0.5 rounded-full text-[10px] ${
+                        factCheckData.verdict === "VERIFIED"
+                          ? "bg-green-500/10 text-green-600 border border-green-500/20"
+                          : factCheckData.verdict === "FALSE" || factCheckData.verdict === "MISLEADING"
+                          ? "bg-red-500/10 text-red-600 border border-red-500/20"
+                          : "bg-yellow-500/10 text-yellow-600 border border-yellow-500/20"
+                      }`}
+                    >
+                      {factCheckData.verdict === "VERIFIED" ? (
+                        <CheckCircle2 size={11} />
+                      ) : factCheckData.verdict === "MISLEADING" ? (
+                        <XCircle size={11} />
+                      ) : (
+                        <AlertTriangle size={11} />
+                      )}
+                      <span>{factCheckData.verdict.replace("_", " ")}</span>
+                    </span>
+                  )}
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setIsFactCheckMinimized(true);
+                      if (typeof window !== "undefined" && annotation.id) {
+                        try {
+                          localStorage.setItem(`annotated_factcheck_minimized_${annotation.id}`, "true");
+                        } catch (err) {}
+                      }
+                    }}
+                    className="text-[hsl(var(--text-muted))] hover:text-[hsl(var(--foreground))] text-xs font-semibold px-2 py-0.5 rounded hover:bg-[hsl(var(--border))] transition-colors cursor-pointer flex items-center gap-1"
+                    title="Minimize Fact Check"
+                  >
+                    <span>Minimize</span>
+                    <ChevronUp size={11} />
+                  </button>
+                </div>
+              </div>
+
               <p className="font-semibold text-[hsl(var(--foreground))] leading-snug">
                 {factCheckData.headline}
               </p>
@@ -309,7 +422,7 @@ export function AnnotationCard({
                   </a>
                 )}
               </div>
-            </>
+            </div>
           ) : null}
         </div>
       )}
@@ -331,7 +444,15 @@ export function AnnotationCard({
             title="Ask Gemini AI to verify claims"
           >
             <Sparkles size={11} />
-            <span>Fact Check</span>
+            <span>
+              {factCheckLoading
+                ? "Analyzing..."
+                : factCheckData
+                ? isFactCheckMinimized
+                  ? "Show Fact Check"
+                  : "Hide Fact Check"
+                : "Fact Check"}
+            </span>
           </button>
 
           {/* Twitter / X Share Button */}
