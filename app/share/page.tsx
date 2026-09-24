@@ -18,7 +18,10 @@ import {
   Check,
   Send,
   LogIn,
+  Scissors,
+  Film,
 } from 'lucide-react';
+import { VideoClipTrimmer } from '@/components/VideoClipTrimmer';
 
 function ShareContent() {
   const router = useRouter();
@@ -44,6 +47,11 @@ function ShareContent() {
     if (targetUrl) hostname = new URL(targetUrl).hostname;
   } catch (_) {}
 
+  // Detect video content (YouTube or direct video file)
+  const ytMatch = targetUrl.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([\w-]{11})/i);
+  const youtubeVideoId = ytMatch ? ytMatch[1] : null;
+  const isVideoUrl = !!youtubeVideoId || /\.(mp4|webm|mov)(\?|$)/i.test(targetUrl);
+
   const displayTitle = rawTitle || hostname || 'Shared Web Content';
   const quoteText = quoteCandidate || rawTitle;
 
@@ -53,6 +61,9 @@ function ShareContent() {
   const [session, setSession] = useState<any>(null);
   const [publishing, setPublishing] = useState(false);
   const [publishedSlug, setPublishedSlug] = useState<string | null>(null);
+
+  const [showVideoTrimmer, setShowVideoTrimmer] = useState(isVideoUrl);
+  const [clipRange, setClipRange] = useState<{ start: number; end: number; formatted: string } | null>(null);
 
   const [factCheckData, setFactCheckData] = useState<any>(null);
   const [factCheckLoading, setFactCheckLoading] = useState(false);
@@ -76,7 +87,7 @@ function ShareContent() {
   };
 
   const handlePublish = async () => {
-    if (!comment.trim() && !quoteText) return;
+    if (!comment.trim() && !quoteText && !clipRange) return;
     setPublishing(true);
 
     try {
@@ -90,12 +101,24 @@ function ShareContent() {
         return;
       }
 
+      const finalComment = (showVideoTrimmer && clipRange)
+        ? `${clipRange.formatted} ${comment.trim()}`
+        : (comment.trim() || 'Shared via Mobile');
+
+      const finalQuote = (showVideoTrimmer && clipRange)
+        ? (quoteText ? `${quoteText} ${clipRange.formatted}` : `🎬 Video Clip (${displayTitle}) ${clipRange.formatted}`)
+        : (quoteText || displayTitle);
+
+      const finalUrl = (youtubeVideoId && clipRange && showVideoTrimmer)
+        ? (targetUrl.includes('?') ? `${targetUrl}&t=${clipRange.start}s` : `${targetUrl}?t=${clipRange.start}s`)
+        : (targetUrl || window.location.href);
+
       const row = {
-        url: targetUrl || window.location.href,
+        url: finalUrl,
         page_title: displayTitle,
         hostname: hostname || 'web',
-        quote: quoteText || displayTitle,
-        comment: comment.trim() || 'Shared via Mobile',
+        quote: finalQuote,
+        comment: finalComment,
         intent: intent,
         user_id: currentSession.user.id,
         created_at: new Date().toISOString()
@@ -170,6 +193,39 @@ function ShareContent() {
           <div className="relative pl-4 border-l-2 border-blue-500/40 my-3 text-slate-300 italic text-sm leading-relaxed">
             <Quote className="w-3.5 h-3.5 text-blue-400 absolute -left-1.5 -top-1 bg-slate-900" />
             "{quoteText}"
+          </div>
+        )}
+
+        {/* 90s Video Clip Trimmer */}
+        {(isVideoUrl || targetUrl) && (
+          <div className="space-y-3 pt-2 border-t border-slate-800">
+            <div className="flex items-center justify-between">
+              <button
+                type="button"
+                onClick={() => setShowVideoTrimmer(!showVideoTrimmer)}
+                className={`flex items-center gap-2 text-xs font-semibold px-3 py-1.5 rounded-xl border transition ${
+                  showVideoTrimmer
+                    ? 'bg-amber-500/15 border-amber-500/40 text-amber-300'
+                    : 'bg-slate-800/60 border-slate-700 text-slate-300 hover:text-white'
+                }`}
+              >
+                <Film className="w-3.5 h-3.5" />
+                <span>{showVideoTrimmer ? 'Hide 90s Clip Trimmer' : '✂️ Trim 90s Video Clip'}</span>
+              </button>
+              {clipRange && showVideoTrimmer && (
+                <span className="text-[11px] font-mono text-amber-400 font-bold">
+                  {clipRange.formatted}
+                </span>
+              )}
+            </div>
+
+            {showVideoTrimmer && (
+              <VideoClipTrimmer
+                videoUrl={targetUrl}
+                youtubeId={youtubeVideoId}
+                onClipChange={setClipRange}
+              />
+            )}
           </div>
         )}
 

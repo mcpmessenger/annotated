@@ -2,6 +2,7 @@ import { Analytics } from '@vercel/analytics/next'
 import type { Metadata, Viewport } from 'next'
 import './globals.css'
 import { PwaRegister } from '@/components/PwaRegister'
+import { SelectionAnnotatePopup } from '@/components/SelectionAnnotatePopup'
 
 export const metadata: Metadata = {
   title: "Annotated - Editorial annotations for the web",
@@ -59,6 +60,7 @@ export default function RootLayout({
     <html lang="en">
       <body className="antialiased">
         <PwaRegister />
+        <SelectionAnnotatePopup />
         {children}
         {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>
