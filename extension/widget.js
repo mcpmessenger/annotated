@@ -1277,7 +1277,7 @@
                 <span style="font-size: 9px; color: var(--muted);">${escapeHtml(timeAgo)}</span>
                 ${isCommentAuthor ? `<button class="comment-delete-btn" data-comment-id="${escapeHtml(
           c.id
-        )}" style="background: none; border: none; color: var(--muted); cursor: pointer; font-size: 11px; padding: 0 2px; line-height: 1; transition: color 0.15s ease;" title="Delete comment">&#128465;&#65039;</button>` : ""}
+        )}" data-tooltip="Delete comment" data-tooltip-pos="left" style="background: none; border: none; color: var(--muted); cursor: pointer; font-size: 11px; padding: 0 2px; line-height: 1; transition: color 0.15s ease;">&#128465;&#65039;</button>` : ""}
               </div>
             </div>
             <div style="color: var(--ink); line-height: 1.4; word-break: break-word; white-space: pre-wrap;">${escapeHtml(
