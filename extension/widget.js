@@ -1,1565 +1,2002 @@
-// ─── State ───────────────────────────────────────────────────────────────────
-const $ = (sel) => document.querySelector(sel);
-let page = { title: 'Current page', url: '', hostname: 'Current page' };
-let quote = '', intent = null;
-let mediaDataUrl = null, mediaType = null, mediaFileName = null;
-let videoClipBlob = null;
-let videoStartTs = null;
-let videoEndTs = null;
-let currentMediaTimestamp = null;
+"use strict";
+(() => {
+  // extension-src/shared/dom.ts
+  var $ = (sel, root = document) => root.querySelector(sel);
+  var $$ = (sel, root = document) => root.querySelectorAll(sel);
 
-let recordedAudioBlob = null;
-let mediaRecorder = null;
-let audioChunks = [];
-
-let currentUser = null;
-let currentDetailWebUrl = "https://annotated-repo.vercel.app";
-
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-function pageKey() {
-  try { const u = new URL(page.url || 'https://annotated.com'); return `page:${u.origin}${u.pathname}`; }
-  catch (_) { return 'page:https://annotated.com/'; }
-}
-function escapeHtml(v) {
-  return String(v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[c]));
-}
-
-function openExternalUrl(url) {
-  if (!url) return;
-  // Send message to parent content script to handle opening the tab centrally via background
-  try {
-    if (window.parent && window.parent !== window) {
-      window.parent.postMessage({ type: 'OPEN_TAB', url }, '*');
-      return;
-    }
-  } catch (_) {}
-  
-  // Fallback if not embedded
-  try {
-    window.open(url, '_blank', 'noopener,noreferrer');
-  } catch (_) {}
-}
-
-function extractTimestamp(url, comment) {
-  if (!url && !comment) return null;
-
-  // 1. Check URL query/hash parameters for t=...
-  const urlStr = String(url || '');
-  const tMatch = urlStr.match(/[?&#]t=([0-9hms]+)/i);
-  if (tMatch) {
-    const val = tMatch[1].toLowerCase();
-    if (/[hms]/.test(val)) {
-      let h = 0, m = 0, s = 0;
-      const hM = val.match(/(\d+)h/);
-      const mM = val.match(/(\d+)m/);
-      const sM = val.match(/(\d+)s/);
-      if (hM) h = parseInt(hM[1], 10);
-      if (mM) m = parseInt(mM[1], 10);
-      if (sM) s = parseInt(sM[1], 10);
-      if (!hM && !mM && !sM && /^\d+s?$/.test(val)) {
-        return parseInt(val.replace('s', ''), 10);
-      }
-      return h * 3600 + m * 60 + s;
-    } else if (/^\d+$/.test(val)) {
-      return parseInt(val, 10);
-    }
-  }
-
-  // 2. Comment bracketed timestamp: [⏱️ 01:24], [01:24], or [1:02:24]
-  const commentMatch = String(comment || '').match(/\[(?:⏱️\s*)?(\d+):(\d+)(?::(\d+))?\]/);
-  if (commentMatch) {
-    if (commentMatch[3]) {
-      return parseInt(commentMatch[1], 10) * 3600 + parseInt(commentMatch[2], 10) * 60 + parseInt(commentMatch[3], 10);
-    }
-    return parseInt(commentMatch[1], 10) * 60 + parseInt(commentMatch[2], 10);
-  }
-  return null;
-}
-
-function formatSeconds(sec) {
-  if (sec == null || isNaN(sec)) return '';
-  const s = Math.floor(sec);
-  const hrs = Math.floor(s / 3600);
-  const mins = Math.floor((s % 3600) / 60);
-  const secs = s % 60;
-  if (hrs > 0) {
-    return `${hrs}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
-  }
-  return `${mins}:${String(secs).padStart(2, '0')}`;
-}
-
-function setQuote(value) {
-  quote = value;
-  $('#quote').textContent = quote ? `"${quote}"` : 'Select text on any page to anchor a comment here.';
-  updateButton();
-}
-function updateButton() {
-  const commentEl = document.querySelector('#comment');
-  const c = commentEl ? commentEl.value.trim() : '';
-  const canPublish = (c.length > 0) || !!videoClipBlob || !!mediaDataUrl || !!recordedAudioBlob || !!quote;
-  const pubBtn = document.querySelector('#publishBtn');
-  if (pubBtn) {
-    pubBtn.disabled = !canPublish;
-  }
-}
-function initials(name) {
-  return (name || '?').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
-}
-
-// ─── Auth UI ─────────────────────────────────────────────────────────────────
-function showAuth() {
-  $('#authScreen').classList.remove('hidden');
-  $('#mainApp').classList.add('hidden');
-}
-function showApp(user) {
-  currentUser = user;
-  $('#authScreen').classList.add('hidden');
-  $('#mainApp').classList.remove('hidden');
-  $('#userMenuWrap').classList.remove('hidden');
-  $('#profileName').textContent = user.name;
-  $('#avatarEl').textContent = initials(user.name);
-  $('#avatarEl').removeAttribute('title');
-  const dropdownAvatar = $('#dropdownAvatarEl');
-  if (dropdownAvatar) dropdownAvatar.textContent = initials(user.name);
-
-  if (user.avatar) {
-    $('#avatarEl').style.backgroundImage = `url(${user.avatar})`;
-    $('#avatarEl').style.backgroundSize = 'cover';
-    $('#avatarEl').textContent = '';
-    if (dropdownAvatar) {
-      dropdownAvatar.style.backgroundImage = `url(${user.avatar})`;
-      dropdownAvatar.style.backgroundSize = 'cover';
-      dropdownAvatar.textContent = '';
-    }
-  }
-  loadAnnotationCount();
-  loadPage();
-  resizeWidget(videoClipBlob ? 630 : 390);
-}
-
-$('#signInBtn').addEventListener('click', async () => {
-  $('#signInBtn').disabled = true;
-  $('#signInBtn').textContent = 'Signing in…';
-  $('#authError').classList.add('hidden');
-  try {
-    const session = await supabase.signInWithGoogle();
-    const user = supabase.userFromSession(session);
-    if (user) showApp(user);
-  } catch (err) {
-    $('#authError').textContent = `Sign-in failed: ${err}`;
-    $('#authError').classList.remove('hidden');
-  } finally {
-    $('#signInBtn').disabled = false;
-    $('#signInBtn').innerHTML = `<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M17.64 9.205c0-.638-.057-1.252-.164-1.841H9v3.481h4.844a4.14 4.14 0 01-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z" fill="#4285F4"/><path d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 009 18z" fill="#34A853"/><path d="M3.964 10.71A5.41 5.41 0 013.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 000 9c0 1.452.348 2.827.957 4.042l3.007-2.332z" fill="#FBBC05"/><path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 00.957 4.958L3.964 6.29C4.672 4.163 6.656 3.58 9 3.58z" fill="#EA4335"/></svg> Sign in with Google`;
-  }
-});
-
-$('#signOutBtn').addEventListener('click', async () => {
-  await supabase.signOut();
-  currentUser = null;
-  showAuth();
-});
-
-// ─── Profile ─────────────────────────────────────────────────────────────────
-$('#profileBtn').addEventListener('click', () => {
-  if (currentUser?.email) {
-    const username = currentUser.email.split('@')[0];
-    openExternalUrl(`https://annotated-repo.vercel.app/u/${username}`);
-  }
-});
-
-async function loadAnnotationCount() {
-  if (!currentUser) return;
-  try {
-    const db = await supabase.from('annotations');
-    const result = await db.select('id').eq('user_id', currentUser.id).execute();
-    const count = Array.isArray(result) ? result.length : 0;
-    const name = currentUser.email?.split('@')[0] || 'user';
-
-    // Query follower and following counts
-    let fCount = 0;
-    let flCount = 0;
-    try {
-      const dbFollows = await supabase.from('follows');
-      const followers = await dbFollows.select('follower_id').eq('following_id', currentUser.id).execute();
-      const following = await dbFollows.select('following_id').eq('follower_id', currentUser.id).execute();
-      fCount = Array.isArray(followers) ? followers.length : 0;
-      flCount = Array.isArray(following) ? following.length : 0;
-    } catch (_) {}
-
-    $('#profileMeta').textContent = `@${name}`;
-    if ($('#statFollowers')) $('#statFollowers').textContent = fCount;
-    if ($('#statFollowing')) $('#statFollowing').textContent = flCount;
-    if ($('#statNotes')) $('#statNotes').textContent = count;
-
-    if ($('#avatarEl')) {
-      $('#avatarEl').removeAttribute('title');
-    }
-  } catch (_) {
-    const name = currentUser.email?.split('@')[0] || 'user';
-    $('#profileMeta').textContent = `@${name}`;
-  }
-}
-
-// ─── Feed ─────────────────────────────────────────────────────────────────────
-function renderFeed(items) {
-  const currentVId = (() => {
-    try {
-      if (page.url && page.url.includes('youtube.com') && page.url.includes('v=')) {
-        return new URL(page.url).searchParams.get('v');
-      }
-    } catch (_) {}
-    return null;
-  })();
-
-  const filteredItems = Array.isArray(items) ? items.filter(a => {
-    if (!a) return false;
-    if (currentVId) return String(a.url || '').includes(currentVId);
-    return true;
-  }) : [];
-
-  if ($('#annotationCount')) $('#annotationCount').textContent = `${filteredItems.length} annotation${filteredItems.length === 1 ? '' : 's'}`;
-
-  if (!filteredItems.length) {
-    $('#feed').innerHTML = '<div class="empty">Your annotations on this page will appear here.</div>';
-    return;
-  }
-
-  $('#feed').innerHTML = filteredItems.slice().reverse().map(a => {
-    const username = a.username || (a.author_profile?.email ? a.author_profile.email.split('@')[0] : (currentUser?.email ? currentUser.email.split('@')[0] : 'user'));
-    const webUrl = a.slug || a.id ? `https://annotated-repo.vercel.app/${encodeURIComponent(username)}/${encodeURIComponent(a.slug || a.id)}` : 'https://annotated-repo.vercel.app';
-    const ts = extractTimestamp(a.url, a.comment || a.commentary);
-    const tsStr = ts != null ? formatSeconds(ts) : '';
-
-    return `
-      <article class="annotation" data-id="${a.id}">
-        <div class="aheader" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-          <span style="font-weight:700; font-size:12px; color:#ffd21a;">${escapeHtml(a.intent || '💡')} ${tsStr ? `⏱️ ${tsStr}` : ''}</span>
-          <div style="display:flex; align-items:center; gap:8px;">
-            <a class="web-link" href="${webUrl}" target="_blank" rel="noopener" style="color:#8899a6; text-decoration:none; font-size:12px; font-weight:600;" data-tooltip="Open on Annotated Website">↗ View Web</a>
-            ${currentUser && (a.user_id === currentUser.id || !a.user_id) ? '<button class="feed-delete-btn" style="background:none; border:none; color:#8899a6; cursor:pointer; font-size:12px; padding:0 2px;" data-tooltip="Delete annotation">🗑️</button>' : ''}
-          </div>
-        </div>
-        <div class="aquote" style="cursor:pointer;" data-tooltip="Click to seek video">"${escapeHtml(a.quote || a.quote_text || "")}"</div>
-        ${a.media_url ? `
-          <div class="feed-media-wrap">
-            ${a.media_type === 'video' || a.media_url.includes('.webm') || a.media_url.includes('.mp4')
-              ? `<video class="feed-media" src="${escapeHtml(a.media_url)}" controls playsinline></video>`
-              : `<img class="feed-media" src="${escapeHtml(a.media_url)}" alt="Annotation media" loading="lazy">`
-            }
-          </div>` : ''}
-        <div class="acomment">${escapeHtml(a.comment || a.commentary || "")}</div>
-        <div class="meta" style="margin-top:6px; display:flex; justify-content:space-between; font-size:11px; color:#8899a6;">
-          <span>@${escapeHtml(username)} · ${new Date(a.created_at || Date.now()).toLocaleDateString()}</span>
-        </div>
-      </article>`;
-  }).join('');
-
-  $('#feed').querySelectorAll('.annotation').forEach(el => {
-    const annId = el.dataset.id;
-    const ann = filteredItems.find(a => String(a.id) === String(annId));
-    if (!ann) return;
-
-    const webLink = el.querySelector('.web-link');
-    if (webLink) {
-      webLink.addEventListener('click', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        const username = ann.username || (ann.author_profile?.email ? ann.author_profile.email.split('@')[0] : (currentUser?.email ? currentUser.email.split('@')[0] : 'user'));
-        const webUrl = ann.slug || ann.id ? `https://annotated-repo.vercel.app/${encodeURIComponent(username)}/${encodeURIComponent(ann.slug || ann.id)}` : 'https://annotated-repo.vercel.app';
-        openExternalUrl(webUrl);
-      });
-    }
-
-    const feedDelBtn = el.querySelector('.feed-delete-btn');
-    if (feedDelBtn) {
-      feedDelBtn.addEventListener('click', async (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        if (!confirm('Are you sure you want to delete this annotation?')) return;
-        try {
-          const db = await supabase.from('annotations');
-          await db.delete().eq('id', ann.id).execute();
-        } catch (err) {
-          console.warn('[Annotated Delete] Error:', err);
-        }
-        try {
-          const key = pageKey();
-          chrome.storage.local.get(key, data => {
-            const items = (data[key] || []).filter(a => String(a.id) !== String(ann.id));
-            chrome.storage.local.set({ [key]: items }, () => {});
-          });
-        } catch (_) {}
-        try { window.parent.postMessage({ type: 'RELOAD_ANNOTATIONS' }, '*');
-        fetchAnnotations(); } catch (_) {}
-        loadFeedFromSupabase();
-        loadAnnotationCount();
-      });
-    }
-
-    const aquote = el.querySelector('.aquote');
-    if (aquote) {
-      aquote.addEventListener('click', () => {
-        const ts = extractTimestamp(ann.url, ann.comment || ann.commentary);
-        if (ts != null) {
-          window.parent.postMessage({ type: 'SEEK_MEDIA', seconds: ts }, '*');
-        }
-      });
-    }
-  });
-}
-
-async function loadFeedFromSupabase() {
-  if (!currentUser) { renderFeed([]); return; }
-
-  let cleanUrl = page.url || location.href;
-  let currentVId = null;
-
-  if (cleanUrl.includes('youtube.com') && cleanUrl.includes('v=')) {
-    try {
-      const u = new URL(cleanUrl);
-      currentVId = u.searchParams.get('v');
-      if (currentVId) cleanUrl = `https://www.youtube.com/watch?v=${currentVId}`;
-    } catch (_) {}
-  }
-
-  try {
-    const db = await supabase.from('annotations');
-    let items = null;
-    if (currentVId) {
-      items = await db.select('*').ilike('url', `%${currentVId}%`).execute();
-    } else if (cleanUrl) {
-      items = await db.select('*').ilike('url', `%${cleanUrl}%`).execute();
-    }
-    if (Array.isArray(items)) {
-      renderFeed(items);
-      return;
-    }
-  } catch (err) {
-    console.warn('[Annotated Widget] loadFeedFromSupabase error:', err);
-  }
-
-  chrome.storage.local.get(pageKey(), data => {
-    const localItems = data[pageKey()] || [];
-    if (currentVId) {
-      const filtered = localItems.filter(a => String(a.url || '').includes(currentVId));
-      renderFeed(filtered);
-    } else {
-      renderFeed(localItems);
-    }
-  });
-}
-
-// ─── Selection & View Handling ─────────────────────────────────────────────
-function applySelection(selection) {
-  if (!selection?.quote) return;
-  page = {
-    title: selection.title || page.title,
-    url: selection.url || page.url,
-    hostname: selection.hostname || page.hostname,
+  // extension-src/shared/config.ts
+  var SUPABASE_CONFIG = {
+    url: "https://dajadbvlldrmgzztdksn.supabase.co",
+    anonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRhamFkYnZsbGRybWd6enRka3NuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk1ODYwMTcsImV4cCI6MjEwNTE2MjAxN30.ZGteNtShkBErPckuMGX4tWMn0AtgU_THFSI37Wgd-eU"
   };
-  if ($('#pageHost')) $('#pageHost').textContent = page.hostname.replace(/^www\./, '');
-  setQuote(selection.quote);
+  var SITE_URL = "https://annotated-repo.vercel.app";
+  var FACTCHECK_API_URL = `${SITE_URL}/api/ai/factcheck`;
 
-  // Return to composer view when user selects new text
-  showComposer();
-
-  // Media timestamp badge
-  const ts = selection.media_timestamp != null ? selection.media_timestamp : extractTimestamp(selection.url, '');
-  if (ts != null) {
-    currentMediaTimestamp = ts;
-    const tsBadge = $('#composerTimestampBadge');
-    const tsText = $('#composerTimestampText');
-    if (tsBadge && tsText) {
-      tsText.textContent = formatSeconds(ts);
-      tsBadge.classList.remove('hidden');
-      tsBadge.onclick = (e) => {
-        e.stopPropagation();
-        window.parent.postMessage({ type: 'SEEK_MEDIA', seconds: ts }, '*');
+  // extension-src/shared/supabase.ts
+  var SupabaseClient = class {
+    constructor(url = SUPABASE_CONFIG.url, key = SUPABASE_CONFIG.anonKey) {
+      this.token = null;
+      this.url = url;
+      this.key = key;
+    }
+    headers(extra = {}) {
+      return {
+        "Content-Type": "application/json",
+        apikey: this.key,
+        Authorization: `Bearer ${this.token || this.key}`,
+        ...extra
       };
     }
-  } else {
-    currentMediaTimestamp = null;
-    const tsBadge = $('#composerTimestampBadge');
-    if (tsBadge) tsBadge.classList.add('hidden');
+    async getAuthHeaders(extra = {}) {
+      if (!this.token) {
+        await this.restoreSession();
+      }
+      return this.headers(extra);
+    }
+    from(table) {
+      const base = `${this.url}/rest/v1/${table}`;
+      return {
+        select: (cols = "*") => ({
+          eq: (col, val) => ({
+            order: (ord, opts = {}) => fetch(
+              `${base}?select=${cols}&${col}=eq.${encodeURIComponent(val)}&order=${ord}${opts.ascending === false ? ".desc" : ""}`,
+              { headers: this.headers({ Prefer: "return=representation" }) }
+            ).then((r) => r.json()),
+            execute: () => fetch(`${base}?select=${cols}&${col}=eq.${encodeURIComponent(val)}`, {
+              headers: this.headers()
+            }).then((r) => r.json())
+          }),
+          ilike: (col, pattern) => ({
+            execute: () => fetch(`${base}?select=${cols}&${col}=ilike.${encodeURIComponent(pattern)}`, {
+              headers: this.headers()
+            }).then((r) => r.json())
+          }),
+          order: (ord, opts = {}) => ({
+            limit: (n) => ({
+              execute: () => fetch(`${base}?select=${cols}&order=${ord}${opts.ascending === false ? ".desc" : ""}&limit=${n}`, {
+                headers: this.headers()
+              }).then((r) => r.json())
+            })
+          }),
+          execute: () => fetch(`${base}?select=${cols}`, { headers: this.headers() }).then((r) => r.json())
+        }),
+        insert: (data) => fetch(base, {
+          method: "POST",
+          headers: this.headers({ Prefer: "return=representation" }),
+          body: JSON.stringify(data)
+        }).then((r) => r.json()),
+        delete: () => ({
+          eq: (col, val) => ({
+            execute: () => fetch(`${base}?${col}=eq.${encodeURIComponent(val)}`, {
+              method: "DELETE",
+              headers: this.headers()
+            }).then((r) => r.json())
+          })
+        }),
+        update: (data) => ({
+          eq: (col, val) => ({
+            eq: (col2, val2) => ({
+              execute: () => fetch(`${base}?${col}=eq.${encodeURIComponent(val)}&${col2}=eq.${encodeURIComponent(String(val2))}`, {
+                method: "PATCH",
+                headers: this.headers({ Prefer: "return=representation" }),
+                body: JSON.stringify(data)
+              }).then((r) => r.json())
+            })
+          })
+        })
+      };
+    }
+    async uploadMedia(dataUrl, fileName) {
+      if (!this.token) throw new Error("Not authenticated");
+      const [header, base64] = dataUrl.split(",");
+      const mimeMatch = header.match(/:(.*?);/);
+      const mimeType = mimeMatch ? mimeMatch[1] : "application/octet-stream";
+      const binary = atob(base64);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+      const blob = new Blob([bytes], { type: mimeType });
+      const safeName = fileName.replace(/[^a-zA-Z0-9._-]/g, "_");
+      const path = `${Date.now()}_${safeName}`;
+      const res = await fetch(`${this.url}/storage/v1/object/annotation-media/${path}`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${this.token}`,
+          "Content-Type": mimeType,
+          "x-upsert": "false"
+        },
+        body: blob
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message || `Upload failed (${res.status})`);
+      }
+      return `${this.url}/storage/v1/object/public/annotation-media/${path}`;
+    }
+    async signInWithGoogle() {
+      return new Promise((resolve, reject) => {
+        const redirectUrl = chrome.identity.getRedirectURL();
+        const authUrl = `${this.url}/auth/v1/authorize?provider=google&redirect_to=${encodeURIComponent(redirectUrl)}`;
+        chrome.identity.launchWebAuthFlow({ url: authUrl, interactive: true }, async (responseUrl) => {
+          if (chrome.runtime.lastError || !responseUrl) {
+            const msg = chrome.runtime.lastError?.message || "Auth cancelled";
+            reject(msg);
+            return;
+          }
+          try {
+            const url = new URL(responseUrl);
+            const params = new URLSearchParams(url.hash ? url.hash.slice(1) : url.search.slice(1));
+            const access_token = params.get("access_token");
+            const refresh_token = params.get("refresh_token") || void 0;
+            const expires_in = parseInt(params.get("expires_in") || "3600", 10);
+            const error = params.get("error_description") || params.get("error");
+            if (error) {
+              reject(error);
+              return;
+            }
+            if (!access_token) {
+              reject("No token returned.");
+              return;
+            }
+            const session = {
+              access_token,
+              refresh_token,
+              expires_at: Math.floor(Date.now() / 1e3) + expires_in
+            };
+            this.token = access_token;
+            await chrome.storage.local.set({ supabase_session: session });
+            resolve(session);
+          } catch (err) {
+            reject(err instanceof Error ? err.message : String(err));
+          }
+        });
+      });
+    }
+    async signInWithTwitter() {
+      throw new Error("Twitter sign-in is coming soon.");
+    }
+    async signOut() {
+      if (this.token) {
+        await fetch(`${this.url}/auth/v1/logout`, {
+          method: "POST",
+          headers: this.headers()
+        }).catch(() => {
+        });
+      }
+      this.token = null;
+      await chrome.storage.local.remove("supabase_session");
+    }
+    async restoreSession() {
+      const data = await chrome.storage.local.get("supabase_session");
+      const session = data.supabase_session;
+      if (session?.access_token) {
+        const issuedAt = session.expires_at || 0;
+        if (Date.now() / 1e3 < issuedAt) {
+          this.token = session.access_token;
+          return session;
+        }
+        if (session.refresh_token) {
+          try {
+            const res = await fetch(`${this.url}/auth/v1/token?grant_type=refresh_token`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json", apikey: this.key },
+              body: JSON.stringify({ refresh_token: session.refresh_token })
+            });
+            const fresh = await res.json();
+            if (fresh.access_token) {
+              this.token = fresh.access_token;
+              await chrome.storage.local.set({ supabase_session: fresh });
+              return fresh;
+            }
+          } catch (_) {
+          }
+        }
+        await chrome.storage.local.remove("supabase_session");
+      }
+      return null;
+    }
+    userFromSession(session) {
+      if (!session?.access_token) return null;
+      try {
+        const payload = JSON.parse(atob(session.access_token.split(".")[1]));
+        const meta = payload.user_metadata || {};
+        const twitterHandle = meta.user_name || meta.preferred_username || meta.screen_name;
+        const displayName = meta.full_name || meta.name || twitterHandle || payload.email?.split("@")[0] || "You";
+        const email = payload.email || (twitterHandle ? `${twitterHandle}@x.com` : void 0);
+        return {
+          id: payload.sub,
+          email,
+          name: displayName,
+          avatar: meta.avatar_url || meta.picture || void 0
+        };
+      } catch (_) {
+        return null;
+      }
+    }
+  };
+  var supabase = new SupabaseClient();
+
+  // extension-src/shared/utils.ts
+  function escapeHtml(v) {
+    return String(v ?? "").replace(/[&<>"']/g, (c) => {
+      const map = {
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#039;"
+      };
+      return map[c] || c;
+    });
+  }
+  function initials(name) {
+    return (name || "?").split(" ").filter(Boolean).map((w) => w[0]).join("").slice(0, 2).toUpperCase();
+  }
+  function formatSeconds(sec) {
+    if (sec == null || isNaN(sec)) return "";
+    const s = Math.floor(sec);
+    const hrs = Math.floor(s / 3600);
+    const mins = Math.floor(s % 3600 / 60);
+    const secs = s % 60;
+    if (hrs > 0) {
+      return `${hrs}:${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
+    }
+    return `${mins}:${String(secs).padStart(2, "0")}`;
+  }
+  function extractTimestamp(url, comment) {
+    if (!url && !comment) return null;
+    const urlStr = String(url || "");
+    const tMatch = urlStr.match(/[?&#]t=([0-9hms]+)/i);
+    if (tMatch) {
+      const val = tMatch[1].toLowerCase();
+      if (/[hms]/.test(val)) {
+        let h = 0, m = 0, s = 0;
+        const hM = val.match(/(\d+)h/);
+        const mM = val.match(/(\d+)m/);
+        const sM = val.match(/(\d+)s/);
+        if (hM) h = parseInt(hM[1], 10);
+        if (mM) m = parseInt(mM[1], 10);
+        if (sM) s = parseInt(sM[1], 10);
+        if (!hM && !mM && !sM && /^\d+s?$/.test(val)) {
+          return parseInt(val.replace("s", ""), 10);
+        }
+        return h * 3600 + m * 60 + s;
+      } else if (/^\d+$/.test(val)) {
+        return parseInt(val, 10);
+      }
+    }
+    const commentMatch = String(comment || "").match(/\[(?:⏱️\s*)?(\d+):(\d+)(?::(\d+))?\]/);
+    if (commentMatch) {
+      if (commentMatch[3]) {
+        return parseInt(commentMatch[1], 10) * 3600 + parseInt(commentMatch[2], 10) * 60 + parseInt(commentMatch[3], 10);
+      }
+      return parseInt(commentMatch[1], 10) * 60 + parseInt(commentMatch[2], 10);
+    }
+    return null;
+  }
+  function extractYouTubeVideoId(url) {
+    if (!url) return null;
+    try {
+      if (url.includes("youtube.com") && url.includes("v=")) {
+        return new URL(url).searchParams.get("v");
+      }
+      if (url.includes("youtu.be/")) {
+        const parts = new URL(url).pathname.split("/");
+        return parts[1] || null;
+      }
+    } catch (_) {
+    }
+    return null;
+  }
+  function pageKey(url) {
+    try {
+      const u = new URL(url || (typeof location !== "undefined" ? location.href : "https://annotated.com"));
+      return `page:${u.origin}${u.pathname}`;
+    } catch (_) {
+      return "page:https://annotated.com/";
+    }
+  }
+  function openExternalUrl(url) {
+    if (!url) return;
+    try {
+      if (typeof window !== "undefined" && window.parent && window.parent !== window) {
+        window.parent.postMessage({ type: "OPEN_TAB", url }, "*");
+        return;
+      }
+    } catch (_) {
+    }
+    try {
+      window.open(url, "_blank", "noopener,noreferrer");
+    } catch (_) {
+    }
   }
 
-  loadFeedFromSupabase();
-}
+  // extension-src/widget/auth.ts
+  function showAuth() {
+    $("#authScreen")?.classList.remove("hidden");
+    $("#mainApp")?.classList.add("hidden");
+  }
+  function showApp(user, onAppShown) {
+    $("#authScreen")?.classList.add("hidden");
+    $("#mainApp")?.classList.remove("hidden");
+    $("#userMenuWrap")?.classList.remove("hidden");
+    const profileName = $("#profileName");
+    if (profileName) profileName.textContent = user.name;
+    const avatarEl = $("#avatarEl");
+    if (avatarEl) {
+      avatarEl.textContent = initials(user.name);
+      avatarEl.removeAttribute("title");
+    }
+    const dropdownAvatar = $("#dropdownAvatarEl");
+    if (dropdownAvatar) dropdownAvatar.textContent = initials(user.name);
+    if (user.avatar) {
+      if (avatarEl) {
+        avatarEl.style.backgroundImage = `url(${user.avatar})`;
+        avatarEl.style.backgroundSize = "cover";
+        avatarEl.textContent = "";
+      }
+      if (dropdownAvatar) {
+        dropdownAvatar.style.backgroundImage = `url(${user.avatar})`;
+        dropdownAvatar.style.backgroundSize = "cover";
+        dropdownAvatar.textContent = "";
+      }
+    }
+    onAppShown(user);
+  }
+  async function loadUserProfileStats(currentUser2) {
+    if (!currentUser2) return;
+    const name = currentUser2.email?.split("@")[0] || "user";
+    const metaEl = $("#profileMeta");
+    if (metaEl) metaEl.textContent = `@${name}`;
+    try {
+      const notesRes = await supabase.from("annotations").select("id").eq("user_id", currentUser2.id).execute();
+      const count = Array.isArray(notesRes) ? notesRes.length : 0;
+      const statNotes = $("#statNotes");
+      if (statNotes) statNotes.textContent = String(count);
+      const followersRes = await supabase.from("follows").select("follower_id").eq("following_id", currentUser2.id).execute();
+      const followingRes = await supabase.from("follows").select("following_id").eq("follower_id", currentUser2.id).execute();
+      const fCount = Array.isArray(followersRes) ? followersRes.length : 0;
+      const flCount = Array.isArray(followingRes) ? followingRes.length : 0;
+      const statFollowers = $("#statFollowers");
+      if (statFollowers) statFollowers.textContent = String(fCount);
+      const statFollowing = $("#statFollowing");
+      if (statFollowing) statFollowing.textContent = String(flCount);
+    } catch (_) {
+    }
+  }
+  function initAuthHandlers(onUserChanged, onResize) {
+    const signInTwitterBtn = $("#signInTwitterBtn");
+    if (signInTwitterBtn) {
+      signInTwitterBtn.addEventListener("click", async () => {
+        signInTwitterBtn.disabled = true;
+        signInTwitterBtn.textContent = "Signing in to \u{1D54F}\u2026";
+        $("#authError")?.classList.add("hidden");
+        try {
+          const session = await supabase.signInWithTwitter();
+          const user = supabase.userFromSession(session);
+          if (user) {
+            showApp(user, (u) => onUserChanged(u));
+          }
+        } catch (err) {
+          const authErr = $("#authError");
+          if (authErr) {
+            authErr.textContent = `Twitter sign-in failed: ${err}`;
+            authErr.classList.remove("hidden");
+          }
+        } finally {
+          signInTwitterBtn.disabled = false;
+          signInTwitterBtn.innerHTML = `<span style="font-weight: 900; font-size: 15px;">\u{1D54F}</span> Sign in with \u{1D54F}`;
+        }
+      });
+    }
+    const signInBtn = $("#signInBtn");
+    if (signInBtn) {
+      signInBtn.addEventListener("click", async () => {
+        signInBtn.disabled = true;
+        signInBtn.textContent = "Signing in\u2026";
+        $("#authError")?.classList.add("hidden");
+        try {
+          const session = await supabase.signInWithGoogle();
+          const user = supabase.userFromSession(session);
+          if (user) {
+            showApp(user, (u) => onUserChanged(u));
+          }
+        } catch (err) {
+          const authErr = $("#authError");
+          if (authErr) {
+            authErr.textContent = `Sign-in failed: ${err}`;
+            authErr.classList.remove("hidden");
+          }
+        } finally {
+          signInBtn.disabled = false;
+          signInBtn.innerHTML = `<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M17.64 9.205c0-.638-.057-1.252-.164-1.841H9v3.481h4.844a4.14 4.14 0 01-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z" fill="#4285F4"/><path d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 009 18z" fill="#34A853"/><path d="M3.964 10.71A5.41 5.41 0 013.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 000 9c0 1.452.348 2.827.957 4.042l3.007-2.332z" fill="#FBBC05"/><path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 00.957 4.958L3.964 6.29C4.672 4.163 6.656 3.58 9 3.58z" fill="#EA4335"/></svg> Sign in with Google`;
+        }
+      });
+    }
+    $("#signOutBtn")?.addEventListener("click", async () => {
+      await supabase.signOut();
+      onUserChanged(null);
+      showAuth();
+    });
+    $("#profileBtn")?.addEventListener("click", () => {
+      chrome.storage.local.get("supabase_session", (data) => {
+        const u = supabase.userFromSession(data.supabase_session);
+        if (u?.email) {
+          const username = u.email.split("@")[0];
+          openExternalUrl(`${SITE_URL}/u/${username}`);
+        }
+      });
+    });
+  }
 
-function showAnnotationDetail(ann) {
-  if (!ann) return;
-  const compSec = $('#composerSection');
-  if (compSec) compSec.classList.add('hidden');
-  const detailCard = $('#annotationDetailCard');
-  if (!detailCard) return;
+  // extension-src/widget/publish.ts
+  async function publishAnnotation(payload, onProgress, onSuccess, onError) {
+    let media_url = null;
+    let media_type = null;
+    if (payload.mediaDataUrl) {
+      try {
+        onProgress("Uploading media\u2026", 40);
+        media_url = await supabase.uploadMedia(payload.mediaDataUrl, payload.mediaFileName || "media");
+        media_type = payload.mediaType;
+        onProgress("Media uploaded", 100);
+        await new Promise((r) => setTimeout(r, 200));
+      } catch (err) {
+        onError(`Media upload failed: ${err instanceof Error ? err.message : String(err)}`);
+        return;
+      }
+    }
+    if (payload.videoClipBlob) {
+      try {
+        const fileName = `video_${Date.now()}.webm`;
+        const uploadRes = await fetch(`${SUPABASE_CONFIG.url}/storage/v1/object/annotation-media/${fileName}`, {
+          method: "POST",
+          headers: {
+            apikey: SUPABASE_CONFIG.anonKey,
+            Authorization: `Bearer ${supabase.token || SUPABASE_CONFIG.anonKey}`,
+            "Content-Type": "video/webm"
+          },
+          body: payload.videoClipBlob
+        });
+        if (uploadRes.ok) {
+          media_url = `${SUPABASE_CONFIG.url}/storage/v1/object/public/annotation-media/${fileName}`;
+          media_type = "video";
+        }
+      } catch (err) {
+        console.error("[VideoUpload] Error:", err);
+      }
+    }
+    let audio_url = null;
+    if (payload.recordedAudioBlob) {
+      try {
+        const fileName = `audio_${Date.now()}.webm`;
+        const uploadRes = await fetch(`${SUPABASE_CONFIG.url}/storage/v1/object/annotation-media/${fileName}`, {
+          method: "POST",
+          headers: {
+            apikey: SUPABASE_CONFIG.anonKey,
+            Authorization: `Bearer ${supabase.token || SUPABASE_CONFIG.anonKey}`,
+            "Content-Type": "audio/webm"
+          },
+          body: payload.recordedAudioBlob
+        });
+        if (uploadRes.ok) {
+          audio_url = `${SUPABASE_CONFIG.url}/storage/v1/object/public/annotation-media/${fileName}`;
+        }
+      } catch (err) {
+        console.error("[AudioUpload] Error:", err);
+      }
+    }
+    const safeQuote = payload.quote && payload.quote.trim() || (payload.videoClipBlob ? `\u{1F3AC} Video Clip (${payload.page.title || "Video"})` : media_url ? `Attachment: ${payload.page.title || "Media"}` : payload.page.title || "Page Annotation");
+    const allowedIntents = ["\u{1F525}", "\u{1F914}", "\u{1F4A1}", "\u{1F4AF}", "\u{1F44E}"];
+    const safeIntent = payload.intent && allowedIntents.includes(payload.intent) ? payload.intent : "\u{1F4A1}";
+    let safeComment = payload.comment.trim() || (payload.videoClipBlob ? "Shared a video clip" : "Annotation");
+    if (payload.videoStartTs != null && payload.videoEndTs != null) {
+      const fmt = (ts) => {
+        const m = Math.floor(ts / 60);
+        const s = Math.floor(ts % 60);
+        return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
+      };
+      safeComment += `
 
-  detailCard.classList.remove('hidden');
+[\u23F1\uFE0F ${fmt(payload.videoStartTs)} - ${fmt(payload.videoEndTs)}]`;
+    }
+    let publishUrl = payload.page.url || location.href;
+    if (payload.currentMediaTimestamp != null) {
+      if (publishUrl.includes("youtube.com") && !publishUrl.includes("&t=") && !publishUrl.includes("?t=")) {
+        publishUrl += (publishUrl.includes("?") ? "&" : "?") + `t=${payload.currentMediaTimestamp}s`;
+      } else if (!publishUrl.includes("#t=") && !publishUrl.includes("youtube.com")) {
+        publishUrl += `#t=${payload.currentMediaTimestamp}`;
+      }
+    }
+    const annotation = {
+      audio_url: audio_url || void 0,
+      media_url: media_url || void 0,
+      media_type: media_type || (media_url ? payload.mediaType : null),
+      quote: safeQuote,
+      comment: safeComment,
+      intent: safeIntent,
+      page_title: payload.page.title || "Page",
+      url: publishUrl,
+      hostname: payload.page.hostname || "youtube.com",
+      user_id: payload.currentUser.id,
+      created_at: (/* @__PURE__ */ new Date()).toISOString()
+    };
+    let savedRow = null;
+    try {
+      const res = await supabase.from("annotations").insert(annotation);
+      if (res.code || res.error || res.message) {
+        onError(`DB Error: ${res.message || res.error || JSON.stringify(res)}`);
+        return;
+      }
+      if (Array.isArray(res) && res[0]) {
+        savedRow = res[0];
+      } else if (res && res.id) {
+        savedRow = res;
+      }
+    } catch (err) {
+      onError(`Error: ${err instanceof Error ? err.message : String(err)}`);
+      return;
+    }
+    const realId = savedRow?.id || crypto.randomUUID();
+    const realSlug = savedRow?.slug || realId;
+    const localAnnotation = { ...annotation, id: realId, slug: realSlug };
+    const key = pageKey(publishUrl);
+    chrome.storage.local.get(key, (data) => {
+      const items = [...data[key] || [], localAnnotation];
+      chrome.storage.local.set({ [key]: items }, () => {
+        onSuccess(localAnnotation);
+      });
+    });
+    try {
+      chrome.runtime.sendMessage({ type: "saveAnnotation", annotation: localAnnotation }).catch(() => {
+      });
+    } catch (_) {
+    }
+    try {
+      window.parent.postMessage({ type: "SAVE_ANNOTATION", annotation: localAnnotation }, "*");
+    } catch (_) {
+    }
+    try {
+      setTimeout(() => {
+        window.parent.postMessage({ type: "RELOAD_ANNOTATIONS" }, "*");
+      }, 400);
+    } catch (_) {
+    }
+  }
 
-  // Wire Compose button directly
-  const detailBack = $('#detailBackBtn');
-  if (detailBack) {
-    detailBack.onmousedown = (e) => e.stopPropagation();
-    detailBack.onclick = (e) => {
+  // extension-src/widget/composer.ts
+  var composerState = {
+    quote: "",
+    intent: null,
+    mediaDataUrl: null,
+    mediaType: null,
+    mediaFileName: null,
+    videoClipBlob: null,
+    videoStartTs: null,
+    videoEndTs: null,
+    recordedAudioBlob: null,
+    currentMediaTimestamp: null
+  };
+  function updatePublishButton() {
+    const commentEl = $("#comment");
+    const c = commentEl ? commentEl.value.trim() : "";
+    const canPublish = c.length > 0 || !!composerState.videoClipBlob || !!composerState.mediaDataUrl || !!composerState.recordedAudioBlob || !!composerState.quote;
+    const pubBtn = $("#publishBtn");
+    if (pubBtn) {
+      pubBtn.disabled = !canPublish;
+    }
+  }
+  function setQuote(value) {
+    composerState.quote = value;
+    const qEl = $("#quote");
+    if (qEl) {
+      qEl.textContent = composerState.quote ? `"${composerState.quote}"` : "Select text on any page to anchor a comment here.";
+    }
+    updatePublishButton();
+  }
+  function setMedia(dataUrl, type, name, onResize) {
+    composerState.mediaDataUrl = dataUrl;
+    composerState.mediaType = type;
+    composerState.mediaFileName = name;
+    const previewImg = $("#previewImg");
+    const previewVideo = $("#previewVideo");
+    const mediaPreviewIcon = $("#mediaPreviewIcon");
+    const previewName = $("#previewName");
+    const mediaPreview = $("#mediaPreview");
+    if (previewImg) previewImg.classList.add("hidden");
+    if (previewVideo) previewVideo.classList.add("hidden");
+    if (type === "video") {
+      if (previewVideo) {
+        previewVideo.src = dataUrl;
+        previewVideo.classList.remove("hidden");
+      }
+      if (mediaPreviewIcon) mediaPreviewIcon.textContent = "\u{1F3AC}";
+    } else {
+      if (previewImg) {
+        previewImg.src = dataUrl;
+        previewImg.classList.remove("hidden");
+      }
+      if (mediaPreviewIcon) mediaPreviewIcon.textContent = "\u{1F4F8}";
+    }
+    if (previewName) {
+      previewName.textContent = name.length > 25 ? `${name.slice(0, 22)}...` : name;
+    }
+    if (mediaPreview) mediaPreview.classList.remove("hidden");
+    onResize(510);
+    updatePublishButton();
+  }
+  function removeMedia(onResize) {
+    composerState.mediaDataUrl = null;
+    composerState.mediaType = null;
+    composerState.mediaFileName = null;
+    const previewImg = $("#previewImg");
+    const previewVideo = $("#previewVideo");
+    const mediaInput = $("#mediaInput");
+    const mediaPreview = $("#mediaPreview");
+    if (previewImg) previewImg.src = "";
+    if (previewVideo) previewVideo.src = "";
+    if (mediaInput) mediaInput.value = "";
+    if (mediaPreview) mediaPreview.classList.add("hidden");
+    onResize(composerState.videoClipBlob ? 630 : 390);
+    updatePublishButton();
+  }
+  function clearVideo(onResize) {
+    composerState.videoClipBlob = null;
+    const videoTrimmerBox = $("#videoTrimmerBox");
+    const videoPreviewEl = $("#videoPreviewEl");
+    const clipVideoBtn = $("#clipVideoBtn");
+    if (videoTrimmerBox) videoTrimmerBox.classList.add("hidden");
+    if (videoPreviewEl) {
+      videoPreviewEl.pause();
+      videoPreviewEl.src = "";
+    }
+    if (clipVideoBtn) {
+      clipVideoBtn.innerText = "\u{1F3A5}";
+      clipVideoBtn.classList.remove("recording");
+    }
+    onResize(390);
+    updatePublishButton();
+  }
+  function showComposer(onResize) {
+    $("#annotationDetailCard")?.classList.add("hidden");
+    $("#composerSection")?.classList.remove("hidden");
+    onResize(composerState.videoClipBlob ? 630 : 390);
+  }
+  function initComposer(getCurrentUser, getPage, onResize, onPublished) {
+    const commentEl = $("#comment");
+    const counterEl = $("#counter");
+    const publishBtn = $("#publishBtn");
+    const statusEl = $("#status");
+    commentEl?.addEventListener("input", (e) => {
+      const val = e.target.value;
+      if (counterEl) counterEl.textContent = String(val.length);
+      updatePublishButton();
+    });
+    const emojiButtons = $$(".emoji-btn, [data-intent]");
+    emojiButtons.forEach((btn) => {
+      btn.addEventListener("click", (e) => {
+        e.preventDefault();
+        const emoji = btn.dataset.emoji || btn.dataset.intent || btn.textContent?.trim();
+        const isAlreadyActive = btn.classList.contains("active");
+        emojiButtons.forEach((b) => {
+          b.classList.remove("active");
+          b.style.background = "";
+          b.style.borderRadius = "";
+        });
+        if (isAlreadyActive) {
+          composerState.intent = null;
+        } else {
+          btn.classList.add("active");
+          btn.style.background = "var(--yellow)";
+          btn.style.borderRadius = "6px";
+          composerState.intent = emoji || null;
+        }
+        updatePublishButton();
+      });
+    });
+    const scBtn = $("#screenshotBtn");
+    if (scBtn) {
+      scBtn.innerHTML = "\u{1F4F8}";
+      scBtn.addEventListener("click", () => {
+        if (window.parent !== window) {
+          window.parent.postMessage({ type: "TAKE_SCREENSHOT" }, "*");
+        } else {
+          chrome.runtime.sendMessage({ type: "CAPTURE_SCREENSHOT" }, (response) => {
+            if (response?.dataUrl) {
+              setMedia(response.dataUrl, "image", `screenshot_${Date.now()}.png`, onResize);
+            }
+          });
+        }
+      });
+    }
+    $("#uploadBtn")?.addEventListener("click", () => $("#mediaInput")?.click());
+    $("#mediaInput")?.addEventListener("change", (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const type = file.type.startsWith("video/") ? "video" : "image";
+        setMedia(ev.target?.result, type, file.name, onResize);
+      };
+      reader.readAsDataURL(file);
+    });
+    $("#removeMedia")?.addEventListener("click", () => removeMedia(onResize));
+    const clipVideoBtn = $("#clipVideoBtn");
+    let isVideoRecording = false;
+    clipVideoBtn?.addEventListener("click", (e) => {
+      e.preventDefault();
+      if (isVideoRecording) {
+        isVideoRecording = false;
+        clipVideoBtn.innerText = "\u23F3";
+        clipVideoBtn.classList.remove("recording");
+        window.parent.postMessage({ type: "STOP_VIDEO" }, "*");
+        chrome.runtime.sendMessage({ type: "stopVideo" }).catch(() => {
+        });
+      } else {
+        isVideoRecording = true;
+        clipVideoBtn.innerText = "\u{1F6D1}";
+        clipVideoBtn.classList.add("recording");
+        window.parent.postMessage({ type: "CAPTURE_VIDEO", duration: 90 }, "*");
+        chrome.runtime.sendMessage({ type: "captureVideo", duration: 90 }).catch(() => {
+        });
+      }
+    });
+    $("#clearVideoBtn")?.addEventListener("click", () => clearVideo(onResize));
+    $("#removeMediaBtn")?.addEventListener("click", () => clearVideo(onResize));
+    const trimStartInput = $("#trimStartInput");
+    const trimEndInput = $("#trimEndInput");
+    const trimDurationLabel = $("#trimDurationLabel");
+    const updateTrim = () => {
+      if (!trimStartInput || !trimEndInput || !trimDurationLabel) return;
+      let start = parseInt(trimStartInput.value, 10) || 0;
+      let end = parseInt(trimEndInput.value, 10) || 15;
+      if (end - start > 90) end = start + 90;
+      if (end <= start) end = start + 1;
+      trimEndInput.value = String(end);
+      trimDurationLabel.innerText = `${end - start}s`;
+    };
+    trimStartInput?.addEventListener("change", updateTrim);
+    trimEndInput?.addEventListener("change", updateTrim);
+    let isDictating = false;
+    let baseComment = "";
+    const dictateBtn = $("#dictateBtn");
+    dictateBtn?.addEventListener("click", (e) => {
+      e.preventDefault();
+      if (isDictating) {
+        isDictating = false;
+        dictateBtn.classList.remove("recording");
+        window.parent.postMessage({ type: "STOP_DICTATION" }, "*");
+      } else {
+        isDictating = true;
+        baseComment = commentEl ? commentEl.value : "";
+        if (baseComment && !baseComment.endsWith(" ") && !baseComment.endsWith("\n")) {
+          baseComment += " ";
+        }
+        dictateBtn.classList.add("recording");
+        window.parent.postMessage({ type: "START_DICTATION" }, "*");
+      }
+    });
+    publishBtn?.addEventListener("click", async () => {
+      const user = getCurrentUser();
+      if (!user) return;
+      publishBtn.disabled = true;
+      publishBtn.textContent = "Publishing\u2026";
+      const payload = {
+        comment: commentEl ? commentEl.value : "",
+        quote: composerState.quote,
+        intent: composerState.intent,
+        mediaDataUrl: composerState.mediaDataUrl,
+        mediaType: composerState.mediaType,
+        mediaFileName: composerState.mediaFileName,
+        videoClipBlob: composerState.videoClipBlob,
+        videoStartTs: composerState.videoStartTs,
+        videoEndTs: composerState.videoEndTs,
+        recordedAudioBlob: composerState.recordedAudioBlob,
+        currentMediaTimestamp: composerState.currentMediaTimestamp,
+        page: getPage(),
+        currentUser: user
+      };
+      await publishAnnotation(
+        payload,
+        (msg, _pct) => {
+          if (statusEl) statusEl.textContent = msg;
+        },
+        () => {
+          if (commentEl) commentEl.value = "";
+          if (counterEl) counterEl.textContent = "0";
+          setQuote("");
+          removeMedia(onResize);
+          clearVideo(onResize);
+          emojiButtons.forEach((b) => {
+            b.classList.remove("active");
+            b.style.background = "";
+          });
+          composerState.intent = null;
+          publishBtn.textContent = "Publish";
+          updatePublishButton();
+          if (statusEl) {
+            statusEl.textContent = "Published!";
+            setTimeout(() => {
+              if (statusEl.textContent === "Published!") statusEl.textContent = "";
+            }, 4e3);
+          }
+          onPublished();
+        },
+        (err) => {
+          publishBtn.disabled = false;
+          publishBtn.textContent = "Publish";
+          if (statusEl) {
+            statusEl.textContent = err;
+            setTimeout(() => {
+              if (statusEl.textContent === err) statusEl.textContent = "";
+            }, 5e3);
+          }
+        }
+      );
+    });
+  }
+
+  // extension-src/widget/feed.ts
+  function renderFeed(items, page2, currentUser2, onAnnotationDeleted) {
+    const currentVId = extractYouTubeVideoId(page2.url);
+    const filteredItems = Array.isArray(items) ? items.filter((a) => {
+      if (!a) return false;
+      if (currentVId) return String(a.url || "").includes(currentVId);
+      return true;
+    }) : [];
+    const countEl = $("#annotationCount");
+    if (countEl) {
+      countEl.textContent = `${filteredItems.length} annotation${filteredItems.length === 1 ? "" : "s"}`;
+    }
+    const feedEl = $("#feed");
+    if (!feedEl) return;
+    if (!filteredItems.length) {
+      feedEl.innerHTML = '<div class="empty">Your annotations on this page will appear here.</div>';
+      return;
+    }
+    feedEl.innerHTML = filteredItems.slice().reverse().map((a) => {
+      const username = a.username || (a.author_profile?.email ? a.author_profile.email.split("@")[0] : currentUser2?.email ? currentUser2.email.split("@")[0] : "user");
+      const targetSlug = String(a.slug || a.id || "");
+      const webUrl = targetSlug ? `${SITE_URL}/${encodeURIComponent(username)}/${encodeURIComponent(targetSlug)}` : SITE_URL;
+      const ts = extractTimestamp(a.url, a.comment || a.commentary);
+      const tsStr = ts != null ? formatSeconds(ts) : "";
+      return `
+      <article class="annotation" data-id="${escapeHtml(a.id || "")}">
+        <div class="aheader" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+          <span style="font-weight:700; font-size:12px; color:#ffd21a;">${escapeHtml(a.intent || "\u{1F4A1}")} ${tsStr ? `\u23F1\uFE0F ${tsStr}` : ""}</span>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <a class="web-link" href="${escapeHtml(
+        webUrl
+      )}" target="_blank" rel="noopener" style="color:#8899a6; text-decoration:none; font-size:12px; font-weight:600;" data-tooltip="Open on Annotated Website">\u2197 View Web</a>
+            ${currentUser2 && (a.user_id === currentUser2.id || !a.user_id) ? '<button class="feed-delete-btn" style="background:none; border:none; color:#8899a6; cursor:pointer; font-size:12px; padding:0 2px;" data-tooltip="Delete annotation">\u{1F5D1}\uFE0F</button>' : ""}
+          </div>
+        </div>
+        <div class="aquote" style="cursor:pointer;" data-tooltip="Click to seek video">"${escapeHtml(
+        a.quote || a.quote_text || ""
+      )}"</div>
+        ${a.media_url ? `
+          <div class="feed-media-wrap">
+            ${a.media_type === "video" || a.media_url.includes(".webm") || a.media_url.includes(".mp4") ? `<video class="feed-media" src="${escapeHtml(a.media_url)}" controls playsinline></video>` : `<img class="feed-media" src="${escapeHtml(a.media_url)}" alt="Annotation media" loading="lazy">`}
+          </div>` : ""}
+        <div class="acomment">${escapeHtml(a.comment || a.commentary || "")}</div>
+        <div class="meta" style="margin-top:6px; display:flex; justify-content:space-between; font-size:11px; color:#8899a6;">
+          <span>@${escapeHtml(username)} \xB7 ${new Date(a.created_at || Date.now()).toLocaleDateString()}</span>
+        </div>
+      </article>`;
+    }).join("");
+    feedEl.querySelectorAll(".annotation").forEach((el) => {
+      const annId = el.dataset.id;
+      const ann = filteredItems.find((a) => String(a.id) === String(annId));
+      if (!ann) return;
+      el.querySelector(".web-link")?.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const username = ann.username || (ann.author_profile?.email ? ann.author_profile.email.split("@")[0] : currentUser2?.email ? currentUser2.email.split("@")[0] : "user");
+        const targetSlug = String(ann.slug || ann.id || "");
+        const webUrl = targetSlug ? `${SITE_URL}/${encodeURIComponent(username)}/${encodeURIComponent(targetSlug)}` : SITE_URL;
+        openExternalUrl(webUrl);
+      });
+      el.querySelector(".feed-delete-btn")?.addEventListener("click", async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (!confirm("Are you sure you want to delete this annotation?")) return;
+        try {
+          await supabase.from("annotations").delete().eq("id", ann.id || "").execute();
+        } catch (err) {
+          console.warn("[Annotated Delete] Error:", err);
+        }
+        try {
+          const key = pageKey(page2.url);
+          chrome.storage.local.get(key, (data) => {
+            const stored = (data[key] || []).filter((a) => String(a.id) !== String(ann.id));
+            chrome.storage.local.set({ [key]: stored }, () => {
+            });
+          });
+        } catch (_) {
+        }
+        try {
+          window.parent.postMessage({ type: "RELOAD_ANNOTATIONS" }, "*");
+        } catch (_) {
+        }
+        onAnnotationDeleted();
+      });
+      el.querySelector(".aquote")?.addEventListener("click", () => {
+        const ts = extractTimestamp(ann.url, ann.comment || ann.commentary);
+        if (ts != null) {
+          window.parent.postMessage({ type: "SEEK_MEDIA", seconds: ts }, "*");
+        }
+      });
+    });
+  }
+  async function loadFeedFromSupabase(page2, currentUser2, onDeleted) {
+    if (!currentUser2) {
+      renderFeed([], page2, currentUser2, onDeleted);
+      return;
+    }
+    let cleanUrl = page2.url || location.href;
+    const currentVId = extractYouTubeVideoId(cleanUrl);
+    try {
+      let items = null;
+      if (currentVId) {
+        items = await supabase.from("annotations").select("*").ilike("url", `%${currentVId}%`).execute();
+      } else if (cleanUrl) {
+        items = await supabase.from("annotations").select("*").ilike("url", `%${cleanUrl}%`).execute();
+      }
+      if (Array.isArray(items)) {
+        renderFeed(items, page2, currentUser2, onDeleted);
+        return;
+      }
+    } catch (err) {
+      console.warn("[Annotated Widget] loadFeedFromSupabase error:", err);
+    }
+    const key = pageKey(cleanUrl);
+    chrome.storage.local.get(key, (data) => {
+      const localItems = data[key] || [];
+      renderFeed(localItems, page2, currentUser2, onDeleted);
+    });
+  }
+
+  // extension-src/widget/factcheck.ts
+  function wireFactCheck(ann, pageTitle, pageUrl) {
+    const factBox = $("#detailFactCheckBox");
+    if (factBox) factBox.style.display = "none";
+    const factBtn = $("#detailFactCheckBtn");
+    if (!factBtn) return;
+    factBtn.onclick = async (e) => {
+      e.stopPropagation();
+      const fb = $("#detailFactCheckBox");
+      const ft = $("#detailFactCheckText");
+      const fbadge = $("#detailFactCheckBadge");
+      const fnote = $("#detailFactCheckCommunityNote");
+      const ftweet = $("#detailFactCheckTweetBtn");
+      if (!fb) return;
+      if (fb.style.display === "block") {
+        fb.style.display = "none";
+        return;
+      }
+      fb.style.display = "block";
+      if (fbadge) {
+        fbadge.textContent = "ANALYZING";
+        fbadge.style.color = "var(--muted)";
+      }
+      if (ft) ft.textContent = "Analyzing claim and context with Google Gemini...";
+      if (fnote) fnote.style.display = "none";
+      if (ftweet) ftweet.style.display = "none";
+      try {
+        const res = await fetch(FACTCHECK_API_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            quote: ann.quote || ann.quote_text,
+            commentary: ann.comment || ann.commentary,
+            sourceUrl: ann.url || pageUrl,
+            sourceTitle: ann.title || pageTitle,
+            timestamp: ann.media_timestamp,
+            mediaUrl: ann.media_url
+          })
+        });
+        const data = await res.json();
+        if (fbadge) {
+          fbadge.textContent = (data.verdict || "ANALYZED").replace("_", " ");
+          fbadge.style.color = data.verdict === "VERIFIED" ? "#22c55e" : data.verdict === "MISLEADING" || data.verdict === "FALSE" ? "#ef4444" : "#eab308";
+        }
+        if (ft) {
+          ft.innerHTML = `<strong>${escapeHtml(data.headline || "")}</strong><br><span style="font-size:10px; color:var(--muted);">${escapeHtml(data.explanation || "")}</span>`;
+        }
+        if (data.communityNote && fnote) {
+          fnote.textContent = data.communityNote;
+          fnote.style.display = "block";
+        }
+        if (data.tweetIntentUrl && ftweet) {
+          ftweet.href = data.tweetIntentUrl;
+          ftweet.style.display = "inline-block";
+        }
+      } catch (err) {
+        if (ft) {
+          ft.textContent = `Fact-check error: ${err instanceof Error ? err.message : String(err)}`;
+        }
+      }
+    };
+    const closeBtn = $("#detailFactCheckCloseBtn");
+    if (closeBtn) {
+      closeBtn.onclick = (e) => {
+        e.stopPropagation();
+        const fb = $("#detailFactCheckBox");
+        if (fb) fb.style.display = "none";
+      };
+    }
+  }
+
+  // extension-src/widget/comments.ts
+  var currentDetailAnnotationId = null;
+  var isCommentDictating = false;
+  var baseCommentReply = "";
+  async function loadWidgetComments(annotationId, currentUser2) {
+    currentDetailAnnotationId = annotationId;
+    const listEl = $("#widgetCommentList");
+    const countEl = $("#widgetCommentCount");
+    if (!listEl) return;
+    let activeUser = currentUser2;
+    if (!activeUser) {
+      try {
+        const session = await supabase.restoreSession();
+        activeUser = supabase.userFromSession(session);
+      } catch (_) {
+      }
+    }
+    if (countEl) countEl.textContent = "\u2026";
+    try {
+      const res = await fetch(
+        `${SUPABASE_CONFIG.url}/rest/v1/comments?annotation_id=eq.${encodeURIComponent(
+          annotationId
+        )}&order=created_at.asc`,
+        {
+          headers: {
+            apikey: SUPABASE_CONFIG.anonKey,
+            Authorization: `Bearer ${SUPABASE_CONFIG.anonKey}`
+          }
+        }
+      );
+      const comments = await res.json();
+      if (!Array.isArray(comments)) return;
+      if (countEl) countEl.textContent = String(comments.length);
+      if (comments.length === 0) {
+        listEl.innerHTML = '<div style="font-size: 11px; color: var(--muted); text-align: center; padding: 12px 0;">No comments yet. Start the conversation!</div>';
+        return;
+      }
+      const userIds = Array.from(new Set(comments.map((c) => c.user_id).filter(Boolean)));
+      const profiles = {};
+      if (userIds.length > 0) {
+        try {
+          const profRes = await fetch(
+            `${SUPABASE_CONFIG.url}/rest/v1/profiles?id=in.(${userIds.join(",")})`,
+            {
+              headers: {
+                apikey: SUPABASE_CONFIG.anonKey,
+                Authorization: `Bearer ${SUPABASE_CONFIG.anonKey}`
+              }
+            }
+          );
+          const profList = await profRes.json();
+          if (Array.isArray(profList)) {
+            profList.forEach((p) => {
+              if (p.id) profiles[p.id] = p;
+            });
+          }
+        } catch (_) {
+        }
+      }
+      const commentIds = comments.map((c) => c.id).filter(Boolean);
+      const reactionsMap = {};
+      commentIds.forEach((id) => {
+        reactionsMap[id] = { counts: {}, userReacted: /* @__PURE__ */ new Set() };
+      });
+      if (commentIds.length > 0) {
+        try {
+          const reactRes = await fetch(
+            `${SUPABASE_CONFIG.url}/rest/v1/comment_reactions?comment_id=in.(${commentIds.join(
+              ","
+            )})&select=comment_id,emoji,user_id`,
+            {
+              headers: {
+                apikey: SUPABASE_CONFIG.anonKey
+              }
+            }
+          );
+          const reactRows = await reactRes.json();
+          if (Array.isArray(reactRows)) {
+            reactRows.forEach((r) => {
+              if (reactionsMap[r.comment_id]) {
+                reactionsMap[r.comment_id].counts[r.emoji] = (reactionsMap[r.comment_id].counts[r.emoji] || 0) + 1;
+                if (activeUser && r.user_id === activeUser.id) {
+                  reactionsMap[r.comment_id].userReacted.add(r.emoji);
+                }
+              }
+            });
+          }
+        } catch (_) {
+        }
+      }
+      const COMMENT_EMOJIS = ["\u{1F525}", "\u{1F914}", "\u{1F4A1}", "\u{1F4AF}", "\u{1F44E}"];
+      listEl.innerHTML = comments.map((c) => {
+        const isMe = activeUser && c.user_id === activeUser.id;
+        const prof = profiles[c.user_id];
+        const name = isMe ? "You" : prof?.full_name || prof?.email?.split("@")[0] || "User";
+        const handle = prof?.email ? `@${prof.email.split("@")[0]}` : "";
+        const avatar = isMe ? activeUser?.avatar : prof?.avatar_url;
+        const timeAgo = c.created_at ? new Date(c.created_at).toLocaleDateString() : "";
+        const profileSlug = prof?.email ? prof.email.split("@")[0] : "";
+        const profileUrl = profileSlug ? `${SITE_URL}/u/${profileSlug}` : "";
+        const avatarMarkup = avatar ? `<div class="avatar avatar-clickable" data-profile="${escapeHtml(
+          profileUrl
+        )}" style="width: 20px; height: 20px; border-radius: 50%; background-image: url('${escapeHtml(
+          avatar
+        )}'); background-size: cover; background-position: center; flex-shrink: 0; cursor: pointer;"></div>` : `<div class="avatar avatar-clickable" data-profile="${escapeHtml(
+          profileUrl
+        )}" style="width: 20px; height: 20px; font-size: 9px; flex-shrink: 0; cursor: pointer;">${escapeHtml(
+          initials(name)
+        )}</div>`;
+        const isCommentAuthor = Boolean(activeUser && c.user_id === activeUser.id);
+        const commentReactions = reactionsMap[c.id] || { counts: {}, userReacted: /* @__PURE__ */ new Set() };
+        const emojiBarHtml = `
+          <div class="comment-reactions-bar" style="display: flex; align-items: center; gap: 4px; margin-top: 6px; flex-wrap: wrap;">
+            ${COMMENT_EMOJIS.map((emoji) => {
+          const count = commentReactions.counts[emoji] || 0;
+          const isReacted = commentReactions.userReacted.has(emoji);
+          const activeStyle = isReacted ? "background: var(--yellow); border-color: var(--yellow); color: #000; font-weight: 700;" : "background: none; border: 1px solid var(--line); color: var(--ink); font-weight: normal;";
+          return `
+                <button type="button" class="comment-react-btn" data-comment-id="${escapeHtml(
+            c.id
+          )}" data-emoji="${emoji}" style="display: inline-flex; align-items: center; gap: 3px; padding: 1px 6px; border-radius: 12px; font-size: 10px; cursor: pointer; transition: all 0.15s ease; ${activeStyle}">
+                  <span>${emoji}</span>
+                  <span class="comment-react-count" style="font-size: 9px; opacity: ${count > 0 ? "1" : "0.6"};">${count}</span>
+                </button>
+              `;
+        }).join("")}
+          </div>
+        `;
+        return `
+        <div class="widget-comment-card" data-comment-id="${escapeHtml(c.id)}" style="display: flex; gap: 8px; align-items: flex-start; padding: 6px 8px; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; font-size: 11px; position: relative;">
+          ${avatarMarkup}
+          <div style="flex: 1; min-width: 0;">
+            <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 2px;">
+              <strong class="avatar-clickable" data-profile="${escapeHtml(
+          profileUrl
+        )}" style="color: var(--ink); font-size: 11px; cursor: pointer;">${escapeHtml(
+          name
+        )} <span style="font-weight: normal; color: var(--muted); font-size: 10px;">${escapeHtml(
+          handle
+        )}</span></strong>
+              <div style="display: flex; align-items: center; gap: 6px;">
+                <span style="font-size: 9px; color: var(--muted);">${escapeHtml(timeAgo)}</span>
+                ${isCommentAuthor ? `<button class="comment-delete-btn" data-comment-id="${escapeHtml(
+          c.id
+        )}" style="background: none; border: none; color: var(--muted); cursor: pointer; font-size: 11px; padding: 0 2px; line-height: 1; transition: color 0.15s ease;" title="Delete comment">&#128465;&#65039;</button>` : ""}
+              </div>
+            </div>
+            <div style="color: var(--ink); line-height: 1.4; word-break: break-word; white-space: pre-wrap;">${escapeHtml(
+          c.text || c.content || ""
+        )}</div>
+            ${emojiBarHtml}
+          </div>
+        </div>
+      `;
+      }).join("");
+      listEl.querySelectorAll(".avatar-clickable").forEach((el) => {
+        el.addEventListener("click", (e) => {
+          e.stopPropagation();
+          const url = el.getAttribute("data-profile");
+          if (url) openExternalUrl(url);
+        });
+      });
+      listEl.querySelectorAll(".comment-react-btn").forEach((btnEl) => {
+        btnEl.addEventListener("click", async (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          let reactUser = activeUser;
+          if (!reactUser) {
+            try {
+              const session = await supabase.restoreSession();
+              reactUser = supabase.userFromSession(session);
+              if (reactUser) activeUser = reactUser;
+            } catch (_) {
+            }
+          }
+          if (!reactUser) {
+            alert("Please sign in to react to comments!");
+            return;
+          }
+          const commentId = btnEl.getAttribute("data-comment-id");
+          const emoji = btnEl.getAttribute("data-emoji");
+          if (!commentId || !emoji) return;
+          const countEl2 = btnEl.querySelector(".comment-react-count");
+          const curCount = parseInt(countEl2?.textContent || "0", 10);
+          const isCurrentlyActive = btnEl.style.background.includes("var(--yellow)");
+          if (isCurrentlyActive) {
+            btnEl.style.background = "none";
+            btnEl.style.borderColor = "var(--line)";
+            btnEl.style.color = "var(--ink)";
+            btnEl.style.fontWeight = "normal";
+            const nextCount = Math.max(0, curCount - 1);
+            if (countEl2) {
+              countEl2.textContent = String(nextCount);
+              countEl2.style.opacity = nextCount > 0 ? "1" : "0.6";
+            }
+            try {
+              const headers = await supabase.getAuthHeaders();
+              await fetch(
+                `${SUPABASE_CONFIG.url}/rest/v1/comment_reactions?comment_id=eq.${encodeURIComponent(
+                  commentId
+                )}&user_id=eq.${encodeURIComponent(reactUser.id)}&emoji=eq.${encodeURIComponent(emoji)}`,
+                {
+                  method: "DELETE",
+                  headers
+                }
+              );
+            } catch (_) {
+            }
+          } else {
+            btnEl.style.background = "var(--yellow)";
+            btnEl.style.borderColor = "var(--yellow)";
+            btnEl.style.color = "#000";
+            btnEl.style.fontWeight = "700";
+            const nextCount = curCount + 1;
+            if (countEl2) {
+              countEl2.textContent = String(nextCount);
+              countEl2.style.opacity = "1";
+            }
+            try {
+              const headers = await supabase.getAuthHeaders({ Prefer: "resolution=merge-duplicates" });
+              await fetch(`${SUPABASE_CONFIG.url}/rest/v1/comment_reactions`, {
+                method: "POST",
+                headers,
+                body: JSON.stringify({
+                  comment_id: commentId,
+                  user_id: reactUser.id,
+                  emoji
+                })
+              });
+            } catch (_) {
+            }
+          }
+        });
+      });
+      listEl.querySelectorAll(".comment-delete-btn").forEach((btnEl) => {
+        btnEl.addEventListener("click", async (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          const commentId = btnEl.getAttribute("data-comment-id");
+          if (!commentId) return;
+          if (!confirm("Are you sure you want to delete this comment?")) return;
+          btnEl.disabled = true;
+          try {
+            const headers = await supabase.getAuthHeaders();
+            const delRes = await fetch(
+              `${SUPABASE_CONFIG.url}/rest/v1/comments?id=eq.${encodeURIComponent(commentId)}`,
+              {
+                method: "DELETE",
+                headers
+              }
+            );
+            if (delRes.ok) {
+              loadWidgetComments(annotationId, activeUser);
+            } else {
+              alert("Failed to delete comment.");
+              btnEl.disabled = false;
+            }
+          } catch (err) {
+            console.warn("[Annotated Delete Comment] Error:", err);
+            btnEl.disabled = false;
+          }
+        });
+      });
+    } catch (err) {
+      console.warn("[Annotated] loadWidgetComments error:", err);
+    }
+  }
+  function initCommentForm(getCurrentUser, onResize) {
+    const form = $("#widgetCommentForm");
+    const input = $("#widgetCommentInput");
+    const statusEl = $("#widgetCommentStatus");
+    const submitBtn = $("#widgetCommentSubmitBtn");
+    const micBtn = $("#widgetCommentMicBtn");
+    if (form) {
+      form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        let currentUser2 = getCurrentUser();
+        if (!currentUser2) {
+          try {
+            const session = await supabase.restoreSession();
+            currentUser2 = supabase.userFromSession(session);
+          } catch (_) {
+          }
+        }
+        if (!currentUser2 || !currentDetailAnnotationId || !input) return;
+        const content = input.value.trim();
+        if (!content) return;
+        if (submitBtn) submitBtn.disabled = true;
+        if (statusEl) {
+          statusEl.textContent = "Posting\u2026";
+          statusEl.style.color = "var(--muted)";
+        }
+        try {
+          const headers = await supabase.getAuthHeaders({ Prefer: "return=representation" });
+          const res = await fetch(`${SUPABASE_CONFIG.url}/rest/v1/comments`, {
+            method: "POST",
+            headers,
+            body: JSON.stringify({
+              annotation_id: currentDetailAnnotationId,
+              user_id: currentUser2.id,
+              text: content,
+              created_at: (/* @__PURE__ */ new Date()).toISOString()
+            })
+          });
+          if (res.ok) {
+            input.value = "";
+            if (statusEl) statusEl.textContent = "";
+            loadWidgetComments(currentDetailAnnotationId, currentUser2);
+          } else {
+            const err = await res.json().catch(() => ({}));
+            if (statusEl) {
+              statusEl.textContent = `Error: ${err.message || "Failed to post"}`;
+              statusEl.style.color = "#ef4444";
+            }
+          }
+        } catch (err) {
+          if (statusEl) {
+            statusEl.textContent = `Error: ${err instanceof Error ? err.message : String(err)}`;
+            statusEl.style.color = "#ef4444";
+          }
+        } finally {
+          if (submitBtn) submitBtn.disabled = false;
+        }
+      });
+    }
+    if (micBtn) {
+      micBtn.addEventListener("click", () => {
+        if (isCommentDictating) {
+          isCommentDictating = false;
+          micBtn.classList.remove("recording");
+          window.parent.postMessage({ type: "STOP_DICTATION" }, "*");
+        } else {
+          isCommentDictating = true;
+          baseCommentReply = input?.value || "";
+          micBtn.classList.add("recording");
+          window.parent.postMessage({ type: "START_DICTATION" }, "*");
+        }
+      });
+    }
+  }
+
+  // extension-src/widget/detail.ts
+  async function showAnnotationDetail(ann, currentUser2, onBackToComposer, onResize, onDeleted) {
+    if (!ann) return;
+    let activeUser = currentUser2;
+    if (!activeUser) {
+      try {
+        const session = await supabase.restoreSession();
+        activeUser = supabase.userFromSession(session);
+      } catch (_) {
+      }
+    }
+    $("#composerSection")?.classList.add("hidden");
+    const detailCard = $("#annotationDetailCard");
+    if (!detailCard) return;
+    detailCard.classList.remove("hidden");
+    const detailBack = $("#detailBackBtn");
+    if (detailBack) {
+      detailBack.onclick = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        onBackToComposer();
+      };
+    }
+    const isAuthor = Boolean(activeUser && (ann.user_id === activeUser.id || !ann.user_id));
+    const deleteBtn = $("#detailDeleteBtn");
+    if (deleteBtn) {
+      if (isAuthor) {
+        deleteBtn.classList.remove("hidden");
+        deleteBtn.onclick = async (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          if (!confirm("Are you sure you want to delete this annotation?")) return;
+          deleteBtn.disabled = true;
+          try {
+            if (ann.id) {
+              await supabase.from("annotations").delete().eq("id", ann.id).execute();
+            }
+          } catch (err) {
+            console.warn("[Annotated Delete] Error:", err);
+          }
+          try {
+            const key = pageKey(ann.url || location.href);
+            chrome.storage.local.get(key, (data) => {
+              const stored = (data[key] || []).filter(
+                (a) => String(a.id) !== String(ann.id)
+              );
+              chrome.storage.local.set({ [key]: stored }, () => {
+              });
+            });
+          } catch (_) {
+          }
+          try {
+            window.parent.postMessage({ type: "RELOAD_ANNOTATIONS" }, "*");
+          } catch (_) {
+          }
+          if (onDeleted) {
+            onDeleted();
+          }
+          onBackToComposer();
+        };
+      } else {
+        deleteBtn.classList.add("hidden");
+        deleteBtn.onclick = null;
+      }
+    }
+    const qEl = $("#detailQuote");
+    if (qEl) qEl.textContent = ann.quote || ann.quote_text || "Annotation";
+    const intentEl = $("#detailIntentBadge");
+    if (intentEl) intentEl.textContent = ann.intent || "\u{1F4A1}";
+    const slug = ann.slug || ann.id;
+    const targetUser = ann.username || (ann.author_profile?.email ? ann.author_profile.email.split("@")[0] : currentUser2?.email ? currentUser2.email.split("@")[0] : "user");
+    const detailUrl = slug ? `${SITE_URL}/${encodeURIComponent(targetUser)}/${encodeURIComponent(slug)}` : SITE_URL;
+    const openWebBtn = $("#detailOpenWebBtn");
+    if (openWebBtn) {
+      openWebBtn.href = detailUrl;
+      openWebBtn.onclick = (e) => {
+        e.stopPropagation();
+        openExternalUrl(detailUrl);
+      };
+    }
+    const isVideoPage = ann.url && (ann.url.includes("youtube.com") || ann.url.includes("vimeo.com"));
+    const hasVideoAttachment = !!(ann.media_url && (ann.media_type === "video" || ann.media_url.includes(".webm") || ann.media_url.includes(".mp4")));
+    const explicitCommentTs = ann.comment ? String(ann.comment).match(/\[(?:⏱️\s*)?(\d+):(\d+)(?::(\d+))?\]/) : null;
+    const showTs = isVideoPage || hasVideoAttachment || !!explicitCommentTs;
+    const ts = showTs ? ann.extractedTimestamp != null ? ann.extractedTimestamp : extractTimestamp(ann.url, ann.comment || ann.commentary) : null;
+    const tsBadge = $("#detailTimestampBadge");
+    const tsText = $("#detailTimestampText");
+    if (tsBadge && tsText && ts != null && ts > 0) {
+      tsText.textContent = formatSeconds(ts);
+      tsBadge.classList.remove("hidden");
+      tsBadge.onclick = (e) => {
+        e.stopPropagation();
+        window.parent.postMessage({ type: "SEEK_MEDIA", seconds: ts }, "*");
+      };
+    } else if (tsBadge) {
+      tsBadge.classList.add("hidden");
+    }
+    const commentEl = $("#detailComment");
+    if (commentEl) commentEl.textContent = ann.comment || ann.commentary || "(No comment)";
+    const authorEl = $("#detailAuthorName");
+    const avatarEl = $("#detailAvatar");
+    const dateEl = $("#detailDate");
+    if (dateEl) {
+      dateEl.textContent = "\xB7 " + (ann.created_at ? new Date(ann.created_at).toLocaleDateString() : "Recent");
+    }
+    const applyProfile = (name, handle, avatarUrl) => {
+      if (authorEl) {
+        authorEl.innerHTML = `${escapeHtml(name)}${handle ? ` <span class="muted" style="font-weight: normal; font-size: 10px;">${escapeHtml(handle)}</span>` : ""}`;
+      }
+      if (avatarEl) {
+        if (avatarUrl) {
+          avatarEl.style.backgroundImage = `url(${avatarUrl})`;
+          avatarEl.style.backgroundSize = "cover";
+          avatarEl.style.backgroundPosition = "center";
+          avatarEl.textContent = "";
+        } else {
+          avatarEl.style.backgroundImage = "none";
+          avatarEl.textContent = initials(name);
+        }
+      }
+    };
+    if (currentUser2 && (ann.user_id === currentUser2.id || !ann.user_id)) {
+      const name = currentUser2.name || (currentUser2.email ? currentUser2.email.split("@")[0] : "You");
+      const handle = currentUser2.email ? `@${currentUser2.email.split("@")[0]}` : "";
+      applyProfile(name, handle, currentUser2.avatar);
+    } else if (ann.author_profile) {
+      const prof = ann.author_profile;
+      const name = prof.full_name || (prof.email ? prof.email.split("@")[0] : "Annotator");
+      const handle = prof.email ? `@${prof.email.split("@")[0]}` : "";
+      applyProfile(name, handle, prof.avatar_url);
+    } else {
+      applyProfile(ann.user_name || "Community Member");
+    }
+    const mediaBox = $("#detailMediaBox");
+    if (mediaBox) {
+      mediaBox.innerHTML = "";
+      if (ann.media_url && (ann.media_type === "video" || ann.media_url.includes(".webm") || ann.media_url.includes(".mp4"))) {
+        mediaBox.innerHTML = `<video src="${escapeHtml(ann.media_url)}" controls playsinline style="width:100%; max-height:160px; display:block;"></video>`;
+        mediaBox.classList.remove("hidden");
+      } else if (ann.media_url) {
+        mediaBox.innerHTML = `<img src="${escapeHtml(ann.media_url)}" style="width:100%; max-height:160px; object-fit:contain; display:block;">`;
+        mediaBox.classList.remove("hidden");
+      } else if (ann.audio_url) {
+        mediaBox.innerHTML = `<audio src="${escapeHtml(ann.audio_url)}" controls style="width:100%; display:block;"></audio>`;
+        mediaBox.classList.remove("hidden");
+      } else {
+        mediaBox.classList.add("hidden");
+      }
+    }
+    const twitterShareBtn = $("#detailTwitterShareBtn");
+    if (twitterShareBtn) {
+      const tweetText = `Interesting annotation on "${ann.title || "Page"}":
+"${(ann.comment || ann.quote || "").slice(0, 90)}..."
+`;
+      const shareUrl = `${SITE_URL}/annotations/${ann.id}`;
+      twitterShareBtn.href = `https://twitter.com/intent/tweet?text=${encodeURIComponent(tweetText)}&url=${encodeURIComponent(shareUrl)}`;
+    }
+    wireDetailReactions(ann.id || ann.slug || "", activeUser);
+    wireFactCheck(ann, ann.title || "Page", ann.url || location.href);
+    if (ann.id || ann.slug) loadWidgetComments(ann.id || ann.slug || "", activeUser);
+    const hasMedia = !!(ann.media_url || ann.audio_url);
+    onResize(hasMedia ? 740 : 660);
+  }
+  async function wireDetailReactions(annotationId, currentUser2) {
+    if (!annotationId) return;
+    let activeUser = currentUser2;
+    if (!activeUser) {
+      try {
+        const session = await supabase.restoreSession();
+        activeUser = supabase.userFromSession(session);
+      } catch (_) {
+      }
+    }
+    const loadReactions = async () => {
+      try {
+        const res = await fetch(
+          `${SUPABASE_CONFIG.url}/rest/v1/annotation_reactions?annotation_id=eq.${encodeURIComponent(
+            annotationId
+          )}&select=emoji,user_id`,
+          { headers: { apikey: SUPABASE_CONFIG.anonKey } }
+        );
+        const rows = await res.json();
+        if (!Array.isArray(rows)) return;
+        const counts = {};
+        const myReacts = /* @__PURE__ */ new Set();
+        rows.forEach((r) => {
+          counts[r.emoji] = (counts[r.emoji] || 0) + 1;
+          if (activeUser && r.user_id === activeUser.id) myReacts.add(r.emoji);
+        });
+        document.querySelectorAll(".detail-react-btn").forEach((btnEl) => {
+          const btn = btnEl;
+          const emoji = btn.dataset.react;
+          if (!emoji) return;
+          const countEl = btn.querySelector(".react-count");
+          if (countEl) countEl.textContent = String(counts[emoji] || 0);
+          if (myReacts.has(emoji)) {
+            btn.classList.add("react-active");
+            btn.style.background = "var(--yellow)";
+            btn.style.borderColor = "var(--yellow)";
+            btn.style.color = "#000";
+            btn.style.fontWeight = "700";
+          } else {
+            btn.classList.remove("react-active");
+            btn.style.background = "none";
+            btn.style.borderColor = "var(--line)";
+            btn.style.color = "var(--ink)";
+            btn.style.fontWeight = "normal";
+          }
+        });
+      } catch (_) {
+      }
+    };
+    document.querySelectorAll(".detail-react-btn").forEach((btnEl) => {
+      const btn = btnEl;
+      btn.onclick = async (e) => {
+        e.stopPropagation();
+        let reactUser = activeUser;
+        if (!reactUser) {
+          try {
+            const session = await supabase.restoreSession();
+            reactUser = supabase.userFromSession(session);
+            if (reactUser) activeUser = reactUser;
+          } catch (_) {
+          }
+        }
+        if (!reactUser) {
+          alert("Please sign in to react!");
+          return;
+        }
+        const emoji = btn.dataset.react;
+        if (!emoji) return;
+        const countEl = btn.querySelector(".react-count");
+        const curCount = parseInt(countEl?.textContent || "0", 10);
+        const isActive = btn.classList.contains("react-active");
+        if (isActive) {
+          btn.classList.remove("react-active");
+          btn.style.background = "none";
+          btn.style.borderColor = "var(--line)";
+          btn.style.color = "var(--ink)";
+          btn.style.fontWeight = "normal";
+          const next = Math.max(0, curCount - 1);
+          if (countEl) countEl.textContent = String(next);
+        } else {
+          btn.classList.add("react-active");
+          btn.style.background = "var(--yellow)";
+          btn.style.borderColor = "var(--yellow)";
+          btn.style.color = "#000";
+          btn.style.fontWeight = "700";
+          const next = curCount + 1;
+          if (countEl) countEl.textContent = String(next);
+        }
+        try {
+          const headers = await supabase.getAuthHeaders();
+          if (isActive) {
+            await fetch(
+              `${SUPABASE_CONFIG.url}/rest/v1/annotation_reactions?annotation_id=eq.${encodeURIComponent(
+                annotationId
+              )}&user_id=eq.${encodeURIComponent(reactUser.id)}&emoji=eq.${encodeURIComponent(emoji)}`,
+              {
+                method: "DELETE",
+                headers
+              }
+            );
+          } else {
+            await fetch(`${SUPABASE_CONFIG.url}/rest/v1/annotation_reactions`, {
+              method: "POST",
+              headers: {
+                ...headers,
+                Prefer: "resolution=merge-duplicates"
+              },
+              body: JSON.stringify({ annotation_id: annotationId, user_id: reactUser.id, emoji })
+            });
+          }
+        } catch (err) {
+          console.warn("[Annotated Reaction Error]", err);
+        }
+        loadReactions();
+      };
+    });
+    loadReactions();
+  }
+
+  // extension-src/widget/notifications.ts
+  var notifPanelOpen = false;
+  async function loadNotifications(currentUser2) {
+    if (!currentUser2?.id) return;
+    const notifBadge = $("#notifBadge");
+    const notifList = $("#notifList");
+    if (!notifList) return;
+    try {
+      const res = await supabase.from("notifications").select("*").order("created_at", { ascending: false }).limit(20).execute();
+      const rows = Array.isArray(res) ? res : [];
+      const unread = rows.filter((n) => !n.read).length;
+      if (notifBadge) {
+        if (unread > 0) {
+          notifBadge.textContent = unread > 9 ? "9+" : String(unread);
+          notifBadge.style.display = "inline-flex";
+        } else {
+          notifBadge.style.display = "none";
+        }
+      }
+      if (rows.length === 0) {
+        notifList.innerHTML = `<div style="padding:20px; text-align:center; font-size:12px; color:var(--muted); font-style:italic;">You're all caught up!</div>`;
+      } else {
+        notifList.innerHTML = rows.map((n) => {
+          const dot = !n.read ? '<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#ef4444;flex-shrink:0;margin-top:3px;"></span>' : '<span style="display:inline-block;width:7px;height:7px;flex-shrink:0;"></span>';
+          const ts = n.created_at ? new Date(n.created_at).toLocaleString() : "";
+          const bg = !n.read ? "background:var(--soft);" : "";
+          return `<div style="${bg}display:flex;gap:8px;align-items:flex-start;padding:10px 14px;border-bottom:1px solid var(--line);cursor:pointer;"
+                       data-annot="${escapeHtml(n.annotation_id || "")}">
+            ${dot}
+            <div style="flex:1;min-width:0;">
+              <div style="font-size:11px;color:var(--ink);line-height:1.4;">${escapeHtml(n.message || "")}</div>
+              <div style="font-size:10px;color:var(--muted);margin-top:2px;">${ts}</div>
+            </div>
+          </div>`;
+        }).join("");
+        notifList.querySelectorAll("[data-annot]").forEach((el) => {
+          el.addEventListener("click", () => {
+            const annId = el.getAttribute("data-annot");
+            if (annId) openExternalUrl(`${SITE_URL}/annotations/${annId}`);
+            closeNotifPanel();
+          });
+        });
+      }
+    } catch (e) {
+      console.warn("[notif] exception", e);
+    }
+  }
+  async function markNotificationsRead(currentUser2) {
+    if (!currentUser2?.id) return;
+    try {
+      await supabase.from("notifications").update({ read: true }).eq("recipient_id", currentUser2.id).eq("read", false).execute();
+      const badge = $("#notifBadge");
+      if (badge) badge.style.display = "none";
+      document.querySelectorAll('#notifList [style*="var(--soft)"]').forEach((el) => {
+        el.style.background = "";
+      });
+      document.querySelectorAll('#notifList span[style*="#ef4444"]').forEach((el) => {
+        el.style.background = "transparent";
+      });
+    } catch (_) {
+    }
+  }
+  function openNotifPanel(currentUser2) {
+    const panel = $("#notifPanel");
+    if (panel) panel.style.display = "flex";
+    notifPanelOpen = true;
+    markNotificationsRead(currentUser2);
+  }
+  function closeNotifPanel() {
+    const panel = $("#notifPanel");
+    if (panel) panel.style.display = "none";
+    notifPanelOpen = false;
+  }
+  function initNotifications(getCurrentUser) {
+    const bell = $("#notifBell");
+    bell?.addEventListener("click", (e) => {
+      e.stopPropagation();
+      if (notifPanelOpen) {
+        closeNotifPanel();
+      } else {
+        openNotifPanel(getCurrentUser());
+      }
+    });
+    $("#notifMarkRead")?.addEventListener("click", (e) => {
+      e.stopPropagation();
+      markNotificationsRead(getCurrentUser());
+    });
+    document.addEventListener("click", (e) => {
+      if (!notifPanelOpen) return;
+      const panel = $("#notifPanel");
+      if (panel && !panel.contains(e.target) && e.target !== bell && !bell?.contains(e.target)) {
+        closeNotifPanel();
+      }
+    });
+  }
+
+  // extension-src/widget/ui-controls.ts
+  function setTheme(theme) {
+    document.documentElement.dataset.theme = theme;
+    chrome.storage.local.set({ theme });
+    const themeBtn = $("#themeBtn");
+    if (!themeBtn) return;
+    if (theme === "dark") {
+      themeBtn.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2"></path><path d="M12 20v2"></path><path d="m4.93 4.93 1.41 1.41"></path><path d="m17.66 17.66 1.41 1.41"></path><path d="M2 12h2"></path><path d="M20 12h2"></path><path d="m6.34 17.66-1.41 1.41"></path><path d="m19.07 4.93-1.41 1.41"></path></svg>`;
+    } else {
+      themeBtn.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"></path></svg>`;
+    }
+  }
+  function initUiControls() {
+    $("#themeBtn")?.addEventListener("click", () => {
+      const cur = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+      setTheme(cur);
+    });
+    const dragHandle = $("#dragHandle");
+    if (dragHandle) {
+      dragHandle.addEventListener("mousedown", (e) => {
+        const target = e.target;
+        if (target.closest("#brandLogo") || target.closest("#authBrandLogo") || target.closest("button") || target.closest(".icon-btn") || target.closest(".user-menu-wrap") || target.closest(".avatar")) {
+          return;
+        }
+        window.parent.postMessage(
+          {
+            type: "DRAG_START",
+            clientX: e.clientX,
+            clientY: e.clientY
+          },
+          "*"
+        );
+      });
+    }
+    $("#closeBtn")?.addEventListener("click", (e) => {
       e.preventDefault();
       e.stopPropagation();
-      console.log('[Annotated Widget] Compose button clicked');
-      showComposer();
-    };
-  }
-
-  // Compute target URL and button bindings immediately
-  const slug = ann.slug || ann.id;
-  let targetUser = ann.username || (ann.author_profile?.email ? ann.author_profile.email.split('@')[0] : (currentUser?.email ? currentUser.email.split('@')[0] : 'a'));
-  let detailUrl = slug ? `https://annotated-repo.vercel.app/${encodeURIComponent(targetUser)}/${encodeURIComponent(slug)}` : 'https://annotated-repo.vercel.app';
-  currentDetailWebUrl = detailUrl;
-
-  const openWebBtn = $('#detailOpenWebBtn');
-  const bindWebButton = (url) => {
-    if (!openWebBtn || !url) return;
-    openWebBtn.href = url;
-    openWebBtn.setAttribute('href', url);
-    openWebBtn.onmousedown = (e) => e.stopPropagation();
-    openWebBtn.onclick = (e) => {
-      e.stopPropagation();
-      console.log('[Annotated Widget] Open on Annotated button clicked:', url);
-      openExternalUrl(url);
-    };
-  };
-  bindWebButton(detailUrl); currentDetailWebUrl = detailUrl;
-
-  // Quote
-  const qEl = $('#detailQuote');
-  if (qEl) qEl.textContent = ann.quote || ann.quote_text || 'Annotation';
-
-  // Intent
-  const intentEl = $('#detailIntentBadge');
-  if (intentEl) intentEl.textContent = ann.intent || '💡';
-
-  // Timestamp: only show on actual video platforms (e.g. YouTube/Vimeo) or with video attachments
-  const isVideoPage = ann.url && (ann.url.includes('youtube.com') || ann.url.includes('vimeo.com'));
-  const hasVideoAttachment = !!(ann.media_url && (ann.media_type === 'video' || ann.media_url.includes('.webm') || ann.media_url.includes('.mp4')));
-  const explicitCommentTs = ann.comment ? String(ann.comment).match(/\[(?:⏱️\s*)?(\d+):(\d+)(?::(\d+))?\]/) : null;
-  const showTs = isVideoPage || hasVideoAttachment || !!explicitCommentTs;
-  const ts = showTs ? (ann.extractedTimestamp != null ? ann.extractedTimestamp : extractTimestamp(ann.url, ann.comment || ann.commentary)) : null;
-
-  const tsBadge = $('#detailTimestampBadge');
-  const tsText = $('#detailTimestampText');
-  if (tsBadge && tsText && ts != null && ts > 0) {
-    tsText.textContent = formatSeconds(ts);
-    tsBadge.classList.remove('hidden');
-    tsBadge.onclick = (e) => {
-      e.stopPropagation();
-      window.parent.postMessage({ type: 'SEEK_MEDIA', seconds: ts }, '*');
-    };
-  } else if (tsBadge) {
-    tsBadge.classList.add('hidden');
-  }
-
-  // Comment
-  const commentEl = $('#detailComment');
-  if (commentEl) commentEl.textContent = ann.comment || ann.commentary || '(No comment)';
-
-  // Author & Date Resolution
-  const authorEl = $('#detailAuthorName');
-  const avatarEl = $('#detailAvatar');
-  const dateEl = $('#detailDate');
-  if (dateEl) dateEl.textContent = ann.created_at ? new Date(ann.created_at).toLocaleDateString() : 'Recent';
-
-  function applyProfile(name, handle, avatarUrl) {
-    if (authorEl) {
-      authorEl.innerHTML = `<span>${escapeHtml(name)}</span>${handle ? ` <span class="muted" style="font-weight: normal; font-size: 10px;">${escapeHtml(handle)}</span>` : ''}`;
-    }
-    if (avatarEl) {
-      if (avatarUrl) {
-        avatarEl.style.backgroundImage = `url(${avatarUrl})`;
-        avatarEl.style.backgroundSize = 'cover';
-        avatarEl.style.backgroundPosition = 'center';
-        avatarEl.textContent = '';
-      } else {
-        avatarEl.style.backgroundImage = 'none';
-        avatarEl.textContent = initials(name);
-      }
-    }
-  }
-
-  if (currentUser && (ann.user_id === currentUser.id || !ann.user_id)) {
-    const name = currentUser.name || (currentUser.email ? currentUser.email.split('@')[0] : 'You');
-    const handle = currentUser.email ? `@${currentUser.email.split('@')[0]}` : '';
-    applyProfile(name, handle, currentUser.avatar);
-  } else if (ann.author_profile) {
-    const prof = ann.author_profile;
-    const name = prof.full_name || (prof.email ? prof.email.split('@')[0] : 'Annotator');
-    const handle = prof.email ? `@${prof.email.split('@')[0]}` : '';
-    applyProfile(name, handle, prof.avatar_url);
-    if (prof.email && slug) {
-      targetUser = prof.email.split('@')[0];
-      detailUrl = `https://annotated-repo.vercel.app/${encodeURIComponent(targetUser)}/${encodeURIComponent(slug)}`;
-      bindWebButton(detailUrl);
-    }
-  } else if (ann.user_id) {
-    const anonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRhamFkYnZsbGRybWd6enRka3NuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk1ODYwMTcsImV4cCI6MjEwNTE2MjAxN30.ZGteNtShkBErPckuMGX4tWMn0AtgU_THFSI37Wgd-eU';
-    fetch(`https://dajadbvlldrmgzztdksn.supabase.co/rest/v1/profiles?id=eq.${ann.user_id}`, {
-      headers: { apikey: anonKey }
-    })
-    .then(r => r.json())
-    .then(profs => {
-      if (Array.isArray(profs) && profs[0]) {
-        const p = profs[0];
-        const name = p.full_name || (p.email ? p.email.split('@')[0] : 'Annotator');
-        const handle = p.email ? `@${p.email.split('@')[0]}` : '';
-        applyProfile(name, handle, p.avatar_url);
-        if (p.email && slug) {
-          targetUser = p.email.split('@')[0];
-          detailUrl = `https://annotated-repo.vercel.app/${encodeURIComponent(targetUser)}/${encodeURIComponent(slug)}`;
-          bindWebButton(detailUrl);
-        }
-      } else {
-        applyProfile(ann.user_name || 'Community Member', '', null);
-      }
-    })
-    .catch(() => {
-      applyProfile(ann.user_name || 'Community Member', '', null);
+      window.parent.postMessage({ type: "CLOSE_WIDGET" }, "*");
     });
-  } else {
-    applyProfile(ann.user_name || 'Community Member', '', null);
-  }
-
-  // Media box
-  const mediaBox = $('#detailMediaBox');
-  if (mediaBox) {
-    mediaBox.innerHTML = '';
-    if (ann.media_url && (ann.media_type === 'video' || ann.media_url.includes('.webm') || ann.media_url.includes('.mp4'))) {
-      mediaBox.innerHTML = `<video src="${escapeHtml(ann.media_url)}" controls playsinline style="width:100%; max-height:160px; display:block;"></video>`;
-      mediaBox.classList.remove('hidden');
-    } else if (ann.media_url) {
-      mediaBox.innerHTML = `<img src="${escapeHtml(ann.media_url)}" style="width:100%; max-height:160px; object-fit:contain; display:block;">`;
-      mediaBox.classList.remove('hidden');
-    } else if (ann.audio_url) {
-      mediaBox.innerHTML = `<audio src="${escapeHtml(ann.audio_url)}" controls style="width:100%; display:block;"></audio>`;
-      mediaBox.classList.remove('hidden');
-    } else {
-      mediaBox.classList.add('hidden');
-    }
-  }
-
-  const hasMedia = !!(ann.media_url || ann.audio_url);
-  resizeWidget(hasMedia ? 740 : 660);
-  loadWidgetComments(ann.id);
-
-  // Make the author block clickable to open their profile
-  const profileTarget = ann.username || (ann.author_profile?.email ? ann.author_profile.email.split('@')[0] : (currentUser?.email ? currentUser.email.split('@')[0] : ''));
-  if (profileTarget) {
-    const profileUrl = 'https://annotated-repo.vercel.app/u/' + encodeURIComponent(profileTarget);
-    if (avatarEl) {
-      avatarEl.onclick = (e) => { e.stopPropagation(); openExternalUrl(profileUrl); };
-      avatarEl.title = 'View profile';
-      avatarEl.style.cursor = 'pointer';
-    }
-    const authEl = document.getElementById('detailAuthorName');
-    if (authEl) {
-      authEl.onclick = (e) => { e.stopPropagation(); openExternalUrl(profileUrl); };
-      authEl.title = 'View profile';
-      authEl.style.cursor = 'pointer';
-    }
-  }
-}
-
-function showComposer() {
-  const detailCard = $('#annotationDetailCard');
-  if (detailCard) detailCard.classList.add('hidden');
-  const compSec = $('#composerSection');
-  if (compSec) compSec.classList.remove('hidden');
-  resizeWidget(videoClipBlob ? 630 : 390);
-}
-
-function loadPage() {
-  const applyInfo = (info) => {
-    if (!info) return;
-    page = {
-      title: info.title || page.title || 'Current page',
-      url: info.url || page.url || location.href,
-      hostname: info.hostname || page.hostname || 'youtube.com',
+    const onBrandClick = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      openExternalUrl(SITE_URL);
     };
-    if ($('#pageHost')) $('#pageHost').textContent = (page.hostname || '').replace(/^www\./, '');
-    if (info.selectedText || info.quote) {
-      setQuote(info.quote || info.selectedText);
-    }
-    if (info.media_timestamp != null) {
-      currentMediaTimestamp = info.media_timestamp;
-    }
-    loadFeedFromSupabase();
-  };
-
-  try {
-    if (chrome?.runtime?.sendMessage) {
-      chrome.runtime.sendMessage({ type: 'getPageInfo' }, (info) => {
-        if (!chrome.runtime.lastError && info) {
-          applyInfo(info);
-        } else {
-          try { window.parent.postMessage({ type: 'GET_PAGE_INFO' }, '*'); } catch (_) {}
+    $("#brandLogo")?.addEventListener("click", onBrandClick);
+    $("#authBrandLogo")?.addEventListener("click", onBrandClick);
+    const userMenuWrap = $("#userMenuWrap");
+    const avatarEl = $("#avatarEl");
+    const userDropdown = $("#userDropdown");
+    let userMenuHideTimeout = null;
+    if (userMenuWrap && userDropdown) {
+      userMenuWrap.addEventListener("mouseenter", () => {
+        if (userMenuHideTimeout) clearTimeout(userMenuHideTimeout);
+        userDropdown.classList.remove("hidden");
+      });
+      userMenuWrap.addEventListener("mouseleave", () => {
+        if (userMenuHideTimeout) clearTimeout(userMenuHideTimeout);
+        userMenuHideTimeout = setTimeout(() => {
+          userDropdown.classList.add("hidden");
+        }, 240);
+      });
+      avatarEl?.addEventListener("click", (e) => {
+        e.stopPropagation();
+        userDropdown.classList.toggle("hidden");
+      });
+      document.addEventListener("click", (e) => {
+        if (!userMenuWrap.contains(e.target)) {
+          userDropdown.classList.add("hidden");
         }
       });
-    } else {
-      try { window.parent.postMessage({ type: 'GET_PAGE_INFO' }, '*'); } catch (_) {}
     }
-  } catch (_) {
-    try { window.parent.postMessage({ type: 'GET_PAGE_INFO' }, '*'); } catch (_) {}
   }
 
-  try {
-    chrome.storage.local.get(['pendingSelection', pageKey()], data => {
-      if (data.pendingSelection && Date.now() - data.pendingSelection.timestamp < 120000) {
-        applySelection(data.pendingSelection);
-        chrome.storage.local.remove('pendingSelection');
-      }
-    });
-  } catch (_) {}
-}
-
-// ─── Media: Screenshot ────────────────────────────────────────────────────────
-if ($('#screenshotBtn')) if ($('#screenshotBtn')) $('#screenshotBtn').addEventListener('click', () => {
-  $('#screenshotBtn').disabled = true;
-  $('#screenshotBtn').textContent = '⏳ Capturing…';
-  chrome.runtime.sendMessage({ type: 'captureScreenshot' }, (response) => {
-    $('#screenshotBtn').disabled = false;
-    $('#screenshotBtn').textContent = '📷 Screenshot';
-    if (response?.dataUrl) {
-      setMedia(response.dataUrl, 'screenshot', 'screenshot.png');
-    } else {
-      $('#status').textContent = '📷 Failed: ' + (response?.error || 'Unknown error');
-      setTimeout(() => $('#status').textContent = '', 3000);
-    }
-  });
-});
-
-// ─── Media: File Upload ───────────────────────────────────────────────────────
-if ($('#uploadBtn')) if ($('#uploadBtn')) $('#uploadBtn').addEventListener('click', () => $('#mediaInput').click());
-if ($('#mediaInput')) if ($('#mediaInput')) $('#mediaInput').addEventListener('change', (e) => {
-  const file = e.target.files?.[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = (ev) => {
-    const type = file.type.startsWith('video/') ? 'video' : 'image';
-    setMedia(ev.target.result, type, file.name);
+  // extension-src/widget/index.ts
+  var currentUser = null;
+  var page = {
+    title: "Current page",
+    url: "",
+    hostname: "Current page"
   };
-  reader.readAsDataURL(file);
-});
-
-function setMedia(dataUrl, type, name) {
-  mediaDataUrl = dataUrl;
-  mediaType = type;
-  mediaFileName = name;
-
-  // Show correct preview element
-  $('#previewImg').classList.add('hidden');
-  $('#previewVideo').classList.add('hidden');
-  if (type === 'video') {
-    $('#previewVideo').src = dataUrl;
-    $('#previewVideo').classList.remove('hidden');
-  } else {
-    $('#previewImg').src = dataUrl;
-    $('#previewImg').classList.remove('hidden');
-  }
-
-  $('#previewName').textContent = name.length > 28 ? name.slice(0, 25) + '…' : name;
-  $('#mediaPreview').classList.remove('hidden');
-  updateButton();
-}
-
-if ($('#removeMedia')) if ($('#removeMedia')) $('#removeMedia').addEventListener('click', () => {
-  mediaDataUrl = null; mediaType = null; mediaFileName = null;
-  if ($('#previewImg')) if ($('#previewImg')) $('#previewImg').src = '';
-  if ($('#previewVideo')) if ($('#previewVideo')) $('#previewVideo').src = '';
-  if ($('#mediaInput')) if ($('#mediaInput')) $('#mediaInput').value = '';
-  if ($('#mediaPreview')) if ($('#mediaPreview')) $('#mediaPreview').classList.add('hidden');
-  updateButton();
-});
-
-// ─── Publish ──────────────────────────────────────────────────────────────────
-$('#publishBtn').addEventListener('click', async () => {
-  if (!currentUser) return;
-
-  $('#publishBtn').disabled = true;
-  $('#publishBtn').textContent = 'Publishing…';
-
-  let media_url = null;
-  if (mediaDataUrl) {
-    try {
-      if ($('#uploadProgress')) $('#uploadProgress').classList.remove('hidden');
-      if ($('#progressLabel')) $('#progressLabel').textContent = 'Uploading media…';
-      if ($('#progressFill')) $('#progressFill').style.width = '40%';
-      media_url = await supabase.uploadMedia(mediaDataUrl, mediaFileName || 'media');
-      if ($('#progressFill')) $('#progressFill').style.width = '100%';
-      await new Promise(r => setTimeout(r, 300));
-      if ($('#uploadProgress')) $('#uploadProgress').classList.add('hidden');
-    } catch (err) {
-      if ($('#uploadProgress')) $('#uploadProgress').classList.add('hidden');
-      $('#status').textContent = `Media upload failed: ${err.message}`;
-      $('#publishBtn').disabled = false;
-      $('#publishBtn').textContent = 'Publish';
-      setTimeout(() => $('#status').textContent = '', 4000);
-      return;
-    }
-  }
-
-  let media_type = null;
-  if (videoClipBlob) {
-    try {
-      const fileName = `video_${Date.now()}.webm`;
-      const uploadRes = await fetch(`${supabase.url}/storage/v1/object/annotation-media/${fileName}`, {
-        method: 'POST',
-        headers: {
-          'apikey': supabase.key,
-          'Authorization': `Bearer ${supabase.token || supabase.key}`,
-          'Content-Type': 'video/webm'
-        },
-        body: videoClipBlob
-      });
-      if (uploadRes.ok) {
-        media_url = `${supabase.url}/storage/v1/object/public/annotation-media/${fileName}`;
-        media_type = 'video';
-      }
-    } catch (err) {
-      console.error('[VideoUpload] Error:', err);
-    }
-  }
-
-  let audio_url = null;
-  if (recordedAudioBlob) {
-    try {
-      const fileName = `audio_${Date.now()}.webm`;
-      const uploadRes = await fetch(`${supabase.url}/storage/v1/object/annotation-media/${fileName}`, {
-        method: 'POST',
-        headers: {
-          'apikey': supabase.key,
-          'Authorization': `Bearer ${supabase.token || supabase.key}`,
-          'Content-Type': 'audio/webm'
-        },
-        body: recordedAudioBlob
-      });
-      if (uploadRes.ok) {
-        audio_url = `${supabase.url}/storage/v1/object/public/annotation-media/${fileName}`;
-      }
-    } catch (err) {
-      console.error('[AudioUpload] Error:', err);
-    }
-  }
-
-  const safeQuote = (quote && quote.trim()) || (videoClipBlob ? `🎬 Video Clip (${page.title || 'Video'})` : (media_url ? `Attachment: ${page.title || 'Media'}` : (page.title || 'Page Annotation')));
-  const allowedIntents = ['🔥', '🤔', '💡', '💯', '👎'];
-  const safeIntent = (intent && allowedIntents.includes(intent)) ? intent : '💡';
-  let safeComment = ($('#comment') ? $('#comment').value.trim() : '') || (videoClipBlob ? 'Shared a video clip' : 'Annotation');
-
-  // Inject start and stop times into the comment to render progress markers
-  if (videoStartTs != null && videoEndTs != null) {
-    const fmt = (ts) => {
-      const m = Math.floor(ts / 60);
-      const s = Math.floor(ts % 60);
-      return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-    };
-    safeComment += `\n\n[⏱️ ${fmt(videoStartTs)} - ${fmt(videoEndTs)}]`;
-  }
-
-  let publishUrl = page.url || location.href;
-  if (currentMediaTimestamp != null) {
-    if (publishUrl.includes('youtube.com') && !publishUrl.includes('&t=') && !publishUrl.includes('?t=')) {
-      publishUrl += (publishUrl.includes('?') ? '&' : '?') + `t=${currentMediaTimestamp}s`;
-    } else if (!publishUrl.includes('#t=') && !publishUrl.includes('youtube.com')) {
-      publishUrl += `#t=${currentMediaTimestamp}`;
-    }
-  }
-
-  const annotation = {
-    audio_url,
-    media_url,
-    media_type: media_type || (media_url ? mediaType : null),
-    quote: safeQuote,
-    comment: safeComment,
-    intent: safeIntent,
-    page_title: page.title || 'Page',
-    url: publishUrl,
-    hostname: page.hostname || 'youtube.com',
-    user_id: currentUser.id,
-    created_at: new Date().toISOString(),
-  };
-
-  let savedRow = null;
-  try {
-    const db = await supabase.from('annotations');
-    const res = await db.insert(annotation);
-    if (res.code || res.error || res.message) {
-      $('#publishBtn').textContent = 'Publish';
-      $('#publishBtn').disabled = false;
-      $('#status').textContent = 'DB Error: ' + (res.message || res.error || JSON.stringify(res));
-      return;
-    }
-    if (Array.isArray(res) && res[0]) {
-      savedRow = res[0];
-    } else if (res && res.id) {
-      savedRow = res;
-    }
-  } catch (err) {
-    $('#publishBtn').textContent = 'Publish';
-    $('#publishBtn').disabled = false;
-    $('#status').textContent = 'Error: ' + err.message;
-    return;
-  }
-
-  const realId = savedRow?.id || crypto.randomUUID();
-  const realSlug = savedRow?.slug || realId;
-  const localAnnotation = { ...annotation, id: realId, slug: realSlug };
-
-  const key = pageKey();
-  try {
-    chrome.storage.local.get(key, data => {
-      const items = [...(data[key] || []), localAnnotation];
-      chrome.storage.local.set({ [key]: items }, () => {
-        $('#comment').value = '';
-        if ($('#counter')) $('#counter').textContent = '0';
-        setQuote(''); intent = null;
-        mediaDataUrl = null; mediaType = null; mediaFileName = null;
-        videoClipBlob = null;
-        videoStartTs = null;
-        videoEndTs = null;
-        currentMediaTimestamp = null;
-        if ($('#composerTimestampBadge')) $('#composerTimestampBadge').classList.add('hidden');
-        if ($('#videoTrimmerBox')) $('#videoTrimmerBox').classList.add('hidden');
-        if ($('#videoPreviewEl')) $('#videoPreviewEl').src = '';
-        if ($('#clipVideoBtn')) $('#clipVideoBtn').innerText = '🎥';
-        resizeWidget(390);
-        if ($('#previewImg')) $('#previewImg').src = '';
-        if ($('#previewVideo')) $('#previewVideo').src = '';
-        if ($('#mediaInput')) $('#mediaInput').value = '';
-        if ($('#mediaPreview')) $('#mediaPreview').classList.add('hidden');
-        if (document.querySelector('[data-intent]')) document.querySelectorAll('[data-intent]').forEach(b => b.classList.remove('active'));
-        $('#publishBtn').textContent = 'Publish';
-        updateButton();
-
-        loadFeedFromSupabase();
-        loadAnnotationCount();
-
-        const shareUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(`"${safeQuote.slice(0, 100)}"`)}&url=${encodeURIComponent(publishUrl)}`;
-        $('#status').innerHTML = `Published! &nbsp;`;
-        const shareBtn = document.createElement('a');
-        shareBtn.href = shareUrl;
-        shareBtn.target = '_blank';
-        shareBtn.className = 'tweet-btn';
-        shareBtn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="white"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg> Tweet Annotation`;
-        $('#status').appendChild(shareBtn);
-        setTimeout(() => {
-          if ($('#status') && $('#status').innerHTML.includes('Published!')) {
-            $('#status').innerHTML = '';
-          }
-        }, 6000);
-      });
-    });
-  } catch (_) {}
-
-  // Notify content script to render highlight and progress bar markers immediately
-  try {
-    chrome.runtime.sendMessage({ type: 'saveAnnotation', annotation: localAnnotation });
-  } catch (_) {}
-  try {
-    window.parent.postMessage({ type: 'SAVE_ANNOTATION', annotation: localAnnotation }, '*');
-  } catch (_) {}
-  try {
-    setTimeout(() => {
-      window.parent.postMessage({ type: 'RELOAD_ANNOTATIONS' }, '*');
-        fetchAnnotations();
-    }, 400);
-  } catch (_) {}
-});
-
-// ─── UI Controls ─────────────────────────────────────────────────────────────
-$('#comment').addEventListener('input', e => { if ($('#counter')) $('#counter').textContent = e.target.value.length; updateButton(); });
-if (document.querySelector('[data-intent]')) document.querySelectorAll('[data-intent]').forEach(btn => btn.addEventListener('click', () => {
-  if (document.querySelector('[data-intent]')) document.querySelectorAll('[data-intent]').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active'); intent = btn.dataset.intent; updateButton();
-}));
-$('#themeBtn').addEventListener('click', () => setTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'));
-if ($('#refreshBtn')) if ($('#refreshBtn')) $('#refreshBtn').addEventListener('click', loadPage);
-// closeBtn logic moved to bottom
-
-function setTheme(theme) {
-  document.documentElement.dataset.theme = theme;
-  chrome.storage.local.set({ theme });
-  if (theme === 'dark') {
-    $('#themeBtn').innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2"></path><path d="M12 20v2"></path><path d="m4.93 4.93 1.41 1.41"></path><path d="m17.66 17.66 1.41 1.41"></path><path d="M2 12h2"></path><path d="M20 12h2"></path><path d="m6.34 17.66-1.41 1.41"></path><path d="m19.07 4.93-1.41 1.41"></path></svg>`;
-  } else {
-    $('#themeBtn').innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"></path></svg>`;
-  }
-}
-
-// ─── Message listener ─────────────────────────────────────────────────────────
-chrome.runtime.onMessage.addListener(message => {
-  if (message.type === 'selection') applySelection(message);
-});
-
-// ─── Boot ─────────────────────────────────────────────────────────────────────
-(async () => {
-  chrome.storage.local.get('theme', data => setTheme(data.theme || 'light'));
-  const session = await supabase.restoreSession();
-  if (session) {
-    const user = supabase.userFromSession(session);
-    if (user) { showApp(user); return; }
-  }
-  showAuth();
-})();
-
-// --- Nordic UI Dropdown & Hover Card ---
-
-const userMenuWrap = $('#userMenuWrap');
-const avatarEl = $('#avatarEl');
-const userDropdown = $('#userDropdown');
-let userMenuHideTimeout = null;
-
-if (userMenuWrap && userDropdown) {
-  userMenuWrap.addEventListener('mouseenter', () => {
-    if (userMenuHideTimeout) {
-      clearTimeout(userMenuHideTimeout);
-      userMenuHideTimeout = null;
-    }
-    userDropdown.classList.remove('hidden');
-  });
-
-  userMenuWrap.addEventListener('mouseleave', () => {
-    if (userMenuHideTimeout) clearTimeout(userMenuHideTimeout);
-    userMenuHideTimeout = setTimeout(() => {
-      userDropdown.classList.add('hidden');
-    }, 240);
-  });
-
-  if (avatarEl) {
-    avatarEl.addEventListener('click', (e) => {
-      e.stopPropagation();
-      userDropdown.classList.toggle('hidden');
-    });
-  }
-
-  document.addEventListener('click', (e) => {
-    if (!userMenuWrap.contains(e.target)) {
-      userDropdown.classList.add('hidden');
-    }
-  });
-}
-
-// Dictation
-
-    // 🎬 Video Preview, Trimmer & Dynamic Widget Resizing
-  const trimStartInput = $('#trimStartInput');
-  const trimEndInput = $('#trimEndInput');
-  const videoPreviewEl = $('#videoPreviewEl');
-  const videoTrimmerBox = $('#videoTrimmerBox');
-  const trimDurationLabel = $('#trimDurationLabel');
-
   function resizeWidget(height) {
     try {
       if (window.parent) {
-        window.parent.postMessage({ type: 'RESIZE_WIDGET', height }, '*');
+        window.parent.postMessage({ type: "RESIZE_WIDGET", height }, "*");
       }
-    } catch (_) {}
+    } catch (_) {
+    }
   }
-
-  const updateTrim = () => {
-    if (!trimStartInput || !trimEndInput || !trimDurationLabel) return;
-    let start = parseInt(trimStartInput.value) || 0;
-    let end = parseInt(trimEndInput.value) || 15;
-    if (end - start > 90) end = start + 90;
-    if (end <= start) end = start + 1;
-    trimEndInput.value = end;
-    trimDurationLabel.innerText = `${end - start}s`;
-  };
-
-  if (trimStartInput) trimStartInput.addEventListener('change', updateTrim);
-  if (trimEndInput) trimEndInput.addEventListener('change', updateTrim);
-
-  if (videoPreviewEl) {
-    videoPreviewEl.addEventListener('timeupdate', () => {
-      const start = parseInt(trimStartInput?.value) || 0;
-      const end = parseInt(trimEndInput?.value) || 90;
-      if (videoPreviewEl.currentTime < start) {
-        videoPreviewEl.currentTime = start;
-      }
-      if (videoPreviewEl.currentTime >= end) {
-        videoPreviewEl.pause();
-        videoPreviewEl.currentTime = start;
-      }
-    });
+  function refreshAll() {
+    loadFeedFromSupabase(page, currentUser, () => refreshAll());
+    loadUserProfileStats(currentUser);
+    loadNotifications(currentUser);
   }
-
-  const clipVideoBtn = $('#clipVideoBtn');
-  let isVideoRecording = false;
-
-  if (clipVideoBtn) {
-    clipVideoBtn.addEventListener('click', async (e) => {
-      e.preventDefault();
-
-      const handleVideoResult = (res) => {
-        isVideoRecording = false;
-        if (clipVideoBtn) {
-          clipVideoBtn.classList.remove('recording');
-          clipVideoBtn.innerText = '🎥';
-        }
-        if (res && res.dataUrl) {
-          fetch(res.dataUrl)
-            .then(r => r.blob())
-            .then(blob => {
-              videoClipBlob = blob;
-              if (res.startTs !== undefined) { videoStartTs = res.startTs; videoEndTs = res.endTs; }
-              if (videoPreviewEl) {
-                videoPreviewEl.src = URL.createObjectURL(blob);
-                videoPreviewEl.muted = false;
-                videoPreviewEl.volume = 1.0;
+  function setupParentMessageListener() {
+    window.addEventListener("message", (event) => {
+      const data = event.data;
+      if (!data || !data.type) return;
+      switch (data.type) {
+        case "VIEW_ANNOTATION":
+          if (data.annotation) {
+            (async () => {
+              if (!currentUser) {
+                const session = await supabase.restoreSession();
+                if (session) {
+                  currentUser = supabase.userFromSession(session);
+                }
               }
-              if (videoTrimmerBox) videoTrimmerBox.classList.remove('hidden');
-              const clipDuration = res.duration || 15;
-              if (trimStartInput) trimStartInput.value = 0;
-              if (trimEndInput) trimEndInput.value = clipDuration;
-              if (trimDurationLabel) trimDurationLabel.innerText = `${clipDuration}s`;
-              resizeWidget(630);
-              updateButton();
-            });
-        } else if (res && res.error) {
-          alert(res.error);
-        }
-      };
-
-      if (isVideoRecording) {
-        // Stop recording
-        isVideoRecording = false;
-        clipVideoBtn.innerText = '⏳';
-        clipVideoBtn.classList.remove('recording');
-
-        try {
-          chrome.runtime.sendMessage({ type: 'stopVideo' }, () => {});
-        } catch (_) {}
-        try {
-          window.parent.postMessage({ type: 'STOP_VIDEO' }, '*');
-        } catch (_) {}
-      } else {
-        // Start recording
-        isVideoRecording = true;
-        clipVideoBtn.innerText = '🛑';
-        clipVideoBtn.classList.add('recording');
-
-        let handled = false;
-
-        // A. Primary: chrome.runtime.sendMessage to content.js
-        try {
-          chrome.runtime.sendMessage({ type: 'captureVideo', duration: 90 }, (res) => {
-            if (!handled && (res || chrome.runtime.lastError == null)) {
-              handled = true;
-              handleVideoResult(res);
-            }
-          });
-        } catch (_) {}
-
-        // B. Secondary: window.parent.postMessage relay
-        try {
-          window.parent.postMessage({ type: 'CAPTURE_VIDEO', duration: 90 }, '*');
-        } catch (_) {}
-
-        // Listener for parent postMessage response fallback
-        const onMsg = (event) => {
-          if (event.data && event.data.type === 'VIDEO_CAPTURED') {
-            window.removeEventListener('message', onMsg);
-            if (!handled) {
-              handled = true;
-              handleVideoResult(event.data);
+              showAnnotationDetail(
+                data.annotation,
+                currentUser,
+                () => showComposer(resizeWidget),
+                resizeWidget,
+                () => refreshAll()
+              );
+            })();
+          }
+          break;
+        case "SCREENSHOT_CAPTURED":
+          if (data.dataUrl) {
+            setMedia(data.dataUrl, "image", `screenshot_${Date.now()}.png`, resizeWidget);
+            const statusEl = $("#status");
+            if (statusEl) {
+              statusEl.textContent = "\u{1F4F8} Screenshot attached";
+              setTimeout(() => {
+                if (statusEl.textContent === "\u{1F4F8} Screenshot attached") statusEl.textContent = "";
+              }, 3e3);
             }
           }
-        };
-        window.addEventListener('message', onMsg);
+          break;
+        case "PAGE_INFO_RESPONSE":
+          page = {
+            title: data.title || page.title,
+            url: data.url || page.url,
+            hostname: data.hostname || page.hostname
+          };
+          const pageHost = $("#pageHost");
+          if (pageHost) pageHost.textContent = page.hostname.replace(/^www\./, "");
+          if (data.quote || data.selectedText) {
+            setQuote(data.quote || data.selectedText);
+          }
+          if (data.media_timestamp != null) {
+            composerState.currentMediaTimestamp = data.media_timestamp;
+            const badge = $("#composerTimestampBadge");
+            const txt = $("#composerTimestampText");
+            if (badge && txt) {
+              txt.textContent = formatSeconds(data.media_timestamp);
+              badge.classList.remove("hidden");
+            }
+          }
+          refreshAll();
+          break;
+        case "VIDEO_CAPTURED":
+          const clipBtn = $("#clipVideoBtn");
+          if (clipBtn) {
+            clipBtn.classList.remove("recording");
+            clipBtn.innerText = "\u{1F3A5}";
+          }
+          if (data.dataUrl) {
+            fetch(data.dataUrl).then((r) => r.blob()).then((blob) => {
+              composerState.videoClipBlob = blob;
+              if (data.startTs !== void 0) {
+                composerState.videoStartTs = data.startTs;
+                composerState.videoEndTs = data.endTs;
+              }
+              const preview = $("#videoPreviewEl");
+              if (preview) {
+                preview.src = URL.createObjectURL(blob);
+              }
+              $("#videoTrimmerBox")?.classList.remove("hidden");
+              resizeWidget(630);
+              updatePublishButton();
+            });
+          }
+          break;
+        case "DICTATION_RESULT":
+          const commentEl = $("#comment");
+          if (commentEl) {
+            const text = data.text !== void 0 ? data.text : `${data.finalTranscript || ""} ${data.interimTranscript || ""}`;
+            commentEl.value = text;
+            updatePublishButton();
+          }
+          break;
+        case "DICTATION_ENDED":
+          const dBtn = $("#dictateBtn");
+          if (dBtn) dBtn.classList.remove("recording");
+          break;
+        case "DICTATION_ERROR":
+          const errBtn = $("#dictateBtn");
+          if (errBtn) errBtn.classList.remove("recording");
+          const st = $("#status");
+          if (st) {
+            st.textContent = data.error || "Dictation failed";
+            setTimeout(() => {
+              if (st.textContent === data.error) st.textContent = "";
+            }, 4e3);
+          }
+          break;
       }
     });
   }
-
-  const clearVideo = (e) => {
-    if (e) {
-      e.preventDefault();
-      e.stopPropagation();
-    }
-    videoClipBlob = null;
-    if (videoTrimmerBox) videoTrimmerBox.classList.add('hidden');
-    if (videoPreviewEl) {
-      videoPreviewEl.pause();
-      videoPreviewEl.src = '';
-    }
-    if (clipVideoBtn) {
-      clipVideoBtn.innerText = '🎥';
-      clipVideoBtn.classList.remove('recording');
-    }
-    resizeWidget(390); // Reset widget height to compact
-    updateButton();
-  };
-
-  if ($('#clearVideoBtn')) $('#clearVideoBtn').addEventListener('click', clearVideo);
-  if ($('#removeMediaBtn')) $('#removeMediaBtn').addEventListener('click', clearVideo);
-
-  const dictateBtn = $('#dictateBtn');
-  let isDictating = false;
-    let activeDictationTarget = 'main'; // 'main' | 'comment'
-  let baseComment = '';
-  let baseCommentReply = '';
-  let hasLastError = false;
-
-  function setSttStatus(msg, isError = false) {
-    const st = $('#status');
-    if (!st) return;
-    st.textContent = msg;
-    st.className = isError ? 'status error' : 'status';
-    console.log(`[Widget STT Status] ${isError ? 'ERROR: ' : ''}${msg}`);
-  }
-
-  function toggleDictation() {
-    activeDictationTarget = 'main';
-    console.log('[Widget STT] toggleDictation clicked. Current isDictating:', isDictating);
-    if (isDictating) {
-      setSttStatus('Stopping dictation…');
-      stopDictationUI();
-      if (window.parent !== window) {
-        window.parent.postMessage({ type: 'STOP_DICTATION' }, '*');
-      }
-    } else {
-      hasLastError = false;
-      const commentEl = $('#comment');
-      baseComment = commentEl ? commentEl.value : '';
-      if (baseComment && !baseComment.endsWith(' ') && !baseComment.endsWith('\n')) {
-        baseComment += ' ';
-      }
-      isDictating = true;
-      if (dictateBtn) dictateBtn.classList.add('recording');
-      setSttStatus('🎙️ Mic active… listening');
-
-      console.log('[Widget STT] Sending START_DICTATION to parent...');
-      if (window.parent !== window) {
-        window.parent.postMessage({ type: 'START_DICTATION' }, '*');
-      }
-    }
-  }
-
-  function stopDictationUI() {
-    isDictating = false;
-    if (dictateBtn) dictateBtn.classList.remove('recording');
-    const commentEl = $('#comment');
-    if (commentEl) {
-      commentEl.value = commentEl.value.trim();
-      baseComment = commentEl.value;
-      updateButton();
-    }
-  }
-
-  function handleDictationMsg(data) {
-    if (!data || !data.type) return;
-    if (data.type.startsWith('DICTATION_')) {
-      console.log('[Widget STT Message]', data);
-    }
-
-    if (activeDictationTarget === 'comment') {
-      const commentInput = $('#widgetCommentInput');
-      const micBtn = $('#widgetCommentMicBtn');
-      const statusEl = $('#widgetCommentStatus');
-
-      if (data.type === 'DICTATION_STATUS') {
-        if (statusEl && data.status) {
-          statusEl.textContent = data.status;
-          statusEl.style.color = 'var(--muted)';
-        }
-      } else if (data.type === 'DICTATION_STARTED') {
-        isCommentDictating = true;
-        if (micBtn) micBtn.classList.add('recording');
-        if (statusEl) {
-          statusEl.textContent = '🎙️ Listening…';
-          statusEl.style.color = 'var(--muted)';
-        }
-      } else if (data.type === 'DICTATION_RESULT') {
-        if (commentInput) {
-          const text = (data.text !== undefined) ? data.text : ((data.finalTranscript || '') + (data.interimTranscript || ''));
-          commentInput.value = (baseCommentReply ? baseCommentReply.trim() + ' ' : '') + text;
-        }
-      } else if (data.type === 'DICTATION_ENDED') {
-        isCommentDictating = false;
-        if (micBtn) micBtn.classList.remove('recording');
-        if (statusEl) statusEl.textContent = '';
-      } else if (data.type === 'DICTATION_ERROR') {
-        isCommentDictating = false;
-        if (micBtn) micBtn.classList.remove('recording');
-        if (statusEl) {
-          statusEl.textContent = data.error || 'Dictation failed';
-          statusEl.style.color = '#ef4444';
-          setTimeout(() => { if (statusEl) statusEl.textContent = ''; }, 5000);
-        }
-      }
-      return;
-    }
-
-    if (data.type === 'DICTATION_STATUS') {
-      if (!hasLastError) {
-        setSttStatus(data.status || '');
-      }
-    } else if (data.type === 'DICTATION_STARTED') {
-      hasLastError = false;
-      isDictating = true;
-      if (dictateBtn) dictateBtn.classList.add('recording');
-      setSttStatus('🎙️ Listening… speak now');
-    } else if (data.type === 'DICTATION_RESULT') {
-      hasLastError = false;
-      const commentEl = $('#comment');
-      if (commentEl) {
-        const text = (data.text !== undefined) ? data.text : ((data.finalTranscript || '') + (data.interimTranscript || ''));
-        commentEl.value = (baseComment ? baseComment.trim() + ' ' : '') + text;
-        updateButton();
-      }
-    } else if (data.type === 'DICTATION_ENDED') {
-      console.log('[Widget STT] Dictation ended cleanly.');
-      stopDictationUI();
-      if (!hasLastError) {
-        setSttStatus('');
-      }
-    } else if (data.type === 'DICTATION_ERROR') {
-      console.warn('[Widget STT] Dictation error received:', data.error);
-      hasLastError = true;
-      stopDictationUI();
-      setSttStatus(data.error || 'Dictation failed', true);
-      setTimeout(() => {
-        hasLastError = false;
-        const st = $('#status');
-        if (st && st.textContent === data.error) {
-          st.textContent = '';
-          st.className = 'status';
-        }
-      }, 7000);
-    }
-  }
-
-  window.addEventListener('message', (e) => {
-    if (e.data?.type === 'VIEW_ANNOTATION') {
-      showAnnotationDetail(e.data.annotation);
-    } else {
-      handleDictationMsg(e.data);
-    }
-  });
-
-  const detailBack = document.getElementById('detailBackBtn');
-  if (detailBack) {
-    detailBack.addEventListener('click', (e) => {
-      e.preventDefault();
-      showComposer();
+  async function boot() {
+    chrome.storage.local.get("theme", (data) => {
+      const t = data.theme === "dark" ? "dark" : "light";
+      setTheme(t);
     });
-  }
-
-  try {
-    if (chrome.runtime?.onMessage) {
-      chrome.runtime.onMessage.addListener((msg) => {
-        handleDictationMsg(msg);
-      });
-    }
-  } catch (_) {}
-
-  if (dictateBtn) {
-    dictateBtn.addEventListener('click', (e) => {
-      e.preventDefault();
-      toggleDictation();
-    });
-  }
-
-
-
-// Emojis
-document.querySelectorAll('.emoji-btn').forEach(btn => {
-  btn.addEventListener('click', (e) => {
-    e.preventDefault();
-    const em = btn.dataset.emoji || e.target.dataset.emoji;
-    document.querySelectorAll('.emoji-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    intent = em;
-    const c = document.querySelector('#comment');
-    if (c) {
-      c.value = c.value ? `${c.value} ${em}` : em;
-      if (document.querySelector('#counter')) document.querySelector('#counter').textContent = c.value.length;
-    }
-    updateButton();
-  });
-});
-
-// --- Widget Dragging & Closing ---
-const dragHandle = document.getElementById('dragHandle');
-if (dragHandle) {
-  dragHandle.addEventListener('mousedown', (e) => {
-    // Crucial: do NOT start dragging or disable pointerEvents if clicking brand logo, buttons, theme toggle, or user menu
-    if (e.target.closest('#brandLogo') || e.target.closest('#authBrandLogo') || e.target.closest('button') || e.target.closest('.icon-btn') || e.target.closest('.user-menu-wrap') || e.target.closest('.avatar')) {
-      return;
-    }
-    // Tell parent frame to start dragging
-    window.parent.postMessage({
-      type: 'DRAG_START',
-      clientX: e.clientX,
-      clientY: e.clientY
-    }, '*');
-  });
-}
-
-const closeBtn = document.getElementById('closeBtn');
-if (closeBtn) {
-  closeBtn.addEventListener('mousedown', (e) => e.stopPropagation());
-  closeBtn.addEventListener('click', (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    window.parent.postMessage({ type: 'CLOSE_WIDGET' }, '*');
-  });
-}
-
-const themeBtn = document.getElementById('themeBtn');
-if (themeBtn) {
-  themeBtn.addEventListener('mousedown', (e) => e.stopPropagation());
-}
-
-const detailBackBtn = document.getElementById('detailBackBtn');
-if (detailBackBtn) {
-  detailBackBtn.addEventListener('mousedown', (e) => e.stopPropagation());
-}
-
-// Open website on logo click - stop mousedown propagation to prevent drag pointerEvents interception
-const brandLogo = document.getElementById('brandLogo');
-if (brandLogo) {
-  brandLogo.addEventListener('mousedown', (e) => e.stopPropagation());
-  brandLogo.addEventListener('click', (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    console.log('[Annotated Widget] Brand logo clicked');
-    openExternalUrl('https://annotated-repo.vercel.app');
-  });
-}
-
-const authBrandLogo = document.getElementById('authBrandLogo');
-if (authBrandLogo) {
-  authBrandLogo.addEventListener('mousedown', (e) => e.stopPropagation());
-  authBrandLogo.addEventListener('click', (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    console.log('[Annotated Widget] Auth brand logo clicked');
-    openExternalUrl('https://annotated-repo.vercel.app');
-  });
-}
-
-
-
-// ─── Annotation Detail Comments (Discussion) ───────────────────────────────────
-let currentDetailAnnotationId = null;
-let isCommentDictating = false;
-
-async function loadWidgetComments(annotationId) {
-  currentDetailAnnotationId = annotationId;
-  const listEl = $('#widgetCommentList');
-  const countEl = $('#widgetCommentCount');
-  const emptyEl = $('#widgetCommentEmpty');
-  if (!listEl) return;
-
-  if (countEl) countEl.textContent = '…';
-
-  try {
-    const anonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRhamFkYnZsbGRybWd6enRka3NuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk1ODYwMTcsImV4cCI6MjEwNTE2MjAxN30.ZGteNtShkBErPckuMGX4tWMn0AtgU_THFSI37Wgd-eU';
-    const res = await fetch(`https://dajadbvlldrmgzztdksn.supabase.co/rest/v1/comments?annotation_id=eq.${encodeURIComponent(annotationId)}&order=created_at.asc`, {
-      headers: {
-        'apikey': anonKey,
-        'Authorization': `Bearer ${supabase.token || anonKey}`
-      }
-    });
-
-    const comments = await res.json();
-    if (!Array.isArray(comments)) {
-      if (countEl) countEl.textContent = '0';
-      return;
-    }
-
-    if (countEl) countEl.textContent = String(comments.length);
-
-    if (comments.length === 0) {
-      listEl.innerHTML = '<div id="widgetCommentEmpty" style="font-size: 11px; color: var(--muted); text-align: center; padding: 12px 0;">No comments yet. Be the first to join the discussion!</div>';
-      return;
-    }
-
-    // Fetch author profiles for avatars/names
-    const userIds = [...new Set(comments.map(c => c.user_id).filter(Boolean))];
-    let profileMap = {};
-    if (userIds.length > 0) {
-      try {
-        const pRes = await fetch(`https://dajadbvlldrmgzztdksn.supabase.co/rest/v1/profiles?id=in.(${userIds.join(',')})`, {
-          headers: { apikey: anonKey }
-        });
-        const profs = await pRes.json();
-        if (Array.isArray(profs)) {
-          profs.forEach(p => { profileMap[p.id] = p; });
+    initUiControls();
+    setupParentMessageListener();
+    initComposer(
+      () => currentUser,
+      () => page,
+      resizeWidget,
+      () => refreshAll()
+    );
+    initCommentForm(
+      () => currentUser,
+      resizeWidget
+    );
+    initNotifications(() => currentUser);
+    initAuthHandlers(
+      (u) => {
+        currentUser = u;
+        if (u) {
+          showApp(u, () => {
+            refreshAll();
+            resizeWidget(390);
+          });
+        } else {
+          showAuth();
         }
-      } catch (_) {}
-    }
-
-    listEl.innerHTML = comments.map(c => {
-      const prof = profileMap[c.user_id] || {};
-      const author = prof.full_name || (prof.email ? `@${prof.email.split('@')[0]}` : 'Annotator');
-      const avatarUrl = prof.avatar_url;
-      const initial = (author || 'A')[0].toUpperCase();
-      const timeStr = c.created_at ? new Date(c.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : '';
-      const commentTargetUrl = `${currentDetailWebUrl}#comment-${c.id}`;
-
-      const profileTargetUsername = prof.email ? prof.email.split('@')[0] : author.replace('@', '');
-      const profileUrl = `https://annotated-repo.vercel.app/u/${encodeURIComponent(profileTargetUsername)}`;
-      const avatarMarkup = avatarUrl
-        ? `<img src="${escapeHtml(avatarUrl)}" style="width: 18px; height: 18px; border-radius: 50%; object-fit: cover; flex-shrink: 0;" />`
-        : `<div style="width: 18px; height: 18px; border-radius: 50%; background: var(--yellow); color: #000; font-size: 9px; font-weight: 800; display: grid; place-items: center; flex-shrink: 0;">${initial}</div>`;
-      
-      const clickableAvatarMarkup = `<div class="avatar-clickable" data-tooltip="View profile" style="cursor: pointer; display: flex;" onclick="event.stopPropagation(); window.open('${profileUrl}', '_blank');">${avatarMarkup}</div>`;
-
-      return `
-        <div class="widget-comment-card" data-url="${escapeHtml(commentTargetUrl)}" data-tooltip="View comment on website" style="background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; font-size: 11.5px; cursor: pointer; transition: background 0.15s ease, border-color 0.15s ease;">
-          <div style="display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 3px;">
-            <div style="display: flex; align-items: center; gap: 5px; overflow: hidden;">
-              ${clickableAvatarMarkup}
-              <strong data-tooltip="View profile" style="cursor: pointer; color: var(--ink); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" onclick="event.stopPropagation(); window.open('${profileUrl}', '_blank');">${escapeHtml(author)}</strong>
-            </div>
-            <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0;">
-              <span style="font-size: 10px; color: var(--muted);">${timeStr}</span>
-              <span class="widget-comment-link-icon" style="font-size: 11px; color: var(--muted); opacity: 0.7;">↗</span>
-            </div>
-          </div>
-          <div style="color: var(--ink); line-height: 1.35; word-break: break-word; white-space: pre-wrap;">${escapeHtml(c.text || '')}</div>
-        </div>
-      `;
-    }).join('');
-
-    listEl.querySelectorAll('.widget-comment-card').forEach(card => {
-      card.onmousedown = (e) => e.stopPropagation();
-      card.onclick = (e) => {
-        e.stopPropagation();
-        const targetUrl = card.getAttribute('data-url');
-        if (targetUrl) openExternalUrl(targetUrl);
-      };
-    });
-
-    // Scroll to bottom of comments
-    listEl.scrollTop = listEl.scrollHeight;
-    setTimeout(() => {
-      const neededHeight = Math.max(660, Math.min(820, document.body.scrollHeight + 15));
-      resizeWidget(neededHeight);
-    }, 50);
-  } catch (err) {
-    console.error('[Widget Comments] Failed to load:', err);
-    if (countEl) countEl.textContent = '0';
-  }
-}
-
-// Handle Comment Submission
-const widgetCommentForm = $('#widgetCommentForm');
-if (widgetCommentForm) {
-  widgetCommentForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    if (!currentUser) {
-      alert('Please sign in to post a comment!');
-      return;
-    }
-
-    const input = $('#widgetCommentInput');
-    const submitBtn = $('#widgetCommentSubmitBtn');
-    const statusEl = $('#widgetCommentStatus');
-    const text = input ? input.value.trim() : '';
-
-    if (!text || !currentDetailAnnotationId) return;
-
-    if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Posting…'; }
-    if (statusEl) statusEl.textContent = '';
-
+      },
+      resizeWidget
+    );
     try {
-      const anonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRhamFkYnZsbGRybWd6enRka3NuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk1ODYwMTcsImV4cCI6MjEwNTE2MjAxN30.ZGteNtShkBErPckuMGX4tWMn0AtgU_THFSI37Wgd-eU';
-      const res = await fetch('https://dajadbvlldrmgzztdksn.supabase.co/rest/v1/comments', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'apikey': anonKey,
-          'Authorization': `Bearer ${supabase.token || anonKey}`,
-          'Prefer': 'return=representation'
-        },
-        body: JSON.stringify({
-          annotation_id: currentDetailAnnotationId,
-          user_id: currentUser.id,
-          text: text
-        })
-      });
-
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.message || 'Failed to post comment');
-      }
-
-      if (input) input.value = '';
-      if (statusEl) {
-        statusEl.textContent = 'Posted!';
-        statusEl.style.color = '#22c55e';
-        setTimeout(() => { if (statusEl) statusEl.textContent = ''; }, 3000);
-      }
-      // Reload comments
-      await loadWidgetComments(currentDetailAnnotationId);
-    } catch (err) {
-      console.error('[Widget Comments] Post error:', err);
-      if (statusEl) {
-        statusEl.textContent = err.message || 'Error posting';
-        statusEl.style.color = '#ef4444';
-      }
-    } finally {
-      if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Reply'; }
+      window.parent.postMessage({ type: "GET_PAGE_INFO" }, "*");
+    } catch (_) {
     }
-  });
-}
-
-// Mic / Speech-to-Text for widget comment box
-const widgetCommentMicBtn = $('#widgetCommentMicBtn');
-if (widgetCommentMicBtn) {
-  widgetCommentMicBtn.addEventListener('click', (e) => {
-    e.preventDefault();
-    const commentInput = $('#widgetCommentInput');
-    const statusEl = $('#widgetCommentStatus');
-    if (!commentInput) return;
-
-    if (isCommentDictating) {
-      isCommentDictating = false;
-      widgetCommentMicBtn.classList.remove('recording');
-      if (statusEl) statusEl.textContent = '';
-      if (window.parent !== window) {
-        window.parent.postMessage({ type: 'STOP_DICTATION' }, '*');
-      }
-    } else {
-      if (isDictating) {
-        stopDictationUI();
-      }
-      activeDictationTarget = 'comment';
-      isCommentDictating = true;
-      baseCommentReply = commentInput.value || '';
-      if (baseCommentReply && !baseCommentReply.endsWith(' ') && !baseCommentReply.endsWith('\n')) {
-        baseCommentReply += ' ';
-      }
-      widgetCommentMicBtn.classList.add('recording');
-      if (statusEl) {
-        statusEl.textContent = '🎙️ Listening…';
-        statusEl.style.color = 'var(--muted)';
-      }
-      if (window.parent !== window) {
-        window.parent.postMessage({ type: 'START_DICTATION' }, '*');
+    const session = await supabase.restoreSession();
+    if (session) {
+      const user = supabase.userFromSession(session);
+      if (user) {
+        currentUser = user;
+        showApp(user, () => {
+          refreshAll();
+          resizeWidget(390);
+        });
+        return;
       }
     }
-  });
-}
-
-
-  window.addEventListener('message', (e) => {
-    if (e.data?.type === 'PAGE_INFO_RESPONSE') {
-      page = {
-        title: e.data.title || page.title || 'Current page',
-        url: e.data.url || page.url || location.href,
-        hostname: e.data.hostname || page.hostname || 'youtube.com',
-      };
-      if ($('#pageHost')) $('#pageHost').textContent = (page.hostname || '').replace(/^www\./, '');
-      if (e.data.selectedText || e.data.quote) setQuote(e.data.quote || e.data.selectedText);
-      if (e.data.media_timestamp != null) currentMediaTimestamp = e.data.media_timestamp;
-      loadFeedFromSupabase();
-    }
-  });
+    showAuth();
+  }
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", boot);
+  } else {
+    boot();
+  }
+})();

@@ -395,6 +395,12 @@ body::-webkit-scrollbar-thumb {
   background: var(--line);
   transform: scale(1.1);
 }
+.emoji-btn.active {
+  background: var(--yellow) !important;
+  border-radius: 6px;
+  transform: scale(1.18);
+  box-shadow: 0 0 8px rgba(255, 210, 26, 0.4);
+}
 body {
   border-radius: 16px;
   overflow-y: auto;

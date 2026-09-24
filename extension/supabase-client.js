@@ -148,6 +148,50 @@ class SupabaseClient {
     });
   }
 
+  // ─── Auth: Twitter / X OAuth via Supabase (launchWebAuthFlow) ───────────────
+  async signInWithTwitter() {
+    return new Promise((resolve, reject) => {
+      const redirectUrl = chrome.identity.getRedirectURL();
+      const authUrl =
+        `${this.url}/auth/v1/authorize` +
+        `?provider=twitter` +
+        `&redirect_to=${encodeURIComponent(redirectUrl)}`;
+
+      chrome.identity.launchWebAuthFlow(
+        { url: authUrl, interactive: true },
+        async (responseUrl) => {
+          if (chrome.runtime.lastError || !responseUrl) {
+            const msg = chrome.runtime.lastError?.message || 'Auth cancelled';
+            reject(msg);
+            return;
+          }
+          try {
+            const url = new URL(responseUrl);
+            const params = new URLSearchParams(url.hash ? url.hash.slice(1) : url.search.slice(1));
+            const access_token  = params.get('access_token');
+            const refresh_token = params.get('refresh_token');
+            const expires_in    = parseInt(params.get('expires_in') || '3600', 10);
+            const error         = params.get('error_description') || params.get('error');
+
+            if (error) { reject(error); return; }
+            if (!access_token) { reject('No token returned from Twitter auth.'); return; }
+
+            const session = {
+              access_token,
+              refresh_token,
+              expires_at: Math.floor(Date.now() / 1000) + expires_in,
+            };
+            this.token = access_token;
+            await chrome.storage.local.set({ supabase_session: session });
+            resolve(session);
+          } catch (err) {
+            reject(err.message);
+          }
+        }
+      );
+    });
+  }
+
   async signOut() {
     if (this.token) {
       await fetch(`${this.url}/auth/v1/logout`, {

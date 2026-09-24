@@ -292,7 +292,15 @@ export default function AnnotationPage() {
           </footer>
 
           {/* Comment Section */}
-          <CommentSection annotationId={annotation.id} />
+          <CommentSection
+            annotationId={annotation.id}
+            author={{
+              id: annotation.userId,
+              username: annotation.username,
+              displayName: annotation.userDisplayName,
+              avatar: annotation.avatar_url
+            }}
+          />
         </article>
       </main>
 

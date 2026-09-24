@@ -1,0 +1,25 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "lib": ["DOM", "DOM.Iterable", "ES2022"],
+    "types": ["chrome"],
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "declaration": false,
+    "outDir": "./extension",
+    "rootDir": "./extension-src",
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./extension-src/*"]
+    }
+  },
+  "include": ["extension-src/**/*.ts"],
+  "exclude": ["node_modules", "extension"]
+}

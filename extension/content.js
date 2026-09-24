@@ -1,66 +1,32 @@
-﻿(() => {
-  const state = { annotations: [], profiles: {} };
-  const getKey = () => `page:${location.origin}${location.pathname}`;
-  const escapeHtml = (v) => String(v || '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[c]));
-
-  // Buffer the latest selection to survive aggressive SPA clears (like X.com)
-  let lastKnownSelection = null;
-  let lastKnownRect = null;
-  let lastKnownElement = null;
-
-  // ─── Helpers: Timestamp Extraction & Media Sync ──────────────────────────────
-  
-  const formatSeconds = (sec) => {
-    if (sec == null || isNaN(sec)) return '';
+"use strict";
+(() => {
+  // extension-src/shared/utils.ts
+  function escapeHtml(v) {
+    return String(v ?? "").replace(/[&<>"']/g, (c) => {
+      const map = {
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#039;"
+      };
+      return map[c] || c;
+    });
+  }
+  function formatSeconds(sec) {
+    if (sec == null || isNaN(sec)) return "";
     const s = Math.floor(sec);
     const hrs = Math.floor(s / 3600);
-    const mins = Math.floor((s % 3600) / 60);
+    const mins = Math.floor(s % 3600 / 60);
     const secs = s % 60;
     if (hrs > 0) {
-      return `${hrs}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+      return `${hrs}:${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
     }
-    return `${mins}:${String(secs).padStart(2, '0')}`;
-  };
-
-  
-  const extractTimestampRange = (url, comment) => {
-    const urlStr = String(url || '');
-    const commentStr = String(comment || '');
-
-    // Range in comment: [01:24 - 01:40] or [⏱️ 01:24 - 01:40]
-    const rangeCommentMatch = commentStr.match(/\[(?:⏱️\s*)?(\d+):(\d+)(?::(\d+))?\s*-\s*(\d+):(\d+)(?::(\d+))?\]/);
-    if (rangeCommentMatch) {
-      let s1 = parseInt(rangeCommentMatch[1], 10) * 60 + parseInt(rangeCommentMatch[2], 10);
-      if (rangeCommentMatch[3]) s1 = parseInt(rangeCommentMatch[1], 10) * 3600 + parseInt(rangeCommentMatch[2], 10) * 60 + parseInt(rangeCommentMatch[3], 10);
-
-      let s2 = parseInt(rangeCommentMatch[4], 10) * 60 + parseInt(rangeCommentMatch[5], 10);
-      if (rangeCommentMatch[6]) s2 = parseInt(rangeCommentMatch[4], 10) * 3600 + parseInt(rangeCommentMatch[5], 10) * 60 + parseInt(rangeCommentMatch[6], 10);
-
-      return { start: s1, end: Math.max(s1 + 5, s2) };
-    }
-
-    // Range in URL: t=84s-100s or t=84-100
-    const urlRangeMatch = urlStr.match(/[?&#]t=(\d+)(?:s)?-(\d+)(?:s)?/i);
-    if (urlRangeMatch) {
-      const s1 = parseInt(urlRangeMatch[1], 10);
-      const s2 = parseInt(urlRangeMatch[2], 10);
-      return { start: s1, end: Math.max(s1 + 5, s2) };
-    }
-
-    // Single timestamp fallback with 15s default highlight range
-    const startTs = extractTimestamp(url, comment);
-    if (startTs != null && startTs >= 0) {
-      return { start: startTs, end: startTs + 15 };
-    }
-
-    return null;
-  };
-
-  const extractTimestamp = (url, comment) => {
+    return `${mins}:${String(secs).padStart(2, "0")}`;
+  }
+  function extractTimestamp(url, comment) {
     if (!url && !comment) return null;
-
-    // 1. Check URL query/hash parameters for t=...
-    const urlStr = String(url || '');
+    const urlStr = String(url || "");
     const tMatch = urlStr.match(/[?&#]t=([0-9hms]+)/i);
     if (tMatch) {
       const val = tMatch[1].toLowerCase();
@@ -73,16 +39,14 @@
         if (mM) m = parseInt(mM[1], 10);
         if (sM) s = parseInt(sM[1], 10);
         if (!hM && !mM && !sM && /^\d+s?$/.test(val)) {
-          return parseInt(val.replace('s', ''), 10);
+          return parseInt(val.replace("s", ""), 10);
         }
         return h * 3600 + m * 60 + s;
       } else if (/^\d+$/.test(val)) {
         return parseInt(val, 10);
       }
     }
-
-    // 2. Comment bracketed timestamp: [⏱️ 01:24], [01:24], or [1:02:24]
-    const commentMatch = String(comment || '').match(/\[(?:⏱️\s*)?(\d+):(\d+)(?::(\d+))?\]/);
+    const commentMatch = String(comment || "").match(/\[(?:⏱️\s*)?(\d+):(\d+)(?::(\d+))?\]/);
     if (commentMatch) {
       if (commentMatch[3]) {
         return parseInt(commentMatch[1], 10) * 3600 + parseInt(commentMatch[2], 10) * 60 + parseInt(commentMatch[3], 10);
@@ -90,1911 +54,948 @@
       return parseInt(commentMatch[1], 10) * 60 + parseInt(commentMatch[2], 10);
     }
     return null;
-  };
-
-  const seekToTimestamp = (ts) => {
-    if (ts == null || isNaN(ts) || ts < 0) return;
-    try {
-      const ytPlayer = document.querySelector('#movie_player') || document.getElementById('movie_player');
-      if (ytPlayer && typeof ytPlayer.seekTo === 'function') {
-        ytPlayer.seekTo(ts, true);
-        if (typeof ytPlayer.playVideo === 'function') {
-          try { ytPlayer.playVideo(); } catch (_) {}
-        }
-        return;
+  }
+  function extractTimestampRange(url, comment) {
+    const urlStr = String(url || "");
+    const commentStr = String(comment || "");
+    const rangeCommentMatch = commentStr.match(
+      /\[(?:⏱️\s*)?(\d+):(\d+)(?::(\d+))?\s*-\s*(\d+):(\d+)(?::(\d+))?\]/
+    );
+    if (rangeCommentMatch) {
+      let s1 = parseInt(rangeCommentMatch[1], 10) * 60 + parseInt(rangeCommentMatch[2], 10);
+      if (rangeCommentMatch[3]) {
+        s1 = parseInt(rangeCommentMatch[1], 10) * 3600 + parseInt(rangeCommentMatch[2], 10) * 60 + parseInt(rangeCommentMatch[3], 10);
       }
-    } catch (_) {}
-    try {
-      const mediaEl = document.querySelector('video') || document.querySelector('audio');
-      if (mediaEl) {
-        mediaEl.currentTime = ts;
-        if (typeof mediaEl.play === 'function') {
-          try { mediaEl.play(); } catch (_) {}
-        }
+      let s2 = parseInt(rangeCommentMatch[4], 10) * 60 + parseInt(rangeCommentMatch[5], 10);
+      if (rangeCommentMatch[6]) {
+        s2 = parseInt(rangeCommentMatch[4], 10) * 3600 + parseInt(rangeCommentMatch[5], 10) * 60 + parseInt(rangeCommentMatch[6], 10);
       }
-    } catch (_) {}
-  };
-
-
-  const getMediaTimestamp = (targetEl = null) => {
-    try {
-      // 1. YouTube video player
-      if (location.hostname.includes('youtube.com')) {
-        const mediaEl = document.querySelector('video');
-        if (mediaEl && !isNaN(mediaEl.currentTime) && mediaEl.currentTime > 0) {
-          return Math.floor(mediaEl.currentTime);
-        }
-      }
-      // 2. Element-scoped media (only if user selected text directly inside a video/audio component)
-      const el = targetEl || lastKnownElement;
-      if (el) {
-        const playerContainer = el.closest('div[data-testid="videoPlayer"], div[data-testid="videoComponent"], .html5-video-player, video, audio');
-        if (playerContainer) {
-          const mediaEl = playerContainer.tagName === 'VIDEO' || playerContainer.tagName === 'AUDIO' ? playerContainer : playerContainer.querySelector('video, audio');
-          if (mediaEl && !isNaN(mediaEl.currentTime) && mediaEl.currentTime > 0) {
-            return Math.floor(mediaEl.currentTime);
-          }
-        }
-      }
-    } catch (_) {}
+      return { start: s1, end: Math.max(s1 + 5, s2) };
+    }
+    const urlRangeMatch = urlStr.match(/[?&#]t=(\d+)(?:s)?-(\d+)(?:s)?/i);
+    if (urlRangeMatch) {
+      const s1 = parseInt(urlRangeMatch[1], 10);
+      const s2 = parseInt(urlRangeMatch[2], 10);
+      return { start: s1, end: Math.max(s1 + 5, s2) };
+    }
+    const startTs = extractTimestamp(url, comment);
+    if (startTs != null && startTs >= 0) {
+      return { start: startTs, end: startTs + 15 };
+    }
     return null;
-  };
-
-  
-  const getSmartPageTitle = (resolvedUrl, targetEl = null) => {
-    let title = document.title;
+  }
+  function extractYouTubeVideoId(url) {
+    if (!url) return null;
     try {
-      if (resolvedUrl && (resolvedUrl.includes('x.com/') || resolvedUrl.includes('twitter.com/')) && resolvedUrl.includes('/status/')) {
-        const usernameMatch = resolvedUrl.match(/\.com\/([^/]+)\/status/i);
-        if (usernameMatch && usernameMatch[1]) {
-          const username = usernameMatch[1];
-          if (!title.toLowerCase().includes(username.toLowerCase())) {
-             title = '@' + username + ' on X';
-             let element = targetEl || lastKnownElement;
-             if (!element) {
-               const selection = window.getSelection();
-               if (selection && selection.rangeCount > 0) {
-                 const anchorNode = selection.anchorNode;
-                 element = anchorNode?.nodeType === Node.ELEMENT_NODE ? anchorNode : anchorNode?.parentElement;
-               }
-             }
-             if (element) {
-               const tweetArticle = element.closest('article[data-testid="tweet"]');
-               if (tweetArticle) {
-                 const nameEl = tweetArticle.querySelector('[data-testid="User-Name"] span');
-                 if (nameEl && nameEl.textContent) {
-                   title = nameEl.textContent + ' on X';
-                 }
-               }
-             }
-          }
-        }
+      if (url.includes("youtube.com") && url.includes("v=")) {
+        return new URL(url).searchParams.get("v");
       }
-    } catch (e) {}
-    return title;
-  };
-
-  const getExactSourceUrl = (explicitTimestamp = null, targetEl = null) => {
+      if (url.includes("youtu.be/")) {
+        const parts = new URL(url).pathname.split("/");
+        return parts[1] || null;
+      }
+    } catch (_) {
+    }
+    return null;
+  }
+  function pageKey(url) {
     try {
-      // 1. Twitter/X Tweet permalink
-      let element = targetEl || lastKnownElement;
-      if (!element) {
-        const selection = window.getSelection();
-        if (selection && selection.rangeCount > 0) {
-          const anchorNode = selection.anchorNode;
-          element = anchorNode?.nodeType === Node.ELEMENT_NODE ? anchorNode : anchorNode?.parentElement;
-        }
-      }
-
-      if (element) {
-        const tweetArticle = element.closest('article[data-testid="tweet"]');
-        if (tweetArticle) {
-          // Twitter always wraps the tweet's own timestamp in an anchor with /status/
-          const timeLink = tweetArticle.querySelector('time')?.closest('a[href*="/status/"]');
-          if (timeLink) {
-            const href = timeLink.getAttribute('href');
-            if (href) {
-              const cleanHref = href.split('?')[0];
-              return cleanHref.startsWith('http') ? cleanHref : `https://x.com${cleanHref}`;
-            }
-          }
-          // Fallback to any /status/ anchor in the tweet article matching a tweet status ID pattern
-          const statusLinks = Array.from(tweetArticle.querySelectorAll('a[href*="/status/"]'));
-          const mainStatusLink = statusLinks.find(a => /\/[^\/]+\/status\/\d+/.test(a.getAttribute('href') || ''));
-          if (mainStatusLink) {
-            const href = mainStatusLink.getAttribute('href');
-            if (href) {
-              const cleanHref = href.split('?')[0];
-              return cleanHref.startsWith('http') ? cleanHref : `https://x.com${cleanHref}`;
-            }
-          }
-        }
-      }
-
-      // If the current page is already a tweet status permalink, clean query params
-      if ((location.hostname.includes('x.com') || location.hostname.includes('twitter.com')) && location.pathname.includes('/status/')) {
-        const cleanPath = location.pathname.split('?')[0];
-        return `https://x.com${cleanPath}`;
-      }
-
-      // 2. YouTube with video ID and timestamp
-      if (location.hostname.includes('youtube.com') && location.search.includes('v=')) {
-        const vId = new URLSearchParams(location.search).get('v');
-        if (vId) {
-          const ts = explicitTimestamp != null ? explicitTimestamp : getMediaTimestamp();
-          if (ts != null && ts > 0) {
-            return `https://www.youtube.com/watch?v=${vId}&t=${ts}s`;
-          }
-          return `https://www.youtube.com/watch?v=${vId}`;
-        }
-      }
-
-      // 3. Generic video/audio timestamp
-      const ts = explicitTimestamp != null ? explicitTimestamp : getMediaTimestamp();
-      if (ts != null && ts > 0) {
-        const u = new URL(location.href);
-        u.hash = `t=${ts}`;
-        return u.href;
-      }
-
-      const canonical = document.querySelector('link[rel="canonical"]');
-      if (canonical && canonical.href) return canonical.href;
-    } catch (_) {}
-    return location.href;
-  };
-
-  // Inject custom highlight styles into document
-  if (!document.getElementById('annotated-highlight-style')) {
-    const styleEl = document.createElement('style');
-    styleEl.id = 'annotated-highlight-style';
-    styleEl.textContent = `
-      .annotated-highlight {
-        background-color: #ffd21a !important;
-        color: #000000 !important;
-        -webkit-text-fill-color: #000000 !important;
-        cursor: pointer !important;
-        border-radius: 3px !important;
-        padding: 1px 4px !important;
-        margin: 0 -1px !important;
-        box-shadow: 0 0 0 1px rgba(216, 169, 0, 0.6), 0 2px 8px rgba(255, 210, 26, 0.5) !important;
-        display: inline !important;
-        -webkit-box-decoration-break: clone !important;
-        box-decoration-break: clone !important;
-        position: relative !important;
-        z-index: 10 !important;
-        transition: background-color 0.15s ease, box-shadow 0.15s ease !important;
-      }
-      .annotated-highlight,
-      .annotated-highlight * {
-        color: #000000 !important;
-        -webkit-text-fill-color: #000000 !important;
-      }
-      .annotated-highlight:hover {
-        background-color: #ffe04d !important;
-        box-shadow: 0 0 14px 2px rgba(255, 210, 26, 0.8) !important;
-      }
-    `;
-    (document.head || document.documentElement).appendChild(styleEl);
+      const u = new URL(url || (typeof location !== "undefined" ? location.href : "https://annotated.com"));
+      return `page:${u.origin}${u.pathname}`;
+    } catch (_) {
+      return "page:https://annotated.com/";
+    }
   }
 
-  // ─── Robust Candidate Phrase Extractor ─────────────────────────────────────
-  const extractCandidatePhrases = (rawQuote) => {
-    if (!rawQuote) return [];
-    const phrases = new Set();
-    const raw = rawQuote.trim();
-    phrases.add(raw);
-    phrases.add(raw.replace(/\s+/g, ' '));
-
-    // Strip feed header metadata (e.g. "Author @handle · 12h ...")
-    const cleaned = raw.replace(/^.*?@[A-Za-z0-9_]+\s+[·•]\s+\d+[a-z]\s*(?:\.\s*)?/i, '').replace(/^.*?Replying to @[A-Za-z0-9_]+\s*/i, '').trim();
-    if (cleaned && cleaned.length > 5) {
-      phrases.add(cleaned);
-      phrases.add(cleaned.replace(/\s+/g, ' '));
-    }
-
-    const baseTexts = [raw, cleaned].filter(Boolean);
-    for (const text of baseTexts) {
-      // Split into clauses by sentence / punctuation / newlines
-      const clauses = text.split(/[\n\r]+|[.!?]+\s+|[:;]\s+|[•·]\s+|—\s*/);
-      for (let clause of clauses) {
-        clause = clause.replace(/\s+/g, ' ').trim();
-        if (clause.length >= 10) {
-          phrases.add(clause);
-          if (clause.length > 35) phrases.add(clause.slice(0, 35).trim());
-        }
-      }
-
-      // Word windows (4-6 words)
-      const words = text.replace(/\s+/g, ' ').trim().split(' ');
-      if (words.length >= 4) {
-        phrases.add(words.slice(0, 6).join(' '));
-        if (words.length >= 10) {
-          const mid = Math.floor(words.length / 2);
-          phrases.add(words.slice(mid, mid + 6).join(' '));
-        }
-      }
-    }
-
-    return Array.from(phrases).filter(p => p && p.length >= 4).sort((a, b) => b.length - a.length);
+  // extension-src/shared/config.ts
+  var SUPABASE_CONFIG = {
+    url: "https://dajadbvlldrmgzztdksn.supabase.co",
+    anonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRhamFkYnZsbGRybWd6enRka3NuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk1ODYwMTcsImV4cCI6MjEwNTE2MjAxN30.ZGteNtShkBErPckuMGX4tWMn0AtgU_THFSI37Wgd-eU"
   };
+  var SITE_URL = "https://annotated-repo.vercel.app";
+  var FACTCHECK_API_URL = `${SITE_URL}/api/ai/factcheck`;
 
-  // ─── Safe Range Highlighting (Single or Cross-Element) ──────────────────────
-  const safeHighlightRange = (range, annotationId) => {
-    if (!range) return null;
-    const mark = document.createElement('mark');
-    mark.className = 'annotated-highlight';
-    mark.dataset.annotatedHighlight = annotationId;
-
-    if (range.startContainer === range.endContainer && range.startContainer.nodeType === Node.TEXT_NODE) {
-      try {
-        range.surroundContents(mark);
-        return mark;
-      } catch (_) {}
+  // extension-src/content/highlighter.ts
+  var norm = (s) => (s || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+  var highlightMap = /* @__PURE__ */ new WeakMap();
+  var hoverBubble = null;
+  var hideBubbleTimeout = null;
+  var currentHoveredAnnotationId = null;
+  function injectHighlightStyles() {
+    if (document.getElementById("annotated-highlight-style")) return;
+    const style = document.createElement("style");
+    style.id = "annotated-highlight-style";
+    style.textContent = `
+    .annotated-highlight {
+      background-color: #ffd21a !important;
+      color: #000000 !important;
+      -webkit-text-fill-color: #000000 !important;
+      border-radius: 2px !important;
+      cursor: pointer !important;
+      padding: 1px 2px !important;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.12) !important;
+      transition: background-color 0.15s ease !important;
     }
-
+    .annotated-highlight:hover {
+      background-color: #f59e0b !important;
+    }
+  `;
+    (document.head || document.documentElement).appendChild(style);
+  }
+  function extractCandidatePhrases(rawQuote) {
+    const candidates = /* @__PURE__ */ new Set();
+    const clean = rawQuote.trim();
+    if (!clean) return candidates;
+    candidates.add(clean);
+    const clauses = clean.split(/[,.;:!?\n\r]+/).map((c) => c.trim()).filter((c) => c.length > 5);
+    clauses.forEach((c) => candidates.add(c));
+    const words = clean.split(/\s+/).filter(Boolean);
+    if (words.length > 8) {
+      candidates.add(words.slice(0, 8).join(" "));
+      candidates.add(words.slice(-8).join(" "));
+    }
+    return candidates;
+  }
+  function safeHighlightRange(range, annotation) {
     try {
-      const fragment = range.extractContents();
-      mark.appendChild(fragment);
-      range.insertNode(mark);
+      const mark = document.createElement("mark");
+      mark.className = "annotated-highlight";
+      mark.setAttribute("data-annotated-highlight", String(annotation.id || ""));
+      range.surroundContents(mark);
+      highlightMap.set(mark, annotation);
       return mark;
     } catch (_) {
       try {
-        const container = range.commonAncestorContainer;
-        if (container.nodeType === Node.TEXT_NODE) {
-          mark.textContent = container.textContent;
-          container.replaceWith(mark);
-          return mark;
-        }
-      } catch (_) {}
+        const mark = document.createElement("mark");
+        mark.className = "annotated-highlight";
+        mark.setAttribute("data-annotated-highlight", String(annotation.id || ""));
+        const contents = range.extractContents();
+        mark.appendChild(contents);
+        range.insertNode(mark);
+        highlightMap.set(mark, annotation);
+        return mark;
+      } catch (_2) {
+        return null;
+      }
     }
-    return null;
-  };
-
-  const triggerScroll = (mark, annotation) => {
-    if (!mark || annotation._hasScrolled) return;
+  }
+  function triggerScroll(mark, annotation) {
+    if (annotation._hasScrolled) return;
     annotation._hasScrolled = true;
     setTimeout(() => {
-      mark.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      try {
+        mark.scrollIntoView({ behavior: "smooth", block: "center" });
+      } catch (_) {
+      }
     }, 350);
-  };
-
-  const load = () => {
-    chrome.storage.local.get(getKey()).then(data => {
-      state.annotations = data[getKey()] || [];
-      renderAllPendingHighlights();
-      
-      const localUserIds = [...new Set(state.annotations.map(a => a.user_id).filter(Boolean))];
-      const missingUserIds = localUserIds.filter(id => !state.profiles[id]);
-      if (missingUserIds.length > 0) {
-        fetch(`https://dajadbvlldrmgzztdksn.supabase.co/rest/v1/profiles?id=in.(${missingUserIds.join(',')})`, {
-          headers: { 'apikey': anonKey }
-        })
-        .then(res => res.json())
-        .then(profiles => {
-          if (Array.isArray(profiles)) {
-            profiles.forEach(p => { state.profiles[p.id] = p; });
+  }
+  function renderHighlight(annotation) {
+    if (!annotation?.quote && !annotation?.quote_text) return;
+    const quote = (annotation.quote || annotation.quote_text || "").trim();
+    if (quote.length < 3) return;
+    if (annotation.id && document.querySelector(`[data-annotated-highlight="${annotation.id}"]`)) {
+      return;
+    }
+    if (location.hostname.includes("twitter.com") || location.hostname.includes("x.com")) {
+      const tweets = document.querySelectorAll('article[data-testid="tweet"]');
+      for (const tweet of Array.from(tweets)) {
+        const tweetTextEl = tweet.querySelector('[data-testid="tweetText"]');
+        if (tweetTextEl && tweetTextEl.textContent) {
+          if (norm(tweetTextEl.textContent).includes(norm(quote))) {
+            const mark = document.createElement("span");
+            mark.className = "annotated-highlight";
+            mark.setAttribute("data-annotated-highlight", String(annotation.id || ""));
+            mark.textContent = tweetTextEl.textContent;
+            tweetTextEl.innerHTML = "";
+            tweetTextEl.appendChild(mark);
+            highlightMap.set(mark, annotation);
+            triggerScroll(mark, annotation);
+            return;
           }
-        }).catch(() => {});
-      }
-    });
-
-    let cleanUrl = location.origin + location.pathname;
-    if (location.hostname.includes('youtube.com') && location.search.includes('v=')) {
-      const vId = new URLSearchParams(location.search).get('v');
-      if (vId) cleanUrl = `https://www.youtube.com/watch?v=${vId}`;
-    }
-
-    const anonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRhamFkYnZsbGRybWd6enRka3NuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk1ODYwMTcsImV4cCI6MjEwNTE2MjAxN30.ZGteNtShkBErPckuMGX4tWMn0AtgU_THFSI37Wgd-eU';
-    let queryUrl = `https://dajadbvlldrmgzztdksn.supabase.co/rest/v1/annotations?url=ilike.${encodeURIComponent('%' + cleanUrl + '%')}`;
-
-    // If on Twitter/X status page, query by status ID
-    const tweetStatusMatch = location.pathname.match(/\/status\/(\d+)/);
-    if ((location.hostname.includes('x.com') || location.hostname.includes('twitter.com')) && tweetStatusMatch) {
-      const statusId = tweetStatusMatch[1];
-      queryUrl = `https://dajadbvlldrmgzztdksn.supabase.co/rest/v1/annotations?url=ilike.${encodeURIComponent('%/status/' + statusId + '%')}`;
-    }
-
-    fetch(queryUrl, {
-      headers: { 'apikey': anonKey }, cache: 'no-store'
-    })
-    .then(r => r.json())
-    .then(data => {
-      if (Array.isArray(data)) {
-        console.log('[Annotated] Fetched ' + data.length + ' annotations for page:', queryUrl);
-        // Resolve author profiles in batch
-        const userIds = [...new Set(data.map(a => a.user_id).filter(Boolean))];
-        const missingUserIds = userIds.filter(id => !state.profiles[id]);
-        if (missingUserIds.length > 0) {
-          fetch(`https://dajadbvlldrmgzztdksn.supabase.co/rest/v1/profiles?id=in.(${missingUserIds.join(',')})`, {
-            headers: { 'apikey': anonKey }, cache: 'no-store'
-          })
-          .then(res => res.json())
-          .then(profiles => {
-            if (Array.isArray(profiles)) {
-              profiles.forEach(p => { state.profiles[p.id] = p; });
-            }
-          })
-          .catch(() => {});
         }
-
-        // Overwrite in-memory annotations with fresh server data to prune deleted ones
-        const remoteIds = new Set(data.map(a => String(a.id)));
-        
-        // Remove stale marks from DOM for any annotations no longer on server
-        state.annotations.forEach(a => {
-          if (!remoteIds.has(String(a.id))) {
-            document.querySelectorAll(`[data-annotated-highlight="${a.id}"]`).forEach(el => {
-              const parent = el.parentNode;
-              if (parent) {
-                while (el.firstChild) parent.insertBefore(el.firstChild, el);
-                parent.removeChild(el);
-              }
-            });
-          }
-        });
-
-        // Set state to fresh remote annotations and sync local cache
-        state.annotations = data;
-        chrome.storage.local.set({ [getKey()]: data });
-        renderAllPendingHighlights();
       }
-    })
-    .catch((err) => console.warn('[Annotated] fetch error:', err));
-  };
-
-  const renderHighlight = (annotation) => {
-    const quote = annotation.quote || annotation.quote_text;
-    if (!quote || !document.body) return false;
-    if (document.querySelector(`[data-annotated-highlight="${annotation.id}"]`)) return true;
-
+    }
     const candidatePhrases = extractCandidatePhrases(quote);
-    let hasHighlightedAny = false;
-
-    // 1.5 Dedicated YouTube Title Targeting
-    if (location.hostname.includes('youtube.com') && location.pathname.includes('/watch')) {
-      const titleEl = document.querySelector('h1.ytd-watch-metadata yt-formatted-string, h1.title yt-formatted-string, #title h1');
-      if (titleEl && titleEl.textContent) {
-        const titleText = norm(titleEl.textContent);
-        const q = norm(quote);
-        // If the quote is the page title, or a significant chunk of the video title, highlight the full title
-        if ((q.includes(titleText) && titleText.length > 5) || (titleText.includes(q) && q.length > 15)) {
-          if (!titleEl.querySelector('[data-annotated-highlight]') && !highlightMap.has(titleEl)) {
-            titleEl.style.backgroundColor = '#ffd21a';
-            titleEl.style.color = '#000';
-            titleEl.style.borderRadius = '4px';
-            titleEl.style.padding = '2px 4px';
-            titleEl.dataset.annotatedHighlight = annotation.id;
-            highlightMap.set(titleEl, String(annotation.id));
-            triggerScroll(titleEl, annotation);
-            return true;
-          } else if (highlightMap.has(titleEl)) {
-            return true; // Already highlighted by another annotation
-          }
-        }
+    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    let node;
+    while (node = walker.nextNode()) {
+      const parent = node.parentElement;
+      if (!parent || parent.closest(
+        "script, style, noscript, textarea, input, select, iframe, [data-annotated-highlight]"
+      )) {
+        continue;
       }
-    }
-
-    // 1. Dedicated X/Twitter Targeting
-    if (location.hostname.includes('x.com') || location.hostname.includes('twitter.com')) {
-      const isStatusPage = location.pathname.includes('/status/');
-      const tweetArticles = document.querySelectorAll('article[data-testid="tweet"]');
-
-      for (const article of tweetArticles) {
-        if (article.querySelector(`[data-annotated-highlight="${annotation.id}"]`)) return true;
-
-        const textContainer = article.querySelector('[data-testid="tweetText"]');
-        if (!textContainer) continue;
-        
-        const tweetText = textContainer.textContent || '';
-        const normalizedTweet = tweetText.replace(/[^a-zA-Z0-9]/g, '');
-        const normalizedQuote = quote.replace(/[^a-zA-Z0-9]/g, '');
-
-        // If the user selected the entire tweet (or 95% of it), highlight the whole container block nicely
-        
-        let shouldHighlightContainer = false;
-        if (normalizedTweet.length > 10 && normalizedQuote.includes(normalizedTweet)) {
-          shouldHighlightContainer = true;
-        } else if (normalizedQuote.length > 10 && normalizedTweet.includes(normalizedQuote)) {
-          if (normalizedQuote.length / normalizedTweet.length > 0.7) {
-            shouldHighlightContainer = true;
-          } else {
-            // Quote is a small part of the tweet. Add it to candidates to ensure it gets highlighted properly.
-            // Find the actual text in tweetText that matches to add as a phrase
-            const walker = document.createTreeWalker(textContainer, NodeFilter.SHOW_TEXT);
-            let n;
-            while ((n = walker.nextNode())) {
-              candidatePhrases.add(n.nodeValue.trim());
-            }
-          }
-        }
-        
-        if (shouldHighlightContainer) {
-           textContainer.style.backgroundColor = '#ffd21a';
-           textContainer.style.color = '#000';
-           textContainer.style.borderRadius = '4px';
-           textContainer.style.padding = '4px 6px';
-           textContainer.dataset.annotatedHighlight = annotation.id;
-           textContainer.classList.add('annotated-highlight');
-           highlightMap.set(textContainer, annotation.id);
-           triggerScroll(textContainer, annotation);
-           return true;
-        }
-
-        // Match candidate phrases within tweetText
-        for (const phrase of candidatePhrases) {
-          if (!phrase || phrase.length < 3) continue;
-          
-          const walker = document.createTreeWalker(textContainer, NodeFilter.SHOW_TEXT);
-          let n;
-          let matchedInWalker = false;
-          while ((n = walker.nextNode())) {
-            const idx = n.nodeValue.indexOf(phrase);
-            if (idx !== -1 && !n.parentElement?.closest('[data-annotated-highlight]')) {
-              const p = n.parentElement;
-              // React-safe highlighting: just style the parent inline wrapper, do not split text nodes!
-              p.style.backgroundColor = '#ffd21a'; p.style.color = '#000';
-              p.style.borderRadius = '2px';
-              p.dataset.annotatedHighlight = annotation.id;
-              highlightMap.set(p, String(annotation.id));
-              triggerScroll(p, annotation);
-              hasHighlightedAny = true;
-              matchedInWalker = true;
-            }
-          }
-
-          // If phrase crosses inline children (mentions/hashtags)
-          if (!matchedInWalker) {
-            const matchingChild = Array.from(textContainer.childNodes).find(c => {
-              const ct = (c.textContent || '').trim();
-              return ct.length > 2 && (phrase.includes(ct) || ct.includes(phrase));
-            });
-            if (matchingChild && !matchingChild.closest?.('[data-annotated-highlight]')) {
-              const r = document.createRange();
-              r.selectNodeContents(matchingChild);
-              const mark = safeHighlightRange(r, annotation.id);
-              if (mark) {
-                triggerScroll(mark, annotation);
-                hasHighlightedAny = true;
-              }
-            }
-          }
-        }
-
-        // Guaranteed fallback on status page: if this is the target tweet
-        if (isStatusPage && !hasHighlightedAny && !document.querySelector(`[data-annotated-highlight="${annotation.id}"]`)) {
-          const mainStatusLink = article.querySelector('time')?.closest('a[href*="/status/"]');
-          const currentPath = location.pathname;
-          if (mainStatusLink?.getAttribute('href')?.includes(currentPath.split('?')[0]) || article === tweetArticles[0]) {
-            const firstTextNode = Array.from(textContainer.childNodes).find(c => c.nodeType === Node.TEXT_NODE && c.nodeValue.trim().length > 0) || textContainer.firstChild;
-            if (firstTextNode && !textContainer.querySelector('[data-annotated-highlight]')) {
-              const r = document.createRange();
-              r.selectNodeContents(firstTextNode);
-              const mark = safeHighlightRange(r, annotation.id);
-              if (mark) {
-                triggerScroll(mark, annotation);
-                hasHighlightedAny = true;
-              }
-            }
-          }
-        }
-        
-        if (hasHighlightedAny) return true;
-      }
-    }
-
-    if (hasHighlightedAny) return true;
-
-    // 2. Universal text walker for general webpages
-    for (const phrase of candidatePhrases) {
-      if (!phrase || phrase.length < 3) continue;
-      const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
-      let node;
-      while ((node = walker.nextNode())) {
-        const text = node.nodeValue;
-        const index = text.indexOf(phrase);
-        if (index !== -1 && !node.parentElement?.closest('[data-annotated-highlight]')) {
-          const r = document.createRange();
-          r.setStart(node, index);
-          r.setEnd(node, index + phrase.length);
-          const mark = safeHighlightRange(r, annotation.id);
+      const text = node.nodeValue || "";
+      for (const phrase of candidatePhrases) {
+        const idx = text.indexOf(phrase);
+        if (idx !== -1) {
+          const range = document.createRange();
+          range.setStart(node, idx);
+          range.setEnd(node, idx + phrase.length);
+          const mark = safeHighlightRange(range, annotation);
           if (mark) {
             triggerScroll(mark, annotation);
-            hasHighlightedAny = true;
+            return;
           }
         }
       }
     }
+  }
+  function ensureHoverBubble(shadowRoot2) {
+    if (hoverBubble && shadowRoot2.contains(hoverBubble)) return hoverBubble;
+    hoverBubble = document.createElement("div");
+    hoverBubble.id = "annotated-hover-bubble";
+    hoverBubble.style.cssText = `
+    position: fixed;
+    z-index: 2147483647;
+    background: #1e293b;
+    color: #f8fafc;
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 12px;
+    max-width: 260px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+    display: none;
+    pointer-events: auto;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  `;
+    shadowRoot2.appendChild(hoverBubble);
+    return hoverBubble;
+  }
+  function showHoverBubble(mark, annotation, profile, shadowRoot2, onOpenWidget) {
+    if (hideBubbleTimeout) {
+      clearTimeout(hideBubbleTimeout);
+      hideBubbleTimeout = null;
+    }
+    currentHoveredAnnotationId = annotation.id || null;
+    const bubble = ensureHoverBubble(shadowRoot2);
+    const rect = mark.getBoundingClientRect();
+    const authorName = profile?.full_name || profile?.email?.split("@")[0] || annotation.user_name || "Annotator";
+    bubble.innerHTML = `
+    <div style="font-weight: 700; color: #ffd21a; margin-bottom: 4px; display: flex; justify-content: space-between;">
+      <span>${escapeHtml(annotation.intent || "\u{1F4A1}")} @${escapeHtml(authorName)}</span>
+    </div>
+    <div style="color: #cbd5e1; font-size: 11px; line-height: 1.4; margin-bottom: 6px;">
+      ${escapeHtml((annotation.comment || annotation.commentary || "").slice(0, 100))}
+    </div>
+    <div style="font-size: 10px; color: #94a3b8; text-align: right; cursor: pointer;" id="bubbleOpenDetail">
+      View note \u2197
+    </div>
+  `;
+    bubble.style.top = `${Math.max(10, rect.top - 60)}px`;
+    bubble.style.left = `${Math.min(window.innerWidth - 270, Math.max(10, rect.left))}px`;
+    bubble.style.display = "block";
+    const openBtn = bubble.querySelector("#bubbleOpenDetail");
+    if (openBtn) {
+      openBtn.addEventListener("click", () => {
+        bubble.style.display = "none";
+        onOpenWidget(annotation);
+      });
+    }
+  }
+  function hideHoverBubble() {
+    hideBubbleTimeout = setTimeout(() => {
+      if (hoverBubble) hoverBubble.style.display = "none";
+      currentHoveredAnnotationId = null;
+    }, 220);
+  }
 
-    return hasHighlightedAny;
-  };
-
-  
-      function renderYouTubeProgressBarMarkers() {
-    const isYTWatch = location.hostname.includes('youtube.com') && location.pathname.includes('/watch');
-    if (!isYTWatch || !state.annotations || state.annotations.length === 0) {
-      const existingContainer = document.getElementById('annotated-yt-markers-layer');
+  // extension-src/content/youtube.ts
+  function renderYouTubeProgressBarMarkers(annotations, onSeek, onOpenAnnotation) {
+    const isYTWatch = location.hostname.includes("youtube.com") && location.pathname.includes("/watch");
+    if (!isYTWatch || !annotations || annotations.length === 0) {
+      const existingContainer = document.getElementById("annotated-yt-markers-layer");
       if (existingContainer) existingContainer.remove();
       return;
     }
-
-    const mediaEl = document.querySelector('video');
-    const progressBar = document.querySelector('.ytp-progress-bar') || document.querySelector('.ytp-progress-bar-container');
-
+    const mediaEl = document.querySelector("video");
+    const progressBar = document.querySelector(".ytp-progress-bar") || document.querySelector(".ytp-progress-bar-container");
     if (!mediaEl || !progressBar || !mediaEl.duration || isNaN(mediaEl.duration) || mediaEl.duration <= 0) {
       return;
     }
-
-    const currentVId = new URLSearchParams(location.search).get('v');
-    const ytAnns = state.annotations.filter(ann => {
+    const currentVId = new URLSearchParams(location.search).get("v");
+    const ytAnns = annotations.filter((ann) => {
       if (!ann) return false;
-      if (currentVId) return String(ann.url || '').includes(currentVId);
+      if (currentVId) return String(ann.url || "").includes(currentVId);
       return true;
     });
-
     if (ytAnns.length === 0) {
-      const existingContainer = document.getElementById('annotated-yt-markers-layer');
+      const existingContainer = document.getElementById("annotated-yt-markers-layer");
       if (existingContainer) existingContainer.remove();
       return;
     }
-
-    let markersLayer = document.getElementById('annotated-yt-markers-layer');
+    let markersLayer = document.getElementById("annotated-yt-markers-layer");
     if (!markersLayer) {
-      markersLayer = document.createElement('div');
-      markersLayer.id = 'annotated-yt-markers-layer';
+      markersLayer = document.createElement("div");
+      markersLayer.id = "annotated-yt-markers-layer";
       markersLayer.style.cssText = `
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        pointer-events: none;
-        z-index: 999;
-      `;
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 999;
+    `;
       progressBar.appendChild(markersLayer);
     }
-
-    markersLayer.innerHTML = '';
+    markersLayer.innerHTML = "";
     const totalDuration = mediaEl.duration;
-
     ytAnns.forEach((ann) => {
       const range = extractTimestampRange(ann.url, ann.comment || ann.commentary);
       if (!range || range.start < 0 || range.start > totalDuration) return;
-
-      const startPct = (range.start / totalDuration) * 100;
-      const endPct = (Math.min(range.end, totalDuration) / totalDuration) * 100;
+      const startPct = range.start / totalDuration * 100;
+      const endPct = Math.min(range.end, totalDuration) / totalDuration * 100;
       const widthPct = Math.max(endPct - startPct, 0.6);
-
-      const intent = ann.intent || '💡';
-      const commentText = (ann.comment || ann.commentary || ann.quote || ann.quote_text || 'Annotation').trim();
-
-      const marker = document.createElement('div');
-      marker.className = 'annotated-yt-progress-marker-wrap';
+      const intent = ann.intent || "\u{1F4A1}";
+      const commentText = (ann.comment || ann.commentary || ann.quote || ann.quote_text || "Annotation").trim();
+      const marker = document.createElement("div");
+      marker.className = "annotated-yt-progress-marker-wrap";
       marker.style.cssText = `
+      position: absolute;
+      left: ${startPct}%;
+      width: ${widthPct}%;
+      min-width: 14px;
+      top: -15px;
+      bottom: -15px;
+      cursor: pointer;
+      pointer-events: auto;
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    `;
+      const visual = document.createElement("div");
+      visual.className = "annotated-yt-progress-marker";
+      visual.style.cssText = `
+      width: 100%;
+      height: 6px;
+      background: rgba(255, 210, 26, 0.65);
+      border: 1px solid #ffd21a;
+      border-radius: 3px;
+      box-shadow: 0 0 10px rgba(255, 210, 26, 0.8), inset 0 0 4px rgba(255, 210, 26, 0.6);
+      transition: transform 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+    `;
+      marker.appendChild(visual);
+      let markerTooltip = null;
+      marker.addEventListener("mouseenter", () => {
+        visual.style.transform = "scaleY(1.8)";
+        visual.style.background = "rgba(255, 255, 255, 0.9)";
+        visual.style.boxShadow = "0 0 14px #ffffff, 0 0 8px #ffd21a";
+        markerTooltip = document.createElement("div");
+        markerTooltip.className = "annotated-yt-marker-tooltip";
+        markerTooltip.style.cssText = `
         position: absolute;
+        bottom: 26px;
         left: ${startPct}%;
-        width: ${widthPct}%;
-        min-width: 14px;
-        top: -15px;
-        bottom: -15px;
-        cursor: pointer;
-        pointer-events: auto;
-        z-index: 1000;
+        transform: translateX(-20%);
+        background: #17242c;
+        border: 1.5px solid #ffd21a;
+        border-radius: 10px;
+        padding: 8px 12px;
+        color: #fff;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        font-size: 12px;
+        font-weight: 600;
+        white-space: nowrap;
+        pointer-events: none;
+        box-shadow: 0 8px 24px rgba(0,0,0,0.75);
+        z-index: 1001;
         display: flex;
         align-items: center;
-        justify-content: center;
+        gap: 8px;
       `;
-
-      const visual = document.createElement('div');
-      visual.className = 'annotated-yt-progress-marker';
-      visual.style.cssText = `
-        width: 100%;
-        height: 6px;
-        background: rgba(255, 210, 26, 0.65);
-        border: 1px solid #ffd21a;
-        border-radius: 3px;
-        box-shadow: 0 0 10px rgba(255, 210, 26, 0.8), inset 0 0 4px rgba(255, 210, 26, 0.6);
-        transition: transform 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
-      `;
-      marker.appendChild(visual);
-
-      let markerTooltip = null;
-
-      marker.addEventListener('mouseenter', () => {
-        visual.style.transform = 'scaleY(1.8)';
-        visual.style.background = 'rgba(255, 255, 255, 0.9)';
-        visual.style.boxShadow = '0 0 14px #ffffff, 0 0 8px #ffd21a';
-
-        markerTooltip = document.createElement('div');
-        markerTooltip.className = 'annotated-yt-marker-tooltip';
-        markerTooltip.style.cssText = `
-          position: absolute;
-          bottom: 26px;
-          left: ${startPct}%;
-          transform: translateX(-20%);
-          background: #17242c;
-          border: 1.5px solid #ffd21a;
-          border-radius: 10px;
-          padding: 8px 12px;
-          color: #fff;
-          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-          font-size: 12px;
-          font-weight: 600;
-          white-space: nowrap;
-          pointer-events: none;
-          box-shadow: 0 8px 24px rgba(0,0,0,0.75);
-          z-index: 1001;
-          display: flex;
-          align-items: center;
-          gap: 8px;
-        `;
-        const timeRangeStr = range.end > range.start + 2
-          ? `${formatSeconds(range.start)} - ${formatSeconds(range.end)}`
-          : formatSeconds(range.start);
-
-        const cleanComment = commentText.replace(/\[(?:⏱️\s*)?[0-9hms:]+\s*-\s*[0-9hms:]+\]/i, '').trim();
+        const timeRangeStr = range.end > range.start + 2 ? `${formatSeconds(range.start)} - ${formatSeconds(range.end)}` : formatSeconds(range.start);
+        const cleanComment = commentText.replace(/\[(?:⏱️\s*)?[0-9hms:]+\s*-\s*[0-9hms:]+\]/i, "").trim();
         markerTooltip.innerHTML = `
-          <span style="background:#ffd21a; color:#000; padding:2px 7px; border-radius:12px; font-weight:800; font-size:11px;">⏱️ ${timeRangeStr}</span>
-          ${intent ? `<span style="color:#ffd21a; font-weight:700;">${intent}</span>` : ''}
-          ${cleanComment ? `<span style="opacity:0.9; max-width:240px; overflow:hidden; text-overflow:ellipsis;">"${escapeHtml(cleanComment.slice(0, 50))}${cleanComment.length > 50 ? '…' : ''}"</span>` : ''}
-        `;
-        markersLayer.appendChild(markerTooltip);
+        <span style="background:#ffd21a; color:#000; padding:2px 7px; border-radius:12px; font-weight:800; font-size:11px;">\u23F1\uFE0F ${timeRangeStr}</span>
+        ${intent ? `<span style="color:#ffd21a; font-weight:700;">${intent}</span>` : ""}
+        ${cleanComment ? `<span style="opacity:0.9; max-width:240px; overflow:hidden; text-overflow:ellipsis;">"${escapeHtml(
+          cleanComment.slice(0, 50)
+        )}${cleanComment.length > 50 ? "\u2026" : ""}"</span>` : ""}
+      `;
+        markersLayer?.appendChild(markerTooltip);
       });
-
-      marker.addEventListener('mouseleave', () => {
-        visual.style.transform = 'scale(1)';
-        visual.style.background = 'rgba(255, 210, 26, 0.65)';
-        visual.style.boxShadow = '0 0 10px rgba(255, 210, 26, 0.8), inset 0 0 4px rgba(255, 210, 26, 0.6)';
+      marker.addEventListener("mouseleave", () => {
+        visual.style.transform = "scale(1)";
+        visual.style.background = "rgba(255, 210, 26, 0.65)";
+        visual.style.boxShadow = "0 0 10px rgba(255, 210, 26, 0.8), inset 0 0 4px rgba(255, 210, 26, 0.6)";
         if (markerTooltip) {
           markerTooltip.remove();
           markerTooltip = null;
         }
       });
-
-      marker.addEventListener('click', (e) => {
+      marker.addEventListener("click", (e) => {
         e.stopPropagation();
         e.preventDefault();
-        seekToTimestamp(range.start);
-        openAnnotationInWidget(ann, marker.getBoundingClientRect());
+        onSeek(range.start);
+        onOpenAnnotation(ann);
       });
-
       markersLayer.appendChild(marker);
     });
   }
-
-    function renderYouTubeVideoTag() {
-    const isYTWatch = location.hostname.includes('youtube.com') && location.pathname.includes('/watch');
-
-    // Remove static tag near title if present
-    const existingStatic = document.getElementById('annotated-yt-tag');
-    if (existingStatic) existingStatic.remove();
-
-    if (!isYTWatch || !state.annotations || state.annotations.length === 0) {
-      const existingBadge = document.getElementById('annotated-yt-floating-badge');
+  function renderYouTubeVideoTag(annotations, profiles, onSeek, onOpenAnnotation) {
+    const isYTWatch = location.hostname.includes("youtube.com") && location.pathname.includes("/watch");
+    if (!isYTWatch) {
+      const existingBadge = document.getElementById("annotated-yt-floating-badge");
       if (existingBadge) existingBadge.remove();
       return;
     }
-
-    const currentVId = new URLSearchParams(location.search).get('v');
-    const ytAnns = state.annotations.filter(ann => {
+    const currentVId = new URLSearchParams(location.search).get("v");
+    const ytAnns = annotations.filter((ann) => {
       if (!ann) return false;
-      if (currentVId) return String(ann.url || '').includes(currentVId);
+      if (currentVId) return String(ann.url || "").includes(currentVId);
       return true;
     });
-
-    if (ytAnns.length === 0) {
-      const existingBadge = document.getElementById('annotated-yt-floating-badge');
+    if (!ytAnns.length) {
+      const existingBadge = document.getElementById("annotated-yt-floating-badge");
       if (existingBadge) existingBadge.remove();
       return;
     }
-
-        const count = ytAnns.length;
-    const currentIds = ytAnns.map(a => a.id).join(',');
-
-    let badge = document.getElementById('annotated-yt-floating-badge');
-    if (badge && badge.getAttribute('data-ann-ids') === currentIds) {
-      return; // no need to re-render
+    const currentFingerprint = ytAnns.map((a) => `${a.id}:${a.comment || ""}`).join(",");
+    let badge = document.getElementById("annotated-yt-floating-badge");
+    if (badge && badge.getAttribute("data-fingerprint") === currentFingerprint) {
+      return;
     }
     if (badge) badge.remove();
-
-    badge = document.createElement('div');
-    badge.id = 'annotated-yt-floating-badge';
-    badge.setAttribute('data-ann-ids', currentIds);
+    badge = document.createElement("div");
+    badge.id = "annotated-yt-floating-badge";
+    badge.setAttribute("data-fingerprint", currentFingerprint);
     badge.style.cssText = `
-      position: fixed;
-      bottom: 70px;
-      left: 20px;
-      z-index: 2147483646;
-      background: #17242c;
-      border: 1.5px solid #ffd21a;
-      border-radius: 30px;
-      padding: 8px 16px;
-      color: #ffd21a;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      font-size: 13px;
-      font-weight: 800;
-      cursor: pointer;
-      box-shadow: 0 8px 28px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(255, 210, 26, 0.3);
+    position: fixed;
+    bottom: 24px;
+    left: 24px;
+    z-index: 2147483640;
+    background: #0f172a;
+    color: #f8fafc;
+    border: 1.5px solid #ffd21a;
+    border-radius: 9999px;
+    padding: 7px 15px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.5), 0 0 0 1px rgba(255, 210, 26, 0.25);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+    user-select: none;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  `;
+    badge.innerHTML = `
+    <span style="font-size: 14px;">\u{1F4AC}</span>
+    <span style="color: #ffffff; font-weight: 700;">${ytAnns.length} note${ytAnns.length === 1 ? "" : "s"} on this page</span>
+    <span style="background: #ffd21a; color: #000; font-size: 10px; font-weight: 900; padding: 1px 6px; border-radius: 10px;">\u25BC</span>
+  `;
+    const menu = document.createElement("div");
+    menu.className = "annotated-yt-dropdown-menu";
+    menu.style.cssText = `
+    position: absolute;
+    bottom: calc(100% + 10px);
+    left: 0;
+    background: #0f172a;
+    border: 1.5px solid #ffd21a;
+    border-radius: 12px;
+    padding: 8px;
+    display: none;
+    flex-direction: column;
+    gap: 6px;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 210, 26, 0.2);
+    min-width: 280px;
+    max-width: 360px;
+    max-height: 400px;
+    overflow-y: auto;
+    z-index: 2147483647;
+    cursor: default;
+  `;
+    ytAnns.forEach((ann) => {
+      const item = document.createElement("div");
+      const tsRange = extractTimestampRange(ann.url, ann.comment || ann.commentary);
+      let tsStr = "";
+      let startSec = null;
+      if (tsRange) {
+        startSec = tsRange.start;
+        tsStr = tsRange.end > tsRange.start + 2 ? `${formatSeconds(tsRange.start)} - ${formatSeconds(tsRange.end)}` : formatSeconds(tsRange.start);
+      }
+      const intent = ann.intent || "\u{1F4A1}";
+      const commentRaw = (ann.comment || ann.commentary || ann.quote || ann.quote_text || "Annotation").trim();
+      const cleanComment = commentRaw.replace(/\[(?:⏱️\s*)?[0-9hms:]+\s*-\s*[0-9hms:]+\]/i, "").trim();
+      const prof = ann.user_id ? profiles[ann.user_id] : void 0;
+      const authorName = prof?.full_name || (prof?.email ? `@${prof.email.split("@")[0]}` : ann.user_name || "Annotator");
+      const avatarUrl = prof?.avatar_url;
+      const avatarHtml = avatarUrl ? `<img src="${escapeHtml(avatarUrl)}" style="width: 18px; height: 18px; border-radius: 50%; object-fit: cover; flex-shrink: 0;">` : `<div style="width: 18px; height: 18px; border-radius: 50%; background: #ffd21a; color: #000; font-size: 9px; font-weight: 800; display: grid; place-items: center; flex-shrink: 0;">${escapeHtml(
+        (authorName || "A")[0].toUpperCase()
+      )}</div>`;
+      item.style.cssText = `
       display: flex;
-      align-items: center;
-      gap: 8px;
-      transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      flex-direction: column;
+      gap: 4px;
+      padding: 8px 10px;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      cursor: pointer;
+      transition: background 0.15s ease, border-color 0.15s ease;
+      text-align: left;
     `;
-
-    badge.innerHTML = `<span>✏️ Annotated Video</span><span style="background:#ffd21a; color:#000; padding:2px 7px; border-radius:10px; font-size:11px; font-weight:900;">${count}</span>`;
-
-    badge.addEventListener('click', (e) => {
-      e.stopPropagation();
-      e.preventDefault();
-      const topAnn = ytAnns[0];
-      const tsRange = extractTimestampRange(topAnn.url, topAnn.comment || topAnn.commentary);
-      const ts = tsRange ? tsRange.start : extractTimestamp(topAnn.url, topAnn.comment || topAnn.commentary);
-      if (ts != null) seekToTimestamp(ts);
-      openAnnotationInWidget(topAnn, badge.getBoundingClientRect());
+      item.addEventListener("mouseenter", () => {
+        item.style.background = "rgba(255, 210, 26, 0.15)";
+        item.style.borderColor = "rgba(255, 210, 26, 0.4)";
+      });
+      item.addEventListener("mouseleave", () => {
+        item.style.background = "rgba(255, 255, 255, 0.05)";
+        item.style.borderColor = "rgba(255, 255, 255, 0.08)";
+      });
+      item.addEventListener("click", (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        if (startSec != null) onSeek(startSec);
+        onOpenAnnotation(ann);
+        menu.style.display = "none";
+      });
+      item.innerHTML = `
+      <div style="display: flex; align-items: center; justify-content: space-between; gap: 6px;">
+        <div style="display: flex; align-items: center; gap: 6px; overflow: hidden;">
+          ${avatarHtml}
+          <strong style="font-size: 11px; color: #ffd21a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(
+        authorName
+      )}</strong>
+        </div>
+        ${intent ? `<span style="font-size: 12px; flex-shrink: 0;">${intent}</span>` : ""}
+      </div>
+      ${tsStr ? `<div style="display: flex; align-items: center; gap: 4px; margin-top: 1px;">
+              <span style="background: #ffd21a; color: #000; padding: 2px 7px; border-radius: 10px; font-weight: 800; font-size: 10px; font-family: monospace;">\u23F1\uFE0F ${tsStr}</span>
+             </div>` : ""}
+      <div style="font-size: 11.5px; color: #e2e8f0; line-height: 1.35; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; margin-top: 2px;">
+        ${escapeHtml(cleanComment || "Annotation note")}
+      </div>
+    `;
+      menu.appendChild(item);
     });
-
-    if (true) {
-      const menu = document.createElement('div');
-      menu.style.cssText = `
-        position: absolute;
-        bottom: calc(100% + 10px);
-        left: 0;
-        background: #17242c;
-        border: 1.5px solid #ffd21a;
-        border-radius: 12px;
-        padding: 8px;
-        display: none;
-        flex-direction: column;
-        gap: 6px;
-        box-shadow: 0 8px 28px rgba(0, 0, 0, 0.65);
-        min-width: 250px;
-        max-width: 350px;
-        max-height: 400px;
-        overflow-y: auto;
-        z-index: 2147483647;
-        cursor: default;
-      `;
-
-      ytAnns.forEach(ann => {
-        const item = document.createElement('div');
-        const tsRange = extractTimestampRange(ann.url, ann.comment || ann.commentary);
-        let tsStr = '';
-        let startSec = null;
-        if (tsRange) {
-          startSec = tsRange.start;
-          tsStr = tsRange.end > tsRange.start + 2
-            ? `${formatSeconds(tsRange.start)} - ${formatSeconds(tsRange.end)}`
-            : formatSeconds(tsRange.start);
-        } else {
-          startSec = extractTimestamp(ann.url, ann.comment || ann.commentary);
-          if (startSec != null) tsStr = formatSeconds(startSec);
-        }
-
-        const intent = ann.intent || '💡';
-        const commentRaw = (ann.comment || ann.commentary || ann.quote || ann.quote_text || 'Annotation').trim();
-        const cleanComment = commentRaw.replace(/\[(?:⏱️\s*)?[0-9hms:]+\s*-\s*[0-9hms:]+\]/i, '').trim();
-
-        item.style.cssText = `
-          display: flex;
-          flex-direction: column;
-          gap: 4px;
-          padding: 8px;
-          border-radius: 8px;
-          background: rgba(255, 255, 255, 0.05);
-          cursor: pointer;
-          transition: background 0.15s ease;
-          text-align: left;
-        `;
-        item.addEventListener('mouseenter', () => item.style.background = 'rgba(255, 255, 255, 0.1)');
-        item.addEventListener('mouseleave', () => item.style.background = 'rgba(255, 255, 255, 0.05)');
-
-        item.addEventListener('click', (e) => {
-          e.stopPropagation();
-          e.preventDefault();
-          if (startSec != null) seekToTimestamp(startSec);
-          openAnnotationInWidget(ann, badge.getBoundingClientRect());
-          menu.style.display = 'none';
-        });
-
-        const profile = state.profiles ? (state.profiles[ann.user_id] || {}) : {};
-        const authorName = profile.full_name || (profile.email ? `@${profile.email.split('@')[0]}` : (ann.user_name || 'Annotator'));
-        const avatarUrl = profile.avatar_url;
-        const initial = (authorName || 'A')[0].toUpperCase();
-
-        const avatarHtml = avatarUrl
-          ? `<img src="${avatarUrl}" style="width: 18px; height: 18px; border-radius: 50%; object-fit: cover; flex-shrink: 0;">`
-          : `<div style="width: 18px; height: 18px; border-radius: 50%; background: #ffd21a; color: #000; font-size: 9px; font-weight: 800; display: grid; place-items: center; flex-shrink: 0;">${initial}</div>`;
-
-        item.style.cssText = `
-          display: flex;
-          flex-direction: column;
-          gap: 4px;
-          padding: 8px;
-          border-radius: 8px;
-          background: rgba(255, 255, 255, 0.05);
-          cursor: pointer;
-          transition: background 0.15s ease;
-          text-align: left;
-        `;
-        item.addEventListener('mouseenter', () => item.style.background = 'rgba(255, 255, 255, 0.1)');
-        item.addEventListener('mouseleave', () => item.style.background = 'rgba(255, 255, 255, 0.05)');
-
-        const finalComment = cleanComment || 'Annotation note';
-        item.innerHTML = `
-          <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 3px;">
-            <div style="display: flex; align-items: center; gap: 6px; overflow: hidden;">
-              ${avatarHtml}
-              <strong style="font-size: 11px; color: #ffd21a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(authorName)}</strong>
-            </div>
-            ${intent ? `<span style="font-size: 12px; flex-shrink: 0;">${intent}</span>` : ''}
-          </div>
-          <div style="display:flex; align-items:center; gap:6px; margin-bottom: 2px;">
-            ${tsStr ? `<span style="background:#ffd21a; color:#000; padding:2px 6px; border-radius:10px; font-weight:800; font-size:10px;">⏱️ ${tsStr}</span>` : ''}
-          </div>
-          <div style="font-size: 12px; color: #edf3f5; word-break: break-word; max-height: 54px; overflow: hidden; text-overflow: ellipsis; line-height: 1.35;">${escapeHtml(finalComment)}</div>
-        `;
-        menu.appendChild(item);
-      });
-
-      badge.appendChild(menu);
-
-      let hoverTimeout;
-      badge.addEventListener('mouseenter', () => {
-        clearTimeout(hoverTimeout);
-        badge.style.transform = 'scale(1.06) translateY(-2px)';
-        menu.style.display = 'flex';
-      });
-      badge.addEventListener('mouseleave', () => {
-        hoverTimeout = setTimeout(() => {
-          badge.style.transform = 'scale(1) translateY(0)';
-          menu.style.display = 'none';
-        }, 300);
-      });
-    } else {
-      badge.addEventListener('mouseenter', () => { badge.style.transform = 'scale(1.06) translateY(-2px)'; });
-      badge.addEventListener('mouseleave', () => { badge.style.transform = 'scale(1) translateY(0)'; });
-    }
-    
+    badge.appendChild(menu);
+    let hoverTimer = null;
+    badge.addEventListener("mouseenter", () => {
+      if (hoverTimer) clearTimeout(hoverTimer);
+      badge.style.transform = "scale(1.03)";
+      menu.style.display = "flex";
+    });
+    badge.addEventListener("mouseleave", () => {
+      hoverTimer = setTimeout(() => {
+        menu.style.display = "none";
+        badge.style.transform = "scale(1)";
+      }, 280);
+    });
+    badge.addEventListener("click", (e) => {
+      if (e.target.closest(".annotated-yt-dropdown-menu")) return;
+      if (ytAnns[0]) {
+        const range = extractTimestampRange(ytAnns[0].url, ytAnns[0].comment || ytAnns[0].commentary);
+        if (range) onSeek(range.start);
+        onOpenAnnotation(ytAnns[0]);
+      }
+    });
     document.body.appendChild(badge);
   }
 
-
-  const renderAllPendingHighlights = () => {
-    renderYouTubeVideoTag();
-    renderYouTubeProgressBarMarkers();
-    if (!state.annotations || state.annotations.length === 0) return;
-    state.annotations.forEach(ann => {
-      renderHighlight(ann);
-    });
-  };
-
-  // Re-run highlighting as dynamic SPA elements (X.com, YouTube) mount in DOM
-  let domMutationDebounce = null;
-  const domObserver = new MutationObserver(() => {
-    clearTimeout(domMutationDebounce);
-    domMutationDebounce = setTimeout(renderAllPendingHighlights, 150);
-  });
-  if (document.body) {
-    domObserver.observe(document.body, { childList: true, subtree: true });
-  } else {
-    document.addEventListener('DOMContentLoaded', () => {
-      if (document.body) domObserver.observe(document.body, { childList: true, subtree: true });
-    });
-  }
-
-  // Periodic retries for initial hydration on heavy SPAs
-  [300, 700, 1400, 2500, 4500].forEach(delay => {
-    setTimeout(renderAllPendingHighlights, delay);
-  });
-
-  // ─── Interactive Floating In-Page Preview Bubble ─────────────────────────────
-  let hoverBubble = null;
-  let hideBubbleTimeout = null;
-  const highlightMap = new WeakMap();
-  let currentHoveredAnnotationId = null;
-
-  function ensureBubble() {
-    if (!widgetContainer || !document.body.contains(widgetContainer)) {
-      widgetContainer = document.createElement('div');
-      widgetContainer.id = 'annotated-layer-' + crypto.randomUUID().split('-')[0];
-      widgetContainer.style.cssText = 'position: fixed; z-index: 2147483647; top: 0; left: 0; pointer-events: none;';
-      shadowRoot = widgetContainer.attachShadow({ mode: 'open' });
-      const shadowStyle = document.createElement('style');
-      shadowStyle.id = 'annotated-shadow-style';
-      shadowStyle.textContent = '*:focus { outline: none !important; } iframe { outline: none !important; }';
-      shadowRoot.appendChild(shadowStyle);
-      document.body.appendChild(widgetContainer);
-    }
-
-    if (!hoverBubble) {
-      hoverBubble = document.createElement('div');
-      hoverBubble.style.cssText = `
-        position: fixed;
-        display: none;
-        pointer-events: auto;
-        z-index: 2147483647;
-        background: #1c282f;
-        color: #fff;
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-        font-size: 12px;
-        line-height: 1.4;
-        padding: 8px 12px;
-        border-radius: 9px;
-        box-shadow: 0 8px 24px rgba(0,0,0,0.35), 0 0 0 1px rgba(255,255,255,0.12);
-        max-width: 290px;
-        cursor: default;
-        transition: opacity 0.15s ease, transform 0.15s ease;
-        transform: translateY(4px);
-        opacity: 0;
-      `;
-      hoverBubble.addEventListener('mouseenter', () => {
-        if (hideBubbleTimeout) {
-          clearTimeout(hideBubbleTimeout);
-          hideBubbleTimeout = null;
-        }
-      });
-      hoverBubble.addEventListener('mouseleave', () => {
-        scheduleHideBubble();
-      });
-      hoverBubble.addEventListener('click', (e) => {
-        e.stopPropagation();
-        if (currentHoveredAnnotationId) {
-          const ann = state.annotations.find(a => String(a.id) === String(currentHoveredAnnotationId));
-          if (ann) {
-            const mark = document.querySelector(`[data-annotated-highlight="${ann.id}"]`);
-            openAnnotationInWidget(ann, mark?.getBoundingClientRect());
-          }
-        }
-      });
-      shadowRoot.appendChild(hoverBubble);
-    }
-  }
-
-  function scheduleHideBubble() {
-    if (hideBubbleTimeout) clearTimeout(hideBubbleTimeout);
-    hideBubbleTimeout = setTimeout(() => {
-      if (hoverBubble) {
-        hoverBubble.style.opacity = '0';
-        hoverBubble.style.transform = 'translateY(4px)';
-        setTimeout(() => {
-          if (hoverBubble && hoverBubble.style.opacity === '0') {
-            hoverBubble.style.display = 'none';
-          }
-        }, 150);
-      }
-      currentHoveredAnnotationId = null;
-    }, 240); // 240ms debounce to allow user to move mouse into bubble
-  }
-
-  function showBubble(mark, annotations) {
-    if (!Array.isArray(annotations)) annotations = [annotations];
-    if (annotations.length === 0) return;
-
-    if (hideBubbleTimeout) {
-      clearTimeout(hideBubbleTimeout);
-      hideBubbleTimeout = null;
-    }
-    ensureBubble();
-    currentHoveredAnnotationId = annotations[0].id;
-
-    const isSingle = annotations.length === 1;
-
-    const rowsHtml = annotations.map((annotation, idx) => {
-      const profile = state.profiles[annotation.user_id] || {};
-      const authorName = profile.full_name || (profile.email ? `@${profile.email.split('@')[0]}` : (annotation.user_name || 'Annotator'));
-      const comment = annotation.comment || annotation.commentary || 'Annotation note';
-      const avatarUrl = profile.avatar_url;
-      const initial = (authorName || 'A')[0].toUpperCase();
-      const intent = annotation.intent || '';
-
-      const avatarHtml = avatarUrl
-        ? `<img src="${avatarUrl}" style="width: 18px; height: 18px; border-radius: 50%; object-fit: cover; flex-shrink: 0;">`
-        : `<div style="width: 18px; height: 18px; border-radius: 50%; background: #ffd21a; color: #000; font-size: 9px; font-weight: 800; display: grid; place-items: center; flex-shrink: 0;">${initial}</div>`;
-
-      const divider = idx > 0 ? `<div style="height: 1px; background: rgba(255,255,255,0.08); margin: 6px 0;"></div>` : '';
-
-      return `
-        ${divider}
-        <div class="ann-row" data-ann-id="${annotation.id}" style="cursor: pointer; border-radius: 6px; padding: 4px 2px; transition: background 0.1s;">
-          <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 3px;">
-            <div style="display: flex; align-items: center; gap: 6px; overflow: hidden;">
-              ${avatarHtml}
-              <strong style="font-size: 11px; color: #ffd21a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(authorName)}</strong>
-            </div>
-            ${intent ? `<span style="font-size: 12px; flex-shrink: 0;">${intent}</span>` : ''}
-          </div>
-          <div style="font-size: 12px; color: #edf3f5; word-break: break-word; max-height: 54px; overflow: hidden; text-overflow: ellipsis; line-height: 1.35;">${escapeHtml(comment)}</div>
-        </div>
-      `;
-    }).join('');
-
-    const countLabel = isSingle
-      ? `<span>Click to view details</span><span style="color: #ffd21a; font-weight: bold;">↗</span>`
-      : `<span>${annotations.length} annotations — click any to view</span><span style="color: #ffd21a; font-weight: bold;">↗</span>`;
-
-    hoverBubble.innerHTML = `
-      <div style="max-height: 260px; overflow-y: auto; scrollbar-width: thin; scrollbar-color: #445 transparent;">
-        ${rowsHtml}
-      </div>
-      <div style="font-size: 10px; color: #9aaab2; margin-top: 5px; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 4px;">
-        ${countLabel}
-      </div>
-    `;
-
-    // Attach per-row click handlers
-    hoverBubble.querySelectorAll('.ann-row').forEach(row => {
-      row.addEventListener('mouseenter', () => { row.style.background = 'rgba(255,255,255,0.06)'; });
-      row.addEventListener('mouseleave', () => { row.style.background = ''; });
-      row.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const annId = row.dataset.annId;
-        const ann = state.annotations.find(a => String(a.id) === String(annId));
-        if (ann) {
-          hoverBubble.style.display = 'none';
-          const m = document.querySelector(`[data-annotated-highlight="${ann.id}"]`);
-          openAnnotationInWidget(ann, m?.getBoundingClientRect());
-        }
-      });
-    });
-
-    const rect = mark.getBoundingClientRect();
-    let left = rect.left;
-    let top = rect.bottom + 8;
-
-    if (left + 300 > window.innerWidth) left = window.innerWidth - 305;
-    if (left < 10) left = 10;
-    if (top + 120 > window.innerHeight) {
-      top = Math.max(10, rect.top - 120);
-    }
-
-    hoverBubble.style.left = `${left}px`;
-    hoverBubble.style.top = `${top}px`;
-    hoverBubble.style.display = 'block';
-
-    requestAnimationFrame(() => {
-      if (hoverBubble) {
-        hoverBubble.style.opacity = '1';
-        hoverBubble.style.transform = 'translateY(0)';
-      }
-    });
-  }
-
-  function openAnnotationInWidget(annotation, rect) {
-    if (!rect) {
-      const mark = document.querySelector(`[data-annotated-highlight="${annotation.id}"]`);
-      rect = mark ? mark.getBoundingClientRect() : { right: window.innerWidth - 380, top: 20 };
-    }
-
-    // Check for media timestamp & auto-seek video/audio player
-    const ts = extractTimestamp(annotation.url, annotation.comment || annotation.commentary);
-    if (ts != null) {
-      const mediaEl = document.querySelector('video, audio');
-      if (mediaEl) {
-        try {
-          mediaEl.currentTime = ts;
-          mediaEl.play?.().catch(() => {});
-        } catch (_) {}
-      }
-    }
-
-    createWidget(rect.right, rect.top);
-
-    const profile = state.profiles[annotation.user_id] || null;
-    const sendView = () => {
-      if (widgetIframe && widgetIframe.contentWindow) {
-        widgetIframe.contentWindow.postMessage({
-          type: 'VIEW_ANNOTATION',
-          annotation: {
-            ...annotation,
-            extractedTimestamp: ts,
-            author_profile: profile
-          }
-        }, '*');
-      }
-    };
-    sendView();
-    setTimeout(sendView, 120);
-  }
-
-  // ─── Clickable & Hover Highlight Handlers ─────────────────────────────────────
-  document.addEventListener('mouseover', (e) => {
-    let mark = e.target.closest('.annotated-highlight');
-    let target = e.target;
-    while (target && target !== document.body && !mark) {
-      if (highlightMap.has(target)) mark = target;
-      else target = target.parentElement;
-    }
-    
-    if (mark) {
-      const annotationId = mark.dataset.annotatedHighlight || highlightMap.get(mark);
-      const hoveredAnnotation = state.annotations.find(a => String(a.id) === String(annotationId));
-      if (hoveredAnnotation) {
-        // Collect ALL annotations whose quote overlaps with the hovered passage/mark
-        const norm = (s) => (s || '').toLowerCase().replace(/\s+/g, ' ').trim();
-        const getQuote = (a) => norm(a ? (a.quote || a.quote_text) : '');
-        const hoveredQuote = getQuote(hoveredAnnotation);
-        const markText = norm(mark.textContent);
-
-        const allForQuote = state.annotations.filter(a => {
-          if (String(a.id) === String(hoveredAnnotation.id)) return true;
-          const q = getQuote(a);
-          if (!q) return false;
-          // Check substring overlap in either direction
-          if (hoveredQuote && (hoveredQuote.includes(q) || q.includes(hoveredQuote))) return true;
-          return false;
-        });
-
-        showBubble(mark, allForQuote.length > 0 ? allForQuote : [hoveredAnnotation]);
-      }
-    }
-  });
-
-  document.addEventListener('mouseout', (e) => {
-    let mark = e.target.closest('.annotated-highlight');
-    let target = e.target;
-    while (target && target !== document.body && !mark) {
-      if (highlightMap.has(target)) mark = target;
-      else target = target.parentElement;
-    }
-    
-    if (mark) {
-      scheduleHideBubble();
-    }
-  });
-
-  document.addEventListener('click', (e) => {
-    const mark = e.target.closest('.annotated-highlight');
-    if (!mark) return;
-
-    e.preventDefault();
-    e.stopPropagation();
-
-    const annotationId = mark.dataset.annotatedHighlight || highlightMap.get(mark);
-    const annotation = state.annotations.find(a => String(a.id) === String(annotationId));
-    if (annotation) {
-      if (hoverBubble) hoverBubble.style.display = 'none';
-      openAnnotationInWidget(annotation, mark.getBoundingClientRect());
-    }
-  }, { capture: true });
-
-  setInterval(() => {
-    renderYouTubeVideoTag();
-    renderYouTubeProgressBarMarkers();
-    if (state.annotations && state.annotations.length > 0) {
-      state.annotations.forEach(ann => renderHighlight(ann));
-    }
-  }, 1000);
-
-  let widgetIframe = null;
-  let isDragging = false;
-  let dragOffset = { x: 0, y: 0 };
-
-  let widgetContainer = null;
-  let shadowRoot = null;
-
-  function createWidget(x, y) {
-    if (!document.body) return;
-    if (!widgetContainer || !document.body.contains(widgetContainer)) {
-      widgetContainer = document.createElement('div');
-      widgetContainer.id = 'annotated-layer-' + crypto.randomUUID().split('-')[0];
-      widgetContainer.style.cssText = 'position: fixed; z-index: 2147483647; top: 0; left: 0; width: 0; height: 0; overflow: visible; pointer-events: none; border: none; outline: none; margin: 0; padding: 0; background: transparent;';
-      shadowRoot = widgetContainer.attachShadow({ mode: 'open' });
-      document.body.appendChild(widgetContainer);
-    }
-
-    if (!widgetIframe) {
-      widgetIframe = document.createElement('iframe');
-      widgetIframe.src = chrome.runtime.getURL('widget.html');
-      widgetIframe.allow = 'microphone; display-capture';
-      widgetIframe.style.cssText = `
-        position: fixed;
-        width: 360px;
-        height: 390px;
-        max-height: 90vh;
-        border: 1px solid rgba(0,0,0,0.1);
-        border-radius: 16px;
-        box-shadow: 0 12px 40px rgba(0,0,0,0.15);
-        background: transparent;
-        display: block;
-        color-scheme: light dark;
-        pointer-events: auto !important;
-        transition: height 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-      `;
-      shadowRoot.appendChild(widgetIframe);
-
-      window.addEventListener('message', (e) => {
-        if (e.data?.type === 'DRAG_START') {
-          isDragging = true;
-          // clientX from the iframe is already relative to the iframe's top-left corner
-          dragOffset.x = e.data.clientX;
-          dragOffset.y = e.data.clientY;
-          widgetIframe.style.pointerEvents = 'none';
-        } else if (e.data?.type === 'CLOSE_WIDGET') {
-          widgetIframe.style.display = 'none';
-          stopDictation();
-        } else if (e.data?.type === 'RESIZE_WIDGET') {
-          if (widgetIframe && e.data.height) {
-            widgetIframe.style.height = `${e.data.height}px`;
-          }
-        } else if (e.data?.type === 'SEEK_MEDIA') {
-          const mediaEl = document.querySelector('video, audio');
-          if (mediaEl && typeof e.data.seconds === 'number') {
-            try {
-              mediaEl.currentTime = e.data.seconds;
-              mediaEl.play?.().catch(() => {});
-            } catch (_) {}
-          }
-        } else if (e.data?.type === 'START_DICTATION') {
-          console.log('[Content Host] Window message received: START_DICTATION');
-          startDictation();
-        } else if (e.data?.type === 'STOP_DICTATION') {
-          console.log('[Content Host] Window message received: STOP_DICTATION');
-          stopDictation();
-        } else if (e.data?.type === 'CAPTURE_VIDEO') {
-          capture240pVideoClip(e.data.duration || 90, e.data.streamId, (res) => {
-            try {
-              if (widgetIframe && widgetIframe.contentWindow) {
-                widgetIframe.contentWindow.postMessage({ type: 'VIDEO_CAPTURED', ...res }, '*');
-              }
-            } catch (_) {}
-          });
-        } else if (e.data?.type === 'STOP_VIDEO') {
-          stopRecordingNow();
-        } else if (e.data?.type === 'GET_PAGE_INFO') {
-          const mediaTs = getMediaTimestamp();
-          const info = {
-            type: 'PAGE_INFO_RESPONSE',
-            title: getSmartPageTitle(getExactSourceUrl(mediaTs || null, lastKnownElement), lastKnownElement),
-            url: getExactSourceUrl(mediaTs, lastKnownElement),
-            hostname: location.hostname,
-            selectedText: window.getSelection()?.toString().replace(/\s+/g, ' ').trim() || lastKnownSelection || '',
-            media_timestamp: mediaTs,
-          };
-          try {
-            if (widgetIframe && widgetIframe.contentWindow) {
-              widgetIframe.contentWindow.postMessage(info, '*');
-            }
-          } catch (_) {}
-        } else if (e.data?.type === 'SAVE_ANNOTATION' && e.data.annotation) {
-          state.annotations.push(e.data.annotation);
-          renderAllPendingHighlights();
-        } else if (e.data?.type === 'RELOAD_ANNOTATIONS') {
-          load();
-        } else if ((e.data?.type === 'OPEN_TAB' || e.data?.type === 'OPEN_URL') && e.data.url) {
-          console.log('[Annotated Content] Received tab open request for:', e.data.url);
-          try { chrome.runtime.sendMessage({ type: 'openTab', url: e.data.url }); } catch (_) {}
-        }
-      });
-    } else if (!shadowRoot.contains(widgetIframe)) {
-      shadowRoot.appendChild(widgetIframe);
-    }
-
-    widgetIframe.style.display = 'block';
-    widgetIframe.style.pointerEvents = 'auto';
-    positionWidget(x, y);
-  }
-
-    document.addEventListener('mousemove', (e) => {
-      if (!isDragging) return;
-      widgetIframe.style.left = (e.clientX - dragOffset.x) + 'px';
-      widgetIframe.style.top = (e.clientY - dragOffset.y) + 'px';
-    }, { capture: true });
-
-    document.addEventListener('mouseup', () => {
-      if (isDragging) {
-        isDragging = false;
-        widgetIframe.style.pointerEvents = 'auto';
-      }
-    }, { capture: true });
-
-  function positionWidget(x, y) {
-    let posX = (typeof x === 'number' && !isNaN(x)) ? x : (window.innerWidth - 380);
-    let posY = (typeof y === 'number' && !isNaN(y)) ? y : 20;
-    let left = posX + 20;
-    let top = posY - 30;
-    if (left + 340 > window.innerWidth) left = window.innerWidth - 360;
-    if (top + 370 > window.innerHeight) top = window.innerHeight - 390;
-    if (top < 10) top = 10;
-    if (left < 10) left = 10;
-    widgetIframe.style.left = left + 'px';
-    widgetIframe.style.top = top + 'px';
-  }
-
-  document.addEventListener('selectionchange', () => {
-    const selection = window.getSelection();
-    const quote = selection?.toString().replace(/\s+/g, ' ').trim();
-    if (quote && quote.length >= 2 && selection.rangeCount > 0) {
-      lastKnownSelection = quote;
-      try {
-        const range = selection.getRangeAt(0);
-        lastKnownRect = range.getBoundingClientRect();
-        const node = range.commonAncestorContainer;
-        lastKnownElement = node.nodeType === Node.ELEMENT_NODE ? node : node.parentElement;
-      } catch (_) {}
-    }
-  });
-
-  document.addEventListener('mousedown', (e) => {
-    // If they click outside the widget, clear the fallback so it doesn't pop up again
-    if (!widgetContainer || !widgetContainer.contains(e.target)) {
-      lastKnownSelection = null;
-      lastKnownRect = null;
-      lastKnownElement = null;
-    }
-  }, { capture: true });
-
-  const recordSelection = () => {
-    const selection = window.getSelection();
-    let quote = selection?.toString().replace(/\s+/g, ' ').trim();
-    let rect = null;
-
-    if (quote && quote.length >= 2 && selection.rangeCount > 0) {
-      rect = selection.getRangeAt(0).getBoundingClientRect();
-    } else if (lastKnownSelection) {
-      // Fallback for X.com which might clear selection on mouseup
-      quote = lastKnownSelection;
-      rect = lastKnownRect;
-    }
-
-    if (!quote || quote.length < 2 || !rect) return;
-    
-    // Always open widget immediately
+  // extension-src/content/selection.ts
+  var lastKnownSelection = null;
+  var lastKnownRect = null;
+  var lastKnownElement = null;
+  function getMediaTimestamp() {
     try {
-      createWidget(rect.right, rect.top);
-    } catch (err) {
-      console.warn('[Annotated] createWidget error:', err);
-    }
-
-    const mediaTs = getMediaTimestamp();
-    const payload = {
-      quote,
-      url: getExactSourceUrl(mediaTs, lastKnownElement),
-      title: getSmartPageTitle(getExactSourceUrl(mediaTs || null, lastKnownElement), lastKnownElement),
-      hostname: location.hostname,
-      timestamp: Date.now(),
-      media_timestamp: mediaTs,
-    };
-
-    try {
-      if (chrome.storage && chrome.storage.local) {
-        chrome.storage.local.set({ pendingSelection: payload }, () => {
-          chrome.runtime.sendMessage({ type: 'selection', ...payload }).catch(() => {});
-        });
+      const moviePlayer = document.getElementById("movie_player");
+      if (moviePlayer && typeof moviePlayer.getCurrentTime === "function") {
+        const t = moviePlayer.getCurrentTime();
+        if (t != null && !isNaN(t) && t > 0) return Math.floor(t);
       }
-    } catch (_) {}
-  };
-
-  document.addEventListener('mouseup', () => setTimeout(recordSelection, 10));
-  document.addEventListener('keyup', (e) => { if (e.key === 'Shift') setTimeout(recordSelection, 10); });
-
-  // ─── Message handler ─────────────────────────────────────────────────────────
-  
-  // ─── Multimodal 240p Video Clipper (Max 90s) & Audio Fusion ───────────────
-  let activeVideoRecorder = null;
-  let activeRecordStream = null;
-  let activeAudioStream = null;
-  let activeSpeakerBridge = null;
-  let activeVideoEl = null;
-  let activeAnimFrameId = null;
-  let isRecordingVideo = false;
-  let pendingSendResponse = null;
-
-  async function startOffscreenSpeakerBridge(audioStream) {
-    try {
-      await new Promise((resolve) => {
-        chrome.runtime.sendMessage({ type: 'ENSURE_OFFSCREEN' }, resolve);
-      });
-
-      const pc = new RTCPeerConnection();
-      activeSpeakerBridge = pc;
-
-      audioStream.getAudioTracks().forEach((track) => {
-        pc.addTrack(track, audioStream);
-      });
-
-      const offer = await pc.createOffer();
-      await pc.setLocalDescription(offer);
-
-      if (pc.iceGatheringState !== 'complete') {
-        await new Promise((resolve) => {
-          const check = () => {
-            if (pc.iceGatheringState === 'complete') {
-              pc.removeEventListener('icegatheringstatechange', check);
-              resolve();
-            }
-          };
-          pc.addEventListener('icegatheringstatechange', check);
-          setTimeout(resolve, 60);
-        });
-      }
-
-      chrome.runtime.sendMessage({
-        type: 'OFFSCREEN_START_AUDIO_BRIDGE',
-        sdp: pc.localDescription.sdp
-      }, async (res) => {
-        if (res && res.sdp && pc.signalingState !== 'closed') {
-          try {
-            await pc.setRemoteDescription({ type: 'answer', sdp: res.sdp });
-          } catch (_) {}
-        }
-      });
-    } catch (err) {
-      console.warn('[Annotated] Live speaker bridge warning:', err);
-    }
-  }
-
-  function stopOffscreenSpeakerBridge() {
-    if (activeSpeakerBridge) {
-      try { activeSpeakerBridge.close(); } catch (_) {}
-      activeSpeakerBridge = null;
+    } catch (_) {
     }
     try {
-      chrome.runtime.sendMessage({ type: 'OFFSCREEN_STOP_AUDIO_BRIDGE' }).catch(() => {});
-    } catch (_) {}
-  }
-
-  function stopRecordingNow() {
-    if (!isRecordingVideo && !activeVideoRecorder) return;
-    isRecordingVideo = false;
-    if (activeAnimFrameId) {
-      if (activeVideoEl && 'cancelVideoFrameCallback' in activeVideoEl) {
-        try { activeVideoEl.cancelVideoFrameCallback(activeAnimFrameId); } catch (_) {}
+      if (lastKnownElement) {
+        const container = lastKnownElement.closest(
+          'div[data-testid="videoPlayer"], div[data-testid="videoComponent"], .html5-video-player, video, audio'
+        );
+        if (container) {
+          const media = container.querySelector("video, audio");
+          if (media && media.currentTime != null && !isNaN(media.currentTime) && media.currentTime > 0) {
+            return Math.floor(media.currentTime);
+          }
+        }
       }
-      cancelAnimationFrame(activeAnimFrameId);
-      activeAnimFrameId = null;
+    } catch (_) {
     }
-    stopOffscreenSpeakerBridge();
-    if (activeVideoRecorder && activeVideoRecorder.state === 'recording') {
-      try {
-        activeVideoRecorder.stop();
-      } catch (err) {
-        console.warn('[Annotated] Error calling recorder.stop():', err);
-      }
-    }
-  }
-
-  async function capture240pVideoClip(durationSeconds = 15, streamId, sendResponse) {
-    if (isRecordingVideo) {
-      stopRecordingNow();
-    }
-
-    const video = document.querySelector('video');
-    if (!video) {
-      sendResponse({ error: 'No video element found on this page.' });
-      return;
-    }
-
     try {
-      pendingSendResponse = sendResponse;
-      isRecordingVideo = true;
-      activeVideoEl = video;
-
-      const canvas = document.createElement('canvas');
-      canvas.width = 426;  // 240p width
-      canvas.height = 240; // 240p height
-      const ctx = canvas.getContext('2d');
-
-      const stream = canvas.captureStream(24); // 24 FPS
-      activeRecordStream = stream;
-
-      // ─── Audio Acquisition (Multi-tier: Tab Capture -> video element -> Silent WebAudio) ───
-      let audioTrackAdded = false;
-
-      // 1. Tab Capture audio via streamId
-      let targetStreamId = streamId;
-      if (!targetStreamId) {
-        try {
-          const bgRes = await new Promise((resolve) => {
-            chrome.runtime.sendMessage({ type: 'getTabAudioStreamId' }, resolve);
-          });
-          if (bgRes && bgRes.streamId) {
-            targetStreamId = bgRes.streamId;
-          }
-        } catch (_) {}
+      const v = document.querySelector("video, audio");
+      if (v && v.currentTime != null && !isNaN(v.currentTime) && v.currentTime > 0) {
+        return Math.floor(v.currentTime);
       }
-
-      if (targetStreamId) {
-        try {
-          const tabAudioStream = await navigator.mediaDevices.getUserMedia({
-            audio: {
-              mandatory: {
-                chromeMediaSource: 'tab',
-                chromeMediaSourceId: targetStreamId
-              },
-              optional: [
-                { echoCancellation: false },
-                { autoGainControl: false },
-                { noiseSuppression: false }
-              ]
-            }
-          });
-          if (tabAudioStream && tabAudioStream.getAudioTracks().length > 0) {
-            activeAudioStream = tabAudioStream;
-            const tabTrack = tabAudioStream.getAudioTracks()[0];
-            if (tabTrack) {
-              stream.addTrack(tabTrack);
-              audioTrackAdded = true;
-              startOffscreenSpeakerBridge(tabAudioStream);
-            }
-          }
-        } catch (err) {
-          console.warn('[Annotated] Tab audio getUserMedia error:', err);
-        }
-      }
-
-      // 2. Video element captureStream fallback (works on non-CORS videos)
-      if (!audioTrackAdded) {
-        try {
-          const vidStream = (video.captureStream && video.captureStream()) || (video.mozCaptureStream && video.mozCaptureStream());
-          if (vidStream && vidStream.getAudioTracks().length > 0) {
-            stream.addTrack(vidStream.getAudioTracks()[0]);
-            audioTrackAdded = true;
-          }
-        } catch (_) {}
-      }
-
-      // 3. Silent Web Audio fallback (Ensures container ALWAYS has Opus track so player speaker icon is never disabled)
-      if (!audioTrackAdded) {
-        try {
-          const AudioCtxClass = window.AudioContext || window.webkitAudioContext;
-          const audioCtx = new AudioCtxClass();
-          if (audioCtx.state === 'suspended') {
-            await audioCtx.resume();
-          }
-          const dest = audioCtx.createMediaStreamDestination();
-          const osc = audioCtx.createOscillator();
-          const gain = audioCtx.createGain();
-          gain.gain.value = 0; // Silent
-          osc.connect(gain);
-          gain.connect(dest);
-          osc.start();
-          const silentTrack = dest.stream.getAudioTracks()[0];
-          if (silentTrack) {
-            stream.addTrack(silentTrack);
-            audioTrackAdded = true;
-          }
-        } catch (e) {
-          console.warn('[Annotated] Silent audio creation fallback failed:', e);
-        }
-      }
-
-      // Codecs negotiation
-      let mimeType = 'video/webm;codecs=vp8,opus';
-      if (!MediaRecorder.isTypeSupported(mimeType)) {
-        mimeType = 'video/webm;codecs=vp8';
-        if (!MediaRecorder.isTypeSupported(mimeType)) {
-          mimeType = 'video/webm';
-        }
-      }
-
-      const recorder = new MediaRecorder(stream, {
-        mimeType,
-        audioBitsPerSecond: 128000,
-        videoBitsPerSecond: 800000
-      });
-      activeVideoRecorder = recorder;
-      const chunks = [];
-      const recordStartTime = Date.now();
-      const mediaStartTs = activeVideoEl ? activeVideoEl.currentTime : 0;
-      const maxDurationMs = Math.min(durationSeconds, 90) * 1000;
-
-      recorder.ondataavailable = (e) => {
-        if (e.data && e.data.size > 0) chunks.push(e.data);
-      };
-
-      recorder.onstop = () => {
-        isRecordingVideo = false;
-        if (activeAnimFrameId) {
-          if (activeVideoEl && 'cancelVideoFrameCallback' in activeVideoEl) {
-            try { activeVideoEl.cancelVideoFrameCallback(activeAnimFrameId); } catch (_) {}
-          }
-          cancelAnimationFrame(activeAnimFrameId);
-          activeAnimFrameId = null;
-        }
-        stopOffscreenSpeakerBridge();
-        try {
-          stream.getTracks().forEach(t => t.stop());
-        } catch (_) {}
-        if (activeAudioStream) {
-          try {
-            activeAudioStream.getTracks().forEach(t => t.stop());
-          } catch (_) {}
-          activeAudioStream = null;
-        }
-
-        const rawBlob = new Blob(chunks, { type: 'video/webm' });
-        const actualDurationMs = Math.max(Date.now() - recordStartTime, 500);
-        const mediaEndTs = activeVideoEl ? activeVideoEl.currentTime : 0;
-
-        const finalize = (finalBlob) => {
-          const reader = new FileReader();
-          reader.onloadend = () => {
-            if (pendingSendResponse) {
-              pendingSendResponse({
-                dataUrl: reader.result,
-                duration: Math.round(actualDurationMs / 1000),
-                startTs: Math.floor(mediaStartTs),
-                endTs: Math.floor(mediaEndTs)
-              });
-              pendingSendResponse = null;
-            }
-          };
-          reader.readAsDataURL(finalBlob);
-        };
-
-        const fixFn = typeof ysFixWebmDuration === 'function' ? ysFixWebmDuration : (window.ysFixWebmDuration || null);
-        if (fixFn) {
-          fixFn(rawBlob, actualDurationMs, (fixedBlob) => {
-            finalize(fixedBlob);
-          });
-        } else {
-          finalize(rawBlob);
-        }
-      };
-
-      // Draw initial frame before starting recorder
-      try {
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-      } catch (_) {}
-
-      // Continuous recording without 100ms micro-chunking prevents audio stutter
-      recorder.start(1000);
-
-      const renderFrame = () => {
-        if (!isRecordingVideo || !activeVideoRecorder || activeVideoRecorder.state !== 'recording') {
-          return;
-        }
-        try {
-          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        } catch (_) {}
-
-        if (Date.now() - recordStartTime >= maxDurationMs) {
-          stopRecordingNow();
-        } else {
-          if ('requestVideoFrameCallback' in video) {
-            activeAnimFrameId = video.requestVideoFrameCallback(renderFrame);
-          } else {
-            activeAnimFrameId = requestAnimationFrame(renderFrame);
-          }
-        }
-      };
-
-      if ('requestVideoFrameCallback' in video) {
-        activeAnimFrameId = video.requestVideoFrameCallback(renderFrame);
-      } else {
-        activeAnimFrameId = requestAnimationFrame(renderFrame);
-      }
-    } catch (err) {
-      isRecordingVideo = false;
-      if (pendingSendResponse) {
-        pendingSendResponse({ error: err.message || 'Failed to capture video clip.' });
-        pendingSendResponse = null;
-      }
+    } catch (_) {
     }
+    return null;
   }
-
-  // ─── Speech-to-Text (STT) Engine ───────────────────────────────────────────
-  let activeSpeechRecognition = null;
-  let isDictating = false;
-  let isStarting = false;
-  let restartTimeoutId = null;
-  let sessionAccumulatedFinal = '';
-  let currentRunFinal = '';
-  let consecutiveErrors = 0;
-
-  function sendDictationEvent(payload) {
-    console.log('[Content STT Dispatch]', payload);
-    if (widgetIframe && widgetIframe.contentWindow) {
-      try {
-        widgetIframe.contentWindow.postMessage(payload, '*');
-      } catch (_) {}
-    } else {
-      try {
-        chrome.runtime.sendMessage(payload).catch(() => {});
-      } catch (_) {}
-    }
-  }
-
-  async function startDictation() {
-    console.log('[Content STT] startDictation() initiated');
-    if (isDictating || isStarting) {
-      console.log('[Content STT] Already active or starting, ignoring duplicate start request.');
-      return;
-    }
-
-    const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRec) {
-      console.error('[Content STT] webkitSpeechRecognition unavailable');
-      sendDictationEvent({
-        type: 'DICTATION_ERROR',
-        error: 'Speech recognition is not supported on this browser/page.'
-      });
-      return;
-    }
-
-    isStarting = true;
-    cleanupSTT(false);
-    sessionAccumulatedFinal = '';
-    currentRunFinal = '';
-    consecutiveErrors = 0;
-    isDictating = true;
-
-    // Check permission state first to avoid redundant getUserMedia requests
-    let hasPermission = false;
-    if (navigator.permissions && navigator.permissions.query) {
-      try {
-        const perm = await navigator.permissions.query({ name: 'microphone' });
-        console.log('[Content STT] navigator.permissions microphone state:', perm.state);
-        if (perm.state === 'granted') {
-          hasPermission = true;
-        } else if (perm.state === 'denied') {
-          isDictating = false;
-          isStarting = false;
-          sendDictationEvent({
-            type: 'DICTATION_ERROR',
-            error: 'Microphone is blocked for this site. Click the lock icon in the URL bar to allow.'
-          });
-          return;
-        }
-      } catch (_) {}
-    }
-
-    if (!hasPermission && navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-      sendDictationEvent({ type: 'DICTATION_STATUS', status: 'Requesting mic permission…' });
-      try {
-        console.log('[Content STT] Requesting getUserMedia to prompt for microphone permission...');
-        const tempStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        tempStream.getTracks().forEach(t => t.stop());
-        await new Promise(r => setTimeout(r, 120));
-      } catch (err) {
-        console.warn('[Content STT] getUserMedia error:', err);
-        isDictating = false;
-        isStarting = false;
-        sendDictationEvent({
-          type: 'DICTATION_ERROR',
-          error: 'Microphone permission denied. Allow mic access to dictate.'
-        });
+  function seekToTimestamp(seconds) {
+    try {
+      const moviePlayer = document.getElementById("movie_player");
+      if (moviePlayer && typeof moviePlayer.seekTo === "function") {
+        moviePlayer.seekTo(seconds, true);
+        if (typeof moviePlayer.playVideo === "function") moviePlayer.playVideo();
         return;
       }
+    } catch (_) {
     }
-
-    sendDictationEvent({ type: 'DICTATION_STATUS', status: '🎙️ Mic active… listening' });
-
-    function initRecognition() {
-      if (!isDictating) return;
-
+    const v = document.querySelector("video, audio");
+    if (v) {
       try {
-        console.log('[Content STT] Initializing SpeechRecognition session');
-        const recognition = new SpeechRec();
-        activeSpeechRecognition = recognition;
-        let recognitionFailed = false;
-
-        recognition.continuous = true;
-        recognition.interimResults = true;
-        recognition.lang = navigator.language || 'en-US';
-
-        recognition.onstart = () => {
-          console.log('[Content STT] Event: onstart');
-          isStarting = false;
-          consecutiveErrors = 0;
-          sendDictationEvent({ type: 'DICTATION_STARTED' });
-        };
-
-        recognition.onaudiostart = () => {
-          console.log('[Content STT] Event: onaudiostart');
-          sendDictationEvent({ type: 'DICTATION_STATUS', status: '🎙️ Mic active… listening' });
-        };
-
-        recognition.onresult = (event) => {
-          consecutiveErrors = 0;
-          let runFinal = '';
-          let interimTranscript = '';
-          for (let i = 0; i < event.results.length; ++i) {
-            const item = event.results[i];
-            if (item.isFinal) {
-              runFinal += item[0].transcript + ' ';
-            } else {
-              interimTranscript += item[0].transcript;
-            }
-          }
-          currentRunFinal = runFinal;
-          const fullText = (sessionAccumulatedFinal + currentRunFinal + interimTranscript).trimStart();
-          console.log('[Content STT] Transcribed total:', fullText);
-          sendDictationEvent({
-            type: 'DICTATION_RESULT',
-            text: fullText,
-            finalTranscript: sessionAccumulatedFinal + currentRunFinal,
-            interimTranscript: interimTranscript
-          });
-        };
-
-        recognition.onerror = (event) => {
-          console.warn('[Content STT] Event: onerror! Code:', event.error, event);
-          if (event.error === 'aborted') {
-            return;
-          }
-          if (event.error === 'no-speech') {
-            // Normal silence pause, do not kill the dictation session
-            return;
-          }
-
-          recognitionFailed = true;
-          consecutiveErrors++;
-
-          if (event.error === 'not-allowed') {
-            isDictating = false;
-            sendDictationEvent({
-              type: 'DICTATION_ERROR',
-              error: 'Microphone permission blocked. Please allow mic access.'
-            });
-          } else if (event.error === 'audio-capture') {
-            if (consecutiveErrors > 2) {
-              isDictating = false;
-              sendDictationEvent({
-                type: 'DICTATION_ERROR',
-                error: 'Microphone not available or busy in another app.'
-              });
-            }
-          } else if (event.error === 'network') {
-            if (consecutiveErrors > 2) {
-              isDictating = false;
-              sendDictationEvent({
-                type: 'DICTATION_ERROR',
-                error: 'Speech recognition network error. Please check your connection.'
-              });
-            }
-          } else {
-            if (consecutiveErrors > 2) {
-              isDictating = false;
-              sendDictationEvent({
-                type: 'DICTATION_ERROR',
-                error: `Dictation error: ${event.error}`
-              });
-            }
-          }
-        };
-
-        recognition.onend = () => {
-          console.log('[Content STT] Event: onend. isDictating:', isDictating, 'recognitionFailed:', recognitionFailed);
-          sessionAccumulatedFinal += currentRunFinal;
-          currentRunFinal = '';
-
-          if (isDictating && consecutiveErrors <= 2) {
-            console.log('[Content STT] Still dictating; re-engaging session...');
-            restartTimeoutId = setTimeout(() => {
-              if (isDictating) {
-                initRecognition();
-              }
-            }, 250);
-            return;
-          }
-
-          cleanupSTT(consecutiveErrors <= 2);
-        };
-
-        console.log('[Content STT] Calling recognition.start()...');
-        recognition.start();
-      } catch (err) {
-        console.error('[Content STT] Failed to initialize recognition:', err);
-        consecutiveErrors++;
-        if (isDictating && consecutiveErrors <= 2) {
-          restartTimeoutId = setTimeout(() => {
-            if (isDictating) initRecognition();
-          }, 350);
-        } else {
-          cleanupSTT(false);
-          sendDictationEvent({
-            type: 'DICTATION_ERROR',
-            error: err.message || 'Failed to start dictation.'
-          });
-        }
+        v.currentTime = seconds;
+        v.play().catch(() => {
+        });
+      } catch (_) {
       }
     }
-
-    initRecognition();
+  }
+  function getSmartPageTitle(targetEl) {
+    const el = targetEl || lastKnownElement;
+    if (el) {
+      const tweet = el.closest('article[data-testid="tweet"]');
+      if (tweet) {
+        const author = tweet.querySelector('[data-testid="User-Name"] span')?.textContent || "User";
+        return `Post by ${author} on X`;
+      }
+    }
+    return document.title || "Current page";
+  }
+  function getExactSourceUrl(targetEl) {
+    const el = targetEl || lastKnownElement;
+    if (el) {
+      const tweet = el.closest('article[data-testid="tweet"]');
+      if (tweet) {
+        const timeLink = tweet.querySelector("time")?.closest("a");
+        if (timeLink?.href) return timeLink.href;
+        const statusLink = tweet.querySelector('a[href*="/status/"]');
+        if (statusLink?.href) return statusLink.href;
+      }
+    }
+    const canonical = document.querySelector('link[rel="canonical"]')?.href;
+    return canonical || location.href;
+  }
+  function buildPageInfo() {
+    const sel = window.getSelection()?.toString().trim() || lastKnownSelection || "";
+    const url = getExactSourceUrl();
+    const rawTs = getMediaTimestamp();
+    const mediaTs = rawTs != null ? rawTs : extractTimestamp(url, "");
+    return {
+      title: getSmartPageTitle(),
+      url,
+      hostname: location.hostname,
+      selectedText: sel,
+      quote: sel,
+      media_timestamp: mediaTs
+    };
+  }
+  function recordSelection(onSelectionRecorded) {
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0 || sel.isCollapsed) return;
+    const text = sel.toString().trim();
+    if (text.length < 2) return;
+    lastKnownSelection = text;
+    const range = sel.getRangeAt(0);
+    lastKnownRect = range.getBoundingClientRect();
+    lastKnownElement = range.commonAncestorContainer;
+    if (lastKnownElement.nodeType === Node.TEXT_NODE) {
+      lastKnownElement = lastKnownElement.parentElement;
+    }
+    const payload = buildPageInfo();
+    try {
+      chrome.storage.local.set({ pendingSelection: { ...payload, timestamp: Date.now() } });
+      chrome.runtime.sendMessage({ type: "selection", ...payload }).catch(() => {
+      });
+    } catch (_) {
+    }
+    if (onSelectionRecorded) {
+      onSelectionRecorded(payload);
+    }
   }
 
-  function cleanupSTT(notifyEnded = true) {
-    console.log('[Content STT] cleanupSTT called. notifyEnded:', notifyEnded);
+  // extension-src/content/screenshot-crop.ts
+  function startCropScreenshot(widgetIframe2, onCaptured, onError) {
+    if (widgetIframe2) {
+      widgetIframe2.style.visibility = "hidden";
+    }
+    const existing = document.getElementById("annotated-crop-overlay");
+    if (existing) existing.remove();
+    const overlay = document.createElement("div");
+    overlay.id = "annotated-crop-overlay";
+    overlay.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 2147483647;
+    cursor: crosshair;
+    user-select: none;
+    background: rgba(0, 0, 0, 0.35);
+  `;
+    const banner = document.createElement("div");
+    banner.style.cssText = `
+    position: absolute;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(15, 23, 42, 0.92);
+    color: #f8fafc;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 8px 18px;
+    border-radius: 9999px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.12);
+    pointer-events: none;
+    letter-spacing: 0.02em;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  `;
+    banner.innerHTML = `<span style="font-size: 15px;">\u{1F4F8}</span> Drag to crop screenshot &nbsp;\xB7&nbsp; <kbd style="background: rgba(255,255,255,0.18); padding: 1px 6px; border-radius: 4px; font-size: 11px;">ESC</kbd> to cancel`;
+    overlay.appendChild(banner);
+    const cropBox = document.createElement("div");
+    cropBox.style.cssText = `
+    position: absolute;
+    display: none;
+    border: 2px solid #ffd21a;
+    box-shadow: 0 0 0 99999px rgba(0, 0, 0, 0.45), 0 0 12px rgba(255, 210, 26, 0.5);
+    background: transparent;
+    pointer-events: none;
+  `;
+    overlay.appendChild(cropBox);
+    const dimBadge = document.createElement("div");
+    dimBadge.style.cssText = `
+    position: absolute;
+    bottom: -26px;
+    right: 0;
+    background: #ffd21a;
+    color: #000;
+    font-family: monospace;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 3px;
+    white-space: nowrap;
+  `;
+    cropBox.appendChild(dimBadge);
+    let startX = 0;
+    let startY = 0;
+    let isDragging2 = false;
+    const onKeyDown = (e) => {
+      if (e.key === "Escape") {
+        cleanup();
+      }
+    };
+    const cleanup = () => {
+      window.removeEventListener("keydown", onKeyDown);
+      if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+      if (widgetIframe2) {
+        widgetIframe2.style.visibility = "visible";
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    overlay.addEventListener("mousedown", (e) => {
+      if (e.button !== 0) return;
+      startX = e.clientX;
+      startY = e.clientY;
+      isDragging2 = true;
+      cropBox.style.left = `${startX}px`;
+      cropBox.style.top = `${startY}px`;
+      cropBox.style.width = "0px";
+      cropBox.style.height = "0px";
+      cropBox.style.display = "block";
+    });
+    overlay.addEventListener("mousemove", (e) => {
+      if (!isDragging2) return;
+      const currentX = e.clientX;
+      const currentY = e.clientY;
+      const left = Math.min(startX, currentX);
+      const top = Math.min(startY, currentY);
+      const width = Math.abs(currentX - startX);
+      const height = Math.abs(currentY - startY);
+      cropBox.style.left = `${left}px`;
+      cropBox.style.top = `${top}px`;
+      cropBox.style.width = `${width}px`;
+      cropBox.style.height = `${height}px`;
+      dimBadge.textContent = `${Math.round(width)} \xD7 ${Math.round(height)}`;
+    });
+    overlay.addEventListener("mouseup", (e) => {
+      if (!isDragging2) return;
+      isDragging2 = false;
+      const endX = e.clientX;
+      const endY = e.clientY;
+      const cropX = Math.min(startX, endX);
+      const cropY = Math.min(startY, endY);
+      const cropW = Math.abs(endX - startX);
+      const cropH = Math.abs(endY - startY);
+      cleanup();
+      if (cropW < 8 || cropH < 8) {
+        return;
+      }
+      setTimeout(() => {
+        chrome.runtime.sendMessage({ type: "CAPTURE_SCREENSHOT" }, (response) => {
+          if (!response?.dataUrl) {
+            if (onError) onError("Failed to capture screen image");
+            return;
+          }
+          const dpr = window.devicePixelRatio || 1;
+          const img = new Image();
+          img.onload = () => {
+            const canvas = document.createElement("canvas");
+            canvas.width = Math.round(cropW * dpr);
+            canvas.height = Math.round(cropH * dpr);
+            const ctx = canvas.getContext("2d");
+            if (!ctx) return;
+            ctx.drawImage(
+              img,
+              Math.round(cropX * dpr),
+              Math.round(cropY * dpr),
+              Math.round(cropW * dpr),
+              Math.round(cropH * dpr),
+              0,
+              0,
+              Math.round(cropW * dpr),
+              Math.round(cropH * dpr)
+            );
+            const croppedDataUrl = canvas.toDataURL("image/png");
+            onCaptured(croppedDataUrl);
+          };
+          img.onerror = () => {
+            if (onError) onError("Failed to process captured image");
+          };
+          img.src = response.dataUrl;
+        });
+      }, 60);
+    });
+    document.documentElement.appendChild(overlay);
+  }
+
+  // extension-src/content/dictation.ts
+  var activeSpeechRecognition = null;
+  var isDictating = false;
+  var isStarting = false;
+  var restartTimeoutId = null;
+  var sessionAccumulatedFinal = "";
+  var currentRunFinal = "";
+  var consecutiveErrors = 0;
+  function sendDictationEvent(widgetIframe2, eventData) {
+    if (widgetIframe2?.contentWindow) {
+      widgetIframe2.contentWindow.postMessage(eventData, "*");
+    }
+    try {
+      chrome.runtime.sendMessage(eventData).catch(() => {
+      });
+    } catch (_) {
+    }
+  }
+  function startDictation(widgetIframe2) {
+    if (isDictating || isStarting) return;
+    isStarting = true;
+    consecutiveErrors = 0;
+    sessionAccumulatedFinal = "";
+    currentRunFinal = "";
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      sendDictationEvent(widgetIframe2, {
+        type: "DICTATION_ERROR",
+        error: "Speech recognition is not supported in this browser."
+      });
+      isStarting = false;
+      return;
+    }
+    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+      navigator.mediaDevices.getUserMedia({ audio: true }).then((stream) => {
+        stream.getTracks().forEach((track) => track.stop());
+        initRecognition();
+      }).catch((err) => {
+        console.warn("[Annotated STT] getUserMedia error:", err);
+        initRecognition();
+      });
+    } else {
+      initRecognition();
+    }
+    function initRecognition() {
+      try {
+        activeSpeechRecognition = new SpeechRecognition();
+        activeSpeechRecognition.continuous = true;
+        activeSpeechRecognition.interimResults = true;
+        activeSpeechRecognition.lang = "en-US";
+        activeSpeechRecognition.onstart = () => {
+          isDictating = true;
+          isStarting = false;
+          sendDictationEvent(widgetIframe2, { type: "DICTATION_STARTED" });
+        };
+        activeSpeechRecognition.onresult = (event) => {
+          let interim = "";
+          for (let i = event.resultIndex; i < event.results.length; ++i) {
+            const transcript = event.results[i][0].transcript;
+            if (event.results[i].isFinal) {
+              currentRunFinal += transcript + " ";
+            } else {
+              interim += transcript;
+            }
+          }
+          sendDictationEvent(widgetIframe2, {
+            type: "DICTATION_RESULT",
+            text: (sessionAccumulatedFinal + currentRunFinal + interim).trim(),
+            finalTranscript: (sessionAccumulatedFinal + currentRunFinal).trim(),
+            interimTranscript: interim.trim()
+          });
+        };
+        activeSpeechRecognition.onerror = (event) => {
+          console.warn("[Annotated STT] Recognition error:", event.error);
+          if (event.error === "not-allowed") {
+            cleanupSTT();
+            sendDictationEvent(widgetIframe2, {
+              type: "DICTATION_ERROR",
+              error: "Microphone permission denied."
+            });
+            return;
+          }
+          if (event.error === "no-speech") {
+            return;
+          }
+          consecutiveErrors++;
+          if (consecutiveErrors > 3) {
+            cleanupSTT();
+            sendDictationEvent(widgetIframe2, {
+              type: "DICTATION_ERROR",
+              error: `Dictation failed: ${event.error}`
+            });
+          }
+        };
+        activeSpeechRecognition.onend = () => {
+          sessionAccumulatedFinal += currentRunFinal;
+          currentRunFinal = "";
+          if (isDictating) {
+            restartTimeoutId = setTimeout(() => {
+              if (isDictating && activeSpeechRecognition) {
+                try {
+                  activeSpeechRecognition.start();
+                } catch (_) {
+                }
+              }
+            }, 200);
+          } else {
+            cleanupSTT();
+            sendDictationEvent(widgetIframe2, { type: "DICTATION_ENDED" });
+          }
+        };
+        activeSpeechRecognition.start();
+      } catch (err) {
+        cleanupSTT();
+        sendDictationEvent(widgetIframe2, {
+          type: "DICTATION_ERROR",
+          error: `Could not start dictation: ${err instanceof Error ? err.message : String(err)}`
+        });
+      }
+    }
+  }
+  function cleanupSTT() {
     isDictating = false;
     isStarting = false;
     if (restartTimeoutId) {
@@ -2002,87 +1003,570 @@
       restartTimeoutId = null;
     }
     if (activeSpeechRecognition) {
-      const rec = activeSpeechRecognition;
-      activeSpeechRecognition = null;
-      try { rec.abort(); } catch (_) {}
-    }
-    if (notifyEnded) {
-      sendDictationEvent({ type: 'DICTATION_ENDED' });
-    }
-  }
-
-  function stopDictation() {
-    console.log('[Content STT] stopDictation() called by user');
-    isDictating = false;
-    isStarting = false;
-    cleanupSTT(true);
-  }
-
-  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    if (message.type === 'START_DICTATION') {
-      console.log('[Content Host] chrome.runtime message received: START_DICTATION');
-      startDictation();
-      sendResponse({ ok: true });
-      return true;
-    }
-    if (message.type === 'STOP_DICTATION') {
-      console.log('[Content Host] chrome.runtime message received: STOP_DICTATION');
-      stopDictation();
-      sendResponse({ ok: true });
-      return true;
-    }
-    if (message.type === 'stopVideo') {
-      stopRecordingNow();
-      sendResponse({ ok: true });
-      return true;
-    }
-    if (message.type === 'captureVideo') {
-      capture240pVideoClip(message.duration || 90, message.streamId, sendResponse);
-      return true;
-    }
-    if (message.type === 'TOGGLE_WIDGET') {
-      if (widgetIframe && widgetIframe.style.display !== 'none') {
-        widgetIframe.style.display = 'none';
-      } else {
-        createWidget(window.innerWidth - 380, 20);
+      try {
+        activeSpeechRecognition.onstart = null;
+        activeSpeechRecognition.onresult = null;
+        activeSpeechRecognition.onerror = null;
+        activeSpeechRecognition.onend = null;
+        activeSpeechRecognition.stop();
+        activeSpeechRecognition.abort();
+      } catch (_) {
       }
-      sendResponse({ ok: true });
-      return true;
+      activeSpeechRecognition = null;
     }
-    if (message.type === 'openWidget') {
-      createWidget(window.innerWidth - 380, 20);
-      sendResponse({ ok: true });
-      return true;
+  }
+  function stopDictation(widgetIframe2) {
+    isDictating = false;
+    cleanupSTT();
+    sendDictationEvent(widgetIframe2, { type: "DICTATION_ENDED" });
+  }
+
+  // extension-src/content/video-clip.ts
+  var activeVideoRecorder = null;
+  var activeRecordStream = null;
+  var activeAudioStream = null;
+  var activeSpeakerBridge = null;
+  var activeVideoEl = null;
+  var activeAnimFrameId = null;
+  var isRecordingVideo = false;
+  var pendingSendResponse = null;
+  async function startOffscreenSpeakerBridge(audioStream) {
+    try {
+      const pc = new RTCPeerConnection();
+      audioStream.getAudioTracks().forEach((track) => pc.addTrack(track, audioStream));
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+      await chrome.runtime.sendMessage({ type: "ENSURE_OFFSCREEN" });
+      const answer = await new Promise((resolve) => {
+        chrome.runtime.sendMessage(
+          { type: "OFFSCREEN_START_AUDIO_BRIDGE", sdp: offer.sdp },
+          (res) => resolve(res)
+        );
+      });
+      if (answer?.sdp) {
+        await pc.setRemoteDescription(new RTCSessionDescription({ type: "answer", sdp: answer.sdp }));
+        return pc;
+      }
+    } catch (err) {
+      console.warn("[Annotated Bridge] Speaker bridge failed:", err);
     }
-    if (message.type === 'saveAnnotation') {
-      const annotation = { ...message.annotation, id: message.annotation.id || crypto.randomUUID(), url: message.annotation.url || location.href };
-      state.annotations.push(annotation);
-      chrome.storage.local.set({ [getKey()]: state.annotations }).then(() => {
-        renderHighlight(annotation);
+    return null;
+  }
+  function stopOffscreenSpeakerBridge() {
+    if (activeSpeakerBridge) {
+      try {
+        activeSpeakerBridge.close();
+      } catch (_) {
+      }
+      activeSpeakerBridge = null;
+    }
+    chrome.runtime.sendMessage({ type: "OFFSCREEN_STOP_AUDIO_BRIDGE" }).catch(() => {
+    });
+  }
+  function stopRecordingNow() {
+    if (isRecordingVideo && activeVideoRecorder && activeVideoRecorder.state !== "inactive") {
+      try {
+        activeVideoRecorder.stop();
+      } catch (_) {
+      }
+    }
+  }
+  async function capture240pVideoClip(durationSeconds = 15, sendResponse) {
+    if (isRecordingVideo) {
+      sendResponse({ error: "Video recording already in progress" });
+      return;
+    }
+    const videoEl = document.querySelector("video");
+    if (!videoEl) {
+      sendResponse({ error: "No video playing on page" });
+      return;
+    }
+    isRecordingVideo = true;
+    pendingSendResponse = sendResponse;
+    activeVideoEl = videoEl;
+    const startTs = Math.floor(videoEl.currentTime || 0);
+    const canvas = document.createElement("canvas");
+    canvas.width = 426;
+    canvas.height = 240;
+    const ctx = canvas.getContext("2d");
+    const canvasStream = canvas.captureStream(24);
+    const renderLoop = () => {
+      if (!isRecordingVideo) return;
+      if (ctx && activeVideoEl && !activeVideoEl.paused && !activeVideoEl.ended) {
+        ctx.drawImage(activeVideoEl, 0, 0, canvas.width, canvas.height);
+      }
+      activeAnimFrameId = requestAnimationFrame(renderLoop);
+    };
+    renderLoop();
+    let finalStream = canvasStream;
+    let audioContext = null;
+    try {
+      const tabStreamId = await new Promise((resolve) => {
+        chrome.runtime.sendMessage({ type: "getTabAudioStreamId" }, (res) => {
+          resolve(res?.streamId || null);
+        });
+      });
+      if (tabStreamId) {
+        activeAudioStream = await navigator.mediaDevices.getUserMedia({
+          audio: {
+            mandatory: {
+              chromeMediaSource: "tab",
+              chromeMediaSourceId: tabStreamId
+            }
+          },
+          video: false
+        });
+        activeSpeakerBridge = await startOffscreenSpeakerBridge(activeAudioStream);
+        finalStream = new MediaStream([
+          ...canvasStream.getVideoTracks(),
+          ...activeAudioStream.getAudioTracks()
+        ]);
+      }
+    } catch (err) {
+      console.warn("[Annotated Video] Tab audio capture fallback:", err);
+      try {
+        audioContext = new AudioContext();
+        const osc = audioContext.createOscillator();
+        const gain = audioContext.createGain();
+        gain.gain.value = 0;
+        osc.connect(gain);
+        const dest = audioContext.createMediaStreamDestination();
+        gain.connect(dest);
+        osc.start();
+        finalStream = new MediaStream([
+          ...canvasStream.getVideoTracks(),
+          ...dest.stream.getAudioTracks()
+        ]);
+      } catch (_) {
+      }
+    }
+    activeRecordStream = finalStream;
+    const chunks = [];
+    try {
+      const mimeType = MediaRecorder.isTypeSupported("video/webm;codecs=vp8,opus") ? "video/webm;codecs=vp8,opus" : "video/webm";
+      activeVideoRecorder = new MediaRecorder(finalStream, {
+        mimeType,
+        videoBitsPerSecond: 6e5
+      });
+      activeVideoRecorder.ondataavailable = (e) => {
+        if (e.data && e.data.size > 0) chunks.push(e.data);
+      };
+      activeVideoRecorder.onstop = () => {
+        isRecordingVideo = false;
+        if (activeAnimFrameId) cancelAnimationFrame(activeAnimFrameId);
+        stopOffscreenSpeakerBridge();
+        if (activeAudioStream) {
+          activeAudioStream.getTracks().forEach((t) => t.stop());
+          activeAudioStream = null;
+        }
+        if (canvasStream) canvasStream.getTracks().forEach((t) => t.stop());
+        if (audioContext) audioContext.close().catch(() => {
+        });
+        const endTs = Math.floor(videoEl.currentTime || startTs + durationSeconds);
+        const rawBlob = new Blob(chunks, { type: "video/webm" });
+        const durationMs = (endTs - startTs) * 1e3;
+        const finishWithBlob = (blob) => {
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            if (pendingSendResponse) {
+              pendingSendResponse({
+                dataUrl: reader.result,
+                duration: Math.max(1, endTs - startTs),
+                startTs,
+                endTs
+              });
+              pendingSendResponse = null;
+            }
+          };
+          reader.readAsDataURL(blob);
+        };
+        if (window.ysFixWebmDuration) {
+          window.ysFixWebmDuration(rawBlob, durationMs, (fixedBlob) => {
+            finishWithBlob(fixedBlob);
+          });
+        } else {
+          finishWithBlob(rawBlob);
+        }
+      };
+      activeVideoRecorder.start(500);
+      setTimeout(() => {
+        if (isRecordingVideo && activeVideoRecorder && activeVideoRecorder.state !== "inactive") {
+          stopRecordingNow();
+        }
+      }, durationSeconds * 1e3);
+    } catch (err) {
+      isRecordingVideo = false;
+      sendResponse({ error: err instanceof Error ? err.message : String(err) });
+    }
+  }
+
+  // extension-src/content/widget-host.ts
+  var widgetContainer = null;
+  var shadowRoot = null;
+  var widgetIframe = null;
+  var isDragging = false;
+  var dragOffset = { x: 0, y: 0 };
+  function ensureWidgetContainer() {
+    if (widgetContainer && shadowRoot && document.body.contains(widgetContainer)) {
+      return { container: widgetContainer, shadow: shadowRoot };
+    }
+    widgetContainer = document.createElement("div");
+    widgetContainer.id = `annotated-layer-${crypto.randomUUID()}`;
+    widgetContainer.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 0;
+    height: 0;
+    z-index: 2147483645;
+    pointer-events: none;
+  `;
+    shadowRoot = widgetContainer.attachShadow({ mode: "open" });
+    document.body.appendChild(widgetContainer);
+    return { container: widgetContainer, shadow: shadowRoot };
+  }
+  function positionWidget(iframe, x, y) {
+    const width = 360;
+    const height = parseInt(iframe.style.height || "390", 10);
+    const padding = 16;
+    let targetX = x !== void 0 ? x : window.innerWidth - width - padding;
+    let targetY = y !== void 0 ? y : padding;
+    targetX = Math.max(padding, Math.min(window.innerWidth - width - padding, targetX));
+    targetY = Math.max(padding, Math.min(window.innerHeight - height - padding, targetY));
+    iframe.style.left = `${targetX}px`;
+    iframe.style.top = `${targetY}px`;
+  }
+  function createWidget() {
+    const { shadow } = ensureWidgetContainer();
+    if (widgetIframe && shadow.contains(widgetIframe)) {
+      widgetIframe.style.display = "block";
+      return widgetIframe;
+    }
+    widgetIframe = document.createElement("iframe");
+    widgetIframe.src = chrome.runtime.getURL("widget.html");
+    widgetIframe.setAttribute("allow", "microphone; display-capture");
+    widgetIframe.style.cssText = `
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    width: 360px;
+    height: 390px;
+    border: none;
+    border-radius: 12px;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.25), 0 0 0 1px rgba(0,0,0,0.08);
+    z-index: 2147483646;
+    pointer-events: auto;
+    transition: height 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    display: block;
+    background: transparent;
+  `;
+    shadow.appendChild(widgetIframe);
+    positionWidget(widgetIframe);
+    document.addEventListener("mousemove", (e) => {
+      if (!isDragging || !widgetIframe) return;
+      widgetIframe.style.left = `${e.clientX - dragOffset.x}px`;
+      widgetIframe.style.top = `${e.clientY - dragOffset.y}px`;
+    });
+    document.addEventListener("mouseup", () => {
+      if (isDragging && widgetIframe) {
+        isDragging = false;
+        widgetIframe.style.pointerEvents = "auto";
+      }
+    });
+    return widgetIframe;
+  }
+  function openAnnotationInWidget(annotation) {
+    const iframe = createWidget();
+    const sendView = () => {
+      if (iframe.contentWindow) {
+        iframe.contentWindow.postMessage({ type: "VIEW_ANNOTATION", annotation }, "*");
+      }
+    };
+    sendView();
+    setTimeout(sendView, 120);
+  }
+  function setupMessageRouter(onReloadAnnotations) {
+    window.addEventListener("message", (event) => {
+      const data = event.data;
+      if (!data || !data.type) return;
+      switch (data.type) {
+        case "DRAG_START":
+          if (widgetIframe) {
+            isDragging = true;
+            const rect = widgetIframe.getBoundingClientRect();
+            dragOffset = { x: data.clientX - rect.left, y: data.clientY - rect.top };
+            widgetIframe.style.pointerEvents = "none";
+          }
+          break;
+        case "CLOSE_WIDGET":
+          if (widgetIframe) {
+            widgetIframe.style.display = "none";
+            stopDictation(widgetIframe);
+          }
+          break;
+        case "RESIZE_WIDGET":
+          if (widgetIframe && data.height) {
+            widgetIframe.style.height = `${data.height}px`;
+          }
+          break;
+        case "SEEK_MEDIA":
+          if (typeof data.seconds === "number") {
+            seekToTimestamp(data.seconds);
+          }
+          break;
+        case "START_DICTATION":
+          startDictation(widgetIframe);
+          break;
+        case "STOP_DICTATION":
+          stopDictation(widgetIframe);
+          break;
+        case "CAPTURE_VIDEO":
+          capture240pVideoClip(data.duration || 15, (res) => {
+            if (widgetIframe?.contentWindow) {
+              widgetIframe.contentWindow.postMessage({ type: "VIDEO_CAPTURED", ...res }, "*");
+            }
+          });
+          break;
+        case "STOP_VIDEO":
+          stopRecordingNow();
+          break;
+        case "GET_PAGE_INFO":
+          if (widgetIframe?.contentWindow) {
+            const info = buildPageInfo();
+            widgetIframe.contentWindow.postMessage({ type: "PAGE_INFO_RESPONSE", ...info }, "*");
+          }
+          break;
+        case "SAVE_ANNOTATION":
+          onReloadAnnotations();
+          break;
+        case "RELOAD_ANNOTATIONS":
+          onReloadAnnotations();
+          break;
+        case "OPEN_TAB":
+        case "OPEN_URL":
+          if (data.url) {
+            chrome.runtime.sendMessage({ type: "openTab", url: data.url });
+          }
+          break;
+        case "TAKE_SCREENSHOT":
+        case "START_SCREENSHOT_SELECTION":
+          startCropScreenshot(
+            widgetIframe,
+            (dataUrl) => {
+              if (widgetIframe?.contentWindow) {
+                widgetIframe.contentWindow.postMessage({ type: "SCREENSHOT_CAPTURED", dataUrl }, "*");
+              }
+            },
+            (error) => {
+              if (widgetIframe?.contentWindow) {
+                widgetIframe.contentWindow.postMessage({ type: "SCREENSHOT_CAPTURED", error }, "*");
+              }
+            }
+          );
+          break;
+      }
+    });
+  }
+
+  // extension-src/content/index.ts
+  var state = {
+    annotations: [],
+    profiles: {}
+  };
+  var domMutationDebounce = null;
+  async function loadAnnotations() {
+    const currentKey = pageKey();
+    const vId = extractYouTubeVideoId(location.href);
+    try {
+      let url = `${SUPABASE_CONFIG.url}/rest/v1/annotations?select=*`;
+      if (vId) {
+        url += `&url=ilike.*${encodeURIComponent(vId)}*`;
+      } else {
+        url += `&url=ilike.*${encodeURIComponent(location.origin + location.pathname)}*`;
+      }
+      const res = await fetch(url, {
+        headers: {
+          apikey: SUPABASE_CONFIG.anonKey,
+          Authorization: `Bearer ${SUPABASE_CONFIG.anonKey}`
+        }
+      });
+      const items = await res.json();
+      if (Array.isArray(items)) {
+        state.annotations = items;
+        const userIds = Array.from(new Set(items.map((a) => a.user_id).filter(Boolean)));
+        if (userIds.length > 0) {
+          try {
+            const profRes = await fetch(
+              `${SUPABASE_CONFIG.url}/rest/v1/profiles?id=in.(${userIds.join(",")})`,
+              {
+                headers: {
+                  apikey: SUPABASE_CONFIG.anonKey,
+                  Authorization: `Bearer ${SUPABASE_CONFIG.anonKey}`
+                }
+              }
+            );
+            const profList = await profRes.json();
+            if (Array.isArray(profList)) {
+              profList.forEach((p) => {
+                if (p.id) state.profiles[p.id] = p;
+              });
+            }
+          } catch (_) {
+          }
+        }
+        renderAllPending();
+        return;
+      }
+    } catch (err) {
+      console.warn("[Annotated Content] Supabase load error:", err);
+    }
+    chrome.storage.local.get(currentKey, (data) => {
+      state.annotations = data[currentKey] || [];
+      renderAllPending();
+    });
+  }
+  function renderAllPending() {
+    state.annotations.forEach((ann) => renderHighlight(ann));
+    renderYouTubeProgressBarMarkers(
+      state.annotations,
+      (ts) => {
+        const v = document.querySelector("video");
+        if (v) v.currentTime = ts;
+      },
+      (ann) => openAnnotationInWidget(ann)
+    );
+    renderYouTubeVideoTag(
+      state.annotations,
+      state.profiles,
+      (ts) => {
+        const v = document.querySelector("video");
+        if (v) v.currentTime = ts;
+      },
+      (ann) => openAnnotationInWidget(ann)
+    );
+  }
+  function init() {
+    injectHighlightStyles();
+    setupMessageRouter(() => loadAnnotations());
+    document.addEventListener("mouseup", (e) => {
+      if (e.button !== 0) return;
+      setTimeout(() => {
+        recordSelection((payload) => {
+          if (payload.quote) {
+            createWidget();
+          }
+        });
+      }, 20);
+    });
+    document.addEventListener(
+      "mouseover",
+      (e) => {
+        const target = e.target?.closest(".annotated-highlight");
+        if (!target) return;
+        const ann = highlightMap.get(target);
+        if (ann) {
+          const { shadow } = ensureWidgetContainer();
+          const prof = ann.user_id ? state.profiles[ann.user_id] : void 0;
+          showHoverBubble(target, ann, prof, shadow, (a) => openAnnotationInWidget(a));
+        }
+      },
+      true
+    );
+    document.addEventListener(
+      "mouseout",
+      (e) => {
+        const target = e.target?.closest(".annotated-highlight");
+        if (target) hideHoverBubble();
+      },
+      true
+    );
+    document.addEventListener(
+      "click",
+      (e) => {
+        const target = e.target?.closest(".annotated-highlight");
+        if (target) {
+          const ann = highlightMap.get(target);
+          if (ann) openAnnotationInWidget(ann);
+        }
+      },
+      true
+    );
+    const observer = new MutationObserver(() => {
+      if (domMutationDebounce) clearTimeout(domMutationDebounce);
+      domMutationDebounce = setTimeout(() => {
+        renderAllPending();
+      }, 150);
+    });
+    if (document.body) {
+      observer.observe(document.body, { childList: true, subtree: true });
+    } else {
+      document.addEventListener("DOMContentLoaded", () => {
+        if (document.body) observer.observe(document.body, { childList: true, subtree: true });
+      });
+    }
+    [300, 700, 1500, 3e3].forEach((ms) => {
+      setTimeout(renderAllPending, ms);
+    });
+    setInterval(() => {
+      if (location.hostname.includes("youtube.com")) {
+        renderYouTubeProgressBarMarkers(
+          state.annotations,
+          (ts) => {
+            const v = document.querySelector("video");
+            if (v) v.currentTime = ts;
+          },
+          (ann) => openAnnotationInWidget(ann)
+        );
+        renderYouTubeVideoTag(
+          state.annotations,
+          state.profiles,
+          (ts) => {
+            const v = document.querySelector("video");
+            if (v) v.currentTime = ts;
+          },
+          (ann) => openAnnotationInWidget(ann)
+        );
+      }
+    }, 1e3);
+    chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+      if (message.type === "TOGGLE_WIDGET") {
+        if (!widgetIframe || widgetIframe.style.display === "none") {
+          createWidget();
+        } else {
+          widgetIframe.style.display = "none";
+        }
         sendResponse({ ok: true });
-      });
-      return true;
-    }
-    if (message.type === 'getPageInfo') {
-      const mediaTs = getMediaTimestamp();
-      sendResponse({
-        title: getSmartPageTitle(getExactSourceUrl(mediaTs || null, lastKnownElement), lastKnownElement),
-        url: getExactSourceUrl(mediaTs, lastKnownElement),
-        hostname: location.hostname,
-        selectedText: window.getSelection()?.toString().replace(/\s+/g, ' ').trim() || lastKnownSelection || '',
-        media_timestamp: mediaTs,
-      });
-    }
-  });
-
-  load();
+        return true;
+      }
+      if (message.type === "openWidget") {
+        createWidget();
+        sendResponse({ ok: true });
+        return true;
+      }
+      if (message.type === "getPageInfo") {
+        sendResponse(buildPageInfo());
+        return true;
+      }
+      if (message.type === "saveAnnotation" && message.annotation) {
+        state.annotations.push(message.annotation);
+        renderAllPending();
+        sendResponse({ ok: true });
+        return true;
+      }
+    });
+    const onYouTubeNavigation = () => {
+      setTimeout(() => {
+        loadAnnotations();
+      }, 300);
+    };
+    window.addEventListener("yt-navigate-finish", onYouTubeNavigation);
+    window.addEventListener("yt-page-data-updated", onYouTubeNavigation);
+    window.addEventListener("spfdone", onYouTubeNavigation);
+    loadAnnotations();
+  }
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init);
+  } else {
+    init();
+  }
 })();
-
-
-
-
-
-  // Listen to YouTube SPA navigation events
-  window.addEventListener('yt-navigate-finish', () => { setTimeout(load, 300); });
-  window.addEventListener('yt-page-data-updated', () => { setTimeout(load, 300); });
-  window.addEventListener('spfdone', () => { setTimeout(load, 300); });

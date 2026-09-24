@@ -1,71 +1,71 @@
 {
-  "manifest_version": 3,
-  "name": "Annotated — Web Annotation Layer",
-  "version": "2.1.25",
-  "description": "The public annotation layer for the internet. Highlight text, drop your thoughts, and turn the web into a multiplayer experience.",
-  "permissions": [
-    "storage",
-    "activeTab",
-    "contextMenus",
-    "identity",
-    "tabs",
-    "tabCapture",
-    "offscreen",
-    "scripting"
-  ],
-  "host_permissions": [
-    "<all_urls>"
-  ],
-  "oauth2": {
-    "client_id": "343335882944-fir4aehjgkvnj0r6tdg0mmcc2sjt99vf.apps.googleusercontent.com",
-    "scopes": [
-      "openid",
-      "email",
-      "profile"
-    ]
-  },
-  "action": {
-    "default_title": "Open Annotated"
-  },
-  "background": {
-    "service_worker": "background.js"
-  },
-  "content_scripts": [
-    {
-      "matches": [
-        "<all_urls>"
-      ],
-      "js": [
-        "fix-webm-duration.js",
-        "content.js"
-      ],
-      "css": [
-        "content.css"
-      ],
-      "run_at": "document_idle"
-    }
-  ],
-  "icons": {
-    "16": "assets/icon-16.png",
-    "32": "assets/icon-32.png",
-    "48": "assets/icon-48.png",
-    "128": "assets/icon-128.png"
-  },
-  "web_accessible_resources": [
-    {
-      "resources": [
-        "widget.html",
-        "widget.css",
-        "widget.js",
-        "fix-webm-duration.js",
-        "supabase-client.js",
-        "offscreen.html",
-        "offscreen.js",
-        "assets/*"
-      ],
-      "matches": [
-        "<all_urls>"
-      ]
-    }
-  ]
+    "manifest_version":  3,
+    "name":  "Annotated — Web Annotation Layer",
+    "version":  "2.2.0",
+    "description":  "The public annotation layer for the internet. Highlight text, drop your thoughts, and turn the web into a multiplayer experience.",
+    "permissions":  [
+                        "storage",
+                        "activeTab",
+                        "contextMenus",
+                        "identity",
+                        "tabs",
+                        "tabCapture",
+                        "offscreen",
+                        "scripting"
+                    ],
+    "host_permissions":  [
+                             "\u003call_urls\u003e"
+                         ],
+    "oauth2":  {
+                   "client_id":  "343335882944-fir4aehjgkvnj0r6tdg0mmcc2sjt99vf.apps.googleusercontent.com",
+                   "scopes":  [
+                                  "openid",
+                                  "email",
+                                  "profile"
+                              ]
+               },
+    "action":  {
+                   "default_title":  "Open Annotated"
+               },
+    "background":  {
+                       "service_worker":  "background.js"
+                   },
+    "content_scripts":  [
+                            {
+                                "matches":  [
+                                                "\u003call_urls\u003e"
+                                            ],
+                                "js":  [
+                                           "fix-webm-duration.js",
+                                           "content.js"
+                                       ],
+                                "css":  [
+                                            "content.css"
+                                        ],
+                                "run_at":  "document_idle"
+                            }
+                        ],
+    "icons":  {
+                  "16":  "assets/icon-16.png",
+                  "32":  "assets/icon-32.png",
+                  "48":  "assets/icon-48.png",
+                  "128":  "assets/icon-128.png"
+              },
+    "web_accessible_resources":  [
+                                     {
+                                         "resources":  [
+                                                           "widget.html",
+                                                           "widget.css",
+                                                           "widget.js",
+                                                           "fix-webm-duration.js",
+                                                           "supabase-client.js",
+                                                           "offscreen.html",
+                                                           "offscreen.js",
+                                                           "assets/*"
+                                                       ],
+                                         "matches":  [
+                                                         "\u003call_urls\u003e"
+                                                     ]
+                                     }
+                                 ]
 }

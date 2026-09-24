@@ -1,9 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
-import { MessageSquare, Trash2 } from "lucide-react";
-import { useEffect } from "react";
+import { MessageSquare, Trash2, Sparkles, Share2, CheckCircle2, AlertTriangle, XCircle, Info, ExternalLink } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { Annotation } from "@/lib/types";
 import { ReactionRow } from "./ReactionRow";
@@ -21,6 +20,41 @@ export function AnnotationCard({
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isDeleted, setIsDeleted] = useState(false);
+  const [commentCount, setCommentCount] = useState<number | null>(null);
+  const [showFactCheck, setShowFactCheck] = useState(false);
+  const [factCheckLoading, setFactCheckLoading] = useState(false);
+  const [factCheckData, setFactCheckData] = useState<any>(null);
+
+  const handleFactCheck = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (showFactCheck) {
+      setShowFactCheck(false);
+      return;
+    }
+    setShowFactCheck(true);
+    if (factCheckData) return;
+
+    setFactCheckLoading(true);
+    try {
+      const res = await fetch("/api/ai/factcheck", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          quote: annotation.quoteText,
+          commentary: annotation.commentary,
+          sourceUrl: annotation.sourceUrl,
+          sourceTitle: annotation.sourceTitle,
+          mediaUrl: annotation.media_url,
+        }),
+      });
+      const data = await res.json();
+      setFactCheckData(data);
+    } catch (err) {
+      console.error("Fact-check request failed:", err);
+    } finally {
+      setFactCheckLoading(false);
+    }
+  };
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -31,6 +65,19 @@ export function AnnotationCard({
     });
     return () => subscription.unsubscribe();
   }, []);
+
+  useEffect(() => {
+    if (!annotation?.id) return;
+    supabase
+      .from("comments")
+      .select("id", { count: "exact", head: true })
+      .eq("annotation_id", annotation.id)
+      .then(({ count, error }) => {
+        if (!error && count !== null) {
+          setCommentCount(count);
+        }
+      });
+  }, [annotation?.id]);
 
   const isOwner = !!(currentUserId && annotation.userId === currentUserId);
 
@@ -180,6 +227,93 @@ export function AnnotationCard({
 
       <ReactionRow annotationId={annotation.id} />
 
+      {/* Fact Check Result Box */}
+      {showFactCheck && (
+        <div className="mt-3 p-3.5 rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--secondary))] text-xs space-y-2 animate-in fade-in duration-150">
+          <div className="flex items-center justify-between">
+            <span className="inline-flex items-center gap-1 font-bold text-[hsl(var(--accent))] text-[11px] uppercase tracking-wide">
+              <Sparkles size={13} />
+              <span>Gemini Fact Check</span>
+            </span>
+            <div className="flex items-center gap-2">
+              {factCheckData?.verdict && (
+                <span className={`inline-flex items-center gap-1 font-bold px-2 py-0.5 rounded-full text-[10px] ${
+                  factCheckData.verdict === "VERIFIED"
+                    ? "bg-green-500/10 text-green-600 border border-green-500/20"
+                    : factCheckData.verdict === "FALSE" || factCheckData.verdict === "MISLEADING"
+                    ? "bg-red-500/10 text-red-600 border border-red-500/20"
+                    : "bg-yellow-500/10 text-yellow-600 border border-yellow-500/20"
+                }`}>
+                  {factCheckData.verdict === "VERIFIED" ? <CheckCircle2 size={11} /> : factCheckData.verdict === "MISLEADING" ? <XCircle size={11} /> : <AlertTriangle size={11} />}
+                  <span>{factCheckData.verdict.replace("_", " ")}</span>
+                </span>
+              )}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowFactCheck(false);
+                }}
+                className="text-[hsl(var(--text-muted))] hover:text-[hsl(var(--foreground))] text-xs font-semibold px-2 py-0.5 rounded hover:bg-[hsl(var(--border))] transition-colors cursor-pointer"
+                title="Hide Fact Check"
+              >
+                ✕ Hide
+              </button>
+            </div>
+          </div>
+
+          {factCheckLoading ? (
+            <div className="py-2 text-[hsl(var(--text-muted))] italic flex items-center gap-2">
+              <span className="inline-block animate-spin">⚡</span>
+              <span>Analyzing claims and context with Gemini...</span>
+            </div>
+          ) : factCheckData ? (
+            <>
+              <p className="font-semibold text-[hsl(var(--foreground))] leading-snug">
+                {factCheckData.headline}
+              </p>
+              <p className="text-[hsl(var(--text-muted))] leading-relaxed text-[11px]">
+                {factCheckData.explanation}
+              </p>
+              {factCheckData.communityNote && (
+                <div className="p-2.5 rounded-lg bg-[hsl(var(--background))] border border-[hsl(var(--border))] text-[11px] space-y-1">
+                  <span className="font-bold text-[hsl(var(--foreground))] block">𝕏 Community Note Format:</span>
+                  <p className="text-[hsl(var(--text-muted))] italic">{factCheckData.communityNote}</p>
+                </div>
+              )}
+              <div className="flex items-center justify-between pt-1 flex-wrap gap-2">
+                {factCheckData.sources?.length > 0 && (
+                  <div className="flex items-center gap-1 text-[10px] text-[hsl(var(--text-muted))]">
+                    <span>Source:</span>
+                    <a
+                      href={factCheckData.sources[0].url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="underline text-[hsl(var(--accent))] truncate max-w-[150px]"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {factCheckData.sources[0].title || "Web Link"}
+                    </a>
+                  </div>
+                )}
+                {factCheckData.tweetIntentUrl && (
+                  <a
+                    href={factCheckData.tweetIntentUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-black text-white hover:bg-neutral-800 text-[11px] font-bold transition-colors ml-auto"
+                  >
+                    <span>Post as 𝕏 Note</span>
+                    <ExternalLink size={10} />
+                  </a>
+                )}
+              </div>
+            </>
+          ) : null}
+        </div>
+      )}
+
       <div className="flex items-center justify-between text-xs text-[hsl(var(--text-subtle))] relative z-20 mt-4 pt-4 border-t border-[hsl(var(--border))]">
         <span>
           {annotation.createdAt.toLocaleDateString("en-US", {
@@ -190,6 +324,29 @@ export function AnnotationCard({
         </span>
 
         <div className="flex items-center gap-4 relative z-20">
+          {/* Fact Check Toggle */}
+          <button
+            onClick={handleFactCheck}
+            className="flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full border border-[hsl(var(--accent))] text-[hsl(var(--accent))] hover:bg-[hsl(var(--accent))]/10 transition-colors cursor-pointer"
+            title="Ask Gemini AI to verify claims"
+          >
+            <Sparkles size={11} />
+            <span>Fact Check</span>
+          </button>
+
+          {/* Twitter / X Share Button */}
+          <a
+            href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(`Interesting annotation on "${annotation.sourceTitle}":\n"${annotation.quoteText?.slice(0, 100)}..."\n`)}&url=${encodeURIComponent(`https://annotated-repo.vercel.app/annotations/${annotation.id}`)}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(e) => e.stopPropagation()}
+            className="flex items-center gap-1 text-xs text-[hsl(var(--text-muted))] hover:text-[hsl(var(--foreground))] transition-colors font-medium"
+            title="Share to X"
+          >
+            <span className="font-bold">𝕏</span>
+            <span>Share</span>
+          </a>
+
           {isOwner && (
             <Tooltip content="Delete your annotation" position="top">
               <button
@@ -205,7 +362,7 @@ export function AnnotationCard({
           )}
           <Tooltip content="File a DMCA / Fair Use dispute for this content" position="top">
             <Link
-              href={`/dmca?annotation_id=${annotation.id}&url=${encodeURIComponent(annotation.url || "")}`}
+              href={`/dmca?annotation_id=${annotation.id}&url=${encodeURIComponent(annotation.sourceUrl || "")}`}
               onClick={(e) => e.stopPropagation()}
               className="text-xs text-[hsl(var(--text-muted))] hover:text-[hsl(var(--foreground))] transition-colors font-medium"
             >
@@ -219,6 +376,11 @@ export function AnnotationCard({
           >
             <MessageSquare size={14} />
             <span>Comments</span>
+            {commentCount !== null && (
+              <span className="inline-flex items-center justify-center text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-[hsl(var(--secondary))] text-[hsl(var(--foreground))] leading-none">
+                {commentCount}
+              </span>
+            )}
           </Link>
         </div>
       </div>
