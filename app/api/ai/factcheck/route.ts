@@ -61,45 +61,54 @@ Instructions:
   ]
 }`;
 
-      try {
-        const geminiRes = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${geminiKey}`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              contents: [{ parts: [{ text: prompt }] }],
-            }),
-          }
-        );
+      const candidateModels = [
+        "gemini-3.5-flash-lite",
+        "gemini-flash-lite-latest",
+        "gemini-3.5-flash",
+        "gemini-3.6-flash",
+      ];
 
-        if (geminiRes.ok) {
-          const gData = await geminiRes.json();
-          let rawText = gData?.candidates?.[0]?.content?.parts?.[0]?.text || "";
-          
-          // Strip markdown code fences if present (```json ... ```)
-          rawText = rawText.replace(/```(?:json)?/gi, "").replace(/```/g, "").trim();
-          
-          const jsonStart = rawText.indexOf("{");
-          const jsonEnd = rawText.lastIndexOf("}");
-          if (jsonStart !== -1 && jsonEnd !== -1) {
-            rawText = rawText.substring(jsonStart, jsonEnd + 1);
-          }
+      for (const model of candidateModels) {
+        try {
+          const geminiRes = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiKey}`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                contents: [{ parts: [{ text: prompt }] }],
+              }),
+            }
+          );
 
-          const parsed = JSON.parse(rawText);
-          const rawNote = parsed.communityNote || parsed.headline || "Readers added context";
-          const trimmedNote = rawNote.length > 200 ? rawNote.slice(0, 197) + "..." : rawNote;
-          const tweetText = `𝕏 Community Note via @Annotated:\n${trimmedNote}`;
-          const shareTarget = sourceUrl || "https://annotated-repo.vercel.app";
-          parsed.tweetIntentUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(tweetText)}&url=${encodeURIComponent(shareTarget)}`;
-          parsed.geminiConfigured = true;
-          return NextResponse.json(parsed, { headers: CORS_HEADERS });
-        } else {
-          const errText = await geminiRes.text();
-          console.warn("[Gemini FactCheck] API returned non-OK:", geminiRes.status, errText);
+          if (geminiRes.ok) {
+            const gData = await geminiRes.json();
+            let rawText = gData?.candidates?.[0]?.content?.parts?.[0]?.text || "";
+            
+            // Strip markdown code fences if present (```json ... ```)
+            rawText = rawText.replace(/```(?:json)?/gi, "").replace(/```/g, "").trim();
+            
+            const jsonStart = rawText.indexOf("{");
+            const jsonEnd = rawText.lastIndexOf("}");
+            if (jsonStart !== -1 && jsonEnd !== -1) {
+              rawText = rawText.substring(jsonStart, jsonEnd + 1);
+            }
+
+            const parsed = JSON.parse(rawText);
+            const rawNote = parsed.communityNote || parsed.headline || "Readers added context";
+            const trimmedNote = rawNote.length > 200 ? rawNote.slice(0, 197) + "..." : rawNote;
+            const tweetText = `𝕏 Community Note via @Annotated:\n${trimmedNote}`;
+            const shareTarget = sourceUrl || "https://annotated-repo.vercel.app";
+            parsed.tweetIntentUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(tweetText)}&url=${encodeURIComponent(shareTarget)}`;
+            parsed.geminiConfigured = true;
+            return NextResponse.json(parsed, { headers: CORS_HEADERS });
+          } else {
+            const errText = await geminiRes.text();
+            console.warn(`[Gemini FactCheck] Model ${model} returned non-OK:`, geminiRes.status, errText);
+          }
+        } catch (err) {
+          console.warn(`[Gemini FactCheck] Model ${model} failed:`, err);
         }
-      } catch (err) {
-        console.warn("[Gemini FactCheck] Live API call failed, using fallback:", err);
       }
     }
 
