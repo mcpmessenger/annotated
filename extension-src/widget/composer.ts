@@ -1,8 +1,9 @@
 // ─── Annotation Composer Module ──────────────────────────────────────────────
 
 import { $, $$ } from '../shared/dom';
-import { formatSeconds } from '../shared/utils';
+import { formatSeconds, escapeHtml } from '../shared/utils';
 import { publishAnnotation } from './publish';
+import { callFactCheckApi } from './factcheck';
 import type { CurrentUser, PageContext } from '../types/annotation';
 
 export interface ComposerState {
@@ -30,6 +31,30 @@ export const composerState: ComposerState = {
   recordedAudioBlob: null,
   currentMediaTimestamp: null,
 };
+
+export function getComposerHeight(): number {
+  let base = 390;
+  if (composerState.videoClipBlob) {
+    base = 630;
+  } else if (composerState.mediaDataUrl) {
+    base = 510;
+  }
+  const factBox = $('#composerFactCheckBox');
+  if (factBox && factBox.style.display !== 'none') {
+    base += 140;
+    const fnote = $('#composerFactCheckCommunityNote');
+    if (fnote && fnote.style.display !== 'none') {
+      base += 35;
+    }
+  }
+  return base;
+}
+
+export function hideComposerFactCheck(onResize?: (height: number) => void): void {
+  const fb = $('#composerFactCheckBox');
+  if (fb) fb.style.display = 'none';
+  if (onResize) onResize(getComposerHeight());
+}
 
 export function updatePublishButton(): void {
   const commentEl = $('#comment') as HTMLTextAreaElement | null;
@@ -95,7 +120,7 @@ export function setMedia(
   }
   if (mediaPreview) mediaPreview.classList.remove('hidden');
 
-  onResize(510);
+  onResize(getComposerHeight());
   updatePublishButton();
 }
 
@@ -114,7 +139,7 @@ export function removeMedia(onResize: (height: number) => void): void {
   if (mediaInput) mediaInput.value = '';
   if (mediaPreview) mediaPreview.classList.add('hidden');
 
-  onResize(composerState.videoClipBlob ? 630 : 390);
+  onResize(getComposerHeight());
   updatePublishButton();
 }
 
@@ -134,14 +159,14 @@ export function clearVideo(onResize: (height: number) => void): void {
     clipVideoBtn.classList.remove('recording');
   }
 
-  onResize(390);
+  onResize(getComposerHeight());
   updatePublishButton();
 }
 
 export function showComposer(onResize: (height: number) => void): void {
   $('#annotationDetailCard')?.classList.add('hidden');
   $('#composerSection')?.classList.remove('hidden');
-  onResize(composerState.videoClipBlob ? 630 : 390);
+  onResize(getComposerHeight());
 }
 
 export function initComposer(
@@ -282,6 +307,92 @@ export function initComposer(
     }
   });
 
+  // Composer Fact Check with Gemini AI
+  const composerFactCheckBtn = $('#composerFactCheckBtn');
+  const composerFactCheckBox = $('#composerFactCheckBox');
+  const composerFactCheckBadge = $('#composerFactCheckBadge');
+  const composerFactCheckText = $('#composerFactCheckText');
+  const composerFactCheckNote = $('#composerFactCheckCommunityNote');
+  const composerFactCheckCloseBtn = $('#composerFactCheckCloseBtn');
+
+  composerFactCheckCloseBtn?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    hideComposerFactCheck(onResize);
+  });
+
+  composerFactCheckBtn?.addEventListener('click', async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const quote = composerState.quote.trim();
+    const comment = commentEl ? commentEl.value.trim() : '';
+
+    if (!quote && !comment) {
+      if (statusEl) {
+        statusEl.textContent = 'Select text on the page or write a comment to fact check!';
+        setTimeout(() => {
+          if (statusEl.textContent && statusEl.textContent.includes('Select text')) statusEl.textContent = '';
+        }, 3500);
+      }
+      commentEl?.focus();
+      return;
+    }
+
+    if (composerFactCheckBox) {
+      composerFactCheckBox.style.display = 'block';
+    }
+    if (composerFactCheckBadge) {
+      composerFactCheckBadge.textContent = 'ANALYZING';
+      composerFactCheckBadge.style.color = 'var(--muted)';
+    }
+    if (composerFactCheckText) {
+      composerFactCheckText.textContent = 'Analyzing claim and context with Google Gemini...';
+    }
+    if (composerFactCheckNote) {
+      composerFactCheckNote.style.display = 'none';
+    }
+    onResize(getComposerHeight());
+
+    try {
+      const pageCtx = getPage();
+      const data = await callFactCheckApi({
+        quote,
+        commentary: comment,
+        sourceUrl: pageCtx.url || location.href,
+        sourceTitle: pageCtx.title || document.title,
+        timestamp: composerState.videoStartTs ?? composerState.currentMediaTimestamp ?? null,
+        mediaUrl: composerState.mediaDataUrl ?? null,
+      });
+
+      if (composerFactCheckBadge) {
+        composerFactCheckBadge.textContent = (data.verdict || 'ANALYZED').replace('_', ' ');
+        composerFactCheckBadge.style.color =
+          data.verdict === 'VERIFIED'
+            ? '#22c55e'
+            : data.verdict === 'MISLEADING' || data.verdict === 'FALSE'
+            ? '#ef4444'
+            : '#eab308';
+      }
+      if (composerFactCheckText) {
+        composerFactCheckText.innerHTML = `<strong>${escapeHtml(data.headline || '')}</strong><br><span style="font-size:10px; color:var(--muted);">${escapeHtml(data.explanation || '')}</span>`;
+      }
+      if (data.communityNote && composerFactCheckNote) {
+        composerFactCheckNote.textContent = data.communityNote;
+        composerFactCheckNote.style.display = 'block';
+      }
+      onResize(getComposerHeight());
+    } catch (err: unknown) {
+      if (composerFactCheckText) {
+        composerFactCheckText.textContent = `Fact check note: ${err instanceof Error ? err.message : String(err)}`;
+      }
+      if (composerFactCheckBadge) {
+        composerFactCheckBadge.textContent = 'NOTICE';
+        composerFactCheckBadge.style.color = '#eab308';
+      }
+      onResize(getComposerHeight());
+    }
+  });
+
   // Publish button
   publishBtn?.addEventListener('click', async () => {
     const user = getCurrentUser();
@@ -317,6 +428,7 @@ export function initComposer(
         setQuote('');
         removeMedia(onResize);
         clearVideo(onResize);
+        hideComposerFactCheck(onResize);
         emojiButtons.forEach((b) => {
           b.classList.remove('active');
           (b as HTMLElement).style.background = '';

@@ -5,6 +5,34 @@ import { FACTCHECK_API_URL } from '../shared/config';
 import { escapeHtml } from '../shared/utils';
 import type { Annotation, FactCheckResult } from '../types/annotation';
 
+export interface FactCheckRequestPayload {
+  quote?: string;
+  commentary?: string;
+  sourceUrl?: string;
+  sourceTitle?: string;
+  timestamp?: number | null;
+  mediaUrl?: string | null;
+}
+
+export async function callFactCheckApi(payload: FactCheckRequestPayload): Promise<FactCheckResult> {
+  const res = await fetch(FACTCHECK_API_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const errorText = await res.text();
+    try {
+      const errJson = JSON.parse(errorText);
+      throw new Error(errJson.error || `Fact-check error (${res.status})`);
+    } catch (e: any) {
+      if (e?.message && !e.message.startsWith('Fact-check error')) throw e;
+      throw new Error(`Fact check request failed: ${res.statusText || res.status}`);
+    }
+  }
+  return (await res.json()) as FactCheckResult;
+}
+
 export function wireFactCheck(ann: Annotation, pageTitle: string, pageUrl: string): void {
   const factBox = $('#detailFactCheckBox');
   if (factBox) factBox.style.display = 'none';
@@ -35,20 +63,14 @@ export function wireFactCheck(ann: Annotation, pageTitle: string, pageUrl: strin
     if (ftweet) ftweet.style.display = 'none';
 
     try {
-      const res = await fetch(FACTCHECK_API_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          quote: ann.quote || ann.quote_text,
-          commentary: ann.comment || ann.commentary,
-          sourceUrl: ann.url || pageUrl,
-          sourceTitle: ann.title || pageTitle,
-          timestamp: ann.media_timestamp,
-          mediaUrl: ann.media_url,
-        }),
+      const data = await callFactCheckApi({
+        quote: ann.quote || ann.quote_text,
+        commentary: ann.comment || ann.commentary,
+        sourceUrl: ann.url || pageUrl,
+        sourceTitle: ann.title || pageTitle,
+        timestamp: ann.media_timestamp,
+        mediaUrl: ann.media_url,
       });
-
-      const data: FactCheckResult = await res.json();
 
       if (fbadge) {
         fbadge.textContent = (data.verdict || 'ANALYZED').replace('_', ' ');

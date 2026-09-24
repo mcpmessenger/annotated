@@ -562,6 +562,90 @@
     }
   }
 
+  // extension-src/widget/factcheck.ts
+  async function callFactCheckApi(payload) {
+    const res = await fetch(FACTCHECK_API_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    if (!res.ok) {
+      const errorText = await res.text();
+      try {
+        const errJson = JSON.parse(errorText);
+        throw new Error(errJson.error || `Fact-check error (${res.status})`);
+      } catch (e) {
+        if (e?.message && !e.message.startsWith("Fact-check error")) throw e;
+        throw new Error(`Fact check request failed: ${res.statusText || res.status}`);
+      }
+    }
+    return await res.json();
+  }
+  function wireFactCheck(ann, pageTitle, pageUrl) {
+    const factBox = $("#detailFactCheckBox");
+    if (factBox) factBox.style.display = "none";
+    const factBtn = $("#detailFactCheckBtn");
+    if (!factBtn) return;
+    factBtn.onclick = async (e) => {
+      e.stopPropagation();
+      const fb = $("#detailFactCheckBox");
+      const ft = $("#detailFactCheckText");
+      const fbadge = $("#detailFactCheckBadge");
+      const fnote = $("#detailFactCheckCommunityNote");
+      const ftweet = $("#detailFactCheckTweetBtn");
+      if (!fb) return;
+      if (fb.style.display === "block") {
+        fb.style.display = "none";
+        return;
+      }
+      fb.style.display = "block";
+      if (fbadge) {
+        fbadge.textContent = "ANALYZING";
+        fbadge.style.color = "var(--muted)";
+      }
+      if (ft) ft.textContent = "Analyzing claim and context with Google Gemini...";
+      if (fnote) fnote.style.display = "none";
+      if (ftweet) ftweet.style.display = "none";
+      try {
+        const data = await callFactCheckApi({
+          quote: ann.quote || ann.quote_text,
+          commentary: ann.comment || ann.commentary,
+          sourceUrl: ann.url || pageUrl,
+          sourceTitle: ann.title || pageTitle,
+          timestamp: ann.media_timestamp,
+          mediaUrl: ann.media_url
+        });
+        if (fbadge) {
+          fbadge.textContent = (data.verdict || "ANALYZED").replace("_", " ");
+          fbadge.style.color = data.verdict === "VERIFIED" ? "#22c55e" : data.verdict === "MISLEADING" || data.verdict === "FALSE" ? "#ef4444" : "#eab308";
+        }
+        if (ft) {
+          ft.innerHTML = `<strong>${escapeHtml(data.headline || "")}</strong><br><span style="font-size:10px; color:var(--muted);">${escapeHtml(data.explanation || "")}</span>`;
+        }
+        if (data.communityNote && fnote) {
+          fnote.textContent = data.communityNote;
+          fnote.style.display = "block";
+        }
+        if (data.tweetIntentUrl && ftweet) {
+          ftweet.href = data.tweetIntentUrl;
+          ftweet.style.display = "inline-block";
+        }
+      } catch (err) {
+        if (ft) {
+          ft.textContent = `Fact-check error: ${err instanceof Error ? err.message : String(err)}`;
+        }
+      }
+    };
+    const closeBtn = $("#detailFactCheckCloseBtn");
+    if (closeBtn) {
+      closeBtn.onclick = (e) => {
+        e.stopPropagation();
+        const fb = $("#detailFactCheckBox");
+        if (fb) fb.style.display = "none";
+      };
+    }
+  }
+
   // extension-src/widget/composer.ts
   var composerState = {
     quote: "",
@@ -575,6 +659,28 @@
     recordedAudioBlob: null,
     currentMediaTimestamp: null
   };
+  function getComposerHeight() {
+    let base = 390;
+    if (composerState.videoClipBlob) {
+      base = 630;
+    } else if (composerState.mediaDataUrl) {
+      base = 510;
+    }
+    const factBox = $("#composerFactCheckBox");
+    if (factBox && factBox.style.display !== "none") {
+      base += 140;
+      const fnote = $("#composerFactCheckCommunityNote");
+      if (fnote && fnote.style.display !== "none") {
+        base += 35;
+      }
+    }
+    return base;
+  }
+  function hideComposerFactCheck(onResize) {
+    const fb = $("#composerFactCheckBox");
+    if (fb) fb.style.display = "none";
+    if (onResize) onResize(getComposerHeight());
+  }
   function updatePublishButton() {
     const commentEl = $("#comment");
     const c = commentEl ? commentEl.value.trim() : "";
@@ -620,7 +726,7 @@
       previewName.textContent = name.length > 25 ? `${name.slice(0, 22)}...` : name;
     }
     if (mediaPreview) mediaPreview.classList.remove("hidden");
-    onResize(510);
+    onResize(getComposerHeight());
     updatePublishButton();
   }
   function removeMedia(onResize) {
@@ -635,7 +741,7 @@
     if (previewVideo) previewVideo.src = "";
     if (mediaInput) mediaInput.value = "";
     if (mediaPreview) mediaPreview.classList.add("hidden");
-    onResize(composerState.videoClipBlob ? 630 : 390);
+    onResize(getComposerHeight());
     updatePublishButton();
   }
   function clearVideo(onResize) {
@@ -652,13 +758,13 @@
       clipVideoBtn.innerText = "\u{1F3A5}";
       clipVideoBtn.classList.remove("recording");
     }
-    onResize(390);
+    onResize(getComposerHeight());
     updatePublishButton();
   }
   function showComposer(onResize) {
     $("#annotationDetailCard")?.classList.add("hidden");
     $("#composerSection")?.classList.remove("hidden");
-    onResize(composerState.videoClipBlob ? 630 : 390);
+    onResize(getComposerHeight());
   }
   function initComposer(getCurrentUser, getPage, onResize, onPublished) {
     const commentEl = $("#comment");
@@ -774,6 +880,78 @@
         window.parent.postMessage({ type: "START_DICTATION" }, "*");
       }
     });
+    const composerFactCheckBtn = $("#composerFactCheckBtn");
+    const composerFactCheckBox = $("#composerFactCheckBox");
+    const composerFactCheckBadge = $("#composerFactCheckBadge");
+    const composerFactCheckText = $("#composerFactCheckText");
+    const composerFactCheckNote = $("#composerFactCheckCommunityNote");
+    const composerFactCheckCloseBtn = $("#composerFactCheckCloseBtn");
+    composerFactCheckCloseBtn?.addEventListener("click", (e) => {
+      e.stopPropagation();
+      hideComposerFactCheck(onResize);
+    });
+    composerFactCheckBtn?.addEventListener("click", async (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const quote = composerState.quote.trim();
+      const comment = commentEl ? commentEl.value.trim() : "";
+      if (!quote && !comment) {
+        if (statusEl) {
+          statusEl.textContent = "Select text on the page or write a comment to fact check!";
+          setTimeout(() => {
+            if (statusEl.textContent && statusEl.textContent.includes("Select text")) statusEl.textContent = "";
+          }, 3500);
+        }
+        commentEl?.focus();
+        return;
+      }
+      if (composerFactCheckBox) {
+        composerFactCheckBox.style.display = "block";
+      }
+      if (composerFactCheckBadge) {
+        composerFactCheckBadge.textContent = "ANALYZING";
+        composerFactCheckBadge.style.color = "var(--muted)";
+      }
+      if (composerFactCheckText) {
+        composerFactCheckText.textContent = "Analyzing claim and context with Google Gemini...";
+      }
+      if (composerFactCheckNote) {
+        composerFactCheckNote.style.display = "none";
+      }
+      onResize(getComposerHeight());
+      try {
+        const pageCtx = getPage();
+        const data = await callFactCheckApi({
+          quote,
+          commentary: comment,
+          sourceUrl: pageCtx.url || location.href,
+          sourceTitle: pageCtx.title || document.title,
+          timestamp: composerState.videoStartTs ?? composerState.currentMediaTimestamp ?? null,
+          mediaUrl: composerState.mediaDataUrl ?? null
+        });
+        if (composerFactCheckBadge) {
+          composerFactCheckBadge.textContent = (data.verdict || "ANALYZED").replace("_", " ");
+          composerFactCheckBadge.style.color = data.verdict === "VERIFIED" ? "#22c55e" : data.verdict === "MISLEADING" || data.verdict === "FALSE" ? "#ef4444" : "#eab308";
+        }
+        if (composerFactCheckText) {
+          composerFactCheckText.innerHTML = `<strong>${escapeHtml(data.headline || "")}</strong><br><span style="font-size:10px; color:var(--muted);">${escapeHtml(data.explanation || "")}</span>`;
+        }
+        if (data.communityNote && composerFactCheckNote) {
+          composerFactCheckNote.textContent = data.communityNote;
+          composerFactCheckNote.style.display = "block";
+        }
+        onResize(getComposerHeight());
+      } catch (err) {
+        if (composerFactCheckText) {
+          composerFactCheckText.textContent = `Fact check note: ${err instanceof Error ? err.message : String(err)}`;
+        }
+        if (composerFactCheckBadge) {
+          composerFactCheckBadge.textContent = "NOTICE";
+          composerFactCheckBadge.style.color = "#eab308";
+        }
+        onResize(getComposerHeight());
+      }
+    });
     publishBtn?.addEventListener("click", async () => {
       const user = getCurrentUser();
       if (!user) return;
@@ -805,6 +983,7 @@
           setQuote("");
           removeMedia(onResize);
           clearVideo(onResize);
+          hideComposerFactCheck(onResize);
           emojiButtons.forEach((b) => {
             b.classList.remove("active");
             b.style.background = "";
@@ -952,77 +1131,6 @@
       const localItems = data[key] || [];
       renderFeed(localItems, page2, currentUser2, onDeleted);
     });
-  }
-
-  // extension-src/widget/factcheck.ts
-  function wireFactCheck(ann, pageTitle, pageUrl) {
-    const factBox = $("#detailFactCheckBox");
-    if (factBox) factBox.style.display = "none";
-    const factBtn = $("#detailFactCheckBtn");
-    if (!factBtn) return;
-    factBtn.onclick = async (e) => {
-      e.stopPropagation();
-      const fb = $("#detailFactCheckBox");
-      const ft = $("#detailFactCheckText");
-      const fbadge = $("#detailFactCheckBadge");
-      const fnote = $("#detailFactCheckCommunityNote");
-      const ftweet = $("#detailFactCheckTweetBtn");
-      if (!fb) return;
-      if (fb.style.display === "block") {
-        fb.style.display = "none";
-        return;
-      }
-      fb.style.display = "block";
-      if (fbadge) {
-        fbadge.textContent = "ANALYZING";
-        fbadge.style.color = "var(--muted)";
-      }
-      if (ft) ft.textContent = "Analyzing claim and context with Google Gemini...";
-      if (fnote) fnote.style.display = "none";
-      if (ftweet) ftweet.style.display = "none";
-      try {
-        const res = await fetch(FACTCHECK_API_URL, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            quote: ann.quote || ann.quote_text,
-            commentary: ann.comment || ann.commentary,
-            sourceUrl: ann.url || pageUrl,
-            sourceTitle: ann.title || pageTitle,
-            timestamp: ann.media_timestamp,
-            mediaUrl: ann.media_url
-          })
-        });
-        const data = await res.json();
-        if (fbadge) {
-          fbadge.textContent = (data.verdict || "ANALYZED").replace("_", " ");
-          fbadge.style.color = data.verdict === "VERIFIED" ? "#22c55e" : data.verdict === "MISLEADING" || data.verdict === "FALSE" ? "#ef4444" : "#eab308";
-        }
-        if (ft) {
-          ft.innerHTML = `<strong>${escapeHtml(data.headline || "")}</strong><br><span style="font-size:10px; color:var(--muted);">${escapeHtml(data.explanation || "")}</span>`;
-        }
-        if (data.communityNote && fnote) {
-          fnote.textContent = data.communityNote;
-          fnote.style.display = "block";
-        }
-        if (data.tweetIntentUrl && ftweet) {
-          ftweet.href = data.tweetIntentUrl;
-          ftweet.style.display = "inline-block";
-        }
-      } catch (err) {
-        if (ft) {
-          ft.textContent = `Fact-check error: ${err instanceof Error ? err.message : String(err)}`;
-        }
-      }
-    };
-    const closeBtn = $("#detailFactCheckCloseBtn");
-    if (closeBtn) {
-      closeBtn.onclick = (e) => {
-        e.stopPropagation();
-        const fb = $("#detailFactCheckBox");
-        if (fb) fb.style.display = "none";
-      };
-    }
   }
 
   // extension-src/widget/comments.ts

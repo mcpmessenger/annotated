@@ -100,10 +100,25 @@
         <button class="emoji-btn" data-emoji="&#128078;">&#128078;</button>
       </div>
       <textarea id="comment" maxlength="1000" placeholder="What do you want people to notice?"></textarea>
+
+      <!-- Composer Gemini Fact Check Box -->
+      <div id="composerFactCheckBox" style="display:none; margin-top: 10px; padding: 10px; background: var(--soft); border: 1px solid var(--line); border-radius: 8px; font-size: 11px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+          <span style="font-weight: 750; color: var(--yellow); display: inline-flex; align-items: center; gap: 4px;">&#9889; Gemini Fact Check</span>
+          <div style="display: flex; align-items: center; gap: 6px;">
+            <span id="composerFactCheckBadge" style="font-size: 9px; font-weight: 750; padding: 1px 6px; border-radius: 99px; background: rgba(0,0,0,0.1);">ANALYZING</span>
+            <button id="composerFactCheckCloseBtn" type="button" style="background: none; border: none; color: var(--muted); cursor: pointer; font-size: 11px; font-weight: 700; padding: 0 4px;" title="Hide Fact Check">&#10005;</button>
+          </div>
+        </div>
+        <div id="composerFactCheckText" style="line-height: 1.4; color: var(--ink);">Checking claims with Gemini...</div>
+        <div id="composerFactCheckCommunityNote" style="display:none; margin-top: 6px; padding: 6px; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; font-style: italic; color: var(--muted); font-size: 10px;"></div>
+      </div>
+
       <div class="textarea-footer" style="display: flex; gap: 6px; justify-content: space-between; align-items: center; border-top: 1px solid var(--border); padding-top: 12px; margin-top: 12px;">
         <button id="dictateBtn" class="dictate-btn-main" data-tooltip="Speech to Text" data-tooltip-pos="top" style="width: 36px; min-width: 36px; height: 36px; padding: 0; font-size: 16px; flex: 0 0 36px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center;">&#127897;&#65039;</button>
         <button id="clipVideoBtn" class="dictate-btn-main" data-tooltip="Clip Video" data-tooltip-pos="top" style="width: 36px; min-width: 36px; height: 36px; padding: 0; font-size: 16px; flex: 0 0 36px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center;">&#127909;</button>
         <button id="screenshotBtn" class="dictate-btn-main" data-tooltip="Capture Screenshot" data-tooltip-pos="top" style="width: 36px; min-width: 36px; height: 36px; padding: 0; font-size: 16px; flex: 0 0 36px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center;">&#128248;</button>
+        <button id="composerFactCheckBtn" class="dictate-btn-main" data-tooltip="Fact Check with Gemini" data-tooltip-pos="top" style="width: 36px; min-width: 36px; height: 36px; padding: 0; font-size: 15px; flex: 0 0 36px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.15s ease;" title="Fact Check with Gemini">&#9889;</button>
         <button id="publishBtn" class="publish-btn" disabled style="flex: 1; min-width: 80px; margin: 0; padding: 0 14px; height: 36px; white-space: nowrap; font-weight: 700; border-radius: 8px;">Publish</button>
       </div>
       <div id="status" class="status"></div>
