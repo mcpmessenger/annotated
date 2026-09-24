@@ -64,6 +64,21 @@ export default function AnnotationPage() {
     }
   }, [rawSlug]);
 
+  useEffect(() => {
+    if (annotation?.id && typeof window !== "undefined") {
+      try {
+        const cached = localStorage.getItem(`annotated_factcheck_${annotation.id}`);
+        if (cached) {
+          setFactCheckData(JSON.parse(cached));
+          const minCached = localStorage.getItem(`annotated_factcheck_minimized_${annotation.id}`);
+          if (minCached !== null) {
+            setIsFactCheckMinimized(minCached === "true");
+          }
+        }
+      } catch (e) {}
+    }
+  }, [annotation?.id]);
+
   if (loading) {
     return (
       <div className="flex flex-col min-h-screen">
@@ -121,21 +136,6 @@ export default function AnnotationPage() {
       console.error("Failed to copy:", err);
     }
   };
-
-  useEffect(() => {
-    if (annotation?.id && typeof window !== "undefined") {
-      try {
-        const cached = localStorage.getItem(`annotated_factcheck_${annotation.id}`);
-        if (cached) {
-          setFactCheckData(JSON.parse(cached));
-          const minCached = localStorage.getItem(`annotated_factcheck_minimized_${annotation.id}`);
-          if (minCached !== null) {
-            setIsFactCheckMinimized(minCached === "true");
-          }
-        }
-      } catch (e) {}
-    }
-  }, [annotation?.id]);
 
   const handleFactCheck = async () => {
     if (factCheckData) {
