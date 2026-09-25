@@ -80,8 +80,8 @@ const server = http.createServer((req, res) => {
       file.on('finish', () => {
         file.close();
         try {
-          console.log(`[MediaServer] Transcoding ${baseName}.webm -> ${filename}...`);
-          execSync(`"${FFMPEG}" -y -i "${tempWebm}" -c:v libx264 -preset veryfast -crf 22 -c:a aac -b:a 128k -movflags +faststart "${filePath}"`, { stdio: 'pipe' });
+          console.log(`[MediaServer] Transcoding ${baseName}.webm -> ${filename} (720p H.264 main profile)...`);
+          execSync(`"${FFMPEG}" -y -i "${tempWebm}" -vf "scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2" -c:v libx264 -preset veryfast -profile:v main -level 3.1 -pix_fmt yuv420p -c:a aac -b:a 128k -movflags +faststart "${filePath}"`, { stdio: 'pipe' });
           try { fs.unlinkSync(tempWebm); } catch {}
           return streamFileWithRange(filePath, req, res);
         } catch (err) {

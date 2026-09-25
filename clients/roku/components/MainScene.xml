@@ -4,11 +4,13 @@
 
   <children>
     <!-- Background Canvas (Dark Theme #090D16) -->
-    <Rectangle
-      id="bgRect"
-      width="1920"
-      height="1080"
-      color="0x090D16FF" />
+    <!-- Roku Plane Architecture: Hardware video plane renders BEHIND graphics plane.
+         Framing rectangles surround the video viewport [80, 110] to [1220, 750] so video plane is unblocked -->
+    <Group id="bgRect" visible="false" />
+    <Rectangle id="bgHeader" width="1920" height="110" color="0x090D16FF" translation="[0, 0]" />
+    <Rectangle id="bgLeft" width="80" height="640" color="0x090D16FF" translation="[0, 110]" />
+    <Rectangle id="bgBottom" width="1220" height="330" color="0x090D16FF" translation="[0, 750]" />
+    <Rectangle id="bgRight" width="700" height="970" color="0x090D16FF" translation="[1220, 110]" />
 
     <!-- Top Navigation Header -->
     <Group id="headerGroup" translation="[80, 40]">
@@ -57,12 +59,8 @@
 
     <!-- Main Video Stage (Left: 1140px wide) -->
     <Group id="stageGroup" translation="[80, 110]">
-      <Rectangle
-        id="videoFrame"
-        width="1140"
-        height="640"
-        color="0x111827FF">
-
+      <!-- Transparent Video Container -->
+      <Group id="videoFrame">
         <!-- Embedded Video Player Node (Continuous Loop) -->
         <Video
           id="mainVideo"
@@ -71,27 +69,33 @@
           loop="true"
           visible="true" />
 
-        <!-- Video Overlay Header (Title & Timestamp) -->
+        <!-- Crisp Frame Border Lines around video viewport -->
+        <Rectangle width="1140" height="2" color="0x1F2937FF" translation="[0, 0]" />
+        <Rectangle width="1140" height="2" color="0x1F2937FF" translation="[0, 638]" />
+        <Rectangle width="2" height="640" color="0x1F2937FF" translation="[0, 0]" />
+        <Rectangle width="2" height="640" color="0x1F2937FF" translation="[1138, 0]" />
+
+        <!-- Video Overlay Header (Title & Timestamp) with translucent tint -->
         <Rectangle
           id="videoOverlayTop"
           width="1140"
-          height="64"
-          color="0x000000AA">
+          height="54"
+          color="0x00000088">
           <Label
             id="videoTitle"
             text="Loading community annotations..."
             font="font:MediumBoldSystemFont"
             color="0xFFFFFFFF"
             width="880"
-            translation="[24, 18]" />
+            translation="[20, 14]" />
           <Label
             id="timestampBadge"
-            text="04:12 / 18:30"
+            text="00:00 / 00:00"
             font="font:MediumBoldSystemFont"
             color="0x38BDF8FF"
-            translation="[920, 18]" />
+            translation="[920, 14]" />
         </Rectangle>
-      </Rectangle>
+      </Group>
 
       <!-- Action Pill Bar (Directly below video) -->
       <Group id="actionBarGroup" translation="[0, 660]">
