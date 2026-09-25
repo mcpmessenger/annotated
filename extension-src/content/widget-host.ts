@@ -132,6 +132,21 @@ export function openAnnotationInWidget(annotation: Annotation): void {
   setTimeout(sendView, 120);
 }
 
+export function notifyWidgetOfSelection(payload: { quote?: string; selectedText?: string; title?: string; url?: string; hostname?: string; media_timestamp?: number | null }): void {
+  const iframe = createWidget();
+  const send = () => {
+    try {
+      if (iframe && iframe.contentWindow) {
+        iframe.contentWindow.postMessage({ type: 'PAGE_INFO_RESPONSE', ...payload }, '*');
+      }
+    } catch (_) {}
+  };
+  send();
+  setTimeout(send, 60);
+  setTimeout(send, 200);
+  setTimeout(send, 400);
+}
+
 export function setupMessageRouter(onReloadAnnotations: () => void): void {
   window.addEventListener('message', (event) => {
     const data = event.data as PostMessage | undefined;

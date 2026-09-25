@@ -4,6 +4,7 @@ import { $ } from '../shared/dom';
 import { supabase } from '../shared/supabase';
 import { initials, openExternalUrl } from '../shared/utils';
 import { SITE_URL } from '../shared/config';
+import { composerState, setQuote } from './composer';
 import type { CurrentUser } from '../types/annotation';
 
 export function showAuth(): void {
@@ -18,6 +19,10 @@ export function showApp(
   $('#authScreen')?.classList.add('hidden');
   $('#mainApp')?.classList.remove('hidden');
   $('#userMenuWrap')?.classList.remove('hidden');
+
+  if (composerState.quote) {
+    setQuote(composerState.quote);
+  }
 
   const profileName = $('#profileName');
   if (profileName) profileName.textContent = user.name;

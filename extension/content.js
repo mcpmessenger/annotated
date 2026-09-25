@@ -1301,6 +1301,21 @@
     sendView();
     setTimeout(sendView, 120);
   }
+  function notifyWidgetOfSelection(payload) {
+    const iframe = createWidget();
+    const send = () => {
+      try {
+        if (iframe && iframe.contentWindow) {
+          iframe.contentWindow.postMessage({ type: "PAGE_INFO_RESPONSE", ...payload }, "*");
+        }
+      } catch (_) {
+      }
+    };
+    send();
+    setTimeout(send, 60);
+    setTimeout(send, 200);
+    setTimeout(send, 400);
+  }
   function setupMessageRouter(onReloadAnnotations) {
     window.addEventListener("message", (event) => {
       const data = event.data;
@@ -1467,15 +1482,23 @@
   function init() {
     injectHighlightStyles();
     setupMessageRouter(() => loadAnnotations());
-    document.addEventListener("mouseup", (e) => {
-      if (e.button !== 0) return;
+    const handleSelection = () => {
       setTimeout(() => {
         recordSelection((payload) => {
           if (payload.quote) {
-            createWidget();
+            notifyWidgetOfSelection(payload);
           }
         });
-      }, 20);
+      }, 25);
+    };
+    document.addEventListener("mouseup", (e) => {
+      if (e.button !== 0) return;
+      handleSelection();
+    });
+    document.addEventListener("keyup", (e) => {
+      if (e.shiftKey || e.key.startsWith("Arrow")) {
+        handleSelection();
+      }
     });
     document.addEventListener(
       "mouseover",
@@ -1558,7 +1581,8 @@
         return true;
       }
       if (message.type === "openWidget") {
-        createWidget();
+        const info = buildPageInfo();
+        notifyWidgetOfSelection(info);
         sendResponse({ ok: true });
         return true;
       }

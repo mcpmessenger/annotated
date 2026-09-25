@@ -68,12 +68,11 @@ export function updatePublishButton(): void {
 }
 
 export function setQuote(value: string): void {
-  composerState.quote = value;
+  const clean = (value || '').trim().replace(/^["“](.*)["”]$/s, '$1').trim();
+  composerState.quote = clean;
   const qEl = $('#quote');
   if (qEl) {
-    qEl.textContent = composerState.quote
-      ? `"${composerState.quote}"`
-      : 'Select text on any page to anchor a comment here.';
+    qEl.textContent = composerState.quote || 'Select text on any page to anchor a comment here.';
   }
   updatePublishButton();
 }

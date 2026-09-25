@@ -108,6 +108,7 @@ export function SelectionAnnotatePopup() {
       url: targetUrl,
       title: pageTitle,
       text: selectedText,
+      quote: selectedText,
     });
 
     setPosition(null);

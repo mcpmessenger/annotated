@@ -26,9 +26,9 @@ const SIGNATURE_EMOJIS = ['🔥', '🤔', '💡', '💯', '👎'];
 function ShareContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const rawUrl = searchParams.get('url') || '';
-  const rawTitle = searchParams.get('title') || '';
-  const rawText = searchParams.get('text') || '';
+  const rawUrl = searchParams.get('url') || searchParams.get('link') || searchParams.get('source') || '';
+  const rawTitle = searchParams.get('title') || searchParams.get('page_title') || '';
+  const rawText = searchParams.get('text') || searchParams.get('quote') || searchParams.get('quote_text') || searchParams.get('q') || searchParams.get('description') || '';
 
   // Extract link if text contains a URL (typical of Android YouTube/Twitter sharing)
   let targetUrl = rawUrl;

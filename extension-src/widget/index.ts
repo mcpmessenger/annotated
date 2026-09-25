@@ -90,7 +90,11 @@ function setupParentMessageListener(): void {
         const pageHost = $('#pageHost');
         if (pageHost) pageHost.textContent = page.hostname.replace(/^www\./, '');
         if (data.quote || data.selectedText) {
-          setQuote(data.quote || data.selectedText);
+          const q = (data.quote || data.selectedText || '').trim();
+          if (q) {
+            setQuote(q);
+            showComposer(resizeWidget);
+          }
         }
         if (data.media_timestamp != null) {
           composerState.currentMediaTimestamp = data.media_timestamp;

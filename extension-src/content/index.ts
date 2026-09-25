@@ -8,7 +8,7 @@ import { SUPABASE_CONFIG } from '../shared/config';
 import { injectHighlightStyles, renderHighlight, highlightMap, showHoverBubble, hideHoverBubble } from './highlighter';
 import { renderYouTubeProgressBarMarkers, renderYouTubeVideoTag } from './youtube';
 import { recordSelection, buildPageInfo } from './selection';
-import { createWidget, openAnnotationInWidget, setupMessageRouter, ensureWidgetContainer, widgetIframe } from './widget-host';
+import { createWidget, openAnnotationInWidget, notifyWidgetOfSelection, setupMessageRouter, ensureWidgetContainer, widgetIframe } from './widget-host';
 
 const state: {
   annotations: Annotation[];
@@ -109,16 +109,26 @@ function init(): void {
   setupMessageRouter(() => loadAnnotations());
 
   // Text selection tracking
-  document.addEventListener('mouseup', (e) => {
-    if (e.button !== 0) return;
+  const handleSelection = () => {
     setTimeout(() => {
       recordSelection((payload) => {
-        // If selection exists, ensure widget is created
+        // If selection exists, ensure widget is created and receives the highlighted quote
         if (payload.quote) {
-          createWidget();
+          notifyWidgetOfSelection(payload);
         }
       });
-    }, 20);
+    }, 25);
+  };
+
+  document.addEventListener('mouseup', (e) => {
+    if (e.button !== 0) return;
+    handleSelection();
+  });
+
+  document.addEventListener('keyup', (e) => {
+    if (e.shiftKey || e.key.startsWith('Arrow')) {
+      handleSelection();
+    }
   });
 
   // Highlight hovering
@@ -215,7 +225,8 @@ function init(): void {
     }
 
     if (message.type === 'openWidget') {
-      createWidget();
+      const info = buildPageInfo();
+      notifyWidgetOfSelection(info);
       sendResponse({ ok: true });
       return true;
     }
