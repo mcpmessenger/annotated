@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<component name="ReactionTask" extends="Task">
+  <script type="text/brightscript" uri="pkg:/components/ReactionTask.brs" />
+
+  <interface>
+    <field id="annotationId" type="string" />
+    <field id="emoji" type="string" />
+  </interface>
+</component>

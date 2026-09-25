@@ -34,16 +34,19 @@ sub init()
     m.lblFactCheck = m.top.findNode("lblFactCheck")
 
     ' Rail Card Dynamic Metrics & Fact Check Badges
+    m.card1EmojiPoster = m.top.findNode("card1EmojiPoster")
     m.card1FireCount = m.top.findNode("card1FireCount")
     m.card1IdeaCount = m.top.findNode("card1IdeaCount")
     m.card1FcIcon = m.top.findNode("card1FcIcon")
     m.card1FcLabel = m.top.findNode("card1FcLabel")
 
+    m.card2EmojiPoster = m.top.findNode("card2EmojiPoster")
     m.card2HundredCount = m.top.findNode("card2HundredCount")
     m.card2ThinkCount = m.top.findNode("card2ThinkCount")
     m.card2FcIcon = m.top.findNode("card2FcIcon")
     m.card2FcLabel = m.top.findNode("card2FcLabel")
 
+    m.card3EmojiPoster = m.top.findNode("card3EmojiPoster")
     m.card3FireCount = m.top.findNode("card3FireCount")
     m.card3IdeaCount = m.top.findNode("card3IdeaCount")
     m.card3FcIcon = m.top.findNode("card3FcIcon")
@@ -62,6 +65,7 @@ sub init()
     m.card2Accent = m.top.findNode("card2Accent")
     m.card2Author = m.top.findNode("card2Author")
     m.card2Time = m.top.findNode("card2Time")
+    m.card2Quote = m.top.findNode("card2Quote")
     m.card2Note = m.top.findNode("card2Note")
 
     m.card3 = m.top.findNode("card3")
@@ -69,6 +73,7 @@ sub init()
     m.card3Accent = m.top.findNode("card3Accent")
     m.card3Author = m.top.findNode("card3Author")
     m.card3Time = m.top.findNode("card3Time")
+    m.card3Quote = m.top.findNode("card3Quote")
     m.card3Note = m.top.findNode("card3Note")
 
     m.buttons = [m.btnFactCheck, m.btnFire, m.btnThink, m.btnIdea, m.btnHundred, m.btnDown]
@@ -81,6 +86,7 @@ sub init()
     m.cardRawTimes = ["", "", ""]
     m.focusedCardIndex = 0
     m.currentPlayingCardIndex = -1
+    m.railStartIndex = 0
     m.cardTimestamps = [0, 45, 90]
     m.activeSyncIndex = -1
     m.annotations = invalid
@@ -273,7 +279,8 @@ sub updateCardPlayingIndicator()
     for i = 0 to m.cardTimes.count() - 1
         lbl = m.cardTimes[i]
         if lbl <> invalid
-            if i = m.currentPlayingCardIndex
+            actualIdx = m.railStartIndex + i
+            if actualIdx = m.currentPlayingCardIndex
                 lbl.text = "PLAYING"
                 lbl.color = "0x34D399FF" ' Emerald green
             else
@@ -463,6 +470,100 @@ function parseTimestampToSeconds(raw as Dynamic) as Integer
     return -1
 end function
 
+sub renderRailCardsWindow()
+    if m.annotations = invalid or m.annotations.count() = 0 then return
+
+    totalCount = m.annotations.count()
+    if m.railStartIndex < 0 then m.railStartIndex = 0
+    if m.railStartIndex > totalCount - 3 then m.railStartIndex = totalCount - 3
+    if m.railStartIndex < 0 then m.railStartIndex = 0
+
+    cardNodes = [
+        { card: m.card1, author: m.card1Author, quote: m.card1Quote, note: m.card1Note, emojiPoster: m.card1EmojiPoster, fcLabel: m.card1FcLabel, fcIcon: m.card1FcIcon, fireCount: m.card1FireCount, ideaCount: m.card1IdeaCount },
+        { card: m.card2, author: m.card2Author, quote: m.card2Quote, note: m.card2Note, emojiPoster: m.card2EmojiPoster, fcLabel: m.card2FcLabel, fcIcon: m.card2FcIcon, hundredCount: m.card2HundredCount, thinkCount: m.card2ThinkCount },
+        { card: m.card3, author: m.card3Author, quote: m.card3Quote, note: m.card3Note, emojiPoster: m.card3EmojiPoster, fcLabel: m.card3FcLabel, fcIcon: m.card3FcIcon, fireCount: m.card3FireCount, ideaCount: m.card3IdeaCount }
+    ]
+
+    for slot = 0 to 2
+        dataIdx = m.railStartIndex + slot
+        cn = cardNodes[slot]
+        if dataIdx < totalCount
+            item = m.annotations[dataIdx]
+
+            ' Author
+            if cn.author <> invalid
+                if item.hostname <> invalid and item.hostname <> ""
+                    cn.author.text = "@" + item.hostname
+                else
+                    cn.author.text = "@annotated"
+                end if
+            end if
+
+            ' Emoji intent badge icon
+            if cn.emojiPoster <> invalid
+                if item.emoji_icon <> invalid and item.emoji_icon <> ""
+                    cn.emojiPoster.uri = item.emoji_icon
+                else
+                    cn.emojiPoster.uri = "pkg:/images/icon_idea.png"
+                end if
+            end if
+
+            ' Timestamp
+            if item.media_timestamp <> invalid and item.media_timestamp <> ""
+                m.cardRawTimes[slot] = item.media_timestamp
+                ts = parseTimestampToSeconds(item.media_timestamp)
+                if ts >= 0 then m.cardTimestamps[slot] = ts
+            else
+                m.cardRawTimes[slot] = "00:" + Right("0" + Str(slot * 15).trim(), 2)
+                m.cardTimestamps[slot] = slot * 15
+            end if
+
+            ' Quote / Context
+            if cn.quote <> invalid
+                if item.quote <> invalid and item.quote <> ""
+                    cn.quote.text = """" + Left(cleanText(item.quote), 60) + "..."""
+                else if item.page_title <> invalid and item.page_title <> ""
+                    cn.quote.text = """" + Left(cleanText(item.page_title), 60) + """"
+                else
+                    cn.quote.text = """Annotated Web Commentary"""
+                end if
+            end if
+
+            ' Comment
+            if cn.note <> invalid
+                cText = cleanText(item.comment)
+                if cText = ""
+                    if item.page_title <> invalid then cText = cleanText(item.page_title) else cText = "Community annotation"
+                end if
+                cn.note.text = cText
+            end if
+
+            ' Reaction metrics
+            if item.reactions <> invalid
+                if cn.fireCount <> invalid and item.reactions.fire <> invalid then cn.fireCount.text = Str(item.reactions.fire).trim()
+                if cn.ideaCount <> invalid and item.reactions.idea <> invalid then cn.ideaCount.text = Str(item.reactions.idea).trim()
+                if cn.hundredCount <> invalid and item.reactions.hundred <> invalid then cn.hundredCount.text = Str(item.reactions.hundred).trim()
+                if cn.thinkCount <> invalid and item.reactions.think <> invalid then cn.thinkCount.text = Str(item.reactions.think).trim()
+            end if
+
+            ' Fact Check pill & icon
+            if item.fact_check <> invalid and cn.fcLabel <> invalid
+                if item.fact_check.pillText <> invalid then cn.fcLabel.text = item.fact_check.pillText
+                if item.fact_check.badgeColor <> invalid then cn.fcLabel.color = item.fact_check.badgeColor
+                if cn.fcIcon <> invalid and item.fact_check.icon <> invalid then cn.fcIcon.uri = item.fact_check.icon
+            end if
+        end if
+    end for
+
+    updateCardPlayingIndicator()
+    updateCardFocus()
+
+    if m.uiState = "STATE_B"
+        currentPos = m.railStartIndex + m.focusedCardIndex + 1
+        m.railCount.text = Str(currentPos).trim() + " / " + Str(totalCount).trim()
+    end if
+end sub
+
 sub onAnnotationsLoaded()
     annotations = m.feedTask.annotations
     if annotations = invalid or annotations.count() = 0
@@ -478,106 +579,7 @@ sub onAnnotationsLoaded()
         m.railCount.text = Str(m.totalNotesCount).trim() + " Notes"
     end if
 
-    ' 1. Card 1 (Top Annotation)
-    if annotations.count() > 0
-        a1 = annotations[0]
-
-        m.card1Author.text = "@annotated"
-        if a1.hostname <> invalid and a1.hostname <> ""
-            m.card1Author.text = "@" + a1.hostname
-        end if
-
-        if a1.media_timestamp <> invalid and a1.media_timestamp <> ""
-            m.cardRawTimes[0] = a1.media_timestamp
-            ts1 = parseTimestampToSeconds(a1.media_timestamp)
-            if ts1 >= 0 then m.cardTimestamps[0] = ts1
-        else
-            m.cardRawTimes[0] = "00:00"
-            m.cardTimestamps[0] = 0
-        end if
-
-        if a1.quote <> invalid and a1.quote <> ""
-            m.card1Quote.text = """" + Left(cleanText(a1.quote), 60) + "..."""
-        else
-            m.card1Quote.text = """Annotated Web Commentary"""
-        end if
-
-        if a1.comment <> invalid and a1.comment <> ""
-            m.card1Note.text = cleanText(a1.comment)
-        end if
-
-        if a1.reactions <> invalid
-            if m.card1FireCount <> invalid and a1.reactions.fire <> invalid then m.card1FireCount.text = Str(a1.reactions.fire).trim()
-            if m.card1IdeaCount <> invalid and a1.reactions.idea <> invalid then m.card1IdeaCount.text = Str(a1.reactions.idea).trim()
-        end if
-        if a1.fact_check <> invalid
-            if m.card1FcLabel <> invalid and a1.fact_check.pillText <> invalid then m.card1FcLabel.text = a1.fact_check.pillText
-            if m.card1FcLabel <> invalid and a1.fact_check.badgeColor <> invalid then m.card1FcLabel.color = a1.fact_check.badgeColor
-            if m.card1FcIcon <> invalid and a1.fact_check.icon <> invalid then m.card1FcIcon.uri = a1.fact_check.icon
-        end if
-    end if
-
-    ' 2. Card 2
-    if annotations.count() > 1
-        a2 = annotations[1]
-        if a2.hostname <> invalid and a2.hostname <> ""
-            m.card2Author.text = "@" + a2.hostname
-        end if
-
-        if a2.media_timestamp <> invalid and a2.media_timestamp <> ""
-            m.cardRawTimes[1] = a2.media_timestamp
-            ts2 = parseTimestampToSeconds(a2.media_timestamp)
-            if ts2 >= 0 then m.cardTimestamps[1] = ts2
-        else
-            m.cardRawTimes[1] = "00:15"
-            m.cardTimestamps[1] = 15
-        end if
-
-        if a2.comment <> invalid and a2.comment <> ""
-            m.card2Note.text = cleanText(a2.comment)
-        end if
-
-        if a2.reactions <> invalid
-            if m.card2HundredCount <> invalid and a2.reactions.hundred <> invalid then m.card2HundredCount.text = Str(a2.reactions.hundred).trim()
-            if m.card2ThinkCount <> invalid and a2.reactions.think <> invalid then m.card2ThinkCount.text = Str(a2.reactions.think).trim()
-        end if
-        if a2.fact_check <> invalid
-            if m.card2FcLabel <> invalid and a2.fact_check.pillText <> invalid then m.card2FcLabel.text = a2.fact_check.pillText
-            if m.card2FcLabel <> invalid and a2.fact_check.badgeColor <> invalid then m.card2FcLabel.color = a2.fact_check.badgeColor
-            if m.card2FcIcon <> invalid and a2.fact_check.icon <> invalid then m.card2FcIcon.uri = a2.fact_check.icon
-        end if
-    end if
-
-    ' 3. Card 3
-    if annotations.count() > 2
-        a3 = annotations[2]
-        if a3.hostname <> invalid and a3.hostname <> ""
-            m.card3Author.text = "@" + a3.hostname
-        end if
-
-        if a3.media_timestamp <> invalid and a3.media_timestamp <> ""
-            m.cardRawTimes[2] = a3.media_timestamp
-            ts3 = parseTimestampToSeconds(a3.media_timestamp)
-            if ts3 >= 0 then m.cardTimestamps[2] = ts3
-        else
-            m.cardRawTimes[2] = "00:30"
-            m.cardTimestamps[2] = 30
-        end if
-
-        if a3.comment <> invalid and a3.comment <> ""
-            m.card3Note.text = cleanText(a3.comment)
-        end if
-
-        if a3.reactions <> invalid
-            if m.card3FireCount <> invalid and a3.reactions.fire <> invalid then m.card3FireCount.text = Str(a3.reactions.fire).trim()
-            if m.card3IdeaCount <> invalid and a3.reactions.idea <> invalid then m.card3IdeaCount.text = Str(a3.reactions.idea).trim()
-        end if
-        if a3.fact_check <> invalid
-            if m.card3FcLabel <> invalid and a3.fact_check.pillText <> invalid then m.card3FcLabel.text = a3.fact_check.pillText
-            if m.card3FcLabel <> invalid and a3.fact_check.badgeColor <> invalid then m.card3FcLabel.color = a3.fact_check.badgeColor
-            if m.card3FcIcon <> invalid and a3.fact_check.icon <> invalid then m.card3FcIcon.uri = a3.fact_check.icon
-        end if
-    end if
+    renderRailCardsWindow()
 
     ' Automatically play the genuine video belonging to the first community annotation!
     playAnnotationVideo(0)
@@ -626,6 +628,49 @@ sub updateCardFocus()
     end for
 end sub
 
+sub postReaction(emoji as String)
+    if m.annotations = invalid or m.currentPlayingCardIndex < 0 or m.currentPlayingCardIndex >= m.annotations.count()
+        return
+    end if
+
+    activeItem = m.annotations[m.currentPlayingCardIndex]
+    annId = activeItem.id
+
+    print "[Annotated Emote] Posting reaction: "; emoji; " for Annotation: "; annId
+
+    ' 1. Optimistic instant local UI increment
+    if activeItem.reactions = invalid
+        activeItem.reactions = { fire: 0, think: 0, idea: 0, hundred: 0, down: 0 }
+    end if
+
+    if emoji = "🔥"
+        activeItem.reactions.fire = activeItem.reactions.fire + 1
+        if m.lblFireCount <> invalid then m.lblFireCount.text = Str(activeItem.reactions.fire).trim()
+    else if emoji = "🤔"
+        activeItem.reactions.think = activeItem.reactions.think + 1
+        if m.lblThinkCount <> invalid then m.lblThinkCount.text = Str(activeItem.reactions.think).trim()
+    else if emoji = "💡"
+        activeItem.reactions.idea = activeItem.reactions.idea + 1
+        if m.lblIdeaCount <> invalid then m.lblIdeaCount.text = Str(activeItem.reactions.idea).trim()
+    else if emoji = "💯"
+        activeItem.reactions.hundred = activeItem.reactions.hundred + 1
+        if m.lblHundredCount <> invalid then m.lblHundredCount.text = Str(activeItem.reactions.hundred).trim()
+    else if emoji = "👎"
+        activeItem.reactions.down = activeItem.reactions.down + 1
+        if m.lblDownCount <> invalid then m.lblDownCount.text = Str(activeItem.reactions.down).trim()
+    end if
+
+    ' Also update rail cards if current video is displayed in visible window
+    renderRailCardsWindow()
+
+    ' 2. Async HTTP POST via background ReactionTask
+    reactionTask = createObject("RoSGNode", "ReactionTask")
+    reactionTask.annotationId = annId
+    reactionTask.emoji = emoji
+    reactionTask.control = "RUN"
+    print "[Annotated Emote] Dispatched ReactionTask for: "; annId; " with emoji: "; emoji
+end sub
+
 function onKeyEvent(key as String, press as Boolean) as Boolean
     handled = false
 
@@ -650,6 +695,10 @@ function onKeyEvent(key as String, press as Boolean) as Boolean
                     updateButtonFocus()
                     handled = true
                 end if
+            else if key = "up"
+                ' Pressing Up from bottom actions directly enters State B (Rail)
+                setUIState("STATE_B")
+                handled = true
             else if key = "options" ' [*] Star Key
                 ' Star key toggles active rail browsing mode
                 setUIState("STATE_B")
@@ -659,24 +708,46 @@ function onKeyEvent(key as String, press as Boolean) as Boolean
                     ' Toggle fact-check banner
                     m.factCheckBanner.visible = not m.factCheckBanner.visible
                     print "[Annotated] Fact-Check banner toggled: "; m.factCheckBanner.visible
-                else
-                    print "[Annotated] Reaction button clicked index: "; m.focusedButtonIndex
+                else if m.focusedButtonIndex = 1
+                    postReaction("🔥")
+                else if m.focusedButtonIndex = 2
+                    postReaction("🤔")
+                else if m.focusedButtonIndex = 3
+                    postReaction("💡")
+                else if m.focusedButtonIndex = 4
+                    postReaction("💯")
+                else if m.focusedButtonIndex = 5
+                    postReaction("👎")
                 end if
                 handled = true
             end if
 
         else if m.uiState = "STATE_B"
-            ' --- State B: Active Rail Browsing ---
+            ' --- State B: Active Rail Browsing & Smooth Windowed Scrolling ---
             if key = "up"
                 if m.focusedCardIndex > 0
                     m.focusedCardIndex = m.focusedCardIndex - 1
                     updateCardFocus()
+                    currentPos = m.railStartIndex + m.focusedCardIndex + 1
+                    m.railCount.text = Str(currentPos).trim() + " / " + Str(m.totalNotesCount).trim()
+                    handled = true
+                else if m.railStartIndex > 0
+                    ' Scroll window up!
+                    m.railStartIndex = m.railStartIndex - 1
+                    renderRailCardsWindow()
                     handled = true
                 end if
             else if key = "down"
-                if m.focusedCardIndex < m.cards.count() - 1
+                if m.focusedCardIndex < 2
                     m.focusedCardIndex = m.focusedCardIndex + 1
                     updateCardFocus()
+                    currentPos = m.railStartIndex + m.focusedCardIndex + 1
+                    m.railCount.text = Str(currentPos).trim() + " / " + Str(m.totalNotesCount).trim()
+                    handled = true
+                else if m.annotations <> invalid and m.railStartIndex + 3 < m.annotations.count()
+                    ' Scroll window down!
+                    m.railStartIndex = m.railStartIndex + 1
+                    renderRailCardsWindow()
                     handled = true
                 end if
             else if key = "left" or key = "back"
@@ -688,9 +759,10 @@ function onKeyEvent(key as String, press as Boolean) as Boolean
                 setUIState("STATE_A")
                 handled = true
             else if key = "OK"
-                ' Pressing OK plays the genuine video of the currently selected card!
-                print "[Annotated] Remote OK pressed on Card "; m.focusedCardIndex; " -> Switching to selected video!"
-                playAnnotationVideo(m.focusedCardIndex)
+                ' Pressing OK plays the genuine video of the currently selected card in the window!
+                targetIdx = m.railStartIndex + m.focusedCardIndex
+                print "[Annotated] Remote OK pressed on Window Slot "; m.focusedCardIndex; " (Annotation Index "; targetIdx; ") -> Switching to selected video!"
+                playAnnotationVideo(targetIdx)
                 handled = true
             end if
         end if

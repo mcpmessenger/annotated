@@ -242,7 +242,9 @@
         color="0x0F172AFF"
         translation="[0, 68]">
         <Rectangle id="card1Accent" width="590" height="4" color="0x38BDF8FF" translation="[0, 0]" />
-        <Label id="card1Author" text="@annotated" font="font:MediumBoldSystemFont" color="0xF8FAFCFF" translation="[20, 16]" />
+        <!-- Emoji Badge -->
+        <Poster id="card1EmojiPoster" uri="pkg:/images/icon_idea.png" width="22" height="22" translation="[18, 16]" />
+        <Label id="card1Author" text="@annotated" font="font:MediumBoldSystemFont" color="0xF8FAFCFF" translation="[48, 16]" />
         <Label id="card1Time" text="Live" font="font:SmallBoldSystemFont" color="0x38BDF8FF" translation="[500, 16]" />
         
         <Label
@@ -278,19 +280,31 @@
       <Rectangle
         id="card2Outline"
         width="594"
-        height="224"
+        height="264"
         color="0x38BDF8FF"
-        translation="[-2, 343]"
+        translation="[-2, 338]"
         visible="false" />
       <Rectangle
         id="card2"
         width="590"
-        height="220"
+        height="260"
         color="0x111827FF"
-        translation="[0, 345]">
+        translation="[0, 340]">
         <Rectangle id="card2Accent" width="590" height="4" color="0x1E293BFF" translation="[0, 0]" />
-        <Label id="card2Author" text="@community" font="font:MediumBoldSystemFont" color="0xF8FAFCFF" translation="[20, 16]" />
+        <!-- Emoji Badge -->
+        <Poster id="card2EmojiPoster" uri="pkg:/images/icon_think.png" width="22" height="22" translation="[18, 16]" />
+        <Label id="card2Author" text="@community" font="font:MediumBoldSystemFont" color="0xF8FAFCFF" translation="[48, 16]" />
         <Label id="card2Time" text="" font="font:SmallBoldSystemFont" color="0x64748BFF" translation="[500, 16]" />
+        
+        <Label
+          id="card2Quote"
+          text=""
+          font="font:SmallSystemFont"
+          color="0x94A3B8FF"
+          width="540"
+          maxLines="1"
+          translation="[20, 56]" />
+
         <Label
           id="card2Note"
           text="Waiting for feed..."
@@ -299,14 +313,14 @@
           width="540"
           wrap="true"
           maxLines="2"
-          translation="[20, 56]" />
-        <Group translation="[20, 170]">
+          translation="[20, 96]" />
+        <Group translation="[20, 210]">
           <Poster uri="pkg:/images/icon_100.png" width="24" height="20" translation="[0, 0]" />
           <Label id="card2HundredCount" text="0" font="font:SmallSystemFont" color="0x94A3B8FF" translation="[30, 0]" />
           <Poster uri="pkg:/images/icon_think.png" width="20" height="20" translation="[70, 0]" />
           <Label id="card2ThinkCount" text="0" font="font:SmallSystemFont" color="0x94A3B8FF" translation="[96, 0]" />
           <Poster id="card2FcIcon" uri="pkg:/images/icon_think.png" width="20" height="20" translation="[140, 0]" />
-          <Label id="card2FcLabel" text="Context Needed" font="font:SmallBoldSystemFont" color="0x818CF8FF" translation="[166, 0]" />
+          <Label id="card2FcLabel" text="Verified" font="font:SmallBoldSystemFont" color="0x818CF8FF" translation="[166, 0]" />
         </Group>
       </Rectangle>
 
@@ -314,19 +328,31 @@
       <Rectangle
         id="card3Outline"
         width="594"
-        height="274"
+        height="264"
         color="0x38BDF8FF"
-        translation="[-2, 583]"
+        translation="[-2, 610]"
         visible="false" />
       <Rectangle
         id="card3"
         width="590"
-        height="270"
+        height="260"
         color="0x111827FF"
-        translation="[0, 585]">
+        translation="[0, 612]">
         <Rectangle id="card3Accent" width="590" height="4" color="0x1E293BFF" translation="[0, 0]" />
-        <Label id="card3Author" text="@community" font="font:MediumBoldSystemFont" color="0xF8FAFCFF" translation="[20, 16]" />
+        <!-- Emoji Badge -->
+        <Poster id="card3EmojiPoster" uri="pkg:/images/icon_fire.png" width="22" height="22" translation="[18, 16]" />
+        <Label id="card3Author" text="@community" font="font:MediumBoldSystemFont" color="0xF8FAFCFF" translation="[48, 16]" />
         <Label id="card3Time" text="" font="font:SmallBoldSystemFont" color="0x64748BFF" translation="[500, 16]" />
+        
+        <Label
+          id="card3Quote"
+          text=""
+          font="font:SmallSystemFont"
+          color="0x94A3B8FF"
+          width="540"
+          maxLines="1"
+          translation="[20, 56]" />
+
         <Label
           id="card3Note"
           text="Waiting for feed..."
@@ -334,9 +360,9 @@
           color="0xE2E8F0FF"
           width="540"
           wrap="true"
-          maxLines="3"
-          translation="[20, 56]" />
-        <Group translation="[20, 220]">
+          maxLines="2"
+          translation="[20, 96]" />
+        <Group translation="[20, 210]">
           <Poster uri="pkg:/images/icon_fire.png" width="20" height="20" translation="[0, 0]" />
           <Label id="card3FireCount" text="0" font="font:SmallSystemFont" color="0x94A3B8FF" translation="[26, 0]" />
           <Poster uri="pkg:/images/icon_idea.png" width="20" height="20" translation="[70, 0]" />

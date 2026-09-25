@@ -18,6 +18,8 @@ $items = @(
     "components\MainScene.xml",
     "components\AnnotationFeedTask.xml",
     "components\AnnotationFeedTask.brs",
+    "components\ReactionTask.xml",
+    "components\ReactionTask.brs",
     "images\annotated_logo_512.png",
     "images\icon_fhd.png",
     "images\splash_fhd.png",
