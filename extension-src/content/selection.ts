@@ -15,7 +15,38 @@ export let lastKnownSelection: string | null = null;
 export let lastKnownRect: DOMRect | null = null;
 export let lastKnownElement: Element | null = null;
 
-export function getMediaTimestamp(): number | null {
+export function getMediaTimestamp(isTextSelection: boolean = false): number | null {
+  // If the user highlighted text, only capture a video timestamp if the selection
+  // originated directly within a video player, captions, or transcript container.
+  if (isTextSelection) {
+    if (!lastKnownElement) return null;
+    const mediaContainer = lastKnownElement.closest(
+      'div[data-testid="videoPlayer"], div[data-testid="videoComponent"], .html5-video-player, ytd-player, .ytp-caption-window-container, ytd-transcript-renderer, ytd-transcript-segment-renderer, video, audio'
+    );
+    // Explicitly exclude non-video regions like comments, sidebar, description
+    if (!mediaContainer || lastKnownElement.closest('ytd-comments, #comments, ytd-item-section-renderer, #secondary, #description')) {
+      return null;
+    }
+
+    try {
+      const moviePlayer = document.getElementById('movie_player') as any;
+      if (moviePlayer && typeof moviePlayer.getCurrentTime === 'function') {
+        const t = moviePlayer.getCurrentTime();
+        if (t != null && !isNaN(t) && t > 0) return Math.floor(t);
+      }
+    } catch (_) {}
+
+    try {
+      const media = mediaContainer.querySelector('video, audio') as HTMLMediaElement | null;
+      if (media && media.currentTime != null && !isNaN(media.currentTime) && media.currentTime > 0) {
+        return Math.floor(media.currentTime);
+      }
+    } catch (_) {}
+
+    return null;
+  }
+
+  // Not a text selection (e.g. user invoked widget directly while watching a video)
   try {
     const moviePlayer = document.getElementById('movie_player') as any;
     if (moviePlayer && typeof moviePlayer.getCurrentTime === 'function') {
@@ -39,7 +70,7 @@ export function getMediaTimestamp(): number | null {
     }
   } catch (_) {}
 
-  // Global video search
+  // Global video search (only if video is playing or currentTime > 0)
   try {
     const v = document.querySelector('video, audio') as HTMLMediaElement | null;
     if (v && v.currentTime != null && !isNaN(v.currentTime) && v.currentTime > 0) {
@@ -98,9 +129,11 @@ export function getExactSourceUrl(targetEl?: Element | null): string {
 
 export function buildPageInfo(): PageInfoPayload {
   const sel = window.getSelection()?.toString().trim() || lastKnownSelection || '';
+  const isTextSelection = sel.length > 0;
   const url = getExactSourceUrl();
-  const rawTs = getMediaTimestamp();
-  const mediaTs = rawTs != null ? rawTs : extractTimestamp(url, '');
+  const rawTs = getMediaTimestamp(isTextSelection);
+  // When text is selected, never attach URL timestamp unless text was inside a media container
+  const mediaTs = rawTs != null ? rawTs : (isTextSelection ? null : extractTimestamp(url, ''));
 
   return {
     title: getSmartPageTitle(),

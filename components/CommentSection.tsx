@@ -647,28 +647,37 @@ export function CommentSection({
             <p className="text-sm text-[hsl(var(--foreground))] whitespace-pre-wrap pl-8">
               {renderCommentText(comment.text)}
             </p>
-            <div className="flex items-center justify-between mt-2 pl-8">
+            <div className="flex items-center justify-between mt-2 pl-8 gap-2">
               <CommentReactionRow commentId={comment.id} />
-              <div className="flex items-center gap-2">
-                <Tooltip content="Fact check this comment with Gemini AI" position="top">
+              <div className="flex items-center gap-1.5 flex-shrink-0">
+                <Tooltip
+                  content={
+                    commentFactChecks[comment.id]?.open
+                      ? "Hide fact check"
+                      : "Fact check this comment with Gemini AI"
+                  }
+                  position="top"
+                >
                   <button
                     type="button"
                     onClick={() => handleFactCheckComment(comment)}
-                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-[hsl(var(--accent))] hover:bg-[hsl(var(--background))] transition-colors px-1.5 py-0.5 rounded border border-[hsl(var(--accent))]/30 cursor-pointer"
+                    className="inline-flex items-center justify-center gap-1 text-xs font-semibold px-2 py-1 rounded-full border border-[hsl(var(--accent))]/40 text-[hsl(var(--accent))] hover:bg-[hsl(var(--accent))]/10 transition-colors cursor-pointer"
                   >
-                    <Sparkles size={11} />
-                    <span>Fact Check</span>
+                    <span className="text-xs leading-none">⚡</span>
+                    <span className="hidden sm:inline">Fact Check</span>
                   </button>
                 </Tooltip>
                 {user && (
-                  <button
-                    type="button"
-                    onClick={() => handleReply(comment)}
-                    className="inline-flex items-center gap-1 text-xs font-medium text-[hsl(var(--text-muted))] hover:text-[hsl(var(--foreground))] transition-colors px-2 py-1 rounded hover:bg-[hsl(var(--background))] cursor-pointer"
-                  >
-                    <Reply size={13} />
-                    <span>Reply</span>
-                  </button>
+                  <Tooltip content={`Reply to ${comment.author?.name || "comment"}`} position="top">
+                    <button
+                      type="button"
+                      onClick={() => handleReply(comment)}
+                      className="inline-flex items-center justify-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full bg-[hsl(var(--secondary))] text-[hsl(var(--foreground))] hover:bg-[hsl(var(--border))] transition-colors border border-[hsl(var(--border))] cursor-pointer"
+                    >
+                      <Reply size={13} className="text-[hsl(var(--accent))]" />
+                      <span className="hidden sm:inline">Reply</span>
+                    </button>
+                  </Tooltip>
                 )}
               </div>
             </div>
@@ -757,10 +766,10 @@ export function CommentSection({
                 <button
                   type="button"
                   onClick={tagAuthor}
-                  className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-full bg-[hsl(var(--secondary))] text-[hsl(var(--foreground))] hover:bg-[hsl(var(--border))] transition-colors border border-[hsl(var(--border))] cursor-pointer"
+                  className="inline-flex items-center justify-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full bg-[hsl(var(--secondary))] text-[hsl(var(--foreground))] hover:bg-[hsl(var(--border))] transition-colors border border-[hsl(var(--border))] cursor-pointer"
                 >
                   <Reply size={13} className="text-[hsl(var(--accent))]" />
-                  <span>Reply</span>
+                  <span className="hidden sm:inline">Reply</span>
                 </button>
               </Tooltip>
             )}

@@ -264,6 +264,20 @@ export function initComposer(
   $('#clearVideoBtn')?.addEventListener('click', () => clearVideo(onResize));
   $('#removeMediaBtn')?.addEventListener('click', () => clearVideo(onResize));
 
+  // Timestamp badge dismissal and seek
+  $('#clearComposerTimestampBtn')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    composerState.currentMediaTimestamp = null;
+    $('#composerTimestampBadge')?.classList.add('hidden');
+  });
+
+  $('#composerTimestampBadge')?.addEventListener('click', (e) => {
+    if ((e.target as HTMLElement).id === 'clearComposerTimestampBtn') return;
+    if (composerState.currentMediaTimestamp != null) {
+      window.parent.postMessage({ type: 'SEEK_VIDEO', seconds: composerState.currentMediaTimestamp }, '*');
+    }
+  });
+
   // Video trimmer change listener
   const trimStartInput = $('#trimStartInput') as HTMLInputElement | null;
   const trimEndInput = $('#trimEndInput') as HTMLInputElement | null;
@@ -421,6 +435,8 @@ export function initComposer(
           (b as HTMLElement).style.background = '';
         });
         composerState.intent = null;
+        composerState.currentMediaTimestamp = null;
+        $('#composerTimestampBadge')?.classList.add('hidden');
         publishBtn.textContent = 'Publish';
         updatePublishButton();
         if (statusEl) {

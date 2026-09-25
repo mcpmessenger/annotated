@@ -600,7 +600,32 @@
   var lastKnownSelection = null;
   var lastKnownRect = null;
   var lastKnownElement = null;
-  function getMediaTimestamp() {
+  function getMediaTimestamp(isTextSelection = false) {
+    if (isTextSelection) {
+      if (!lastKnownElement) return null;
+      const mediaContainer = lastKnownElement.closest(
+        'div[data-testid="videoPlayer"], div[data-testid="videoComponent"], .html5-video-player, ytd-player, .ytp-caption-window-container, ytd-transcript-renderer, ytd-transcript-segment-renderer, video, audio'
+      );
+      if (!mediaContainer || lastKnownElement.closest("ytd-comments, #comments, ytd-item-section-renderer, #secondary, #description")) {
+        return null;
+      }
+      try {
+        const moviePlayer = document.getElementById("movie_player");
+        if (moviePlayer && typeof moviePlayer.getCurrentTime === "function") {
+          const t = moviePlayer.getCurrentTime();
+          if (t != null && !isNaN(t) && t > 0) return Math.floor(t);
+        }
+      } catch (_) {
+      }
+      try {
+        const media = mediaContainer.querySelector("video, audio");
+        if (media && media.currentTime != null && !isNaN(media.currentTime) && media.currentTime > 0) {
+          return Math.floor(media.currentTime);
+        }
+      } catch (_) {
+      }
+      return null;
+    }
     try {
       const moviePlayer = document.getElementById("movie_player");
       if (moviePlayer && typeof moviePlayer.getCurrentTime === "function") {
@@ -679,9 +704,10 @@
   }
   function buildPageInfo() {
     const sel = window.getSelection()?.toString().trim() || lastKnownSelection || "";
+    const isTextSelection = sel.length > 0;
     const url = getExactSourceUrl();
-    const rawTs = getMediaTimestamp();
-    const mediaTs = rawTs != null ? rawTs : extractTimestamp(url, "");
+    const rawTs = getMediaTimestamp(isTextSelection);
+    const mediaTs = rawTs != null ? rawTs : isTextSelection ? null : extractTimestamp(url, "");
     return {
       title: getSmartPageTitle(),
       url,

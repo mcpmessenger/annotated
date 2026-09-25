@@ -104,6 +104,10 @@ function setupParentMessageListener(): void {
             txt.textContent = formatSeconds(data.media_timestamp);
             badge.classList.remove('hidden');
           }
+        } else {
+          composerState.currentMediaTimestamp = null;
+          const badge = $('#composerTimestampBadge');
+          if (badge) badge.classList.add('hidden');
         }
         refreshAll();
         break;

@@ -487,7 +487,7 @@ export function AnnotationCard({
               onClick={handleFactCheck}
               className="flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded-full border border-[hsl(var(--accent))] text-[hsl(var(--accent))] hover:bg-[hsl(var(--accent))]/10 transition-colors cursor-pointer"
             >
-              <Sparkles size={12} className="text-purple-400" />
+              <span className="text-xs leading-none">⚡</span>
               <span className="hidden sm:inline">
                 {factCheckLoading
                   ? "Analyzing..."

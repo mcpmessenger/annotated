@@ -755,6 +755,17 @@
     });
     $("#clearVideoBtn")?.addEventListener("click", () => clearVideo(onResize));
     $("#removeMediaBtn")?.addEventListener("click", () => clearVideo(onResize));
+    $("#clearComposerTimestampBtn")?.addEventListener("click", (e) => {
+      e.stopPropagation();
+      composerState.currentMediaTimestamp = null;
+      $("#composerTimestampBadge")?.classList.add("hidden");
+    });
+    $("#composerTimestampBadge")?.addEventListener("click", (e) => {
+      if (e.target.id === "clearComposerTimestampBtn") return;
+      if (composerState.currentMediaTimestamp != null) {
+        window.parent.postMessage({ type: "SEEK_VIDEO", seconds: composerState.currentMediaTimestamp }, "*");
+      }
+    });
     const trimStartInput = $("#trimStartInput");
     const trimEndInput = $("#trimEndInput");
     const trimDurationLabel = $("#trimDurationLabel");
@@ -889,6 +900,8 @@
             b.style.background = "";
           });
           composerState.intent = null;
+          composerState.currentMediaTimestamp = null;
+          $("#composerTimestampBadge")?.classList.add("hidden");
           publishBtn.textContent = "Publish";
           updatePublishButton();
           if (statusEl) {
@@ -2031,6 +2044,10 @@
               txt.textContent = formatSeconds(data.media_timestamp);
               badge.classList.remove("hidden");
             }
+          } else {
+            composerState.currentMediaTimestamp = null;
+            const badge = $("#composerTimestampBadge");
+            if (badge) badge.classList.add("hidden");
           }
           refreshAll();
           break;
