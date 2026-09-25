@@ -61,12 +61,12 @@
     <Group id="stageGroup" translation="[80, 110]">
       <!-- Transparent Video Container -->
       <Group id="videoFrame">
-        <!-- Embedded Video Player Node (Continuous Loop) -->
+        <!-- Embedded Video Player Node (Sequential Advance) -->
         <Video
           id="mainVideo"
           width="1140"
           height="640"
-          loop="true"
+          loop="false"
           visible="true" />
 
         <!-- Crisp Frame Border Lines around video viewport -->
@@ -110,9 +110,9 @@
           <Label
             id="lblFactCheck"
             text="Verified"
-            font="font:MediumBoldSystemFont"
+            font="font:SmallBoldSystemFont"
             color="0x34D399FF"
-            translation="[48, 12]" />
+            translation="[46, 14]" />
         </Rectangle>
 
         <!-- Reaction: Fire -->

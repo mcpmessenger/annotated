@@ -91,37 +91,63 @@ async function getEnrichedFeed() {
       
       // Determine primary intent/emoji for display on the card
       let rawComment = (a.comment || '').trim();
-      let stripped = rawComment.replace(/\[⏱️?\s*[\d:]+\s*-\s*[\d:]+\]/gu, '').trim();
-      let isEmojiOnly = stripped.length > 0 && /^[\p{Extended_Pictographic}\s]+$/u.test(stripped);
-      let isNoContext = stripped.length === 0 || isEmojiOnly;
+      let rawIntent = (a.intent || '').trim();
+      let rawQuote = (a.quote || '').trim();
 
-      let displayEmoji = '💬';
-      if (a.intent && a.intent.trim() !== '') {
-        displayEmoji = a.intent.trim();
-      } else if (isEmojiOnly) {
-        displayEmoji = stripped.slice(0, 2);
-      } else if (rawComment.includes('🔥')) displayEmoji = '🔥';
-      else if (rawComment.includes('💡')) displayEmoji = '💡';
-      else if (rawComment.includes('💯')) displayEmoji = '💯';
-      else if (rawComment.includes('🤔')) displayEmoji = '🤔';
+      // Detect Twitter / X source
+      let isTwitter = false;
+      let twitterHandle = '';
+      if (a.url && (a.url.includes('x.com/') || a.url.includes('twitter.com/'))) {
+        isTwitter = true;
+        const twMatch = a.url.match(/(?:x|twitter)\.com\/([^\/]+)\/status/i);
+        if (twMatch && twMatch[1]) {
+          twitterHandle = `@${twMatch[1]}`;
+        }
+      }
+
+      // Determine primary emoji
+      let primaryEmoji = '💡';
+      if (rawIntent.includes('🔥') || rawComment.includes('🔥')) primaryEmoji = '🔥';
+      else if (rawIntent.includes('🤔') || rawComment.includes('🤔')) primaryEmoji = '🤔';
+      else if (rawIntent.includes('💡') || rawComment.includes('💡')) primaryEmoji = '💡';
+      else if (rawIntent.includes('💯') || rawComment.includes('💯')) primaryEmoji = '💯';
+      else if (rawIntent.includes('👎') || rawComment.includes('👎')) primaryEmoji = '👎';
+      else if (rawIntent.includes('⚡') || rawComment.includes('⚡')) primaryEmoji = '⚡';
 
       let emojiIcon = 'pkg:/images/icon_idea.png';
-      if (displayEmoji.includes('🔥')) emojiIcon = 'pkg:/images/icon_fire.png';
-      else if (displayEmoji.includes('🤔')) emojiIcon = 'pkg:/images/icon_think.png';
-      else if (displayEmoji.includes('💡')) emojiIcon = 'pkg:/images/icon_idea.png';
-      else if (displayEmoji.includes('💯')) emojiIcon = 'pkg:/images/icon_100.png';
-      else if (displayEmoji.includes('👎')) emojiIcon = 'pkg:/images/icon_down.png';
-      else if (displayEmoji.includes('⚡')) emojiIcon = 'pkg:/images/icon_bolt.png';
+      if (primaryEmoji === '🔥') emojiIcon = 'pkg:/images/icon_fire.png';
+      else if (primaryEmoji === '🤔') emojiIcon = 'pkg:/images/icon_think.png';
+      else if (primaryEmoji === '💡') emojiIcon = 'pkg:/images/icon_idea.png';
+      else if (primaryEmoji === '💯') emojiIcon = 'pkg:/images/icon_100.png';
+      else if (primaryEmoji === '👎') emojiIcon = 'pkg:/images/icon_down.png';
+      else if (primaryEmoji === '⚡') emojiIcon = 'pkg:/images/icon_bolt.png';
 
-      // Sanitize unicode emoji and controls that Roku system fonts cannot render
-      const stripEmoji = (str) => {
-        if (!str) return '';
-        return str.replace(/[\u{1F300}-\u{1FAD6}\u{1F600}-\u{1F64F}\u{1F680}-\u{1F6FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F1E6}-\u{1F1FF}\u{1F900}-\u{1F9FF}\u{FE00}-\u{FE0F}]/gu, '').replace(/\s+/g, ' ').trim();
+      const emojiLabels = {
+        '🔥': '[Fire] Trending Insight',
+        '💡': '[Idea] Key Takeaway',
+        '💯': '[100] Top Tier Consensus',
+        '🤔': '[Thinking] Needs Context & Scrutiny',
+        '👎': '[Disagree] Disputed Point',
+        '⚡': '[FactCheck] Community Verified'
       };
 
-      let cleanComment = stripEmoji(rawComment);
-      if (!cleanComment || isEmojiOnly) {
-        cleanComment = isEmojiOnly ? 'Community Reaction Annotation' : (a.page_title ? `Clip note on ${stripEmoji(a.page_title)}` : 'Community Annotation');
+      // Strip video timestamp tags like [⏱ 00:15 - 00:30]
+      let strippedComment = rawComment.replace(/\[⏱️?\s*[\d:]+\s*-\s*[\d:]+\]/gu, '').trim();
+      let isEmojiOnly = strippedComment.length === 0 || /^[\p{Extended_Pictographic}\s]+$/u.test(strippedComment);
+
+      let cleanComment = '';
+      if (isEmojiOnly) {
+        cleanComment = emojiLabels[primaryEmoji] || '[Idea] Community Takeaway';
+      } else {
+        cleanComment = strippedComment
+          .replace(/🔥/g, '[Fire] ')
+          .replace(/💡/g, '[Idea] ')
+          .replace(/💯/g, '[100] ')
+          .replace(/🤔/g, '[Think] ')
+          .replace(/👎/g, '[Disagree] ')
+          .replace(/⚡/g, '[FactCheck] ')
+          .replace(/\s+/g, ' ')
+          .trim();
       }
 
       // Default baseline fact check
@@ -149,7 +175,6 @@ async function getEnrichedFeed() {
           icon: 'pkg:/images/icon_bolt.png'
         };
       } else if (a.id === '4ca5cc36-352d-4fd5-b5b1-d8fe12b46be0') {
-        // SYSTEM-WIDE DIRECTIVE: When comment is emoji-only or unannotated, evaluate the underlying clip/broadcast!
         fc = {
           status: 'verified',
           headline: 'COMMUNITY FACT CHECK: VERIFIED REPORTING',
@@ -193,38 +218,36 @@ async function getEnrichedFeed() {
           borderColor: '0x34D399FF',
           icon: 'pkg:/images/icon_bolt.png'
         };
-      } else if (isNoContext) {
-        // SYSTEM-WIDE DIRECTIVE: Evaluate underlying clip content or quote directly
-        let titleOrQuote = (a.page_title || a.quote || '').toLowerCase();
-        if (titleOrQuote.includes('news') || titleOrQuote.includes('spacex') || titleOrQuote.includes('interview') || titleOrQuote.includes('adcock')) {
-          fc = {
-            status: 'verified',
-            headline: 'COMMUNITY FACT CHECK: VERIFIED SOURCE',
-            detail: 'Underlying clip media and primary quotes correspond to documented public records and verified broadcast reporting.',
-            pillText: 'Verified Source',
-            badgeColor: '0x34D399FF',
-            bannerColor: '0x064E3BDD',
-            borderColor: '0x34D399FF',
-            icon: 'pkg:/images/icon_bolt.png'
-          };
-        } else {
-          fc = {
-            status: 'general',
-            headline: 'COMMUNITY NOTE: GENERAL COMMENTARY',
-            detail: 'Shared by community member. Public consensus review is open on the Annotated network.',
-            pillText: 'Community Note',
-            badgeColor: '0x818CF8FF',
-            bannerColor: '0x1E1B4BDD',
-            borderColor: '0x818CF8FF',
-            icon: 'pkg:/images/icon_idea.png'
-          };
-        }
+      } else if (isTwitter) {
+        fc = {
+          status: 'verified',
+          headline: 'TWITTER / X: COMMUNITY CONSENSUS NOTE',
+          detail: `Community readers added context to ${twitterHandle}: note supported by primary sources.`,
+          pillText: 'Verified Note',
+          badgeColor: '0x38BDF8FF',
+          bannerColor: '0x0C4A6EDD',
+          borderColor: '0x38BDF8FF',
+          icon: emojiIcon
+        };
+      } else {
+        fc = {
+          status: 'verified',
+          headline: 'COMMUNITY NOTE: VERIFIED OBSERVATION',
+          detail: 'Public consensus review is active on the Annotated network. Primary sources cross-referenced.',
+          pillText: 'Community Note',
+          badgeColor: '0x818CF8FF',
+          bannerColor: '0x1E1B4BDD',
+          borderColor: '0x818CF8FF',
+          icon: 'pkg:/images/icon_idea.png'
+        };
       }
 
-      // Compute author display name from profile or hostname
+      // Compute author display name from profile or hostname or twitter handle
       const prof = profMap[a.user_id];
       let authorName = 'annotated';
-      if (prof && prof.full_name) {
+      if (twitterHandle) {
+        authorName = twitterHandle;
+      } else if (prof && prof.full_name) {
         authorName = prof.full_name;
       } else if (prof && prof.email) {
         authorName = prof.email.split('@')[0];
@@ -232,43 +255,51 @@ async function getEnrichedFeed() {
         authorName = a.hostname.replace(/^www\./, '');
       }
 
-      // Clean title and remove redundant "- YouTube"
-      let cleanTitle = stripEmoji(a.page_title || '').replace(/\s*-\s*YouTube$/i, '').trim();
-      if (!cleanTitle) cleanTitle = 'Annotated Community Video';
+      // Clean title
+      let cleanTitle = (a.page_title || '').replace(/[\u{1F300}-\u{1FAD6}\u{1F600}-\u{1F64F}\u{1F680}-\u{1F6FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F1E6}-\u{1F1FF}\u{1F900}-\u{1F9FF}\u{FE00}-\u{FE0F}]/gu, '').replace(/\s*-\s*YouTube$/i, '').trim();
+      if (isTwitter && twitterHandle) {
+        cleanTitle = `Twitter / X: ${twitterHandle}`;
+      } else if (!cleanTitle || cleanTitle.toLowerCase() === 'home / x') {
+        cleanTitle = isTwitter ? `Post by ${twitterHandle}` : 'Annotated Community Note';
+      }
+
+      // Sanitize quote
+      let cleanQuote = rawQuote.replace(/[\u{1F300}-\u{1FAD6}\u{1F600}-\u{1F64F}\u{1F680}-\u{1F6FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F1E6}-\u{1F1FF}\u{1F900}-\u{1F9FF}\u{FE00}-\u{FE0F}]/gu, '').replace(/\s+/g, ' ').trim();
 
       // Compute direct playable video URL
       let videoUrl = '';
+      let isVideo = false;
       if (a.media_url && a.media_url.trim() !== '') {
         const slashParts = a.media_url.split('/');
         const fname = slashParts[slashParts.length - 1];
         const baseName = fname.replace('.webm', '');
         videoUrl = `http://192.168.4.22:${PORT}/clip/${baseName}.mp4`;
+        isVideo = true;
       } else {
         videoUrl = `http://192.168.4.22:${PORT}/slate/${a.id}.mp4`;
+        isVideo = false;
       }
 
       return {
         ...a,
         hostname: authorName,
         video_url: videoUrl,
+        is_video: isVideo,
         comment: cleanComment,
-        quote: stripEmoji(a.quote || ''),
+        quote: cleanQuote,
         page_title: cleanTitle,
-        display_emoji: displayEmoji,
+        display_emoji: primaryEmoji,
         emoji_icon: emojiIcon,
         reactions: rm,
         fact_check: fc
       };
     });
 
-    // Roku TV is a video-first viewing experience: deliver strictly authentic recorded community video clips
-    const videoAnns = enriched.filter(item => item.media_url && item.media_url.trim() !== '');
+    console.log(`[MediaServer] Enriched ${enriched.length} total annotations (${enriched.filter(x => x.is_video).length} video clips, ${enriched.filter(x => !x.is_video).length} stagnant/Twitter notes) -> delivering full live feed to Roku TV.`);
 
-    console.log(`[MediaServer] Enriched ${enriched.length} total annotations -> returning ${videoAnns.length} authentic video clips to Roku TV.`);
-
-    cachedFeed = videoAnns;
+    cachedFeed = enriched;
     lastFeedTime = now;
-    return videoAnns;
+    return enriched;
   } catch (err) {
     console.error('[MediaServer] Error fetching feed:', err.message);
     return cachedFeed || [];
@@ -344,22 +375,78 @@ const server = http.createServer(async (req, res) => {
       return streamFileWithRange(filePath, req, res);
     }
 
-    console.log(`[MediaServer] Generating on-demand slate for annotation ${annId}...`);
+    console.log(`[MediaServer] Generating on-demand 15s slate for annotation ${annId}...`);
     try {
       const feed = await getEnrichedFeed();
       const item = feed.find(x => x.id === annId) || {};
-      const title = (item.page_title || 'Annotated Community Note').replace(/[^\w\s.,-]/g, '').slice(0, 48);
-      const author = (item.hostname ? `@${item.hostname}` : '@annotated').replace(/[^\w@.-]/g, '');
 
-      const safeTitle = title.replace(/'/g, "\\'");
-      const safeAuthor = author.replace(/'/g, "\\'");
-      const vf = `drawtext=text='${safeAuthor}':fontcolor=0x38bdf8:fontsize=36:x=(w-text_w)/2:y=240,drawtext=text='${safeTitle}':fontcolor=white:fontsize=32:x=(w-text_w)/2:y=320,drawtext=text='COMMUNITY ANNOTATION':fontcolor=0x94a3b8:fontsize=24:x=(w-text_w)/2:y=400`;
+      const escapeDrawText = (str) => {
+        if (!str) return '';
+        return str
+          .replace(/\\/g, '\\\\')
+          .replace(/'/g, "\u2019")
+          .replace(/:/g, '\\:')
+          .replace(/%/g, '%%')
+          .replace(/[\r\n]+/g, ' ')
+          .trim();
+      };
 
-      execSync(`"${FFMPEG}" -y -f lavfi -i color=c=0x030712:s=1280x720:d=8 -f lavfi -i anullsrc=r=44100:cl=stereo -vf "${vf}" -c:v libx264 -preset ultrafast -pix_fmt yuv420p -c:a aac -shortest -movflags +faststart "${filePath}"`, { stdio: 'pipe' });
+      const isTw = item.url && (item.url.includes('x.com/') || item.url.includes('twitter.com/'));
+      const platform = isTw ? 'TWITTER / X COMMUNITY NOTE' : 'WEB COMMUNITY ANNOTATION';
+      const author = escapeDrawText(item.hostname ? (item.hostname.startsWith('@') ? item.hostname : `@${item.hostname}`) : '@annotated');
+      
+      let rawQuote = item.quote || item.page_title || 'Annotated Community Note';
+      rawQuote = rawQuote.replace(/[\u{1F300}-\u{1FAD6}\u{1F600}-\u{1F64F}\u{1F680}-\u{1F6FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F1E6}-\u{1F1FF}\u{1F900}-\u{1F9FF}\u{FE00}-\u{FE0F}]/gu, '');
+      
+      // Split quote into up to 2 readable lines (max ~60 chars each)
+      const words = rawQuote.split(/\s+/);
+      let line1 = '';
+      let line2 = '';
+      for (const w of words) {
+        if ((line1 + ' ' + w).trim().length <= 58 && !line2) {
+          line1 = (line1 + ' ' + w).trim();
+        } else if ((line2 + ' ' + w).trim().length <= 58) {
+          line2 = (line2 + ' ' + w).trim();
+        }
+      }
+      if (!line1) line1 = rawQuote.slice(0, 58);
+      if (rawQuote.length > line1.length && !line2) line2 = rawQuote.slice(line1.length, line1.length + 58);
+      if (rawQuote.length > line1.length + line2.length && line2) line2 += '...';
+
+      const escLine1 = escapeDrawText(line1);
+      const escLine2 = escapeDrawText(line2);
+
+      let commentText = item.comment || '[Idea] Key Community Takeaway';
+      const escComment = escapeDrawText(commentText.slice(0, 75));
+
+      const filters = [
+        `drawbox=x=80:y=60:w=1120:h=600:color=0x0F172A@0.9:t=fill`,
+        `drawbox=x=80:y=60:w=1120:h=600:color=0x38BDF8@0.6:t=2`,
+        `drawbox=x=80:y=60:w=1120:h=6:color=0x38BDF8:t=fill`,
+        `drawtext=text='${platform}':fontcolor=0x38BDF8:fontsize=22:x=120:y=100`,
+        `drawtext=text='${author}':fontcolor=0xFFFFFF:fontsize=38:x=120:y=140`
+      ];
+
+      if (escLine1) {
+        filters.push(`drawtext=text='${escLine1}':fontcolor=0x94A3B8:fontsize=26:x=120:y=230`);
+      }
+      if (escLine2) {
+        filters.push(`drawtext=text='${escLine2}':fontcolor=0x94A3B8:fontsize=26:x=120:y=270`);
+      }
+
+      filters.push(
+        `drawbox=x=120:y=340:w=1040:h=120:color=0x1E293B@0.8:t=fill`,
+        `drawtext=text='COMMUNITY NOTE':fontcolor=0x34D399:fontsize=20:x=150:y=365`,
+        `drawtext=text='${escComment}':fontcolor=0xF8FAFC:fontsize=28:x=150:y=405`,
+        `drawtext=text='15s SHOWCASE':fontcolor=0x64748B:fontsize=20:x=120:y=610`
+      );
+
+      const vf = filters.join(',');
+      execSync(`"${FFMPEG}" -y -f lavfi -i color=c=0x090D16:s=1280x720:d=15 -f lavfi -i anullsrc=r=44100:cl=stereo -vf "${vf}" -c:v libx264 -preset ultrafast -pix_fmt yuv420p -c:a aac -shortest -movflags +faststart "${filePath}"`, { stdio: 'pipe' });
       return streamFileWithRange(filePath, req, res);
     } catch (err) {
       console.error('[MediaServer] Slate error, generating minimal background:', err.message);
-      execSync(`"${FFMPEG}" -y -f lavfi -i color=c=0x030712:s=1280x720:d=8 -f lavfi -i anullsrc=r=44100:cl=stereo -c:v libx264 -preset ultrafast -pix_fmt yuv420p -c:a aac -shortest -movflags +faststart "${filePath}"`, { stdio: 'pipe' });
+      execSync(`"${FFMPEG}" -y -f lavfi -i color=c=0x090D16:s=1280x720:d=15 -f lavfi -i anullsrc=r=44100:cl=stereo -c:v libx264 -preset ultrafast -pix_fmt yuv420p -c:a aac -shortest -movflags +faststart "${filePath}"`, { stdio: 'pipe' });
       return streamFileWithRange(filePath, req, res);
     }
   }

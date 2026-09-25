@@ -119,7 +119,7 @@ sub init()
     ' Initial fallback video while fetching live annotations
     videoContent = createObject("RoSGNode", "ContentNode")
     videoContent.url = "http://192.168.4.22:8090/demo.mp4"
-    videoContent.title = "Connecting live feed..."
+    videoContent.title = ""
     videoContent.streamformat = "mp4"
     m.mainVideo.content = videoContent
     m.mainVideo.control = "play"
@@ -183,13 +183,14 @@ sub playAnnotationVideo(index as Integer)
 
     videoContent = createObject("RoSGNode", "ContentNode")
     videoContent.url = videoUrl
-    videoContent.title = title
+    videoContent.title = ""
     videoContent.streamformat = "mp4"
 
     m.mainVideo.content = videoContent
     m.mainVideo.control = "play"
     m.currentPlayingCardIndex = index
     m.initialVideoPos = invalid
+    m.clipStartTime = CreateObject("roDateTime").AsSeconds()
 
     updateCardPlayingIndicator()
     updateStageMetrics(item)
@@ -428,12 +429,43 @@ sub onVideoPositionChanged()
             end for
         end if
     end if
+
+    ' Watchdog 1: Clip reached near its natural duration (posSecTotal >= durSecTotal - 1)
+    if durSecTotal > 0 and posSecTotal >= (durSecTotal - 1)
+        nowTick = CreateObject("roDateTime").AsSeconds()
+        if m.lastAutoPlayTime = invalid or (nowTick - m.lastAutoPlayTime > 3)
+            m.lastAutoPlayTime = nowTick
+            print "[Annotated Watchdog] Clip position reached duration (pos="; posSecTotal; " dur="; durSecTotal; "). Advancing to next!"
+            playNextVideo()
+            return
+        end if
+    end if
+
+    ' Watchdog 2: 15s showcase duration for stagnant slates
+    nowTick = CreateObject("roDateTime").AsSeconds()
+    if m.clipStartTime <> invalid
+        elapsed = nowTick - m.clipStartTime
+        if durSecTotal <= 15 and elapsed >= 15
+            if m.lastAutoPlayTime = invalid or (nowTick - m.lastAutoPlayTime > 3)
+                m.lastAutoPlayTime = nowTick
+                print "[Annotated Watchdog] 15s showcase elapsed. Advancing to next note!"
+                playNextVideo()
+                return
+            end if
+        end if
+    end if
 end sub
 
 sub onVideoStateChanged()
     print "[Annotated] Video Player state changed: "; m.mainVideo.state
     if m.mainVideo.state = "error"
         print "[Annotated] Video Player error: "; m.mainVideo.errorStr; " code: "; m.mainVideo.errorCode
+        nowTick = CreateObject("roDateTime").AsSeconds()
+        if m.lastAutoPlayTime = invalid or (nowTick - m.lastAutoPlayTime > 3)
+            m.lastAutoPlayTime = nowTick
+            print "[Annotated] Recovering from player error. Advancing to next clip..."
+            playNextVideo()
+        end if
     else if m.mainVideo.state = "finished"
         nowTick = CreateObject("roDateTime").AsSeconds()
         if m.lastAutoPlayTime = invalid or (nowTick - m.lastAutoPlayTime > 3)
@@ -482,11 +514,12 @@ function cleanText(raw as Dynamic) as String
     clean = clean.replace("🎬", "")
     clean = clean.replace("⏱️", "")
     clean = clean.replace("⏱", "")
-    clean = clean.replace("💡", "")
-    clean = clean.replace("🔥", "")
-    clean = clean.replace("💯", "")
-    clean = clean.replace("🤔", "")
-    clean = clean.replace("⚡", "")
+    clean = clean.replace("💡", "[Idea] ")
+    clean = clean.replace("🔥", "[Fire] ")
+    clean = clean.replace("💯", "[100] ")
+    clean = clean.replace("🤔", "[Think] ")
+    clean = clean.replace("⚡", "[FactCheck] ")
+    clean = clean.replace("👎", "[Disagree] ")
     return clean.trim()
 end function
 
@@ -539,7 +572,11 @@ sub renderRailCardsWindow()
             ' Author
             if cn.author <> invalid
                 if item.hostname <> invalid and item.hostname <> ""
-                    cn.author.text = "@" + item.hostname
+                    if Left(item.hostname, 1) = "@"
+                        cn.author.text = item.hostname
+                    else
+                        cn.author.text = "@" + item.hostname
+                    end if
                 else
                     cn.author.text = "@annotated"
                 end if
@@ -560,8 +597,8 @@ sub renderRailCardsWindow()
                 ts = parseTimestampToSeconds(item.media_timestamp)
                 if ts >= 0 then m.cardTimestamps[slot] = ts
             else
-                m.cardRawTimes[slot] = "00:" + Right("0" + Str(slot * 15).trim(), 2)
-                m.cardTimestamps[slot] = slot * 15
+                m.cardRawTimes[slot] = "15s Note"
+                m.cardTimestamps[slot] = 0
             end if
 
             ' Quote / Context
