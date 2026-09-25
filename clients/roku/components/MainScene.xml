@@ -53,8 +53,8 @@
         font="font:SmallBoldSystemFont"
         color="0x64748BFF"
         horizAlign="right"
-        width="760"
-        translation="[1000, 10]" />
+        width="800"
+        translation="[1040, 10]" />
     </Group>
 
     <!-- Main Video Stage (Left: 1140px wide) -->
@@ -245,7 +245,7 @@
         <!-- Emoji Badge -->
         <Poster id="card1EmojiPoster" uri="pkg:/images/icon_idea.png" width="22" height="22" translation="[18, 16]" />
         <Label id="card1Author" text="@annotated" font="font:MediumBoldSystemFont" color="0xF8FAFCFF" translation="[48, 16]" />
-        <Label id="card1Time" text="Live" font="font:SmallBoldSystemFont" color="0x38BDF8FF" translation="[500, 16]" />
+        <Label id="card1Time" text="Live" font="font:SmallBoldSystemFont" color="0x38BDF8FF" horizAlign="right" width="90" translation="[480, 16]" />
         
         <Label
           id="card1Quote"
@@ -294,7 +294,7 @@
         <!-- Emoji Badge -->
         <Poster id="card2EmojiPoster" uri="pkg:/images/icon_think.png" width="22" height="22" translation="[18, 16]" />
         <Label id="card2Author" text="@community" font="font:MediumBoldSystemFont" color="0xF8FAFCFF" translation="[48, 16]" />
-        <Label id="card2Time" text="" font="font:SmallBoldSystemFont" color="0x64748BFF" translation="[500, 16]" />
+        <Label id="card2Time" text="" font="font:SmallBoldSystemFont" color="0x64748BFF" horizAlign="right" width="90" translation="[480, 16]" />
         
         <Label
           id="card2Quote"
@@ -342,7 +342,7 @@
         <!-- Emoji Badge -->
         <Poster id="card3EmojiPoster" uri="pkg:/images/icon_fire.png" width="22" height="22" translation="[18, 16]" />
         <Label id="card3Author" text="@community" font="font:MediumBoldSystemFont" color="0xF8FAFCFF" translation="[48, 16]" />
-        <Label id="card3Time" text="" font="font:SmallBoldSystemFont" color="0x64748BFF" translation="[500, 16]" />
+        <Label id="card3Time" text="" font="font:SmallBoldSystemFont" color="0x64748BFF" horizAlign="right" width="90" translation="[480, 16]" />
         
         <Label
           id="card3Quote"
@@ -480,199 +480,185 @@
       <Rectangle
         id="modalCard"
         width="1400"
-        height="840"
-        color="0x0B1120FF"
-        translation="[260, 120]">
+        height="700"
+        color="0x0B1120F4"
+        translation="[260, 190]">
         <!-- Top Cyan Accent Bar -->
-        <Rectangle width="1400" height="4" color="0x38BDF8FF" translation="[0, 0]" />
+        <Rectangle width="1400" height="3" color="0x38BDF8FF" translation="[0, 0]" />
         <!-- Subtle Outer Border -->
-        <Rectangle width="1400" height="2" color="0x1F2937FF" translation="[0, 838]" />
-        <Rectangle width="2" height="840" color="0x1F2937FF" translation="[0, 0]" />
-        <Rectangle width="2" height="840" color="0x1F2937FF" translation="[1398, 0]" />
+        <Rectangle width="1400" height="1" color="0x1E293BFF" translation="[0, 699]" />
+        <Rectangle width="1" height="700" color="0x1E293BFF" translation="[0, 0]" />
+        <Rectangle width="1" height="700" color="0x1E293BFF" translation="[1399, 0]" />
 
         <!-- Modal Header -->
-        <Group translation="[50, 28]">
-          <Poster id="modalAppLogo" uri="pkg:/images/annotated_logo_512.png" width="36" height="36" translation="[0, 4]" />
+        <Group translation="[50, 20]">
+          <Poster id="modalAppLogo" uri="pkg:/images/annotated_logo_512.png" width="32" height="32" translation="[0, 8]" />
           <Label
             id="modalPlatformText"
-            text="TWITTER / X COMMUNITY NOTE"
+            text="ANNOTATION"
             font="font:SmallBoldSystemFont"
             color="0x38BDF8FF"
-            translation="[48, 0]" />
+            translation="[44, 0]" />
           <Label
             id="modalAuthor"
             text="@teslaownersSV"
             font="font:LargeBoldSystemFont"
             color="0xFFFFFFFF"
-            translation="[48, 24]" />
+            translation="[44, 30]" />
 
           <!-- Top Right Remote Shortcuts Hint -->
           <Label
-            text="[OK] Play Clip   [Back] Close View"
+            text="[OK] Play   [Back] Close"
             font="font:SmallBoldSystemFont"
             color="0x64748BFF"
             horizAlign="right"
             width="500"
-            translation="[760, 14]" />
+            translation="[760, 16]" />
         </Group>
 
         <!-- Divider Line -->
-        <Rectangle width="1300" height="1" color="0x1E293BFF" translation="[50, 100]" />
+        <Rectangle width="1300" height="1" color="0x1E293B88" translation="[50, 95]" />
 
-        <!-- Left Section: Complete Content & Verification (850px wide) -->
-        <Group translation="[50, 110]">
-          <!-- Highlighted Quote Block -->
+        <!-- Left Section: Clean Nordic Flow (850px wide) -->
+        <Group translation="[50, 115]">
+          <!-- Highlighted Source Text -->
           <Label
-            text="HIGHLIGHTED SOURCE TEXT / TWEET"
+            text="SOURCE"
             font="font:SmallBoldSystemFont"
-            color="0x64748BFF"
+            color="0x38BDF8FF"
             translation="[0, 0]" />
-          <Rectangle
-            width="850"
-            height="150"
-            color="0x111827EE"
-            translation="[0, 26]">
-            <Rectangle width="4" height="150" color="0x38BDF8FF" translation="[0, 0]" />
-            <Label
-              id="modalFullQuote"
-              text="Connecting to primary source..."
-              font="font:SmallBoldSystemFont"
-              color="0xE2E8F0FF"
-              width="814"
-              wrap="true"
-              maxLines="3"
-              translation="[18, 14]" />
-          </Rectangle>
-
-          <!-- Community Analysis / Note Block -->
+          <!-- Vertical Accent Line -->
+          <Rectangle width="3" height="64" color="0x38BDF888" translation="[0, 26]" />
           <Label
-            text="COMMUNITY NOTE &amp; CONSENSUS ANALYSIS"
-            font="font:SmallBoldSystemFont"
-            color="0x64748BFF"
-            translation="[0, 200]" />
-          <Rectangle
-            width="850"
-            height="130"
-            color="0x111827EE"
-            translation="[0, 226]">
-            <Rectangle width="4" height="130" color="0x34D399FF" translation="[0, 0]" />
-            <Poster id="modalEmojiIcon" uri="pkg:/images/icon_idea.png" width="24" height="24" translation="[18, 14]" />
-            <Label
-              id="modalFullComment"
-              text="Loading full community analysis..."
-              font="font:SmallBoldSystemFont"
-              color="0xFFFFFFFF"
-              width="780"
-              wrap="true"
-              maxLines="3"
-              translation="[52, 12]" />
-          </Rectangle>
+            id="modalFullQuote"
+            text="Connecting to primary source..."
+            font="font:MediumSystemFont"
+            color="0xE2E8F0FF"
+            width="820"
+            wrap="true"
+            maxLines="2"
+            translation="[16, 26]" />
 
-          <!-- Fact Check Verdict Card -->
+          <!-- Subtle Divider -->
+          <Rectangle width="850" height="1" color="0x1E293B66" translation="[0, 100]" />
+
+          <!-- Annotation Section -->
           <Label
-            text="FACT-CHECK VERDICT &amp; SOURCE SUBSTANTIATION"
+            text="ANNOTATION"
             font="font:SmallBoldSystemFont"
-            color="0x64748BFF"
-            translation="[0, 380]" />
-          <Rectangle
-            id="modalFcBox"
-            width="850"
-            height="125"
-            color="0x064E3BDD"
-            translation="[0, 406]">
-            <Rectangle width="4" height="125" color="0x34D399FF" translation="[0, 0]" />
-            <Poster id="modalFcIcon" uri="pkg:/images/icon_bolt.png" width="24" height="24" translation="[18, 14]" />
+            color="0x34D399FF"
+            translation="[0, 120]" />
+          <Poster id="modalEmojiIcon" uri="pkg:/images/icon_idea.png" width="22" height="22" translation="[0, 148]" />
+          <Label
+            id="modalFullComment"
+            text="Loading community annotation..."
+            font="font:MediumBoldSystemFont"
+            color="0xFFFFFFFF"
+            width="810"
+            wrap="true"
+            maxLines="3"
+            translation="[30, 146]" />
+
+          <!-- Subtle Divider -->
+          <Rectangle width="850" height="1" color="0x1E293B66" translation="[0, 235]" />
+
+          <!-- Compact Status / Verification Section -->
+          <Group id="modalFcBox" translation="[0, 255]">
+            <Poster id="modalFcIcon" uri="pkg:/images/icon_bolt.png" width="22" height="22" translation="[0, 2]" />
             <Label
               id="modalFcHeadline"
-              text="COMMUNITY FACT CHECK: VERIFIED ACCURATE"
-              font="font:SmallBoldSystemFont"
+              text="VERIFIED ACCURATE"
+              font="font:MediumBoldSystemFont"
               color="0x34D399FF"
-              translation="[52, 12]" />
+              translation="[30, 0]" />
             <Label
               id="modalFcDetail"
-              text="Primary sources and context verified against consensus records."
+              text="Consensus verified with primary sources."
               font="font:SmallSystemFont"
-              color="0xF1F5F9FF"
-              width="780"
-              wrap="true"
+              color="0x94A3B8FF"
+              width="810"
               maxLines="2"
-              translation="[52, 42]" />
-          </Rectangle>
+              translation="[0, 28]" />
+          </Group>
 
-          <!-- Interactive Action Pills -->
-          <Group translation="[0, 560]">
+          <!-- Subtle Divider -->
+          <Rectangle width="850" height="1" color="0x1E293B66" translation="[0, 335]" />
+
+          <!-- Interactive Action Controls -->
+          <Group translation="[0, 360]">
             <!-- Action: Play Clip -->
             <Rectangle
               id="btnModalPlay"
-              width="230"
-              height="50"
+              width="210"
+              height="48"
               color="0x059669FF"
               translation="[0, 0]">
-              <Poster uri="pkg:/images/icon_bolt.png" width="22" height="22" translation="[18, 14]" />
+              <Poster uri="pkg:/images/icon_bolt.png" width="20" height="20" translation="[18, 14]" />
               <Label
                 text="Play on TV"
                 font="font:MediumBoldSystemFont"
                 color="0xFFFFFFFF"
-                translation="[50, 12]" />
+                translation="[48, 12]" />
             </Rectangle>
             <!-- Action: Close View -->
             <Rectangle
               id="btnModalClose"
-              width="210"
-              height="50"
+              width="160"
+              height="48"
               color="0x1F2937FF"
-              translation="[250, 0]">
+              translation="[230, 0]">
               <Label
-                text="Close View"
+                text="Close"
                 font="font:MediumBoldSystemFont"
                 color="0x94A3B8FF"
                 horizAlign="center"
-                width="210"
+                width="160"
                 translation="[0, 12]" />
             </Rectangle>
 
+            <!-- Keyboard Hint Below Buttons -->
             <Label
-              text="[< / >] Switch   [OK] Select"
+              text="[< / >] Switch   [OK] Select   [Back] Close"
               font="font:SmallSystemFont"
               color="0x64748BFF"
-              translation="[485, 15]" />
+              translation="[0, 56]" />
           </Group>
         </Group>
 
-        <!-- Right Section: Scannable Mobile & Web QR Pass (420px wide) -->
-        <Group translation="[930, 110]">
+        <!-- Right Section: Scannable Mobile Pass (420px wide) -->
+        <Group translation="[930, 115]">
           <Rectangle
             width="420"
-            height="620"
-            color="0x030712CC">
-            <Rectangle width="420" height="3" color="0x38BDF8FF" translation="[0, 0]" />
+            height="455"
+            color="0x03071288">
+            <Rectangle width="420" height="2" color="0x38BDF8AA" translation="[0, 0]" />
 
             <!-- QR Header -->
             <Label
-              text="MOBILE &amp; WEB PASS"
+              text="MOBILE PASS"
               font="font:MediumBoldSystemFont"
               color="0x38BDF8FF"
               horizAlign="center"
               width="420"
-              translation="[0, 20]" />
+              translation="[0, 14]" />
             <Label
-              text="Scan with phone to open note &amp; web thread"
+              text="Scan with phone to open"
               font="font:SmallSystemFont"
               color="0x94A3B8FF"
               horizAlign="center"
-              width="380"
-              translation="[20, 52]" />
+              width="420"
+              translation="[0, 38]" />
 
             <!-- White QR Container Plate -->
             <Rectangle
-              width="280"
-              height="280"
+              width="270"
+              height="270"
               color="0xFFFFFFFF"
-              translation="[70, 95]">
+              translation="[75, 68]">
               <Poster
                 id="modalQrPoster"
-                width="260"
-                height="260"
+                width="250"
+                height="250"
                 translation="[10, 10]" />
             </Rectangle>
 
@@ -684,23 +670,23 @@
               color="0x38BDF8FF"
               horizAlign="center"
               width="420"
-              translation="[0, 395]" />
+              translation="[0, 348]" />
 
-            <Rectangle width="340" height="1" color="0x1F2937FF" translation="[40, 440]" />
+            <Rectangle width="340" height="1" color="0x1E293B88" translation="[40, 378]" />
 
             <!-- Ecosystem Cross-Platform Branding -->
-            <Group translation="[75, 465]">
-              <Poster uri="pkg:/images/annotated_logo_512.png" width="32" height="32" translation="[0, 0]" />
+            <Group translation="[80, 395]">
+              <Poster uri="pkg:/images/annotated_logo_512.png" width="30" height="30" translation="[0, 2]" />
               <Label
                 text="Annotated Network"
                 font="font:SmallBoldSystemFont"
                 color="0xFFFFFFFF"
-                translation="[42, 0]" />
+                translation="[38, 0]" />
               <Label
-                text="Chrome Extension • Mobile • TV"
+                text="Mobile | Web | TV"
                 font="font:SmallSystemFont"
                 color="0x64748BFF"
-                translation="[42, 22]" />
+                translation="[38, 22]" />
             </Group>
           </Rectangle>
         </Group>

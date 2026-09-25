@@ -211,6 +211,22 @@ sub playAnnotationVideo(index as Integer)
     m.initialVideoPos = invalid
     m.clipStartTime = CreateObject("roDateTime").AsSeconds()
 
+    ' Ensure right rail window centers and moves as videos play, keeping active on-screen note in view
+    if index < m.railStartIndex
+        m.railStartIndex = index
+    else if index > m.railStartIndex + 2
+        m.railStartIndex = index - 1
+        if m.railStartIndex + 3 > m.annotations.count() then m.railStartIndex = m.annotations.count() - 3
+        if m.railStartIndex < 0 then m.railStartIndex = 0
+    end if
+
+    slot = index - m.railStartIndex
+    if slot >= 0 and slot < 3
+        m.focusedCardIndex = slot
+    end if
+
+    renderRailCardsWindow()
+    updateCardFocus()
     updateCardPlayingIndicator()
     updateStageMetrics(item)
 end sub
@@ -241,16 +257,16 @@ sub updateStageMetrics(item as Object)
 
     print "[Annotated Metrics] Card ["; m.currentPlayingCardIndex; "] Reactions -> Fire: "; fire; " Think: "; think; " Idea: "; idea; " 100: "; hundred; " Down: "; down
 
-    ' 2. Dynamic Fact Check Status & Banner
+    ' 2. Dynamic Fact Check Status & Banner (Nordic Minimalist: Symbols & TL;DR)
     fc = item.fact_check
-    status = "pending"
-    headline = "COMMUNITY CLAIM: PENDING REVIEW"
-    detail = "Community review in progress. Sources and timestamp context are under consensus review."
-    pillText = "Pending"
-    badgeColor = "0x94A3B8FF"
-    bannerColor = "0x1E293BDD"
-    borderColor = "0x94A3B8FF"
-    iconUri = "pkg:/images/icon_idea.png"
+    status = "verified"
+    headline = "VERIFIED ACCURATE"
+    detail = "Primary sources cross-referenced and confirmed."
+    pillText = "Verified"
+    badgeColor = "0x34D399FF"
+    bannerColor = "0x064E3BDD"
+    borderColor = "0x34D399FF"
+    iconUri = "pkg:/images/icon_bolt.png"
 
     if fc <> invalid
         if fc.status <> invalid then status = fc.status
@@ -263,9 +279,9 @@ sub updateStageMetrics(item as Object)
         if fc.icon <> invalid then iconUri = fc.icon
     else if item.is_disputed = true
         status = "disputed"
-        headline = "COMMUNITY WARNING: DISPUTED CLAIM"
-        detail = "Community reviewers have flagged this statement as disputed or lacking primary source substantiation."
-        pillText = "Disputed Claim"
+        headline = "DISPUTED CLAIM"
+        detail = "Community reviewers flagged statement as disputed."
+        pillText = "Disputed"
         badgeColor = "0xEF4444FF"
         bannerColor = "0x7F1D1DDD"
         borderColor = "0xEF4444FF"
@@ -307,13 +323,13 @@ sub updateCardPlayingIndicator()
         if lbl <> invalid
             actualIdx = m.railStartIndex + i
             if actualIdx = m.currentPlayingCardIndex
-                lbl.text = "PLAYING"
+                lbl.text = "PLAY"
                 lbl.color = "0x34D399FF" ' Emerald green
             else
                 if m.cardRawTimes[i] <> invalid and m.cardRawTimes[i] <> ""
                     lbl.text = m.cardRawTimes[i]
                 else
-                    lbl.text = "Recent"
+                    lbl.text = "15s"
                 end if
                 lbl.color = "0x94A3B8FF" ' Muted slate
             end if
@@ -356,7 +372,7 @@ sub setUIState(newState as String)
         setVideoDucking(true)
         updateCardFocus()
         if m.remoteHint <> invalid
-            m.remoteHint.text = "[Back] Video   [^/v] Select   [OK] Expand & QR   [Play] Watch"
+            m.remoteHint.text = "[Back] Video   [^/v] Browse   [OK] Details   [Play] Watch"
         end if
         print "[Annotated UI] Entered STATE_B: Active Rail Browsing (Audio Ducked to 30%)."
     else
@@ -369,9 +385,7 @@ sub setUIState(newState as String)
             m.railCount.color = "0x38BDF8FF"
         end if
         setVideoDucking(false)
-        for i = 0 to m.cardOutlines.count() - 1
-            if m.cardOutlines[i] <> invalid then m.cardOutlines[i].visible = false
-        end for
+        updateCardFocus()
         updateButtonFocus()
         if m.remoteHint <> invalid
             m.remoteHint.text = "[*] Notes   [>] Rail   [OK] Action   [Info] Details"
@@ -420,11 +434,11 @@ sub openDetailModal(index as Integer)
 
     if m.modalPlatformText <> invalid
         if item.url <> invalid and (Instr(1, item.url, "x.com") > 0 or Instr(1, item.url, "twitter.com") > 0)
-            m.modalPlatformText.text = "TWITTER / X COMMUNITY NOTE"
+            m.modalPlatformText.text = "X / TWITTER ANNOTATION"
         else if item.is_video = true
-            m.modalPlatformText.text = "VIDEO CLIP ANNOTATION"
+            m.modalPlatformText.text = "VIDEO ANNOTATION"
         else
-            m.modalPlatformText.text = "WEB COMMUNITY ANNOTATION"
+            m.modalPlatformText.text = "ANNOTATION"
         end if
     end if
 
@@ -465,13 +479,14 @@ sub openDetailModal(index as Integer)
         end if
     end if
 
-    ' 4. Fact Check Verdict
+    ' 4. Fact Check Status (Intuitive TL;DR symbols)
     fc = item.fact_check
     if fc <> invalid
-        if m.modalFcBox <> invalid and fc.bannerColor <> invalid then m.modalFcBox.color = fc.bannerColor
         if m.modalFcIcon <> invalid and fc.icon <> invalid then m.modalFcIcon.uri = fc.icon
         if m.modalFcHeadline <> invalid
-            if fc.headline <> invalid then m.modalFcHeadline.text = fc.headline
+            hl = "VERIFIED ACCURATE"
+            if fc.headline <> invalid then hl = fc.headline
+            m.modalFcHeadline.text = hl
             if fc.badgeColor <> invalid then m.modalFcHeadline.color = fc.badgeColor
         end if
         if m.modalFcDetail <> invalid and fc.detail <> invalid then m.modalFcDetail.text = fc.detail
@@ -741,7 +756,7 @@ sub renderRailCardsWindow()
                 ts = parseTimestampToSeconds(item.media_timestamp)
                 if ts >= 0 then m.cardTimestamps[slot] = ts
             else
-                m.cardRawTimes[slot] = "15s Note"
+                m.cardRawTimes[slot] = "15s"
                 m.cardTimestamps[slot] = 0
             end if
 
@@ -843,10 +858,25 @@ sub updateCardFocus()
         card = m.cards[i]
         outline = m.cardOutlines[i]
         accent = m.cardAccents[i]
-        if i = m.focusedCardIndex
-            if outline <> invalid then outline.visible = true
-            if card <> invalid then card.color = "0x1E293BFF" ' Highlighted card surface
+        actualIdx = m.railStartIndex + i
+
+        isPlaying = (actualIdx = m.currentPlayingCardIndex)
+        isBrowsingFocused = (m.uiState = "STATE_B" and i = m.focusedCardIndex)
+
+        if isBrowsingFocused
+            if outline <> invalid
+                outline.visible = true
+                outline.color = "0x38BDF8FF" ' Cyan focus border in active rail browsing
+            end if
+            if card <> invalid then card.color = "0x1E293BFF"
             if accent <> invalid then accent.color = "0x38BDF8FF"
+        else if isPlaying
+            if outline <> invalid
+                outline.visible = true
+                outline.color = "0x059669FF" ' Sleek emerald selector outline on playing card!
+            end if
+            if card <> invalid then card.color = "0x0B2E24FF" ' Subtle emerald glowing surface
+            if accent <> invalid then accent.color = "0x34D399FF"
         else
             if outline <> invalid then outline.visible = false
             if card <> invalid

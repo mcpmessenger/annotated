@@ -93,7 +93,9 @@ async function getEnrichedFeed() {
       // Determine primary intent/emoji for display on the card
       let rawComment = (a.comment || '').trim();
       let rawIntent = (a.intent || '').trim();
-      let rawQuote = (a.quote || '').trim();
+      let rawQuote = (a.quote || '')
+        .replace(/[\u{1F300}-\u{1FAD6}\u{1F600}-\u{1F64F}\u{1F680}-\u{1F6FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F1E6}-\u{1F1FF}\u{1F900}-\u{1F9FF}\u{FE00}-\u{FE0F}]/gu, '')
+        .trim();
 
       // Detect Twitter / X source
       let isTwitter = false;
@@ -147,16 +149,17 @@ async function getEnrichedFeed() {
           .replace(/🤔/g, '[Think] ')
           .replace(/👎/g, '[Disagree] ')
           .replace(/⚡/g, '[FactCheck] ')
+          .replace(/[\u{1F300}-\u{1FAD6}\u{1F600}-\u{1F64F}\u{1F680}-\u{1F6FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F1E6}-\u{1F1FF}\u{1F900}-\u{1F9FF}\u{FE00}-\u{FE0F}]/gu, '')
           .replace(/\s+/g, ' ')
           .trim();
       }
 
-      // Default baseline fact check
+      // Default baseline fact check (Nordic Minimal: Symbols & TL;DR)
       let fc = {
         status: 'pending',
-        headline: 'COMMUNITY CLAIM: PENDING REVIEW',
-        detail: 'Community review in progress. Sources and timestamp context are under consensus review.',
-        pillText: 'Pending',
+        headline: 'IN REVIEW',
+        detail: 'Context and sources under consensus review.',
+        pillText: 'Review',
         badgeColor: '0x94A3B8FF',
         bannerColor: '0x1E293BDD',
         borderColor: '0x94A3B8FF',
@@ -167,8 +170,8 @@ async function getEnrichedFeed() {
       if (a.id === '12620142-689d-4e1c-b033-1a49505f18eb') {
         fc = {
           status: 'verified',
-          headline: 'COMMUNITY FACT CHECK: VERIFIED ACCURATE',
-          detail: 'The referenced video segment accurately documents the conceptualization and launch of the Annotated platform.',
+          headline: 'VERIFIED ACCURATE',
+          detail: 'Documents the launch of the Annotated platform.',
           pillText: 'Verified',
           badgeColor: '0x34D399FF',
           bannerColor: '0x064E3BDD',
@@ -178,8 +181,8 @@ async function getEnrichedFeed() {
       } else if (a.id === '4ca5cc36-352d-4fd5-b5b1-d8fe12b46be0') {
         fc = {
           status: 'verified',
-          headline: 'COMMUNITY FACT CHECK: VERIFIED REPORTING',
-          detail: 'The referenced NBC News broadcast accurately reports on United Nations General Assembly diplomacy and Middle East security developments.',
+          headline: 'VERIFIED ACCURATE',
+          detail: 'Validated with high consensus across multiple sources.',
           pillText: 'Verified',
           badgeColor: '0x34D399FF',
           bannerColor: '0x064E3BDD',
@@ -189,8 +192,8 @@ async function getEnrichedFeed() {
       } else if (a.id === '5cf1e8ab-342a-4e68-b699-5610c81d2384') {
         fc = {
           status: 'verified',
-          headline: 'COMMUNITY FACT CHECK: VERIFIED ACCURATE',
-          detail: 'Annotation accurately introduces and demonstrates the live collaborative features of the Annotated browser extension.',
+          headline: 'VERIFIED ACCURATE',
+          detail: 'Accurately introduces collaborative annotations.',
           pillText: 'Verified',
           badgeColor: '0x34D399FF',
           bannerColor: '0x064E3BDD',
@@ -200,9 +203,9 @@ async function getEnrichedFeed() {
       } else if (a.is_disputed === true) {
         fc = {
           status: 'disputed',
-          headline: 'COMMUNITY WARNING: DISPUTED CLAIM',
-          detail: 'Community reviewers have flagged this statement as disputed or lacking primary source substantiation.',
-          pillText: 'Disputed Claim',
+          headline: 'DISPUTED CLAIM',
+          detail: 'Flagged as disputed or lacking primary substantiation.',
+          pillText: 'Disputed',
           badgeColor: '0xEF4444FF',
           bannerColor: '0x7F1D1DDD',
           borderColor: '0xEF4444FF',
@@ -211,8 +214,8 @@ async function getEnrichedFeed() {
       } else if (rm.fire + rm.idea + rm.hundred >= 3 && rm.down === 0) {
         fc = {
           status: 'verified',
-          headline: 'COMMUNITY CONSENSUS: VERIFIED',
-          detail: 'Community members validated this note with high consensus across multiple sources.',
+          headline: 'VERIFIED ACCURATE',
+          detail: 'Community validated with high consensus across sources.',
           pillText: 'Verified',
           badgeColor: '0x34D399FF',
           bannerColor: '0x064E3BDD',
@@ -222,9 +225,9 @@ async function getEnrichedFeed() {
       } else if (isTwitter) {
         fc = {
           status: 'verified',
-          headline: 'TWITTER / X: COMMUNITY CONSENSUS NOTE',
-          detail: `Community readers added context to ${twitterHandle}: note supported by primary sources.`,
-          pillText: 'Verified Note',
+          headline: 'VERIFIED NOTE',
+          detail: `Consensus note supported by primary sources.`,
+          pillText: 'Verified',
           badgeColor: '0x38BDF8FF',
           bannerColor: '0x0C4A6EDD',
           borderColor: '0x38BDF8FF',
@@ -233,12 +236,12 @@ async function getEnrichedFeed() {
       } else {
         fc = {
           status: 'verified',
-          headline: 'COMMUNITY NOTE: VERIFIED OBSERVATION',
-          detail: 'Public consensus review is active on the Annotated network. Primary sources cross-referenced.',
-          pillText: 'Community Note',
-          badgeColor: '0x818CF8FF',
-          bannerColor: '0x1E1B4BDD',
-          borderColor: '0x818CF8FF',
+          headline: 'VERIFIED ANNOTATION',
+          detail: 'Public consensus verified against primary sources.',
+          pillText: 'Verified',
+          badgeColor: '0x34D399FF',
+          bannerColor: '0x064E3BDD',
+          borderColor: '0x34D399FF',
           icon: 'pkg:/images/icon_idea.png'
         };
       }
@@ -468,25 +471,27 @@ const server = http.createServer(async (req, res) => {
       const escComment = escapeDrawText(commentText.slice(0, 75));
 
       const filters = [
-        `drawbox=x=80:y=60:w=1120:h=600:color=0x0F172A@0.9:t=fill`,
-        `drawbox=x=80:y=60:w=1120:h=600:color=0x38BDF8@0.6:t=2`,
-        `drawbox=x=80:y=60:w=1120:h=6:color=0x38BDF8:t=fill`,
-        `drawtext=text='${platform}':fontcolor=0x38BDF8:fontsize=22:x=120:y=100`,
-        `drawtext=text='${author}':fontcolor=0xFFFFFF:fontsize=38:x=120:y=140`
+        `drawbox=x=60:y=40:w=1160:h=640:color=0x0B1120@0.96:t=fill`,
+        `drawbox=x=60:y=40:w=1160:h=4:color=0x38BDF8:t=fill`,
+        `drawtext=text='${platform}':fontcolor=0x38BDF8:fontsize=22:x=100:y=75`,
+        `drawtext=text='${author}':fontcolor=0xFFFFFF:fontsize=38:x=100:y=115`,
+        `drawbox=x=100:y=175:w=1080:h=1:color=0x1E293B:t=fill`
       ];
 
       if (escLine1) {
-        filters.push(`drawtext=text='${escLine1}':fontcolor=0x94A3B8:fontsize=26:x=120:y=230`);
+        filters.push(`drawtext=text='${escLine1}':fontcolor=0xE2E8F0:fontsize=28:x=100:y=210`);
       }
       if (escLine2) {
-        filters.push(`drawtext=text='${escLine2}':fontcolor=0x94A3B8:fontsize=26:x=120:y=270`);
+        filters.push(`drawtext=text='${escLine2}':fontcolor=0xE2E8F0:fontsize=28:x=100:y=255`);
       }
 
       filters.push(
-        `drawbox=x=120:y=340:w=1040:h=120:color=0x1E293B@0.8:t=fill`,
-        `drawtext=text='COMMUNITY NOTE':fontcolor=0x34D399:fontsize=20:x=150:y=365`,
-        `drawtext=text='${escComment}':fontcolor=0xF8FAFC:fontsize=28:x=150:y=405`,
-        `drawtext=text='15s SHOWCASE':fontcolor=0x64748B:fontsize=20:x=120:y=610`
+        `drawbox=x=100:y=330:w=1080:h=1:color=0x1E293B:t=fill`,
+        `drawtext=text='ANNOTATION':fontcolor=0x34D399:fontsize=20:x=100:y=360`,
+        `drawtext=text='${escComment}':fontcolor=0xFFFFFF:fontsize=32:x=100:y=400`,
+        `drawbox=x=100:y=570:w=1080:h=1:color=0x1E293B:t=fill`,
+        `drawtext=text='VERIFIED ACCURATE':fontcolor=0x34D399:fontsize=22:x=100:y=600`,
+        `drawtext=text='15s':fontcolor=0x64748B:fontsize=22:x=1140:y=600`
       );
 
       const vf = filters.join(',');
