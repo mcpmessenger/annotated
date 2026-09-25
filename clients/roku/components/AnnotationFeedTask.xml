@@ -1,0 +1,9 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<component name="AnnotationFeedTask" extends="Task">
+  <script type="text/brightscript" uri="pkg:/components/AnnotationFeedTask.brs" />
+
+  <interface>
+    <field id="annotations" type="array" />
+    <field id="error" type="string" />
+  </interface>
+</component>

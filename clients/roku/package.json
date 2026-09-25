@@ -1,0 +1,12 @@
+﻿{
+  "name": "annotated-roku-channel",
+  "version": "1.0.0",
+  "description": "Annotated Roku Consumer TV Application (BrightScript & SceneGraph)",
+  "type": "module",
+  "scripts": {
+    "package": "node scripts/bundle.js"
+  },
+  "keywords": ["roku", "brightscript", "scenegraph", "annotated", "tv-app"],
+  "author": "Annotated Team",
+  "license": "AGPL-3.0-only"
+}

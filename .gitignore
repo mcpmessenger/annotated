@@ -17,3 +17,8 @@ node_modules
 .env*.local
 fix_*.py
 *.tsbuildinfo
+
+# Roku & MCP artifacts
+clients/roku/dist/
+*.zip
+tooling/roku-mcp/dist/
