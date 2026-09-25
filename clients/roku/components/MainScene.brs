@@ -46,9 +46,13 @@ sub init()
     m.cards = [m.card1, m.card2, m.card3]
     m.cardOutlines = [m.card1Outline, m.card2Outline, m.card3Outline]
     m.cardAccents = [m.card1Accent, m.card2Accent, m.card3Accent]
+    m.cardTimes = [m.card1Time, m.card2Time, m.card3Time]
+    m.cardRawTimes = ["", "", ""]
     m.focusedCardIndex = 0
+    m.currentPlayingCardIndex = -1
     m.cardTimestamps = [0, 45, 90]
     m.activeSyncIndex = -1
+    m.annotations = invalid
 
     ' Interaction States: STATE_A (Passive Playback) or STATE_B (Active Browsing)
     m.uiState = "STATE_A"
@@ -71,14 +75,16 @@ sub init()
         end if
     end for
 
-    ' Configure Annotated official demo content video stream
-    videoContent = createObject("RoSGNode", "ContentNode")
-    videoContent.url = "http://192.168.4.22:8090"
-    videoContent.title = "Annotated Product Demo & Community Overview"
-    videoContent.streamformat = "mp4"
-    m.mainVideo.content = videoContent
+    ' Observe video player position and state
     m.mainVideo.observeField("position", "onVideoPositionChanged")
     m.mainVideo.observeField("state", "onVideoStateChanged")
+
+    ' Initial fallback video while fetching live annotations
+    videoContent = createObject("RoSGNode", "ContentNode")
+    videoContent.url = "http://192.168.4.22:8090/demo.mp4"
+    videoContent.title = "Connecting live feed..."
+    videoContent.streamformat = "mp4"
+    m.mainVideo.content = videoContent
     m.mainVideo.control = "play"
 
     ' Spawn background Task to pull real live annotations from Supabase
@@ -88,6 +94,80 @@ sub init()
 
     m.top.setFocus(true)
     print "[Annotated] MainScene initialized. Ready in STATE_A (Passive Playback)."
+end sub
+
+function resolvePlayableVideoUrl(mediaUrl as Dynamic) as String
+    if mediaUrl = invalid then return "http://192.168.4.22:8090/demo.mp4"
+    mUrl = ""
+    if type(mediaUrl) = "String" or type(mediaUrl) = "roString"
+        mUrl = mediaUrl.trim()
+    end if
+    if mUrl = "" then return "http://192.168.4.22:8090/demo.mp4"
+
+    ext = LCase(Right(mUrl, 4))
+    ext5 = LCase(Right(mUrl, 5))
+    if ext = ".mp4" or ext = ".m4v" or ext5 = ".m3u8"
+        return mUrl
+    end if
+
+    ' If it is a webm stored in Supabase storage, proxy it through our local streaming media server
+    if Instr(1, mUrl, "annotation-media/") > 0
+        slashParts = mUrl.split("/")
+        if slashParts.count() > 0
+            filename = slashParts[slashParts.count() - 1]
+            baseName = filename.replace(".webm", "")
+            return "http://192.168.4.22:8090/clip/" + baseName + ".mp4"
+        end if
+    end if
+
+    return "http://192.168.4.22:8090/demo.mp4"
+end function
+
+sub playAnnotationVideo(index as Integer)
+    if m.annotations = invalid or index < 0 or index >= m.annotations.count()
+        return
+    end if
+
+    item = m.annotations[index]
+    videoUrl = resolvePlayableVideoUrl(item.media_url)
+
+    title = "Annotated Community Clip"
+    if item.page_title <> invalid and item.page_title <> ""
+        title = item.page_title
+    end if
+
+    print "[Annotated Video Selector] Playing Card ["; index; "]: "; title; " -> "; videoUrl
+    m.videoTitle.text = title
+
+    videoContent = createObject("RoSGNode", "ContentNode")
+    videoContent.url = videoUrl
+    videoContent.title = title
+    videoContent.streamformat = "mp4"
+
+    m.mainVideo.content = videoContent
+    m.mainVideo.control = "play"
+    m.currentPlayingCardIndex = index
+
+    updateCardPlayingIndicator()
+end sub
+
+sub updateCardPlayingIndicator()
+    for i = 0 to m.cardTimes.count() - 1
+        lbl = m.cardTimes[i]
+        if lbl <> invalid
+            if i = m.currentPlayingCardIndex
+                lbl.text = "PLAYING"
+                lbl.color = "0x34D399FF" ' Emerald green
+            else
+                if m.cardRawTimes[i] <> invalid and m.cardRawTimes[i] <> ""
+                    lbl.text = m.cardRawTimes[i]
+                else
+                    lbl.text = "Recent"
+                end if
+                lbl.color = "0x94A3B8FF" ' Muted slate
+            end if
+        end if
+    end for
 end sub
 
 sub setVideoDucking(duck as Boolean)
@@ -125,7 +205,7 @@ sub setUIState(newState as String)
         setVideoDucking(true)
         updateCardFocus()
         if m.remoteHint <> invalid
-            m.remoteHint.text = "[Back] Video   [^/v] Select   [OK] Jump"
+            m.remoteHint.text = "[Back] Video   [^/v] Select   [OK] Play Video"
         end if
         print "[Annotated UI] Entered STATE_B: Active Rail Browsing (Audio Ducked to 30%)."
     else
@@ -152,11 +232,11 @@ end sub
 sub onVideoPositionChanged()
     vPos = 0
     if m.mainVideo.position <> invalid then vPos = m.mainVideo.position
-    vDur = 634
+    vDur = 41
     if m.mainVideo.duration <> invalid and m.mainVideo.duration > 0 then vDur = m.mainVideo.duration
 
     posSecTotal = 0
-    durSecTotal = 634
+    durSecTotal = 41
     
     posParts = Str(vPos).trim().split(".")
     if posParts.count() > 0 then posSecTotal = Val(posParts[0])
@@ -193,7 +273,7 @@ sub onVideoPositionChanged()
 
     if activeIdx <> m.activeSyncIndex
         m.activeSyncIndex = activeIdx
-        ' In State A, update the accent bar of the currently playing annotation
+        ' In State A, update the accent bar of the currently active annotation
         if m.uiState = "STATE_A"
             for i = 0 to m.cardAccents.count() - 1
                 accent = m.cardAccents[i]
@@ -205,7 +285,6 @@ sub onVideoPositionChanged()
                     end if
                 end if
             end for
-            print "[Annotated Sync] Timeline at " + posMStr + ":" + posSStr + " -> Active Sync Card " + Str(m.activeSyncIndex + 1).trim()
         end if
     end if
 end sub
@@ -242,7 +321,12 @@ end function
 
 function parseTimestampToSeconds(raw as Dynamic) as Integer
     if raw = invalid then return -1
-    tsStr = Str(raw).trim()
+    tsStr = ""
+    if type(raw) = "String" or type(raw) = "roString"
+        tsStr = raw.trim()
+    else if type(raw) = "Integer" or type(raw) = "roInt" or type(raw) = "Float" or type(raw) = "roFloat"
+        tsStr = Str(raw).trim()
+    end if
     if tsStr = "" then return -1
 
     parts = tsStr.split(":")
@@ -269,6 +353,7 @@ sub onAnnotationsLoaded()
         return
     end if
 
+    m.annotations = annotations
     m.totalNotesCount = annotations.count()
     print "[Annotated] Binding "; m.totalNotesCount; " live annotations to UI!"
     if m.uiState = "STATE_A"
@@ -278,28 +363,6 @@ sub onAnnotationsLoaded()
     ' 1. Card 1 (Top Annotation)
     if annotations.count() > 0
         a1 = annotations[0]
-        if a1.page_title <> invalid and a1.page_title <> ""
-            m.videoTitle.text = a1.page_title
-        end if
-
-        ' Dynamic Content Stream Binding: If this annotation has an associated mp4/hls clip, load it!
-        if a1.media_url <> invalid and a1.media_url <> ""
-            ext = LCase(Right(a1.media_url, 4))
-            ext5 = LCase(Right(a1.media_url, 5))
-            if ext = ".mp4" or ext = ".m4v" or ext5 = ".m3u8"
-                print "[Annotated] Loading user annotation video stream: "; a1.media_url
-                userClip = createObject("RoSGNode", "ContentNode")
-                userClip.url = a1.media_url
-                if a1.page_title <> invalid then userClip.title = a1.page_title
-                if ext5 = ".m3u8"
-                    userClip.streamformat = "hls"
-                else
-                    userClip.streamformat = "mp4"
-                end if
-                m.mainVideo.content = userClip
-                m.mainVideo.control = "play"
-            end if
-        end if
 
         m.card1Author.text = "@annotated"
         if a1.hostname <> invalid and a1.hostname <> ""
@@ -307,11 +370,11 @@ sub onAnnotationsLoaded()
         end if
 
         if a1.media_timestamp <> invalid and a1.media_timestamp <> ""
-            m.card1Time.text = a1.media_timestamp
+            m.cardRawTimes[0] = a1.media_timestamp
             ts1 = parseTimestampToSeconds(a1.media_timestamp)
             if ts1 >= 0 then m.cardTimestamps[0] = ts1
         else
-            m.card1Time.text = "00:00"
+            m.cardRawTimes[0] = "00:00"
             m.cardTimestamps[0] = 0
         end if
 
@@ -334,12 +397,12 @@ sub onAnnotationsLoaded()
         end if
 
         if a2.media_timestamp <> invalid and a2.media_timestamp <> ""
-            m.card2Time.text = a2.media_timestamp
+            m.cardRawTimes[1] = a2.media_timestamp
             ts2 = parseTimestampToSeconds(a2.media_timestamp)
             if ts2 >= 0 then m.cardTimestamps[1] = ts2
         else
-            m.card2Time.text = "01:15"
-            m.cardTimestamps[1] = 75
+            m.cardRawTimes[1] = "00:15"
+            m.cardTimestamps[1] = 15
         end if
 
         if a2.comment <> invalid and a2.comment <> ""
@@ -355,12 +418,12 @@ sub onAnnotationsLoaded()
         end if
 
         if a3.media_timestamp <> invalid and a3.media_timestamp <> ""
-            m.card3Time.text = a3.media_timestamp
+            m.cardRawTimes[2] = a3.media_timestamp
             ts3 = parseTimestampToSeconds(a3.media_timestamp)
             if ts3 >= 0 then m.cardTimestamps[2] = ts3
         else
-            m.card3Time.text = "03:40"
-            m.cardTimestamps[2] = 220
+            m.cardRawTimes[2] = "00:30"
+            m.cardTimestamps[2] = 30
         end if
 
         if a3.comment <> invalid and a3.comment <> ""
@@ -368,7 +431,9 @@ sub onAnnotationsLoaded()
         end if
     end if
 
-    print "[Annotated] Parsed note timestamps (sec): "; m.cardTimestamps[0]; ", "; m.cardTimestamps[1]; ", "; m.cardTimestamps[2]
+    ' Automatically play the genuine video belonging to the first community annotation!
+    playAnnotationVideo(0)
+    print "[Annotated] Initial community video clip loaded and playing!"
 end sub
 
 sub updateButtonFocus()
@@ -475,12 +540,9 @@ function onKeyEvent(key as String, press as Boolean) as Boolean
                 setUIState("STATE_A")
                 handled = true
             else if key = "OK"
-                ' Pressing OK seeks the video to this note's timestamp!
-                seekSec = m.cardTimestamps[m.focusedCardIndex]
-                if seekSec <> invalid and seekSec >= 0
-                    print "[Annotated] Seeking video to note timestamp: "; seekSec; "s"
-                    m.mainVideo.seek = seekSec
-                end if
+                ' Pressing OK plays the genuine video of the currently selected card!
+                print "[Annotated] Remote OK pressed on Card "; m.focusedCardIndex; " -> Switching to selected video!"
+                playAnnotationVideo(m.focusedCardIndex)
                 handled = true
             end if
         end if

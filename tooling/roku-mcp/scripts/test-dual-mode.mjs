@@ -6,14 +6,14 @@ import { pressKey } from '../dist/ecp.js';
 import { readConsoleLogs } from '../dist/telnet.js';
 import { defaultConfig } from '../dist/config.js';
 
-async function testDualMode() {
+async function testVideoSelection() {
   const ip = defaultConfig.ip;
   const password = defaultConfig.devPassword;
   const channelDir = 'C:\\Users\\senti\\OneDrive\\Desktop\\Extensions\\Annotated\\annotated-repo\\clients\\roku';
   const zipPath = path.join(channelDir, 'dist', 'channel.zip');
   const brainDir = 'C:\\Users\\senti\\.gemini\\antigravity\\brain\\00ede6ab-ff54-4322-b6dc-4dc85a5e08b9';
 
-  console.log('=== [FULL DUAL-MODE & SEEK VERIFICATION] ===');
+  console.log('=== [VIDEO SELECTION & PLAYBACK VERIFICATION] ===');
 
   // 1. Package & Deploy
   console.log('1. Packaging & Sideloading...');
@@ -21,64 +21,69 @@ async function testDualMode() {
   const deploy = await installChannelZip(zipPath, ip, password);
   console.log('Deploy result:', deploy.success ? 'SUCCESS' : deploy);
 
-  console.log('Waiting 3.5s for intro animation and live feed sync...');
+  console.log('Waiting 3.5s for initial video stream to begin playing...');
   await new Promise(r => setTimeout(r, 3500));
 
-  // 2. Capture State A (Passive Playback)
-  console.log('2. Capturing State A (Passive Playback)...');
-  const shotA = await captureScreenshot(ip, password);
-  const shotAPath = path.join(brainDir, 'roku_state_a_passive.jpg');
-  fs.writeFileSync(shotAPath, Buffer.from(shotA.base64, 'base64'));
+  // 2. Capture Initial Playback (Card 1: Jason's $5k Bounty)
+  console.log('2. Capturing Initial Video Playback (Card 1: Jason $5k Bounty)...');
+  const shot1 = await captureScreenshot(ip, password);
+  const shot1Path = path.join(brainDir, 'roku_play_video_1.jpg');
+  fs.writeFileSync(shot1Path, Buffer.from(shot1.base64, 'base64'));
+  console.log('Card 1 captured ->', shot1Path);
 
-  // 3. Transition to State B (Active Rail Browsing) via Star (*) key ('Info' in ECP)
-  console.log('3. Sending "Info" (Star [*]) key to enter State B (Active Browsing)...');
+  // 3. Enter State B (Active Rail)
+  console.log('3. Entering State B (Active Browsing)...');
   await pressKey('Info', ip);
-  await new Promise(r => setTimeout(r, 1000));
+  await new Promise(r => setTimeout(r, 800));
 
-  // 4. Capture State B (Card 1 Focused)
-  console.log('4. Capturing State B (Note Card 1 Focused)...');
-  const shotB1 = await captureScreenshot(ip, password);
-  const shotB1Path = path.join(brainDir, 'roku_state_b_card1.jpg');
-  fs.writeFileSync(shotB1Path, Buffer.from(shotB1.base64, 'base64'));
-
-  // 5. Navigate Down to Card 2
-  console.log('5. Sending "Down" key to focus Note Card 2...');
+  // 4. Focus Card 2 (NBC Nightly News) and press OK to select and play!
+  console.log('4. Navigating Down to Card 2 (NBC Nightly News)...');
   await pressKey('Down', ip);
-  await new Promise(r => setTimeout(r, 1000));
+  await new Promise(r => setTimeout(r, 800));
 
-  // 6. Capture State B (Card 2 Focused)
-  console.log('6. Capturing State B (Note Card 2 Focused)...');
-  const shotB2 = await captureScreenshot(ip, password);
-  const shotB2Path = path.join(brainDir, 'roku_state_b_card2.jpg');
-  fs.writeFileSync(shotB2Path, Buffer.from(shotB2.base64, 'base64'));
-
-  // 7. Press OK ("Select" in ECP) to seek video to Card 2 timestamp (01:15)
-  console.log('7. Sending "Select" (OK) key to seek video to Card 2 timestamp...');
+  console.log('5. Pressing OK to SELECT AND PLAY Card 2 (NBC Nightly News)...');
   await pressKey('Select', ip);
-  await new Promise(r => setTimeout(r, 1500));
+  await new Promise(r => setTimeout(r, 2000));
 
-  console.log('8. Capturing post-seek screen...');
-  const shotSeek = await captureScreenshot(ip, password);
-  const shotSeekPath = path.join(brainDir, 'roku_state_b_seek.jpg');
-  fs.writeFileSync(shotSeekPath, Buffer.from(shotSeek.base64, 'base64'));
+  // 6. Capture Screen Playing Card 2
+  console.log('6. Capturing Card 2 Playback...');
+  const shot2 = await captureScreenshot(ip, password);
+  const shot2Path = path.join(brainDir, 'roku_play_video_2.jpg');
+  fs.writeFileSync(shot2Path, Buffer.from(shot2.base64, 'base64'));
+  console.log('Card 2 captured ->', shot2Path);
 
-  // 9. Press "Back" to exit State B and return to State A
-  console.log('9. Sending "Back" key to exit State B and return to State A...');
+  // 7. Focus Card 3 (ver 2.1.22) and press OK to select and play!
+  console.log('7. Navigating Down to Card 3 (ver 2.1.22)...');
+  await pressKey('Down', ip);
+  await new Promise(r => setTimeout(r, 800));
+
+  console.log('8. Pressing OK to SELECT AND PLAY Card 3 (ver 2.1.22)...');
+  await pressKey('Select', ip);
+  await new Promise(r => setTimeout(r, 2000));
+
+  // 9. Capture Screen Playing Card 3
+  console.log('9. Capturing Card 3 Playback...');
+  const shot3 = await captureScreenshot(ip, password);
+  const shot3Path = path.join(brainDir, 'roku_play_video_3.jpg');
+  fs.writeFileSync(shot3Path, Buffer.from(shot3.base64, 'base64'));
+  console.log('Card 3 captured ->', shot3Path);
+
+  // 10. Exit back to State A
+  console.log('10. Pressing Back to return to State A with selected video continuing...');
   await pressKey('Back', ip);
   await new Promise(r => setTimeout(r, 1000));
 
-  console.log('10. Capturing restored State A screen...');
-  const shotReturn = await captureScreenshot(ip, password);
-  const shotReturnPath = path.join(brainDir, 'roku_state_a_returned.jpg');
-  fs.writeFileSync(shotReturnPath, Buffer.from(shotReturn.base64, 'base64'));
+  const shotFinal = await captureScreenshot(ip, password);
+  const shotFinalPath = path.join(brainDir, 'roku_play_video_final_state_a.jpg');
+  fs.writeFileSync(shotFinalPath, Buffer.from(shotFinal.base64, 'base64'));
 
-  // 11. Read Telnet debug logs
+  // 11. Read BrightScript debug logs
   console.log('11. Reading BrightScript debug log stream...');
-  const logs = await readConsoleLogs(2000, ip);
+  const logs = await readConsoleLogs(2500, ip);
   console.log('--- Telnet Logs ---');
-  console.log(logs.slice(-2000));
+  console.log(logs.slice(-2500));
 
-  console.log('=== [FULL VERIFICATION COMPLETE] ===');
+  console.log('=== [VIDEO SELECTION VERIFICATION COMPLETE] ===');
 }
 
-testDualMode().catch(console.error);
+testVideoSelection().catch(console.error);
