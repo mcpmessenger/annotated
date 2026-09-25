@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import https from 'node:https';
 import { execSync } from 'node:child_process';
+import QRCode from 'qrcode';
 
 const PORT = 8090;
 const CACHE_DIR = 'C:\\Users\\senti\\OneDrive\\Desktop\\Extensions\\Annotated\\media_cache';
@@ -284,9 +285,13 @@ async function getEnrichedFeed() {
         ...a,
         hostname: authorName,
         video_url: videoUrl,
+        qr_url: `http://192.168.4.22:${PORT}/qr/${a.id}.png`,
+        source_url: a.url || '',
         is_video: isVideo,
         comment: cleanComment,
+        full_comment: cleanComment,
         quote: cleanQuote,
+        full_quote: rawQuote,
         page_title: cleanTitle,
         display_emoji: primaryEmoji,
         emoji_icon: emojiIcon,
@@ -319,6 +324,49 @@ const server = http.createServer(async (req, res) => {
       'Access-Control-Allow-Origin': '*'
     });
     return res.end(JSON.stringify(feed));
+  }
+
+  if (pathname.startsWith('/qr/')) {
+    const filename = path.basename(pathname);
+    const annId = path.basename(filename, '.png');
+    const qrPath = path.join(CACHE_DIR, `qr_${annId}.png`);
+
+    if (fs.existsSync(qrPath)) {
+      const img = fs.readFileSync(qrPath);
+      res.writeHead(200, {
+        'Content-Type': 'image/png',
+        'Content-Length': img.length,
+        'Cache-Control': 'public, max-age=86400',
+        'Access-Control-Allow-Origin': '*'
+      });
+      return res.end(img);
+    }
+
+    try {
+      const feed = await getEnrichedFeed();
+      const item = feed.find(x => x.id === annId) || {};
+      const targetUrl = item.source_url || `https://annotated.com/n/${annId}`;
+      const buf = await QRCode.toBuffer(targetUrl, {
+        width: 256,
+        margin: 1,
+        color: {
+          dark: '#030712',
+          light: '#ffffff'
+        }
+      });
+      fs.writeFileSync(qrPath, buf);
+      res.writeHead(200, {
+        'Content-Type': 'image/png',
+        'Content-Length': buf.length,
+        'Cache-Control': 'public, max-age=86400',
+        'Access-Control-Allow-Origin': '*'
+      });
+      return res.end(buf);
+    } catch (err) {
+      console.error('[MediaServer] QR generation error:', err.message);
+      res.writeHead(500, { 'Content-Type': 'text/plain' });
+      return res.end('Failed to generate QR');
+    }
   }
 
   if (pathname === '/api/react' && req.method === 'POST') {

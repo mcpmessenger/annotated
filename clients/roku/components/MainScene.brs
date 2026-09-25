@@ -91,6 +91,25 @@ sub init()
     m.activeSyncIndex = -1
     m.annotations = invalid
 
+    ' Expanded Detail Modal Elements
+    m.detailModalGroup = m.top.findNode("detailModalGroup")
+    m.modalPlatformText = m.top.findNode("modalPlatformText")
+    m.modalAuthor = m.top.findNode("modalAuthor")
+    m.modalFullQuote = m.top.findNode("modalFullQuote")
+    m.modalFullComment = m.top.findNode("modalFullComment")
+    m.modalEmojiIcon = m.top.findNode("modalEmojiIcon")
+    m.modalFcBox = m.top.findNode("modalFcBox")
+    m.modalFcIcon = m.top.findNode("modalFcIcon")
+    m.modalFcHeadline = m.top.findNode("modalFcHeadline")
+    m.modalFcDetail = m.top.findNode("modalFcDetail")
+    m.modalQrPoster = m.top.findNode("modalQrPoster")
+    m.modalUrlLabel = m.top.findNode("modalUrlLabel")
+    m.btnModalPlay = m.top.findNode("btnModalPlay")
+    m.btnModalClose = m.top.findNode("btnModalClose")
+    m.isModalOpen = false
+    m.modalItemIndex = -1
+    m.focusedModalButton = 0
+
     ' Interaction States: STATE_A (Passive Playback) or STATE_B (Active Browsing)
     m.uiState = "STATE_A"
     updateButtonFocus()
@@ -337,7 +356,7 @@ sub setUIState(newState as String)
         setVideoDucking(true)
         updateCardFocus()
         if m.remoteHint <> invalid
-            m.remoteHint.text = "[Back] Video   [^/v] Select   [OK] Play Video"
+            m.remoteHint.text = "[Back] Video   [^/v] Select   [OK] Expand & QR   [Play] Watch"
         end if
         print "[Annotated UI] Entered STATE_B: Active Rail Browsing (Audio Ducked to 30%)."
     else
@@ -355,10 +374,135 @@ sub setUIState(newState as String)
         end for
         updateButtonFocus()
         if m.remoteHint <> invalid
-            m.remoteHint.text = "[*] Notes   [>] Enter   [OK] Action"
+            m.remoteHint.text = "[*] Notes   [>] Rail   [OK] Action   [Info] Details"
         end if
         print "[Annotated UI] Returned to STATE_A: Passive Playback (100% Volume)."
     end if
+end sub
+
+sub updateModalButtonFocus()
+    if m.btnModalPlay <> invalid
+        if m.focusedModalButton = 0
+            m.btnModalPlay.color = "0x059669FF"
+        else
+            m.btnModalPlay.color = "0x064E3BFF"
+        end if
+    end if
+    if m.btnModalClose <> invalid
+        if m.focusedModalButton = 1
+            m.btnModalClose.color = "0x2563EBFF"
+        else
+            m.btnModalClose.color = "0x1F2937FF"
+        end if
+    end if
+end sub
+
+sub openDetailModal(index as Integer)
+    if m.annotations = invalid or index < 0 or index >= m.annotations.count() then return
+    item = m.annotations[index]
+    m.modalItemIndex = index
+    m.isModalOpen = true
+    m.focusedModalButton = 0
+    updateModalButtonFocus()
+
+    ' 1. Author and Platform
+    if m.modalAuthor <> invalid
+        if item.hostname <> invalid and item.hostname <> ""
+            if Left(item.hostname, 1) = "@"
+                m.modalAuthor.text = item.hostname
+            else
+                m.modalAuthor.text = "@" + item.hostname
+            end if
+        else
+            m.modalAuthor.text = "@annotated"
+        end if
+    end if
+
+    if m.modalPlatformText <> invalid
+        if item.url <> invalid and (Instr(1, item.url, "x.com") > 0 or Instr(1, item.url, "twitter.com") > 0)
+            m.modalPlatformText.text = "TWITTER / X COMMUNITY NOTE"
+        else if item.is_video = true
+            m.modalPlatformText.text = "VIDEO CLIP ANNOTATION"
+        else
+            m.modalPlatformText.text = "WEB COMMUNITY ANNOTATION"
+        end if
+    end if
+
+    ' 2. Full Quote (no cut-offs)
+    if m.modalFullQuote <> invalid
+        q = ""
+        if item.full_quote <> invalid and item.full_quote <> ""
+            q = cleanText(item.full_quote)
+        else if item.quote <> invalid and item.quote <> ""
+            q = cleanText(item.quote)
+        else if item.page_title <> invalid and item.page_title <> ""
+            q = cleanText(item.page_title)
+        end if
+        if Left(q, 12) = "Video Clip (" and Right(q, 1) = ")"
+            q = Mid(q, 13, Len(q) - 13)
+        end if
+        q = q.replace("- YouTube", "").trim()
+        m.modalFullQuote.text = """" + q + """"
+    end if
+
+    ' 3. Full Comment & Emoji Icon
+    if m.modalFullComment <> invalid
+        cText = ""
+        if item.full_comment <> invalid and item.full_comment <> ""
+            cText = cleanText(item.full_comment)
+        else if item.comment <> invalid and item.comment <> ""
+            cText = cleanText(item.comment)
+        end if
+        if cText = "" then cText = "Community Annotation"
+        m.modalFullComment.text = cText
+    end if
+
+    if m.modalEmojiIcon <> invalid
+        if item.emoji_icon <> invalid and item.emoji_icon <> ""
+            m.modalEmojiIcon.uri = item.emoji_icon
+        else
+            m.modalEmojiIcon.uri = "pkg:/images/icon_idea.png"
+        end if
+    end if
+
+    ' 4. Fact Check Verdict
+    fc = item.fact_check
+    if fc <> invalid
+        if m.modalFcBox <> invalid and fc.bannerColor <> invalid then m.modalFcBox.color = fc.bannerColor
+        if m.modalFcIcon <> invalid and fc.icon <> invalid then m.modalFcIcon.uri = fc.icon
+        if m.modalFcHeadline <> invalid
+            if fc.headline <> invalid then m.modalFcHeadline.text = fc.headline
+            if fc.badgeColor <> invalid then m.modalFcHeadline.color = fc.badgeColor
+        end if
+        if m.modalFcDetail <> invalid and fc.detail <> invalid then m.modalFcDetail.text = fc.detail
+    end if
+
+    ' 5. QR Code & Short URL
+    if m.modalQrPoster <> invalid
+        if item.qr_url <> invalid and item.qr_url <> ""
+            m.modalQrPoster.uri = item.qr_url
+        else
+            m.modalQrPoster.uri = "http://192.168.4.22:8090/qr/" + item.id + ".png"
+        end if
+    end if
+
+    if m.modalUrlLabel <> invalid
+        m.modalUrlLabel.text = "annotated.com/n/" + Left(item.id, 8)
+    end if
+
+    ' Show modal and duck audio
+    if m.detailModalGroup <> invalid then m.detailModalGroup.visible = true
+    setVideoDucking(true)
+    print "[Annotated Modal] Opened Expanded Detail Modal for Note ["; index; "]: "; item.id
+end sub
+
+sub closeDetailModal()
+    if m.detailModalGroup <> invalid then m.detailModalGroup.visible = false
+    m.isModalOpen = false
+    if m.uiState = "STATE_A"
+        setVideoDucking(false)
+    end if
+    print "[Annotated Modal] Closed Detail Modal."
 end sub
 
 sub onVideoPositionChanged()
@@ -764,7 +908,34 @@ function onKeyEvent(key as String, press as Boolean) as Boolean
     handled = false
 
     if press
-        print "[Annotated] Remote key: '"; key; "' in State: "; m.uiState
+        print "[Annotated] Remote key: '"; key; "' in State: "; m.uiState; " ModalOpen: "; m.isModalOpen
+
+        ' 1. Modal Navigation overrides other controls when open
+        if m.isModalOpen = true
+            if key = "back" or key = "options" or key = "info"
+                closeDetailModal()
+                handled = true
+            else if key = "left" or key = "right"
+                m.focusedModalButton = (m.focusedModalButton + 1) mod 2
+                updateModalButtonFocus()
+                handled = true
+            else if key = "OK"
+                if m.focusedModalButton = 0
+                    targetIdx = m.modalItemIndex
+                    closeDetailModal()
+                    if targetIdx >= 0 then playAnnotationVideo(targetIdx)
+                else
+                    closeDetailModal()
+                end if
+                handled = true
+            else if key = "play"
+                targetIdx = m.modalItemIndex
+                closeDetailModal()
+                if targetIdx >= 0 then playAnnotationVideo(targetIdx)
+                handled = true
+            end if
+            return handled
+        end if
 
         if m.uiState = "STATE_A"
             ' --- State A: Passive Playback / Action Pills ---
@@ -792,11 +963,15 @@ function onKeyEvent(key as String, press as Boolean) as Boolean
                 ' Star key toggles active rail browsing mode
                 setUIState("STATE_B")
                 handled = true
+            else if key = "info"
+                ' Info key opens expanded detail modal for currently playing video
+                openDetailModal(m.currentPlayingCardIndex)
+                handled = true
             else if key = "OK"
                 if m.focusedButtonIndex = 0
-                    ' Toggle fact-check banner
-                    m.factCheckBanner.visible = not m.factCheckBanner.visible
-                    print "[Annotated] Fact-Check banner toggled: "; m.factCheckBanner.visible
+                    ' Open detail modal for the current playing clip
+                    openDetailModal(m.currentPlayingCardIndex)
+                    print "[Annotated] Fact-Check / Details modal opened for Card: "; m.currentPlayingCardIndex
                 else if m.focusedButtonIndex = 1
                     postReaction("🔥")
                 else if m.focusedButtonIndex = 2
@@ -848,9 +1023,15 @@ function onKeyEvent(key as String, press as Boolean) as Boolean
                 setUIState("STATE_A")
                 handled = true
             else if key = "OK"
-                ' Pressing OK plays the genuine video of the currently selected card in the window!
+                ' Pressing OK expands the selected note into the Full Detail Modal + Scannable QR Pass!
                 targetIdx = m.railStartIndex + m.focusedCardIndex
-                print "[Annotated] Remote OK pressed on Window Slot "; m.focusedCardIndex; " (Annotation Index "; targetIdx; ") -> Switching to selected video!"
+                print "[Annotated] Remote OK pressed on Window Slot "; m.focusedCardIndex; " (Annotation Index "; targetIdx; ") -> Opening Detail Modal!"
+                openDetailModal(targetIdx)
+                handled = true
+            else if key = "play"
+                ' Pressing Play directly plays the selected note's video!
+                targetIdx = m.railStartIndex + m.focusedCardIndex
+                print "[Annotated] Remote Play pressed on Window Slot "; m.focusedCardIndex; " (Annotation Index "; targetIdx; ") -> Switching to selected video!"
                 playAnnotationVideo(targetIdx)
                 handled = true
             end if
