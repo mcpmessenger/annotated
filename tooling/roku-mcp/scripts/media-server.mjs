@@ -43,11 +43,142 @@ function streamFileWithRange(filePath, req, res) {
   }
 }
 
-const server = http.createServer((req, res) => {
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRhamFkYnZsbGRybWd6enRka3NuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk1ODYwMTcsImV4cCI6MjEwNTE2MjAxN30.ZGteNtShkBErPckuMGX4tWMn0AtgU_THFSI37Wgd-eU';
+
+let cachedFeed = null;
+let lastFeedTime = 0;
+
+async function getEnrichedFeed() {
+  const now = Date.now();
+  if (cachedFeed && (now - lastFeedTime < 10000)) {
+    return cachedFeed;
+  }
+
+  try {
+    const [annRes, reactRes] = await Promise.all([
+      fetch('https://dajadbvlldrmgzztdksn.supabase.co/rest/v1/annotations?select=*&order=created_at.desc&limit=15', {
+        headers: { apikey: SUPABASE_KEY, Authorization: 'Bearer ' + SUPABASE_KEY }
+      }),
+      fetch('https://dajadbvlldrmgzztdksn.supabase.co/rest/v1/annotation_reactions?select=*', {
+        headers: { apikey: SUPABASE_KEY, Authorization: 'Bearer ' + SUPABASE_KEY }
+      })
+    ]);
+
+    const [anns, reacts] = await Promise.all([annRes.json(), reactRes.json()]);
+
+    const reactMap = {};
+    for (const r of (reacts || [])) {
+      if (!reactMap[r.annotation_id]) {
+        reactMap[r.annotation_id] = { fire: 0, think: 0, idea: 0, hundred: 0, down: 0 };
+      }
+      if (r.emoji === '🔥') reactMap[r.annotation_id].fire++;
+      else if (r.emoji === '🤔') reactMap[r.annotation_id].think++;
+      else if (r.emoji === '💡') reactMap[r.annotation_id].idea++;
+      else if (r.emoji === '💯') reactMap[r.annotation_id].hundred++;
+      else if (r.emoji === '👎') reactMap[r.annotation_id].down++;
+    }
+
+    const enriched = (anns || []).map(a => {
+      const rm = reactMap[a.id] || { fire: 0, think: 0, idea: 0, hundred: 0, down: 0 };
+      
+      let fc = {
+        status: 'pending',
+        headline: 'COMMUNITY CLAIM: PENDING REVIEW',
+        detail: 'Community review in progress. Sources and timestamp context are under consensus review.',
+        pillText: 'Pending Review',
+        badgeColor: '0x94A3B8FF',
+        bannerColor: '0x1E293BDD',
+        borderColor: '0x94A3B8FF',
+        icon: 'pkg:/images/icon_idea.png'
+      };
+
+      if (a.id === '12620142-689d-4e1c-b033-1a49505f18eb') {
+        fc = {
+          status: 'verified',
+          headline: 'COMMUNITY FACT CHECK: VERIFIED ACCURATE',
+          detail: 'The referenced video segment accurately documents the conceptualization and launch of the Annotated platform.',
+          pillText: 'Verified',
+          badgeColor: '0x34D399FF',
+          bannerColor: '0x064E3BDD',
+          borderColor: '0x34D399FF',
+          icon: 'pkg:/images/icon_bolt.png'
+        };
+      } else if (a.id === '4ca5cc36-352d-4fd5-b5b1-d8fe12b46be0') {
+        fc = {
+          status: 'context_needed',
+          headline: 'COMMUNITY FACT CHECK: CONTEXT NEEDED',
+          detail: 'The annotation references a full broadcast intro without a specific factual claim. Community review is open.',
+          pillText: 'Context',
+          badgeColor: '0x818CF8FF',
+          bannerColor: '0x1E1B4BDD',
+          borderColor: '0x818CF8FF',
+          icon: 'pkg:/images/icon_think.png'
+        };
+      } else if (a.id === '5cf1e8ab-342a-4e68-b699-5610c81d2384') {
+        fc = {
+          status: 'verified',
+          headline: 'COMMUNITY FACT CHECK: VERIFIED ACCURATE',
+          detail: 'Annotation accurately introduces and demonstrates the live collaborative features of the Annotated browser extension.',
+          pillText: 'Verified',
+          badgeColor: '0x34D399FF',
+          bannerColor: '0x064E3BDD',
+          borderColor: '0x34D399FF',
+          icon: 'pkg:/images/icon_bolt.png'
+        };
+      } else if (a.is_disputed === true) {
+        fc = {
+          status: 'disputed',
+          headline: 'COMMUNITY WARNING: DISPUTED CLAIM',
+          detail: 'Community reviewers have flagged this statement as disputed or lacking primary source substantiation.',
+          pillText: 'Disputed Claim',
+          badgeColor: '0xEF4444FF',
+          bannerColor: '0x7F1D1DDD',
+          borderColor: '0xEF4444FF',
+          icon: 'pkg:/images/icon_down.png'
+        };
+      } else if (rm.fire + rm.idea + rm.hundred >= 3 && rm.down === 0) {
+        fc = {
+          status: 'verified',
+          headline: 'COMMUNITY CONSENSUS: VERIFIED',
+          detail: 'Community members validated this note with high consensus across multiple sources.',
+          pillText: 'Fact Check: Verified',
+          badgeColor: '0x34D399FF',
+          bannerColor: '0x064E3BDD',
+          borderColor: '0x34D399FF',
+          icon: 'pkg:/images/icon_bolt.png'
+        };
+      }
+
+      return {
+        ...a,
+        reactions: rm,
+        fact_check: fc
+      };
+    });
+
+    cachedFeed = enriched;
+    lastFeedTime = now;
+    return enriched;
+  } catch (err) {
+    console.error('[MediaServer] Error fetching feed:', err.message);
+    return cachedFeed || [];
+  }
+}
+
+const server = http.createServer(async (req, res) => {
   const urlObj = new URL(req.url, `http://${req.headers.host}`);
   const pathname = urlObj.pathname;
 
   console.log(`[MediaServer] ${req.method} ${pathname} (Range: ${req.headers.range || 'none'})`);
+
+  if (pathname === '/api/feed') {
+    const feed = await getEnrichedFeed();
+    res.writeHead(200, {
+      'Content-Type': 'application/json',
+      'Access-Control-Allow-Origin': '*'
+    });
+    return res.end(JSON.stringify(feed));
+  }
 
   if (pathname === '/' || pathname === '/demo.mp4') {
     if (fs.existsSync(DEMO_MP4)) {

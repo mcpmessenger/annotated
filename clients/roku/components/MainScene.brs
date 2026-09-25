@@ -18,6 +18,37 @@ sub init()
     m.railHeaderBg = m.top.findNode("railHeaderBg")
     m.totalNotesCount = 0
 
+    ' Action Bar Dynamic Reaction Count Labels
+    m.lblFireCount = m.top.findNode("lblFireCount")
+    m.lblThinkCount = m.top.findNode("lblThinkCount")
+    m.lblIdeaCount = m.top.findNode("lblIdeaCount")
+    m.lblHundredCount = m.top.findNode("lblHundredCount")
+    m.lblDownCount = m.top.findNode("lblDownCount")
+
+    ' Fact Check Dynamic Banner & Button Elements
+    m.fcBorder = m.top.findNode("fcBorder")
+    m.fcIcon = m.top.findNode("fcIcon")
+    m.fcHeadline = m.top.findNode("fcHeadline")
+    m.fcDetail = m.top.findNode("fcDetail")
+    m.btnFcIcon = m.top.findNode("btnFcIcon")
+    m.lblFactCheck = m.top.findNode("lblFactCheck")
+
+    ' Rail Card Dynamic Metrics & Fact Check Badges
+    m.card1FireCount = m.top.findNode("card1FireCount")
+    m.card1IdeaCount = m.top.findNode("card1IdeaCount")
+    m.card1FcIcon = m.top.findNode("card1FcIcon")
+    m.card1FcLabel = m.top.findNode("card1FcLabel")
+
+    m.card2HundredCount = m.top.findNode("card2HundredCount")
+    m.card2ThinkCount = m.top.findNode("card2ThinkCount")
+    m.card2FcIcon = m.top.findNode("card2FcIcon")
+    m.card2FcLabel = m.top.findNode("card2FcLabel")
+
+    m.card3FireCount = m.top.findNode("card3FireCount")
+    m.card3IdeaCount = m.top.findNode("card3IdeaCount")
+    m.card3FcIcon = m.top.findNode("card3FcIcon")
+    m.card3FcLabel = m.top.findNode("card3FcLabel")
+
     m.card1 = m.top.findNode("card1")
     m.card1Outline = m.top.findNode("card1Outline")
     m.card1Accent = m.top.findNode("card1Accent")
@@ -149,6 +180,93 @@ sub playAnnotationVideo(index as Integer)
     m.currentPlayingCardIndex = index
 
     updateCardPlayingIndicator()
+    updateStageMetrics(item)
+end sub
+
+sub updateStageMetrics(item as Object)
+    if item = invalid then return
+
+    ' 1. Real Emoji Reaction Counts from Supabase
+    fire = 0
+    think = 0
+    idea = 0
+    hundred = 0
+    down = 0
+
+    if item.reactions <> invalid
+        if item.reactions.fire <> invalid then fire = item.reactions.fire
+        if item.reactions.think <> invalid then think = item.reactions.think
+        if item.reactions.idea <> invalid then idea = item.reactions.idea
+        if item.reactions.hundred <> invalid then hundred = item.reactions.hundred
+        if item.reactions.down <> invalid then down = item.reactions.down
+    end if
+
+    if m.lblFireCount <> invalid then m.lblFireCount.text = Str(fire).trim()
+    if m.lblThinkCount <> invalid then m.lblThinkCount.text = Str(think).trim()
+    if m.lblIdeaCount <> invalid then m.lblIdeaCount.text = Str(idea).trim()
+    if m.lblHundredCount <> invalid then m.lblHundredCount.text = Str(hundred).trim()
+    if m.lblDownCount <> invalid then m.lblDownCount.text = Str(down).trim()
+
+    print "[Annotated Metrics] Card ["; m.currentPlayingCardIndex; "] Reactions -> Fire: "; fire; " Think: "; think; " Idea: "; idea; " 100: "; hundred; " Down: "; down
+
+    ' 2. Dynamic Fact Check Status & Banner
+    fc = item.fact_check
+    status = "pending"
+    headline = "COMMUNITY CLAIM: PENDING REVIEW"
+    detail = "Community review in progress. Sources and timestamp context are under consensus review."
+    pillText = "Pending Review"
+    badgeColor = "0x94A3B8FF"
+    bannerColor = "0x1E293BDD"
+    borderColor = "0x94A3B8FF"
+    iconUri = "pkg:/images/icon_idea.png"
+
+    if fc <> invalid
+        if fc.status <> invalid then status = fc.status
+        if fc.headline <> invalid then headline = fc.headline
+        if fc.detail <> invalid then detail = fc.detail
+        if fc.pillText <> invalid then pillText = fc.pillText
+        if fc.badgeColor <> invalid then badgeColor = fc.badgeColor
+        if fc.bannerColor <> invalid then bannerColor = fc.bannerColor
+        if fc.borderColor <> invalid then borderColor = fc.borderColor
+        if fc.icon <> invalid then iconUri = fc.icon
+    else if item.is_disputed = true
+        status = "disputed"
+        headline = "COMMUNITY WARNING: DISPUTED CLAIM"
+        detail = "Community reviewers have flagged this statement as disputed or lacking primary source substantiation."
+        pillText = "Disputed Claim"
+        badgeColor = "0xEF4444FF"
+        bannerColor = "0x7F1D1DDD"
+        borderColor = "0xEF4444FF"
+        iconUri = "pkg:/images/icon_down.png"
+    end if
+
+    if m.factCheckBanner <> invalid then m.factCheckBanner.color = bannerColor
+    if m.fcBorder <> invalid then m.fcBorder.color = borderColor
+    if m.fcIcon <> invalid then m.fcIcon.uri = iconUri
+    if m.fcHeadline <> invalid
+        m.fcHeadline.text = headline
+        m.fcHeadline.color = badgeColor
+    end if
+    if m.fcDetail <> invalid then m.fcDetail.text = detail
+
+    if m.btnFactCheck <> invalid
+        if status = "verified"
+            m.btnFactCheck.color = "0x064E3BFF"
+        else if status = "context_needed"
+            m.btnFactCheck.color = "0x1E1B4BFF"
+        else if status = "disputed"
+            m.btnFactCheck.color = "0x7F1D1DFF"
+        else
+            m.btnFactCheck.color = "0x1F2937FF"
+        end if
+    end if
+    if m.lblFactCheck <> invalid
+        m.lblFactCheck.text = pillText
+        m.lblFactCheck.color = badgeColor
+    end if
+    if m.btnFcIcon <> invalid then m.btnFcIcon.uri = iconUri
+
+    print "[Annotated FactCheck] Card ["; m.currentPlayingCardIndex; "] Status: "; status; " -> "; headline
 end sub
 
 sub updateCardPlayingIndicator()
@@ -387,6 +505,16 @@ sub onAnnotationsLoaded()
         if a1.comment <> invalid and a1.comment <> ""
             m.card1Note.text = cleanText(a1.comment)
         end if
+
+        if a1.reactions <> invalid
+            if m.card1FireCount <> invalid and a1.reactions.fire <> invalid then m.card1FireCount.text = Str(a1.reactions.fire).trim()
+            if m.card1IdeaCount <> invalid and a1.reactions.idea <> invalid then m.card1IdeaCount.text = Str(a1.reactions.idea).trim()
+        end if
+        if a1.fact_check <> invalid
+            if m.card1FcLabel <> invalid and a1.fact_check.pillText <> invalid then m.card1FcLabel.text = a1.fact_check.pillText
+            if m.card1FcLabel <> invalid and a1.fact_check.badgeColor <> invalid then m.card1FcLabel.color = a1.fact_check.badgeColor
+            if m.card1FcIcon <> invalid and a1.fact_check.icon <> invalid then m.card1FcIcon.uri = a1.fact_check.icon
+        end if
     end if
 
     ' 2. Card 2
@@ -408,6 +536,16 @@ sub onAnnotationsLoaded()
         if a2.comment <> invalid and a2.comment <> ""
             m.card2Note.text = cleanText(a2.comment)
         end if
+
+        if a2.reactions <> invalid
+            if m.card2HundredCount <> invalid and a2.reactions.hundred <> invalid then m.card2HundredCount.text = Str(a2.reactions.hundred).trim()
+            if m.card2ThinkCount <> invalid and a2.reactions.think <> invalid then m.card2ThinkCount.text = Str(a2.reactions.think).trim()
+        end if
+        if a2.fact_check <> invalid
+            if m.card2FcLabel <> invalid and a2.fact_check.pillText <> invalid then m.card2FcLabel.text = a2.fact_check.pillText
+            if m.card2FcLabel <> invalid and a2.fact_check.badgeColor <> invalid then m.card2FcLabel.color = a2.fact_check.badgeColor
+            if m.card2FcIcon <> invalid and a2.fact_check.icon <> invalid then m.card2FcIcon.uri = a2.fact_check.icon
+        end if
     end if
 
     ' 3. Card 3
@@ -428,6 +566,16 @@ sub onAnnotationsLoaded()
 
         if a3.comment <> invalid and a3.comment <> ""
             m.card3Note.text = cleanText(a3.comment)
+        end if
+
+        if a3.reactions <> invalid
+            if m.card3FireCount <> invalid and a3.reactions.fire <> invalid then m.card3FireCount.text = Str(a3.reactions.fire).trim()
+            if m.card3IdeaCount <> invalid and a3.reactions.idea <> invalid then m.card3IdeaCount.text = Str(a3.reactions.idea).trim()
+        end if
+        if a3.fact_check <> invalid
+            if m.card3FcLabel <> invalid and a3.fact_check.pillText <> invalid then m.card3FcLabel.text = a3.fact_check.pillText
+            if m.card3FcLabel <> invalid and a3.fact_check.badgeColor <> invalid then m.card3FcLabel.color = a3.fact_check.badgeColor
+            if m.card3FcIcon <> invalid and a3.fact_check.icon <> invalid then m.card3FcIcon.uri = a3.fact_check.icon
         end if
     end if
 
