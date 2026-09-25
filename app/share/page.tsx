@@ -300,14 +300,17 @@ function ShareContent() {
               </button>
 
               <div className="flex items-center justify-end">
-                <button
-                  onClick={handleFactCheck}
-                  disabled={factCheckLoading}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[hsl(var(--border))]/20 hover:bg-[hsl(var(--border))]/40 text-[hsl(var(--foreground))] text-xs font-semibold border border-[hsl(var(--border))] transition disabled:opacity-50 cursor-pointer"
-                >
-                  <Sparkles className="w-3.5 h-3.5 text-purple-400" />
-                  <span>{factCheckLoading ? 'Verifying...' : 'Fact Check with Gemini'}</span>
-                </button>
+                <Tooltip content={factCheckLoading ? "Analyzing claim with Gemini AI..." : "Fact check text with Gemini AI"} position="top">
+                  <button
+                    type="button"
+                    onClick={handleFactCheck}
+                    disabled={factCheckLoading}
+                    className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-full bg-[hsl(var(--secondary))] hover:bg-[hsl(var(--border))] text-[hsl(var(--foreground))] text-xs font-semibold border border-[hsl(var(--border))] transition disabled:opacity-50 cursor-pointer touch-manipulation min-h-[32px]"
+                  >
+                    <span className="text-xs leading-none">⚡</span>
+                    <span>{factCheckLoading ? 'Verifying...' : 'Fact Check with Gemini'}</span>
+                  </button>
+                </Tooltip>
               </div>
             </div>
           </div>
@@ -320,7 +323,7 @@ function ShareContent() {
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2">
               <span className="inline-flex items-center gap-1 font-bold text-[#FFD21A] dark:text-[#FFD21A] text-xs uppercase tracking-wide">
-                <Sparkles className="w-3.5 h-3.5" />
+                <span className="leading-none">⚡</span>
                 <span>Gemini Fact Check</span>
               </span>
               {factCheckData.verdict && (

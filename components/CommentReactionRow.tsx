@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
@@ -83,20 +83,20 @@ export function CommentReactionRow({ commentId }: { commentId: string }) {
   };
 
   return (
-    <div className="flex items-center gap-1.5 mt-2 pl-8">
+    <div className="flex items-center gap-1.5 flex-wrap">
       {EMOJIS.map(emoji => (
         <button
           key={emoji}
           type="button"
           onClick={() => toggleReaction(emoji)}
-          className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs transition-all ${
+          className={`flex items-center gap-1 px-2.5 py-1 min-h-[30px] rounded-full text-xs font-medium transition-all touch-manipulation cursor-pointer ${
             userReactions.has(emoji) 
-              ? 'bg-[hsl(var(--accent))] text-white border border-[hsl(var(--accent))] font-bold' 
-              : 'bg-[hsl(var(--background))] border border-[hsl(var(--border))] text-[hsl(var(--text-muted))] hover:bg-[hsl(var(--border))]'
+              ? 'bg-[hsl(var(--accent))] text-white border border-[hsl(var(--accent))] font-bold shadow-sm' 
+              : 'bg-[hsl(var(--secondary))] border border-[hsl(var(--border))] text-[hsl(var(--text-muted))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--border))]'
           }`}
         >
-          <span>{emoji}</span>
-          <span className="text-[10px]">{reactions[emoji] || 0}</span>
+          <span className="leading-none">{emoji}</span>
+          <span className="text-[10px] font-semibold">{reactions[emoji] || 0}</span>
         </button>
       ))}
     </div>

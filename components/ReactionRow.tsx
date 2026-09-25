@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
@@ -85,7 +85,7 @@ export function ReactionRow({ annotationId }: { annotationId: string }) {
   if (loading) return <div className="h-8"></div>;
 
   return (
-    <div className="flex items-center gap-2 mt-4 relative z-20">
+    <div className="flex items-center gap-2 mt-4 relative z-20 flex-wrap">
       {EMOJIS.map(emoji => (
         <button
           key={emoji}
@@ -94,14 +94,14 @@ export function ReactionRow({ annotationId }: { annotationId: string }) {
             e.stopPropagation();
             toggleReaction(emoji);
           }}
-          className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium transition-all ${
+          className={`flex items-center gap-1.5 px-3 py-1 min-h-[32px] rounded-full text-xs sm:text-sm font-medium transition-all touch-manipulation cursor-pointer ${
             userReactions.has(emoji) 
-              ? 'bg-[hsl(var(--accent))] text-white border border-[hsl(var(--accent))]' 
-              : 'bg-[hsl(var(--background))] border border-[hsl(var(--border))] text-[hsl(var(--text-muted))] hover:bg-[hsl(var(--border))]'
+              ? 'bg-[hsl(var(--accent))] text-white border border-[hsl(var(--accent))] font-bold shadow-sm' 
+              : 'bg-[hsl(var(--secondary))] border border-[hsl(var(--border))] text-[hsl(var(--text-muted))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--border))]'
           }`}
         >
-          <span>{emoji}</span>
-          <span>{reactions[emoji] || 0}</span>
+          <span className="leading-none">{emoji}</span>
+          <span className="font-semibold">{reactions[emoji] || 0}</span>
         </button>
       ))}
     </div>
