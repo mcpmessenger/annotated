@@ -40,16 +40,11 @@ export function ensureWidgetContainer(): { container: HTMLElement; shadow: Shado
 let hasUserDragged = false;
 
 export function positionWidget(iframe: HTMLIFrameElement): void {
-  const width = 360;
-  const padding = 20;
-
   // Always anchor in top right corner like a standard sidebar
-  const targetX = Math.max(padding, window.innerWidth - width - padding);
-  const targetY = padding;
-
-  iframe.style.left = `${targetX}px`;
-  iframe.style.top = `${targetY}px`;
-  iframe.style.right = 'auto';
+  iframe.style.position = 'fixed';
+  iframe.style.top = '20px';
+  iframe.style.right = '20px';
+  iframe.style.left = 'auto';
   iframe.style.bottom = 'auto';
 }
 
@@ -70,8 +65,11 @@ export function createWidget(): HTMLIFrameElement {
   widgetIframe.style.cssText = `
     position: fixed;
     top: 20px;
-    width: 360px;
-    height: 390px;
+    right: 20px;
+    left: auto;
+    bottom: auto;
+    width: 380px;
+    height: 540px;
     border: none;
     border-radius: 12px;
     box-shadow: 0 12px 40px rgba(0,0,0,0.25), 0 0 0 1px rgba(0,0,0,0.08);
@@ -89,8 +87,8 @@ export function createWidget(): HTMLIFrameElement {
   document.addEventListener('mousemove', (e) => {
     if (!isDragging || !widgetIframe) return;
     hasUserDragged = true;
-    const width = 360;
-    const height = parseInt(widgetIframe.style.height || '390', 10);
+    const width = 380;
+    const height = parseInt(widgetIframe.style.height || '540', 10);
     const padding = 8;
 
     let nextLeft = e.clientX - dragOffset.x;
@@ -103,6 +101,7 @@ export function createWidget(): HTMLIFrameElement {
     widgetIframe.style.left = `${nextLeft}px`;
     widgetIframe.style.top = `${nextTop}px`;
     widgetIframe.style.right = 'auto';
+    widgetIframe.style.bottom = 'auto';
   });
 
   document.addEventListener('mouseup', () => {
@@ -157,6 +156,11 @@ export function setupMessageRouter(onReloadAnnotations: () => void): void {
         if (widgetIframe) {
           isDragging = true;
           hasUserDragged = true;
+          const rect = widgetIframe.getBoundingClientRect();
+          widgetIframe.style.left = `${rect.left}px`;
+          widgetIframe.style.top = `${rect.top}px`;
+          widgetIframe.style.right = 'auto';
+          widgetIframe.style.bottom = 'auto';
           // data.clientX and data.clientY from the iframe are already the click offset relative to the iframe's top-left corner
           dragOffset = {
             x: typeof data.clientX === 'number' ? data.clientX : 50,
@@ -169,6 +173,8 @@ export function setupMessageRouter(onReloadAnnotations: () => void): void {
       case 'CLOSE_WIDGET':
         if (widgetIframe) {
           widgetIframe.style.display = 'none';
+          hasUserDragged = false;
+          positionWidget(widgetIframe);
           stopDictation(widgetIframe);
         }
         break;

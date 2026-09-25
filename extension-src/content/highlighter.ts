@@ -3,17 +3,13 @@
 // 1. norm() defined at module scope (was inaccessible inside mouseover handler)
 // 2. candidatePhrases uses a Set rather than an Array with invalid .add() call
 
-import type { Annotation, UserProfile } from '../types/annotation';
+import type { Annotation } from '../types/annotation';
 import { escapeHtml } from '../shared/utils';
 
 export const norm = (s?: string | null): string =>
   (s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
 
 export const highlightMap = new WeakMap<Element, Annotation>();
-
-let hoverBubble: HTMLElement | null = null;
-let hideBubbleTimeout: any = null;
-let currentHoveredAnnotationId: string | null = null;
 
 export function injectHighlightStyles(): void {
   if (document.getElementById('annotated-highlight-style')) return;
@@ -154,75 +150,4 @@ export function renderHighlight(annotation: Annotation): void {
       }
     }
   }
-}
-
-export function ensureHoverBubble(shadowRoot: ShadowRoot): HTMLElement {
-  if (hoverBubble && shadowRoot.contains(hoverBubble)) return hoverBubble;
-  hoverBubble = document.createElement('div');
-  hoverBubble.id = 'annotated-hover-bubble';
-  hoverBubble.style.cssText = `
-    position: fixed;
-    z-index: 2147483647;
-    background: #1e293b;
-    color: #f8fafc;
-    border-radius: 8px;
-    padding: 8px 12px;
-    font-size: 12px;
-    max-width: 260px;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.3);
-    display: none;
-    pointer-events: auto;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  `;
-  shadowRoot.appendChild(hoverBubble);
-  return hoverBubble;
-}
-
-export function showHoverBubble(
-  mark: Element,
-  annotation: Annotation,
-  profile: UserProfile | undefined,
-  shadowRoot: ShadowRoot,
-  onOpenWidget: (ann: Annotation) => void
-): void {
-  if (hideBubbleTimeout) {
-    clearTimeout(hideBubbleTimeout);
-    hideBubbleTimeout = null;
-  }
-  currentHoveredAnnotationId = annotation.id || null;
-
-  const bubble = ensureHoverBubble(shadowRoot);
-  const rect = mark.getBoundingClientRect();
-  const authorName = profile?.full_name || profile?.email?.split('@')[0] || annotation.user_name || 'Annotator';
-
-  bubble.innerHTML = `
-    <div style="font-weight: 700; color: #ffd21a; margin-bottom: 4px; display: flex; justify-content: space-between;">
-      <span>${escapeHtml(annotation.intent || '💡')} @${escapeHtml(authorName)}</span>
-    </div>
-    <div style="color: #cbd5e1; font-size: 11px; line-height: 1.4; margin-bottom: 6px;">
-      ${escapeHtml((annotation.comment || annotation.commentary || '').slice(0, 100))}
-    </div>
-    <div style="font-size: 10px; color: #94a3b8; text-align: right; cursor: pointer;" id="bubbleOpenDetail">
-      View note ↗
-    </div>
-  `;
-
-  bubble.style.top = `${Math.max(10, rect.top - 60)}px`;
-  bubble.style.left = `${Math.min(window.innerWidth - 270, Math.max(10, rect.left))}px`;
-  bubble.style.display = 'block';
-
-  const openBtn = bubble.querySelector('#bubbleOpenDetail');
-  if (openBtn) {
-    openBtn.addEventListener('click', () => {
-      bubble.style.display = 'none';
-      onOpenWidget(annotation);
-    });
-  }
-}
-
-export function hideHoverBubble(): void {
-  hideBubbleTimeout = setTimeout(() => {
-    if (hoverBubble) hoverBubble.style.display = 'none';
-    currentHoveredAnnotationId = null;
-  }, 220);
 }

@@ -55,16 +55,24 @@ async function getEnrichedFeed() {
   }
 
   try {
-    const [annRes, reactRes] = await Promise.all([
+    const [annRes, reactRes, profRes] = await Promise.all([
       fetch('https://dajadbvlldrmgzztdksn.supabase.co/rest/v1/annotations?select=*&order=created_at.desc&limit=50', {
         headers: { apikey: SUPABASE_KEY, Authorization: 'Bearer ' + SUPABASE_KEY }
       }),
       fetch('https://dajadbvlldrmgzztdksn.supabase.co/rest/v1/annotation_reactions?select=*', {
         headers: { apikey: SUPABASE_KEY, Authorization: 'Bearer ' + SUPABASE_KEY }
+      }),
+      fetch('https://dajadbvlldrmgzztdksn.supabase.co/rest/v1/profiles?select=*', {
+        headers: { apikey: SUPABASE_KEY, Authorization: 'Bearer ' + SUPABASE_KEY }
       })
     ]);
 
-    const [anns, reacts] = await Promise.all([annRes.json(), reactRes.json()]);
+    const [anns, reacts, profs] = await Promise.all([annRes.json(), reactRes.json(), profRes.json()]);
+
+    const profMap = {};
+    for (const p of (profs || [])) {
+      if (p.id) profMap[p.id] = p;
+    }
 
     const reactMap = {};
     for (const r of (reacts || [])) {
@@ -121,7 +129,7 @@ async function getEnrichedFeed() {
         status: 'pending',
         headline: 'COMMUNITY CLAIM: PENDING REVIEW',
         detail: 'Community review in progress. Sources and timestamp context are under consensus review.',
-        pillText: 'Pending Review',
+        pillText: 'Pending',
         badgeColor: '0x94A3B8FF',
         bannerColor: '0x1E293BDD',
         borderColor: '0x94A3B8FF',
@@ -213,6 +221,21 @@ async function getEnrichedFeed() {
         }
       }
 
+      // Compute author display name from profile or hostname
+      const prof = profMap[a.user_id];
+      let authorName = 'annotated';
+      if (prof && prof.full_name) {
+        authorName = prof.full_name;
+      } else if (prof && prof.email) {
+        authorName = prof.email.split('@')[0];
+      } else if (a.hostname) {
+        authorName = a.hostname.replace(/^www\./, '');
+      }
+
+      // Clean title and remove redundant "- YouTube"
+      let cleanTitle = stripEmoji(a.page_title || '').replace(/\s*-\s*YouTube$/i, '').trim();
+      if (!cleanTitle) cleanTitle = 'Annotated Community Video';
+
       // Compute direct playable video URL
       let videoUrl = '';
       if (a.media_url && a.media_url.trim() !== '') {
@@ -226,10 +249,11 @@ async function getEnrichedFeed() {
 
       return {
         ...a,
+        hostname: authorName,
         video_url: videoUrl,
         comment: cleanComment,
         quote: stripEmoji(a.quote || ''),
-        page_title: stripEmoji(a.page_title || ''),
+        page_title: cleanTitle,
         display_emoji: displayEmoji,
         emoji_icon: emojiIcon,
         reactions: rm,
@@ -237,14 +261,14 @@ async function getEnrichedFeed() {
       };
     });
 
-    // Prioritize authentic recorded video clips at the top of the feed
-    const videoAnns = enriched.filter(item => item.media_url);
-    const webAnns = enriched.filter(item => !item.media_url);
-    const sortedFeed = [...videoAnns, ...webAnns];
+    // Roku TV is a video-first viewing experience: deliver strictly authentic recorded community video clips
+    const videoAnns = enriched.filter(item => item.media_url && item.media_url.trim() !== '');
 
-    cachedFeed = sortedFeed;
+    console.log(`[MediaServer] Enriched ${enriched.length} total annotations -> returning ${videoAnns.length} authentic video clips to Roku TV.`);
+
+    cachedFeed = videoAnns;
     lastFeedTime = now;
-    return sortedFeed;
+    return videoAnns;
   } catch (err) {
     console.error('[MediaServer] Error fetching feed:', err.message);
     return cachedFeed || [];
@@ -371,8 +395,8 @@ const server = http.createServer(async (req, res) => {
       file.on('finish', () => {
         file.close();
         try {
-          console.log(`[MediaServer] Transcoding ${baseName}.webm -> ${filename} (720p H.264 main profile)...`);
-          execSync(`"${FFMPEG}" -y -i "${tempWebm}" -vf "scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2" -c:v libx264 -preset veryfast -profile:v main -level 3.1 -pix_fmt yuv420p -c:a aac -b:a 128k -movflags +faststart "${filePath}"`, { stdio: 'pipe' });
+          console.log(`[MediaServer] Transcoding ${baseName}.webm -> ${filename} (720p H.264 main profile, normalized PTS)...`);
+          execSync(`"${FFMPEG}" -y -i "${tempWebm}" -avoid_negative_ts make_zero -fflags +genpts -vf "scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2,setpts=PTS-STARTPTS" -c:v libx264 -preset veryfast -profile:v main -level 3.1 -pix_fmt yuv420p -af "asetpts=PTS-STARTPTS" -c:a aac -b:a 128k -movflags +faststart "${filePath}"`, { stdio: 'pipe' });
           try { fs.unlinkSync(tempWebm); } catch {}
           return streamFileWithRange(filePath, req, res);
         } catch (err) {

@@ -118,9 +118,6 @@
   // extension-src/content/highlighter.ts
   var norm = (s) => (s || "").toLowerCase().replace(/[^a-z0-9]/g, "");
   var highlightMap = /* @__PURE__ */ new WeakMap();
-  var hoverBubble = null;
-  var hideBubbleTimeout = null;
-  var currentHoveredAnnotationId = null;
   function injectHighlightStyles() {
     if (document.getElementById("annotated-highlight-style")) return;
     const style = document.createElement("style");
@@ -240,64 +237,6 @@
         }
       }
     }
-  }
-  function ensureHoverBubble(shadowRoot2) {
-    if (hoverBubble && shadowRoot2.contains(hoverBubble)) return hoverBubble;
-    hoverBubble = document.createElement("div");
-    hoverBubble.id = "annotated-hover-bubble";
-    hoverBubble.style.cssText = `
-    position: fixed;
-    z-index: 2147483647;
-    background: #1e293b;
-    color: #f8fafc;
-    border-radius: 8px;
-    padding: 8px 12px;
-    font-size: 12px;
-    max-width: 260px;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.3);
-    display: none;
-    pointer-events: auto;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  `;
-    shadowRoot2.appendChild(hoverBubble);
-    return hoverBubble;
-  }
-  function showHoverBubble(mark, annotation, profile, shadowRoot2, onOpenWidget) {
-    if (hideBubbleTimeout) {
-      clearTimeout(hideBubbleTimeout);
-      hideBubbleTimeout = null;
-    }
-    currentHoveredAnnotationId = annotation.id || null;
-    const bubble = ensureHoverBubble(shadowRoot2);
-    const rect = mark.getBoundingClientRect();
-    const authorName = profile?.full_name || profile?.email?.split("@")[0] || annotation.user_name || "Annotator";
-    bubble.innerHTML = `
-    <div style="font-weight: 700; color: #ffd21a; margin-bottom: 4px; display: flex; justify-content: space-between;">
-      <span>${escapeHtml(annotation.intent || "\u{1F4A1}")} @${escapeHtml(authorName)}</span>
-    </div>
-    <div style="color: #cbd5e1; font-size: 11px; line-height: 1.4; margin-bottom: 6px;">
-      ${escapeHtml((annotation.comment || annotation.commentary || "").slice(0, 100))}
-    </div>
-    <div style="font-size: 10px; color: #94a3b8; text-align: right; cursor: pointer;" id="bubbleOpenDetail">
-      View note \u2197
-    </div>
-  `;
-    bubble.style.top = `${Math.max(10, rect.top - 60)}px`;
-    bubble.style.left = `${Math.min(window.innerWidth - 270, Math.max(10, rect.left))}px`;
-    bubble.style.display = "block";
-    const openBtn = bubble.querySelector("#bubbleOpenDetail");
-    if (openBtn) {
-      openBtn.addEventListener("click", () => {
-        bubble.style.display = "none";
-        onOpenWidget(annotation);
-      });
-    }
-  }
-  function hideHoverBubble() {
-    hideBubbleTimeout = setTimeout(() => {
-      if (hoverBubble) hoverBubble.style.display = "none";
-      currentHoveredAnnotationId = null;
-    }, 220);
   }
 
   // extension-src/content/youtube.ts
@@ -1253,13 +1192,10 @@
   }
   var hasUserDragged = false;
   function positionWidget(iframe) {
-    const width = 360;
-    const padding = 20;
-    const targetX = Math.max(padding, window.innerWidth - width - padding);
-    const targetY = padding;
-    iframe.style.left = `${targetX}px`;
-    iframe.style.top = `${targetY}px`;
-    iframe.style.right = "auto";
+    iframe.style.position = "fixed";
+    iframe.style.top = "20px";
+    iframe.style.right = "20px";
+    iframe.style.left = "auto";
     iframe.style.bottom = "auto";
   }
   function createWidget() {
@@ -1277,8 +1213,11 @@
     widgetIframe.style.cssText = `
     position: fixed;
     top: 20px;
-    width: 360px;
-    height: 390px;
+    right: 20px;
+    left: auto;
+    bottom: auto;
+    width: 380px;
+    height: 540px;
     border: none;
     border-radius: 12px;
     box-shadow: 0 12px 40px rgba(0,0,0,0.25), 0 0 0 1px rgba(0,0,0,0.08);
@@ -1293,8 +1232,8 @@
     document.addEventListener("mousemove", (e) => {
       if (!isDragging || !widgetIframe) return;
       hasUserDragged = true;
-      const width = 360;
-      const height = parseInt(widgetIframe.style.height || "390", 10);
+      const width = 380;
+      const height = parseInt(widgetIframe.style.height || "540", 10);
       const padding = 8;
       let nextLeft = e.clientX - dragOffset.x;
       let nextTop = e.clientY - dragOffset.y;
@@ -1303,6 +1242,7 @@
       widgetIframe.style.left = `${nextLeft}px`;
       widgetIframe.style.top = `${nextTop}px`;
       widgetIframe.style.right = "auto";
+      widgetIframe.style.bottom = "auto";
     });
     document.addEventListener("mouseup", () => {
       if (isDragging && widgetIframe) {
@@ -1351,6 +1291,11 @@
           if (widgetIframe) {
             isDragging = true;
             hasUserDragged = true;
+            const rect = widgetIframe.getBoundingClientRect();
+            widgetIframe.style.left = `${rect.left}px`;
+            widgetIframe.style.top = `${rect.top}px`;
+            widgetIframe.style.right = "auto";
+            widgetIframe.style.bottom = "auto";
             dragOffset = {
               x: typeof data.clientX === "number" ? data.clientX : 50,
               y: typeof data.clientY === "number" ? data.clientY : 20
@@ -1361,6 +1306,8 @@
         case "CLOSE_WIDGET":
           if (widgetIframe) {
             widgetIframe.style.display = "none";
+            hasUserDragged = false;
+            positionWidget(widgetIframe);
             stopDictation(widgetIframe);
           }
           break;
@@ -1526,28 +1473,6 @@
         handleSelection();
       }
     });
-    document.addEventListener(
-      "mouseover",
-      (e) => {
-        const target = e.target?.closest(".annotated-highlight");
-        if (!target) return;
-        const ann = highlightMap.get(target);
-        if (ann) {
-          const { shadow } = ensureWidgetContainer();
-          const prof = ann.user_id ? state.profiles[ann.user_id] : void 0;
-          showHoverBubble(target, ann, prof, shadow, (a) => openAnnotationInWidget(a));
-        }
-      },
-      true
-    );
-    document.addEventListener(
-      "mouseout",
-      (e) => {
-        const target = e.target?.closest(".annotated-highlight");
-        if (target) hideHoverBubble();
-      },
-      true
-    );
     document.addEventListener(
       "click",
       (e) => {

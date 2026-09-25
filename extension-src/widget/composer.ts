@@ -32,16 +32,20 @@ export const composerState: ComposerState = {
   currentMediaTimestamp: null,
 };
 
+let moduleGetPage: (() => PageContext) | null = null;
+let moduleOnResize: ((h: number) => void) | null = null;
+let factCheckDebounce: any = null;
+
 export function getComposerHeight(): number {
-  let base = 390;
+  let base = 440;
   if (composerState.videoClipBlob) {
-    base = 630;
+    base = 650;
   } else if (composerState.mediaDataUrl) {
-    base = 510;
+    base = 560;
   }
   const factBox = $('#composerFactCheckBox');
   if (factBox && factBox.style.display !== 'none') {
-    base += 130;
+    base += 100;
   }
   return base;
 }
@@ -50,6 +54,80 @@ export function hideComposerFactCheck(onResize?: (height: number) => void): void
   const fb = $('#composerFactCheckBox');
   if (fb) fb.style.display = 'none';
   if (onResize) onResize(getComposerHeight());
+}
+
+export function triggerComposerFactCheck(
+  getPage: () => PageContext,
+  onResize: (height: number) => void
+): void {
+  const quote = composerState.quote.trim();
+  const commentEl = $('#comment') as HTMLTextAreaElement | null;
+  const comment = commentEl ? commentEl.value.trim() : '';
+
+  const composerFactCheckBox = $('#composerFactCheckBox');
+  const composerFactCheckBadge = $('#composerFactCheckBadge');
+  const composerFactCheckText = $('#composerFactCheckText');
+
+  if (!quote && !comment) {
+    if (composerFactCheckBadge) {
+      composerFactCheckBadge.textContent = 'AI READY';
+      composerFactCheckBadge.style.color = 'var(--muted)';
+    }
+    if (composerFactCheckText) {
+      composerFactCheckText.textContent = 'Select text on any webpage to fact-check with Gemini AI.';
+    }
+    return;
+  }
+
+  if (composerFactCheckBox) {
+    composerFactCheckBox.style.display = 'block';
+  }
+  if (composerFactCheckBadge) {
+    composerFactCheckBadge.textContent = 'ANALYZING';
+    composerFactCheckBadge.style.color = 'var(--muted)';
+  }
+  if (composerFactCheckText) {
+    composerFactCheckText.textContent = 'Analyzing claim and context with Google Gemini...';
+  }
+  onResize(getComposerHeight());
+
+  if (factCheckDebounce) clearTimeout(factCheckDebounce);
+  factCheckDebounce = setTimeout(async () => {
+    try {
+      const pageCtx = getPage();
+      const data = await callFactCheckApi({
+        quote,
+        commentary: comment,
+        sourceUrl: pageCtx.url || location.href,
+        sourceTitle: pageCtx.title || document.title,
+        timestamp: composerState.videoStartTs ?? composerState.currentMediaTimestamp ?? null,
+        mediaUrl: composerState.mediaDataUrl ?? null,
+      });
+
+      if (composerFactCheckBadge) {
+        composerFactCheckBadge.textContent = (data.verdict || 'ANALYZED').replace('_', ' ');
+        composerFactCheckBadge.style.color =
+          data.verdict === 'VERIFIED'
+            ? '#22c55e'
+            : data.verdict === 'MISLEADING' || data.verdict === 'FALSE'
+            ? '#ef4444'
+            : '#eab308';
+      }
+      if (composerFactCheckText) {
+        composerFactCheckText.innerHTML = `<strong>${escapeHtml(data.headline || '')}</strong><br><span style="font-size:10px; color:var(--muted);">${escapeHtml(data.explanation || '')}</span>`;
+      }
+      onResize(getComposerHeight());
+    } catch (err: unknown) {
+      if (composerFactCheckText) {
+        composerFactCheckText.textContent = `Fact check note: ${err instanceof Error ? err.message : String(err)}`;
+      }
+      if (composerFactCheckBadge) {
+        composerFactCheckBadge.textContent = 'NOTICE';
+        composerFactCheckBadge.style.color = '#eab308';
+      }
+      onResize(getComposerHeight());
+    }
+  }, 350);
 }
 
 export function updatePublishButton(): void {
@@ -168,8 +246,12 @@ export function initComposer(
   getCurrentUser: () => CurrentUser | null,
   getPage: () => PageContext,
   onResize: (height: number) => void,
-  onPublished: () => void
+  onPublished: () => void,
+  onRequireAuth?: () => void
 ): void {
+  moduleGetPage = getPage;
+  moduleOnResize = onResize;
+
   const commentEl = $('#comment') as HTMLTextAreaElement | null;
   const counterEl = $('#counter');
   const publishBtn = $('#publishBtn') as HTMLButtonElement | null;
@@ -318,9 +400,6 @@ export function initComposer(
 
   // Composer Fact Check with Gemini AI
   const composerFactCheckBtn = $('#composerFactCheckBtn');
-  const composerFactCheckBox = $('#composerFactCheckBox');
-  const composerFactCheckBadge = $('#composerFactCheckBadge');
-  const composerFactCheckText = $('#composerFactCheckText');
   const composerFactCheckCloseBtn = $('#composerFactCheckCloseBtn');
 
   composerFactCheckCloseBtn?.addEventListener('click', (e) => {
@@ -328,76 +407,26 @@ export function initComposer(
     hideComposerFactCheck(onResize);
   });
 
-  composerFactCheckBtn?.addEventListener('click', async (e) => {
+  composerFactCheckBtn?.addEventListener('click', (e) => {
     e.preventDefault();
     e.stopPropagation();
-
-    const quote = composerState.quote.trim();
-    const comment = commentEl ? commentEl.value.trim() : '';
-
-    if (!quote && !comment) {
-      if (statusEl) {
-        statusEl.textContent = 'Select text on the page or write a comment to fact check!';
-        setTimeout(() => {
-          if (statusEl.textContent && statusEl.textContent.includes('Select text')) statusEl.textContent = '';
-        }, 3500);
-      }
-      commentEl?.focus();
-      return;
-    }
-
-    if (composerFactCheckBox) {
-      composerFactCheckBox.style.display = 'block';
-    }
-    if (composerFactCheckBadge) {
-      composerFactCheckBadge.textContent = 'ANALYZING';
-      composerFactCheckBadge.style.color = 'var(--muted)';
-    }
-    if (composerFactCheckText) {
-      composerFactCheckText.textContent = 'Analyzing claim and context with Google Gemini...';
-    }
-    onResize(getComposerHeight());
-
-    try {
-      const pageCtx = getPage();
-      const data = await callFactCheckApi({
-        quote,
-        commentary: comment,
-        sourceUrl: pageCtx.url || location.href,
-        sourceTitle: pageCtx.title || document.title,
-        timestamp: composerState.videoStartTs ?? composerState.currentMediaTimestamp ?? null,
-        mediaUrl: composerState.mediaDataUrl ?? null,
-      });
-
-      if (composerFactCheckBadge) {
-        composerFactCheckBadge.textContent = (data.verdict || 'ANALYZED').replace('_', ' ');
-        composerFactCheckBadge.style.color =
-          data.verdict === 'VERIFIED'
-            ? '#22c55e'
-            : data.verdict === 'MISLEADING' || data.verdict === 'FALSE'
-            ? '#ef4444'
-            : '#eab308';
-      }
-      if (composerFactCheckText) {
-        composerFactCheckText.innerHTML = `<strong>${escapeHtml(data.headline || '')}</strong><br><span style="font-size:10px; color:var(--muted);">${escapeHtml(data.explanation || '')}</span>`;
-      }
-      onResize(getComposerHeight());
-    } catch (err: unknown) {
-      if (composerFactCheckText) {
-        composerFactCheckText.textContent = `Fact check note: ${err instanceof Error ? err.message : String(err)}`;
-      }
-      if (composerFactCheckBadge) {
-        composerFactCheckBadge.textContent = 'NOTICE';
-        composerFactCheckBadge.style.color = '#eab308';
-      }
-      onResize(getComposerHeight());
+    const fb = $('#composerFactCheckBox');
+    if (fb && fb.style.display !== 'none') {
+      hideComposerFactCheck(onResize);
+    } else {
+      triggerComposerFactCheck(getPage, onResize);
     }
   });
 
   // Publish button
   publishBtn?.addEventListener('click', async () => {
     const user = getCurrentUser();
-    if (!user) return;
+    if (!user) {
+      if (onRequireAuth) {
+        onRequireAuth();
+      }
+      return;
+    }
 
     publishBtn.disabled = true;
     publishBtn.textContent = 'Publishing…';

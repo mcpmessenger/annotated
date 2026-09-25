@@ -56,7 +56,7 @@ export function wireFactCheck(
       factBtn.style.borderColor = isOpen ? 'var(--yellow)' : 'var(--line)';
     }
     if (onResize) {
-      onResize(isOpen ? (hasMedia ? 690 : 610) : (hasMedia ? 590 : 510));
+      onResize(isOpen ? (hasMedia ? 740 : 660) : (hasMedia ? 630 : 550));
     }
   };
 
@@ -75,11 +75,10 @@ export function wireFactCheck(
     }
   };
 
-  // Default display open with Hide button
-  if (factBox) factBox.style.display = 'block';
-  updateBtnState(true);
+  // Default display CLOSED until user clicks the ⚡ Fact Check button
+  if (factBox) factBox.style.display = 'none';
+  updateBtnState(false);
 
-  // Check cache or auto-execute fact check
   const cacheKey = `annotated_fc_${ann.id || ann.slug || ''}`;
   let cachedData: FactCheckResult | null = null;
   if (typeof window !== 'undefined' && (ann.id || ann.slug)) {
@@ -89,40 +88,49 @@ export function wireFactCheck(
     } catch (_) {}
   }
 
-  if (cachedData) {
-    renderData(cachedData);
-  } else {
+  let hasExecuted = false;
+  const runFactCheck = async () => {
+    if (cachedData) {
+      renderData(cachedData);
+      return;
+    }
+    if (hasExecuted) return;
+    hasExecuted = true;
+
     if (fbadge) {
       fbadge.textContent = 'ANALYZING';
       fbadge.style.color = 'var(--muted)';
     }
     if (ft) ft.textContent = 'Analyzing claim and context with Google Gemini...';
 
-    (async () => {
-      try {
-        const data = await callFactCheckApi({
-          quote: ann.quote || ann.quote_text,
-          commentary: ann.comment || ann.commentary,
-          sourceUrl: ann.url || pageUrl,
-          sourceTitle: ann.title || pageTitle,
-          timestamp: ann.media_timestamp,
-          mediaUrl: ann.media_url,
-        });
-        renderData(data);
-        if (typeof window !== 'undefined' && (ann.id || ann.slug)) {
-          try {
-            localStorage.setItem(cacheKey, JSON.stringify(data));
-          } catch (_) {}
-        }
-      } catch (err: unknown) {
-        if (ft) {
-          ft.textContent = `Fact-check error: ${err instanceof Error ? err.message : String(err)}`;
-        }
+    try {
+      const data = await callFactCheckApi({
+        quote: ann.quote || ann.quote_text,
+        commentary: ann.comment || ann.commentary,
+        sourceUrl: ann.url || pageUrl,
+        sourceTitle: ann.title || pageTitle,
+        timestamp: ann.media_timestamp,
+        mediaUrl: ann.media_url,
+      });
+      cachedData = data;
+      renderData(data);
+      if (typeof window !== 'undefined' && (ann.id || ann.slug)) {
+        try {
+          localStorage.setItem(cacheKey, JSON.stringify(data));
+        } catch (_) {}
       }
-    })();
-  }
+    } catch (err: unknown) {
+      if (ft) {
+        ft.textContent = `Fact-check error: ${err instanceof Error ? err.message : String(err)}`;
+      }
+      if (fbadge) {
+        fbadge.textContent = 'NOTICE';
+        fbadge.style.color = '#eab308';
+      }
+    }
+  };
 
-  // Toggle button click
+  // Toggle button click (⚡)
   if (factBtn) {
     factBtn.onclick = (e) => {
       e.stopPropagation();
@@ -134,6 +142,7 @@ export function wireFactCheck(
       } else {
         fb.style.display = 'block';
         updateBtnState(true);
+        runFactCheck();
       }
     };
   }

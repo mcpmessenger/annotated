@@ -11,6 +11,7 @@
     <div class="brand" id="brandLogo" style="cursor: pointer;" data-tooltip="Open Annotated Website"><img src="assets/icon-32.png" width="20" height="20" style="vertical-align: middle; margin-right: 4px;"><span>annotated<span class="dot">.</span></span></div>
     <div class="top-actions">
       <button id="themeBtn" class="icon-btn theme-btn" data-tooltip="Toggle theme"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"></path></svg></button>
+      <button id="topSignInBtn" class="tiny-btn" style="font-weight: 600; color: var(--ink); border-color: var(--line); display: none;">Sign in</button>
       <div id="userMenuWrap" class="user-menu-wrap hidden">
         <div class="avatar top-avatar" id="avatarEl">?</div>
         <div id="userDropdown" class="user-dropdown hidden">
@@ -43,17 +44,18 @@
   <div id="authScreen" class="auth-screen hidden">
     <div class="auth-card">
       <div class="auth-logo" id="authBrandLogo" style="cursor: pointer;" data-tooltip="Open Annotated Website"><img src="assets/icon-48.png" width="30" height="30" style="vertical-align: middle; margin-right: 6px;"><span>annotated<span class="dot">.</span></span></div>
-      <p class="auth-desc">Sign in to annotate, save, and share your insights across the web.</p>
+      <p class="auth-desc" id="authDescText">Sign in to annotate, save, and share your insights across the web.</p>
       <button id="signInBtn" class="google-btn">
         <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M17.64 9.205c0-.638-.057-1.252-.164-1.841H9v3.481h4.844a4.14 4.14 0 01-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z" fill="#4285F4"/><path d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 009 18z" fill="#34A853"/><path d="M3.964 10.71A5.41 5.41 0 013.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 000 9c0 1.452.348 2.827.957 4.042l3.007-2.332z" fill="#FBBC05"/><path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 00.957 4.958L3.964 6.29C4.672 4.163 6.656 3.58 9 3.58z" fill="#EA4335"/></svg>
         Sign in with Google
       </button>
       <div id="authError" class="auth-error hidden"></div>
+      <button id="authBackBtn" class="tiny-btn" type="button" style="margin-top: 14px; width: 100%; border: none; background: transparent; cursor: pointer; color: var(--muted); font-size: 11px;">← Back to note</button>
     </div>
   </div>
 
   <!-- MAIN APP -->
-  <main id="mainApp" class="hidden">
+  <main id="mainApp">
     <section id="composerSection" class="composer card">
       <div id="composerTimestampBadge" class="timestamp-badge clickable-badge hidden" style="margin-bottom: 8px; display: inline-flex; align-items: center; gap: 4px;" data-tooltip="Captured video timestamp">&#9203; <span id="composerTimestampText">00:00</span><button id="clearComposerTimestampBtn" data-tooltip="Remove timestamp" data-tooltip-pos="left" style="background: none; border: none; color: inherit; cursor: pointer; padding: 0 2px; font-size: 11px; margin-left: 2px; line-height: 1;">&#10005;</button></div>
       <div class="quote-box"><div class="quote-mark">"</div><div id="quote" class="quote">Select text on any page to anchor a comment here.</div></div>
@@ -104,20 +106,20 @@
       <!-- Composer Gemini Fact Check Box -->
       <div id="composerFactCheckBox" style="display:none; margin-top: 10px; padding: 10px; background: var(--soft); border: 1px solid var(--line); border-radius: 8px; font-size: 11px;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-          <span style="font-weight: 750; color: var(--yellow); display: inline-flex; align-items: center; gap: 4px;">&#9889; Gemini Fact Check</span>
+          <span style="font-weight: 750; color: var(--yellow); display: inline-flex; align-items: center; gap: 4px;">⚡ Gemini Fact Check</span>
           <div style="display: flex; align-items: center; gap: 6px;">
-            <span id="composerFactCheckBadge" style="font-size: 9px; font-weight: 750; padding: 1px 6px; border-radius: 99px; background: rgba(0,0,0,0.1);">ANALYZING</span>
-            <button id="composerFactCheckCloseBtn" type="button" data-tooltip="Hide Fact Check" data-tooltip-pos="left" style="background: none; border: none; color: var(--muted); cursor: pointer; font-size: 11px; font-weight: 700; padding: 0 4px;">&#10005;</button>
+            <span id="composerFactCheckBadge" style="font-size: 9px; font-weight: 750; padding: 1px 6px; border-radius: 99px; background: rgba(0,0,0,0.1); color: var(--muted);">AI READY</span>
+            <button id="composerFactCheckCloseBtn" type="button" data-tooltip="Hide Fact Check" data-tooltip-pos="left" style="background: none; border: none; color: var(--muted); cursor: pointer; font-size: 11px; font-weight: 700; padding: 0 4px;">✕</button>
           </div>
         </div>
-        <div id="composerFactCheckText" style="line-height: 1.4; color: var(--ink);">Checking claims with Gemini...</div>
+        <div id="composerFactCheckText" style="line-height: 1.4; color: var(--ink);">Select text on any webpage to fact-check with Gemini AI.</div>
       </div>
 
       <div class="textarea-footer" style="display: flex; gap: 6px; justify-content: space-between; align-items: center; border-top: 1px solid var(--border); padding-top: 12px; margin-top: 12px;">
-        <button id="dictateBtn" class="dictate-btn-main" data-tooltip="Speech to Text" data-tooltip-pos="top" style="width: 36px; min-width: 36px; height: 36px; padding: 0; font-size: 16px; flex: 0 0 36px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center;">&#127897;&#65039;</button>
-        <button id="clipVideoBtn" class="dictate-btn-main" data-tooltip="Clip Video" data-tooltip-pos="top" style="width: 36px; min-width: 36px; height: 36px; padding: 0; font-size: 16px; flex: 0 0 36px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center;">&#127909;</button>
-        <button id="screenshotBtn" class="dictate-btn-main" data-tooltip="Capture Screenshot" data-tooltip-pos="top" style="width: 36px; min-width: 36px; height: 36px; padding: 0; font-size: 16px; flex: 0 0 36px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center;">&#128248;</button>
-        <button id="composerFactCheckBtn" class="dictate-btn-main" data-tooltip="Fact Check with Gemini" data-tooltip-pos="top" style="width: 36px; min-width: 36px; height: 36px; padding: 0; font-size: 15px; flex: 0 0 36px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.15s ease;">&#9889;</button>
+        <button id="dictateBtn" class="dictate-btn-main" data-tooltip="Speech to Text" data-tooltip-pos="top" style="width: 36px; min-width: 36px; height: 36px; padding: 0; font-size: 16px; flex: 0 0 36px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center;">🎤</button>
+        <button id="clipVideoBtn" class="dictate-btn-main" data-tooltip="Clip Video" data-tooltip-pos="top" style="width: 36px; min-width: 36px; height: 36px; padding: 0; font-size: 16px; flex: 0 0 36px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center;">🎥</button>
+        <button id="screenshotBtn" class="dictate-btn-main" data-tooltip="Capture Screenshot" data-tooltip-pos="top" style="width: 36px; min-width: 36px; height: 36px; padding: 0; font-size: 16px; flex: 0 0 36px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center;">📸</button>
+        <button id="composerFactCheckBtn" class="dictate-btn-main" data-tooltip="Fact Check with Gemini" data-tooltip-pos="top" style="width: 36px; min-width: 36px; height: 36px; padding: 0; font-size: 15px; flex: 0 0 36px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.15s ease;">⚡</button>
         <button id="publishBtn" class="publish-btn" disabled style="flex: 1; min-width: 80px; margin: 0; padding: 0 14px; height: 36px; white-space: nowrap; font-weight: 700; border-radius: 8px;">Publish</button>
       </div>
       <div id="status" class="status"></div>
@@ -126,10 +128,10 @@
     <!-- ANNOTATION DETAIL CARD -->
     <section id="annotationDetailCard" class="annotation-detail-card card hidden">
       <div class="detail-header">
-        <button id="detailBackBtn" class="detail-back-btn" data-tooltip="Back to note composer">&#8592; <span style="font-weight:600;">Compose</span></button>
+        <button id="detailBackBtn" class="detail-back-btn" data-tooltip="Back to note composer">← <span style="font-weight:600;">Compose</span></button>
         <div class="detail-tags" style="display: flex; align-items: center; gap: 8px;">
-          <span id="detailIntentBadge" class="detail-intent-badge" data-tooltip="Intent">&#128161;</span>
-          <button id="detailDeleteBtn" class="detail-delete-btn hidden" data-tooltip="Delete note" style="background: none; border: 1px solid var(--line); border-radius: 6px; color: var(--muted); cursor: pointer; padding: 4px 7px; font-size: 12px; display: inline-flex; align-items: center; justify-content: center; transition: all 0.15s ease;">&#128465;&#65039;</button>
+          <span id="detailIntentBadge" class="detail-intent-badge" data-tooltip="Intent">💡</span>
+          <button id="detailDeleteBtn" class="detail-delete-btn hidden" data-tooltip="Delete note" style="background: none; border: 1px solid var(--line); border-radius: 6px; color: var(--muted); cursor: pointer; padding: 4px 7px; font-size: 12px; display: inline-flex; align-items: center; justify-content: center; transition: all 0.15s ease;">🗑️</button>
         </div>
       </div>
 
@@ -154,9 +156,19 @@
       <!-- Hidden element so JS can set author name for profile click -->
       <strong id="detailAuthorName" style="display: none;">Annotator</strong>
 
+      <!-- Gemini Fact Check Box (prominent directly below comment) -->
+      <div id="detailFactCheckBox" style="display:none; margin-top: 10px; padding: 10px; background: var(--soft); border: 1px solid var(--line); border-radius: 8px; font-size: 11px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+          <span style="font-weight: 750; color: var(--yellow); display: inline-flex; align-items: center; gap: 4px;">⚡ Gemini Fact Check</span>
+          <div style="display: flex; align-items: center; gap: 6px;">
+            <span id="detailFactCheckBadge" style="font-size: 9px; font-weight: 750; padding: 1px 6px; border-radius: 99px; background: rgba(0,0,0,0.1);">ANALYZING</span>
+            <button id="detailFactCheckCloseBtn" type="button" data-tooltip="Hide Fact Check" data-tooltip-pos="left" style="background: none; border: none; color: var(--muted); cursor: pointer; font-size: 11px; font-weight: 700; padding: 0 4px;">✕</button>
+          </div>
+        </div>
+        <div id="detailFactCheckText" style="line-height: 1.4; color: var(--ink);">Checking claims with Gemini...</div>
+      </div>
 
-
-      <!-- Quick React Bar -->
+      <!-- Quick React Bar (Emojis) -->
       <div id="detailReactBar" style="display: flex; align-items: center; gap: 4px; margin-top: 10px; padding: 6px 8px; background: var(--soft); border: 1px solid var(--line); border-radius: 8px;">
         <button class="detail-react-btn" data-react="🔥" data-tooltip="React with 🔥" data-tooltip-pos="top" style="background: none; border: 1px solid var(--line); border-radius: 20px; padding: 2px 7px; font-size: 12px; cursor: pointer; display: inline-flex; align-items: center; gap: 3px; color: var(--ink); transition: all 0.15s; white-space: nowrap;">🔥 <span class="react-count" style="font-size: 10px; font-weight: 700; min-width: 8px;">0</span></button>
         <button class="detail-react-btn" data-react="🤔" data-tooltip="React with 🤔" data-tooltip-pos="top" style="background: none; border: 1px solid var(--line); border-radius: 20px; padding: 2px 7px; font-size: 12px; cursor: pointer; display: inline-flex; align-items: center; gap: 3px; color: var(--ink); transition: all 0.15s; white-space: nowrap;">🤔 <span class="react-count" style="font-size: 10px; font-weight: 700; min-width: 8px;">0</span></button>
@@ -174,22 +186,10 @@
           </div>
           <div style="display: flex; justify-content: flex-end; align-items: center; gap: 6px;">
             <span id="widgetCommentStatus" style="font-size: 11px; color: var(--muted); flex: 1;"></span>
-            <button type="button" id="widgetCommentMicBtn" data-tooltip="Speak to comment" data-tooltip-pos="top" style="background: var(--soft); color: var(--ink); border: 1px solid var(--line); border-radius: 5px; cursor: pointer; font-size: 13px; padding: 5px 8px; display: inline-flex; align-items: center; justify-content: center; transition: all 0.15s ease;">&#127897;&#65039;</button>
+            <button type="button" id="widgetCommentMicBtn" data-tooltip="Speak to comment" data-tooltip-pos="top" style="background: var(--soft); color: var(--ink); border: 1px solid var(--line); border-radius: 5px; cursor: pointer; font-size: 13px; padding: 5px 8px; display: inline-flex; align-items: center; justify-content: center; transition: all 0.15s ease;">🎤</button>
             <button type="submit" id="widgetCommentSubmitBtn" style="background: var(--yellow); color: #000; border: none; font-weight: 700; font-size: 11px; padding: 6px 14px; border-radius: 5px; cursor: pointer; transition: opacity 0.15s;">Reply</button>
           </div>
         </form>
-      </div>
-
-      <!-- Gemini Fact Check Box -->
-      <div id="detailFactCheckBox" style="display:none; margin-top: 10px; padding: 10px; background: var(--soft); border: 1px solid var(--line); border-radius: 8px; font-size: 11px;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-          <span style="font-weight: 750; color: var(--yellow); display: inline-flex; align-items: center; gap: 4px;">&#9889; Gemini Fact Check</span>
-          <div style="display: flex; align-items: center; gap: 6px;">
-            <span id="detailFactCheckBadge" style="font-size: 9px; font-weight: 750; padding: 1px 6px; border-radius: 99px; background: rgba(0,0,0,0.1);">ANALYZING</span>
-            <button id="detailFactCheckCloseBtn" type="button" data-tooltip="Hide Fact Check" data-tooltip-pos="left" style="background: none; border: none; color: var(--muted); cursor: pointer; font-size: 11px; font-weight: 700; padding: 0 4px;">&#10005;</button>
-          </div>
-        </div>
-        <div id="detailFactCheckText" style="line-height: 1.4; color: var(--ink);">Checking claims with Gemini...</div>
       </div>
 
       <div class="detail-actions" style="margin-top: 14px; display: flex; gap: 8px; align-items: center;">

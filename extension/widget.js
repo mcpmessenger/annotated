@@ -479,7 +479,7 @@
         factBtn.style.borderColor = isOpen ? "var(--yellow)" : "var(--line)";
       }
       if (onResize) {
-        onResize(isOpen ? hasMedia ? 690 : 610 : hasMedia ? 590 : 510);
+        onResize(isOpen ? hasMedia ? 740 : 660 : hasMedia ? 630 : 550);
       }
     };
     const renderData = (data) => {
@@ -491,8 +491,8 @@
         ft.innerHTML = `<strong>${escapeHtml(data.headline || "")}</strong><br><span style="font-size:10px; color:var(--muted);">${escapeHtml(data.explanation || "")}</span>`;
       }
     };
-    if (factBox) factBox.style.display = "block";
-    updateBtnState(true);
+    if (factBox) factBox.style.display = "none";
+    updateBtnState(false);
     const cacheKey = `annotated_fc_${ann.id || ann.slug || ""}`;
     let cachedData = null;
     if (typeof window !== "undefined" && (ann.id || ann.slug)) {
@@ -502,38 +502,46 @@
       } catch (_) {
       }
     }
-    if (cachedData) {
-      renderData(cachedData);
-    } else {
+    let hasExecuted = false;
+    const runFactCheck = async () => {
+      if (cachedData) {
+        renderData(cachedData);
+        return;
+      }
+      if (hasExecuted) return;
+      hasExecuted = true;
       if (fbadge) {
         fbadge.textContent = "ANALYZING";
         fbadge.style.color = "var(--muted)";
       }
       if (ft) ft.textContent = "Analyzing claim and context with Google Gemini...";
-      (async () => {
-        try {
-          const data = await callFactCheckApi({
-            quote: ann.quote || ann.quote_text,
-            commentary: ann.comment || ann.commentary,
-            sourceUrl: ann.url || pageUrl,
-            sourceTitle: ann.title || pageTitle,
-            timestamp: ann.media_timestamp,
-            mediaUrl: ann.media_url
-          });
-          renderData(data);
-          if (typeof window !== "undefined" && (ann.id || ann.slug)) {
-            try {
-              localStorage.setItem(cacheKey, JSON.stringify(data));
-            } catch (_) {
-            }
-          }
-        } catch (err) {
-          if (ft) {
-            ft.textContent = `Fact-check error: ${err instanceof Error ? err.message : String(err)}`;
+      try {
+        const data = await callFactCheckApi({
+          quote: ann.quote || ann.quote_text,
+          commentary: ann.comment || ann.commentary,
+          sourceUrl: ann.url || pageUrl,
+          sourceTitle: ann.title || pageTitle,
+          timestamp: ann.media_timestamp,
+          mediaUrl: ann.media_url
+        });
+        cachedData = data;
+        renderData(data);
+        if (typeof window !== "undefined" && (ann.id || ann.slug)) {
+          try {
+            localStorage.setItem(cacheKey, JSON.stringify(data));
+          } catch (_) {
           }
         }
-      })();
-    }
+      } catch (err) {
+        if (ft) {
+          ft.textContent = `Fact-check error: ${err instanceof Error ? err.message : String(err)}`;
+        }
+        if (fbadge) {
+          fbadge.textContent = "NOTICE";
+          fbadge.style.color = "#eab308";
+        }
+      }
+    };
     if (factBtn) {
       factBtn.onclick = (e) => {
         e.stopPropagation();
@@ -545,6 +553,7 @@
         } else {
           fb.style.display = "block";
           updateBtnState(true);
+          runFactCheck();
         }
       };
     }
@@ -570,16 +579,19 @@
     recordedAudioBlob: null,
     currentMediaTimestamp: null
   };
+  var moduleGetPage = null;
+  var moduleOnResize = null;
+  var factCheckDebounce = null;
   function getComposerHeight() {
-    let base = 390;
+    let base = 440;
     if (composerState.videoClipBlob) {
-      base = 630;
+      base = 650;
     } else if (composerState.mediaDataUrl) {
-      base = 510;
+      base = 560;
     }
     const factBox = $("#composerFactCheckBox");
     if (factBox && factBox.style.display !== "none") {
-      base += 130;
+      base += 100;
     }
     return base;
   }
@@ -587,6 +599,66 @@
     const fb = $("#composerFactCheckBox");
     if (fb) fb.style.display = "none";
     if (onResize) onResize(getComposerHeight());
+  }
+  function triggerComposerFactCheck(getPage, onResize) {
+    const quote = composerState.quote.trim();
+    const commentEl = $("#comment");
+    const comment = commentEl ? commentEl.value.trim() : "";
+    const composerFactCheckBox = $("#composerFactCheckBox");
+    const composerFactCheckBadge = $("#composerFactCheckBadge");
+    const composerFactCheckText = $("#composerFactCheckText");
+    if (!quote && !comment) {
+      if (composerFactCheckBadge) {
+        composerFactCheckBadge.textContent = "AI READY";
+        composerFactCheckBadge.style.color = "var(--muted)";
+      }
+      if (composerFactCheckText) {
+        composerFactCheckText.textContent = "Select text on any webpage to fact-check with Gemini AI.";
+      }
+      return;
+    }
+    if (composerFactCheckBox) {
+      composerFactCheckBox.style.display = "block";
+    }
+    if (composerFactCheckBadge) {
+      composerFactCheckBadge.textContent = "ANALYZING";
+      composerFactCheckBadge.style.color = "var(--muted)";
+    }
+    if (composerFactCheckText) {
+      composerFactCheckText.textContent = "Analyzing claim and context with Google Gemini...";
+    }
+    onResize(getComposerHeight());
+    if (factCheckDebounce) clearTimeout(factCheckDebounce);
+    factCheckDebounce = setTimeout(async () => {
+      try {
+        const pageCtx = getPage();
+        const data = await callFactCheckApi({
+          quote,
+          commentary: comment,
+          sourceUrl: pageCtx.url || location.href,
+          sourceTitle: pageCtx.title || document.title,
+          timestamp: composerState.videoStartTs ?? composerState.currentMediaTimestamp ?? null,
+          mediaUrl: composerState.mediaDataUrl ?? null
+        });
+        if (composerFactCheckBadge) {
+          composerFactCheckBadge.textContent = (data.verdict || "ANALYZED").replace("_", " ");
+          composerFactCheckBadge.style.color = data.verdict === "VERIFIED" ? "#22c55e" : data.verdict === "MISLEADING" || data.verdict === "FALSE" ? "#ef4444" : "#eab308";
+        }
+        if (composerFactCheckText) {
+          composerFactCheckText.innerHTML = `<strong>${escapeHtml(data.headline || "")}</strong><br><span style="font-size:10px; color:var(--muted);">${escapeHtml(data.explanation || "")}</span>`;
+        }
+        onResize(getComposerHeight());
+      } catch (err) {
+        if (composerFactCheckText) {
+          composerFactCheckText.textContent = `Fact check note: ${err instanceof Error ? err.message : String(err)}`;
+        }
+        if (composerFactCheckBadge) {
+          composerFactCheckBadge.textContent = "NOTICE";
+          composerFactCheckBadge.style.color = "#eab308";
+        }
+        onResize(getComposerHeight());
+      }
+    }, 350);
   }
   function updatePublishButton() {
     const commentEl = $("#comment");
@@ -674,7 +746,9 @@
     $("#composerSection")?.classList.remove("hidden");
     onResize(getComposerHeight());
   }
-  function initComposer(getCurrentUser, getPage, onResize, onPublished) {
+  function initComposer(getCurrentUser, getPage, onResize, onPublished, onRequireAuth) {
+    moduleGetPage = getPage;
+    moduleOnResize = onResize;
     const commentEl = $("#comment");
     const counterEl = $("#counter");
     const publishBtn = $("#publishBtn");
@@ -800,72 +874,29 @@
       }
     });
     const composerFactCheckBtn = $("#composerFactCheckBtn");
-    const composerFactCheckBox = $("#composerFactCheckBox");
-    const composerFactCheckBadge = $("#composerFactCheckBadge");
-    const composerFactCheckText = $("#composerFactCheckText");
     const composerFactCheckCloseBtn = $("#composerFactCheckCloseBtn");
     composerFactCheckCloseBtn?.addEventListener("click", (e) => {
       e.stopPropagation();
       hideComposerFactCheck(onResize);
     });
-    composerFactCheckBtn?.addEventListener("click", async (e) => {
+    composerFactCheckBtn?.addEventListener("click", (e) => {
       e.preventDefault();
       e.stopPropagation();
-      const quote = composerState.quote.trim();
-      const comment = commentEl ? commentEl.value.trim() : "";
-      if (!quote && !comment) {
-        if (statusEl) {
-          statusEl.textContent = "Select text on the page or write a comment to fact check!";
-          setTimeout(() => {
-            if (statusEl.textContent && statusEl.textContent.includes("Select text")) statusEl.textContent = "";
-          }, 3500);
-        }
-        commentEl?.focus();
-        return;
-      }
-      if (composerFactCheckBox) {
-        composerFactCheckBox.style.display = "block";
-      }
-      if (composerFactCheckBadge) {
-        composerFactCheckBadge.textContent = "ANALYZING";
-        composerFactCheckBadge.style.color = "var(--muted)";
-      }
-      if (composerFactCheckText) {
-        composerFactCheckText.textContent = "Analyzing claim and context with Google Gemini...";
-      }
-      onResize(getComposerHeight());
-      try {
-        const pageCtx = getPage();
-        const data = await callFactCheckApi({
-          quote,
-          commentary: comment,
-          sourceUrl: pageCtx.url || location.href,
-          sourceTitle: pageCtx.title || document.title,
-          timestamp: composerState.videoStartTs ?? composerState.currentMediaTimestamp ?? null,
-          mediaUrl: composerState.mediaDataUrl ?? null
-        });
-        if (composerFactCheckBadge) {
-          composerFactCheckBadge.textContent = (data.verdict || "ANALYZED").replace("_", " ");
-          composerFactCheckBadge.style.color = data.verdict === "VERIFIED" ? "#22c55e" : data.verdict === "MISLEADING" || data.verdict === "FALSE" ? "#ef4444" : "#eab308";
-        }
-        if (composerFactCheckText) {
-          composerFactCheckText.innerHTML = `<strong>${escapeHtml(data.headline || "")}</strong><br><span style="font-size:10px; color:var(--muted);">${escapeHtml(data.explanation || "")}</span>`;
-        }
-        onResize(getComposerHeight());
-      } catch (err) {
-        if (composerFactCheckText) {
-          composerFactCheckText.textContent = `Fact check note: ${err instanceof Error ? err.message : String(err)}`;
-        }
-        if (composerFactCheckBadge) {
-          composerFactCheckBadge.textContent = "NOTICE";
-          composerFactCheckBadge.style.color = "#eab308";
-        }
-        onResize(getComposerHeight());
+      const fb = $("#composerFactCheckBox");
+      if (fb && fb.style.display !== "none") {
+        hideComposerFactCheck(onResize);
+      } else {
+        triggerComposerFactCheck(getPage, onResize);
       }
     });
     publishBtn?.addEventListener("click", async () => {
       const user = getCurrentUser();
-      if (!user) return;
+      if (!user) {
+        if (onRequireAuth) {
+          onRequireAuth();
+        }
+        return;
+      }
       publishBtn.disabled = true;
       publishBtn.textContent = "Publishing\u2026";
       const payload = {
@@ -927,13 +958,23 @@
   }
 
   // extension-src/widget/auth.ts
-  function showAuth() {
+  function showAuth(promptMsg) {
+    const authDesc = $("#authDescText");
+    if (authDesc && promptMsg) {
+      authDesc.textContent = promptMsg;
+    }
     $("#authScreen")?.classList.remove("hidden");
     $("#mainApp")?.classList.add("hidden");
+  }
+  function hideAuth() {
+    $("#authScreen")?.classList.add("hidden");
+    $("#mainApp")?.classList.remove("hidden");
   }
   function showApp(user, onAppShown) {
     $("#authScreen")?.classList.add("hidden");
     $("#mainApp")?.classList.remove("hidden");
+    const topSignIn = $("#topSignInBtn");
+    if (topSignIn) topSignIn.style.display = "none";
     $("#userMenuWrap")?.classList.remove("hidden");
     if (composerState.quote) {
       setQuote(composerState.quote);
@@ -1031,10 +1072,19 @@
         }
       });
     }
+    $("#authBackBtn")?.addEventListener("click", () => {
+      hideAuth();
+    });
+    $("#topSignInBtn")?.addEventListener("click", () => {
+      showAuth("Sign in with Google to sync and share your annotations.");
+    });
     $("#signOutBtn")?.addEventListener("click", async () => {
       await supabase.signOut();
       onUserChanged(null);
-      showAuth();
+      $("#userMenuWrap")?.classList.add("hidden");
+      const topSignIn = $("#topSignInBtn");
+      if (topSignIn) topSignIn.style.display = "inline-block";
+      hideAuth();
     });
     $("#profileBtn")?.addEventListener("click", () => {
       chrome.storage.local.get("supabase_session", (data) => {
@@ -1675,7 +1725,7 @@
     wireFactCheck(ann, ann.title || "Page", ann.url || location.href, onResize);
     if (ann.id || ann.slug) loadWidgetComments(ann.id || ann.slug || "", activeUser);
     const hasMedia = !!(ann.media_url || ann.audio_url);
-    onResize(hasMedia ? 740 : 660);
+    onResize(hasMedia ? 630 : 550);
   }
   async function wireDetailReactions(annotationId, currentUser2) {
     if (!annotationId) return;
@@ -2111,7 +2161,8 @@
       () => currentUser,
       () => page,
       resizeWidget,
-      () => refreshAll()
+      () => refreshAll(),
+      () => showAuth("Sign in with Google to publish your note.")
     );
     initCommentForm(
       () => currentUser,
@@ -2124,10 +2175,13 @@
         if (u) {
           showApp(u, () => {
             refreshAll();
-            resizeWidget(390);
+            resizeWidget(getComposerHeight());
           });
         } else {
-          showAuth();
+          const topSignIn2 = $("#topSignInBtn");
+          if (topSignIn2) topSignIn2.style.display = "inline-block";
+          $("#userMenuWrap")?.classList.add("hidden");
+          showComposer(resizeWidget);
         }
       },
       resizeWidget
@@ -2143,12 +2197,18 @@
         currentUser = user;
         showApp(user, () => {
           refreshAll();
-          resizeWidget(390);
+          resizeWidget(getComposerHeight());
         });
         return;
       }
     }
-    showAuth();
+    currentUser = null;
+    const topSignIn = $("#topSignInBtn");
+    if (topSignIn) topSignIn.style.display = "inline-block";
+    $("#userMenuWrap")?.classList.add("hidden");
+    $("#authScreen")?.classList.add("hidden");
+    $("#mainApp")?.classList.remove("hidden");
+    showComposer(resizeWidget);
   }
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", boot);

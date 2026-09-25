@@ -102,7 +102,7 @@
         <!-- Fact Check Pill Button -->
         <Rectangle
           id="btnFactCheck"
-          width="190"
+          width="210"
           height="52"
           color="0x064E3BFF"
           translation="[0, 0]">
@@ -116,31 +116,31 @@
         </Rectangle>
 
         <!-- Reaction: Fire -->
-        <Rectangle id="btnFire" width="105" height="52" color="0x1F2937FF" translation="[205, 0]">
+        <Rectangle id="btnFire" width="105" height="52" color="0x1F2937FF" translation="[225, 0]">
           <Poster uri="pkg:/images/icon_fire.png" width="26" height="26" translation="[13, 13]" />
           <Label id="lblFireCount" text="0" font="font:MediumBoldSystemFont" color="0xFFFFFFFF" translation="[46, 12]" />
         </Rectangle>
 
         <!-- Reaction: Think -->
-        <Rectangle id="btnThink" width="105" height="52" color="0x1F2937FF" translation="[325, 0]">
+        <Rectangle id="btnThink" width="105" height="52" color="0x1F2937FF" translation="[345, 0]">
           <Poster uri="pkg:/images/icon_think.png" width="26" height="26" translation="[13, 13]" />
           <Label id="lblThinkCount" text="0" font="font:MediumBoldSystemFont" color="0xFFFFFFFF" translation="[46, 12]" />
         </Rectangle>
 
         <!-- Reaction: Idea -->
-        <Rectangle id="btnIdea" width="105" height="52" color="0x1F2937FF" translation="[445, 0]">
+        <Rectangle id="btnIdea" width="105" height="52" color="0x1F2937FF" translation="[465, 0]">
           <Poster uri="pkg:/images/icon_idea.png" width="26" height="26" translation="[13, 13]" />
           <Label id="lblIdeaCount" text="0" font="font:MediumBoldSystemFont" color="0xFFFFFFFF" translation="[46, 12]" />
         </Rectangle>
 
         <!-- Reaction: 100 -->
-        <Rectangle id="btnHundred" width="115" height="52" color="0x1F2937FF" translation="[565, 0]">
+        <Rectangle id="btnHundred" width="115" height="52" color="0x1F2937FF" translation="[585, 0]">
           <Poster uri="pkg:/images/icon_100.png" width="26" height="26" translation="[13, 13]" />
           <Label id="lblHundredCount" text="0" font="font:MediumBoldSystemFont" color="0xFFFFFFFF" translation="[48, 12]" />
         </Rectangle>
 
         <!-- Reaction: Down -->
-        <Rectangle id="btnDown" width="105" height="52" color="0x1F2937FF" translation="[695, 0]">
+        <Rectangle id="btnDown" width="105" height="52" color="0x1F2937FF" translation="[715, 0]">
           <Poster uri="pkg:/images/icon_down.png" width="26" height="26" translation="[13, 13]" />
           <Label id="lblDownCount" text="0" font="font:MediumBoldSystemFont" color="0xFFFFFFFF" translation="[46, 12]" />
         </Rectangle>

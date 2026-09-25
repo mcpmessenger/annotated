@@ -189,6 +189,7 @@ sub playAnnotationVideo(index as Integer)
     m.mainVideo.content = videoContent
     m.mainVideo.control = "play"
     m.currentPlayingCardIndex = index
+    m.initialVideoPos = invalid
 
     updateCardPlayingIndicator()
     updateStageMetrics(item)
@@ -225,7 +226,7 @@ sub updateStageMetrics(item as Object)
     status = "pending"
     headline = "COMMUNITY CLAIM: PENDING REVIEW"
     detail = "Community review in progress. Sources and timestamp context are under consensus review."
-    pillText = "Pending Review"
+    pillText = "Pending"
     badgeColor = "0x94A3B8FF"
     bannerColor = "0x1E293BDD"
     borderColor = "0x94A3B8FF"
@@ -374,6 +375,16 @@ sub onVideoPositionChanged()
     durParts = Str(vDur).trim().split(".")
     if durParts.count() > 0 then durSecTotal = Val(durParts[0])
 
+    if posSecTotal > durSecTotal
+        if m.initialVideoPos = invalid or m.initialVideoPos = 0
+            m.initialVideoPos = posSecTotal
+        end if
+        posSecTotal = posSecTotal - m.initialVideoPos
+        if posSecTotal < 0 then posSecTotal = 0
+    else
+        m.initialVideoPos = 0
+    end if
+
     posMin = posSecTotal \ 60
     posSec = posSecTotal - (posMin * 60)
     durMin = durSecTotal \ 60
@@ -390,17 +401,6 @@ sub onVideoPositionChanged()
     if durSec < 10 then durSStr = "0" + durSStr
 
     m.timestampBadge.text = posMStr + ":" + posSStr + " / " + durMStr + ":" + durSStr
-
-    ' --- Continuous Sequential Autoplay: Check if clip reached conclusion ---
-    if durSecTotal > 2 and posSecTotal >= durSecTotal - 1 and m.mainVideo.state = "playing"
-        nowTick = CreateObject("roDateTime").AsSeconds()
-        if m.lastAutoPlayTime = invalid or (nowTick - m.lastAutoPlayTime > 3)
-            m.lastAutoPlayTime = nowTick
-            print "[Annotated Playlist] Clip reached end position ("; posSecTotal; " / "; durSecTotal; ")! Advancing to next video..."
-            playNextVideo()
-            return
-        end if
-    end if
 
     ' --- Auto-Scroll Timeline Sync for State A ---
     activeIdx = 0
@@ -566,13 +566,19 @@ sub renderRailCardsWindow()
 
             ' Quote / Context
             if cn.quote <> invalid
+                q = ""
                 if item.quote <> invalid and item.quote <> ""
-                    cn.quote.text = """" + Left(cleanText(item.quote), 60) + "..."""
+                    q = cleanText(item.quote)
+                    if Left(q, 12) = "Video Clip (" and Right(q, 1) = ")"
+                        q = Mid(q, 13, Len(q) - 13)
+                    end if
                 else if item.page_title <> invalid and item.page_title <> ""
-                    cn.quote.text = """" + Left(cleanText(item.page_title), 60) + """"
+                    q = cleanText(item.page_title)
                 else
-                    cn.quote.text = """Annotated Web Commentary"""
+                    q = "Annotated Community Note"
                 end if
+                q = q.replace("- YouTube", "").trim()
+                cn.quote.text = """" + Left(q, 52) + "..."""
             end if
 
             ' Comment

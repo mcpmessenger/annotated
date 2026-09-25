@@ -12,6 +12,7 @@ import {
   showComposer,
   composerState,
   updatePublishButton,
+  getComposerHeight,
 } from './composer';
 import { renderFeed, loadFeedFromSupabase } from './feed';
 import { showAnnotationDetail } from './detail';
@@ -183,7 +184,8 @@ async function boot(): Promise<void> {
     () => currentUser,
     () => page,
     resizeWidget,
-    () => refreshAll()
+    () => refreshAll(),
+    () => showAuth('Sign in with Google to publish your note.')
   );
 
   initCommentForm(
@@ -200,10 +202,13 @@ async function boot(): Promise<void> {
       if (u) {
         showApp(u, () => {
           refreshAll();
-          resizeWidget(390);
+          resizeWidget(getComposerHeight());
         });
       } else {
-        showAuth();
+        const topSignIn = $('#topSignInBtn');
+        if (topSignIn) topSignIn.style.display = 'inline-block';
+        $('#userMenuWrap')?.classList.add('hidden');
+        showComposer(resizeWidget);
       }
     },
     resizeWidget
@@ -222,13 +227,20 @@ async function boot(): Promise<void> {
       currentUser = user;
       showApp(user, () => {
         refreshAll();
-        resizeWidget(390);
+        resizeWidget(getComposerHeight());
       });
       return;
     }
   }
 
-  showAuth();
+  // Guest / Unauthenticated: keep #mainApp visible with emojis & fact check!
+  currentUser = null;
+  const topSignIn = $('#topSignInBtn');
+  if (topSignIn) topSignIn.style.display = 'inline-block';
+  $('#userMenuWrap')?.classList.add('hidden');
+  $('#authScreen')?.classList.add('hidden');
+  $('#mainApp')?.classList.remove('hidden');
+  showComposer(resizeWidget);
 }
 
 if (document.readyState === 'loading') {

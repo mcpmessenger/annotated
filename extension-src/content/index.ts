@@ -5,7 +5,7 @@
 import type { Annotation, UserProfile } from '../types/annotation';
 import { pageKey, extractYouTubeVideoId } from '../shared/utils';
 import { SUPABASE_CONFIG } from '../shared/config';
-import { injectHighlightStyles, renderHighlight, highlightMap, showHoverBubble, hideHoverBubble } from './highlighter';
+import { injectHighlightStyles, renderHighlight, highlightMap } from './highlighter';
 import { renderYouTubeProgressBarMarkers, renderYouTubeVideoTag } from './youtube';
 import { recordSelection, buildPageInfo } from './selection';
 import { createWidget, openAnnotationInWidget, notifyWidgetOfSelection, setupMessageRouter, ensureWidgetContainer, widgetIframe } from './widget-host';
@@ -131,31 +131,7 @@ function init(): void {
     }
   });
 
-  // Highlight hovering
-  document.addEventListener(
-    'mouseover',
-    (e) => {
-      const target = (e.target as Element)?.closest('.annotated-highlight');
-      if (!target) return;
-      const ann = highlightMap.get(target);
-      if (ann) {
-        const { shadow } = ensureWidgetContainer();
-        const prof = ann.user_id ? state.profiles[ann.user_id] : undefined;
-        showHoverBubble(target, ann, prof, shadow, (a) => openAnnotationInWidget(a));
-      }
-    },
-    true
-  );
-
-  document.addEventListener(
-    'mouseout',
-    (e) => {
-      const target = (e.target as Element)?.closest('.annotated-highlight');
-      if (target) hideHoverBubble();
-    },
-    true
-  );
-
+  // When an annotation highlight is clicked, open the note in the top-right sidebar widget
   document.addEventListener(
     'click',
     (e) => {

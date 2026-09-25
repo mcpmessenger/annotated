@@ -7,9 +7,18 @@ import { SITE_URL } from '../shared/config';
 import { composerState, setQuote } from './composer';
 import type { CurrentUser } from '../types/annotation';
 
-export function showAuth(): void {
+export function showAuth(promptMsg?: string): void {
+  const authDesc = $('#authDescText');
+  if (authDesc && promptMsg) {
+    authDesc.textContent = promptMsg;
+  }
   $('#authScreen')?.classList.remove('hidden');
   $('#mainApp')?.classList.add('hidden');
+}
+
+export function hideAuth(): void {
+  $('#authScreen')?.classList.add('hidden');
+  $('#mainApp')?.classList.remove('hidden');
 }
 
 export function showApp(
@@ -18,6 +27,8 @@ export function showApp(
 ): void {
   $('#authScreen')?.classList.add('hidden');
   $('#mainApp')?.classList.remove('hidden');
+  const topSignIn = $('#topSignInBtn');
+  if (topSignIn) topSignIn.style.display = 'none';
   $('#userMenuWrap')?.classList.remove('hidden');
 
   if (composerState.quote) {
@@ -132,11 +143,24 @@ export function initAuthHandlers(
     });
   }
 
+  // Back / cancel button on auth screen
+  $('#authBackBtn')?.addEventListener('click', () => {
+    hideAuth();
+  });
+
+  // Topbar sign in button
+  $('#topSignInBtn')?.addEventListener('click', () => {
+    showAuth('Sign in with Google to sync and share your annotations.');
+  });
+
   // Sign out
   $('#signOutBtn')?.addEventListener('click', async () => {
     await supabase.signOut();
     onUserChanged(null);
-    showAuth();
+    $('#userMenuWrap')?.classList.add('hidden');
+    const topSignIn = $('#topSignInBtn');
+    if (topSignIn) topSignIn.style.display = 'inline-block';
+    hideAuth();
   });
 
   // Profile link

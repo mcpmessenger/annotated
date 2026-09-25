@@ -226,7 +226,7 @@ export async function showAnnotationDetail(
   if (ann.id || ann.slug) loadWidgetComments(ann.id || ann.slug || '', activeUser);
 
   const hasMedia = !!(ann.media_url || ann.audio_url);
-  onResize(hasMedia ? 740 : 660);
+  onResize(hasMedia ? 630 : 550);
 }
 
 export async function wireDetailReactions(annotationId: string, currentUser: CurrentUser | null): Promise<void> {
