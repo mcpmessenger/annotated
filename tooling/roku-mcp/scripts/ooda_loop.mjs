@@ -1,4 +1,4 @@
-﻿import fs from 'node:fs';
+import fs from 'node:fs';
 import path from 'node:path';
 import { execSync } from 'node:child_process';
 import { installChannelZip, captureScreenshot } from '../dist/dev-portal.js';
@@ -8,7 +8,7 @@ import { defaultConfig } from '../dist/config.js';
 async function runOODALoop(options = {}) {
   const ip = options.ip || defaultConfig.ip;
   const password = options.password || defaultConfig.devPassword;
-  const channelDir = 'C:\\Users\\senti\\OneDrive\\Desktop\\Extensions\\Annotated\\annotated-roku-channel';
+  const channelDir = 'C:\\Users\\senti\\OneDrive\\Desktop\\Extensions\\Annotated\\annotated-repo\\clients\\roku';
   const zipPath = path.join(channelDir, 'dist', 'channel.zip');
   const artifactScreenshot = 'C:\\Users\\senti\\.gemini\\antigravity\\brain\\00ede6ab-ff54-4322-b6dc-4dc85a5e08b9\\roku_live_tv_screen.jpg';
 

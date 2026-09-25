@@ -1,7 +1,8 @@
-﻿Add-Type -AssemblyName System.IO.Compression
+Add-Type -AssemblyName System.IO.Compression
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 
-$sourceDir = "C:\Users\senti\OneDrive\Desktop\Extensions\Annotated\annotated-roku-channel"
+$scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+$sourceDir = (Resolve-Path "$scriptDir\..").Path
 $distDir = "$sourceDir\dist"
 $zipPath = "$distDir\channel.zip"
 
@@ -37,6 +38,7 @@ foreach ($item in $items) {
         Write-Warning "Missing file: $fullPath"
     }
 }
-
 $zip.Dispose()
+$legacyDist = "C:\Users\senti\OneDrive\Desktop\Extensions\Annotated\annotated-roku-channel\dist"
+if (Test-Path $legacyDist) { Copy-Item -Path $zipPath -Destination "$legacyDist\channel.zip" -Force }
 Write-Host "Created channel.zip with official logo!"

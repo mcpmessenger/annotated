@@ -47,10 +47,12 @@
       <!-- Right Indicator / Remote Hint -->
       <Label
         id="remoteHint"
-        text="[*] Toggle Notes   [OK] Select / React"
+        text="[*] Browse Notes   [>] Enter Rail   [OK] Action"
         font="font:SmallBoldSystemFont"
         color="0x64748BFF"
-        translation="[1320, 10]" />
+        horizAlign="right"
+        width="760"
+        translation="[1000, 10]" />
     </Group>
 
     <!-- Main Video Stage (Left: 1140px wide) -->
@@ -167,6 +169,37 @@
       </Rectangle>
     </Group>
 
+    <!-- Backdrop Glassmorphic Panel for Active Rail Browsing (State B) -->
+    <Group id="railBackdropGroup" translation="[1230, 95]" visible="false">
+      <!-- Dark Frosted Backdrop -->
+      <Rectangle
+        id="railBackdrop"
+        width="630"
+        height="950"
+        color="0x030712F2" />
+      <!-- Left Cyan Accent Border Line -->
+      <Rectangle
+        id="railBackdropBorder"
+        width="2"
+        height="950"
+        color="0x38BDF866" />
+      <!-- Mode Badge Indicator -->
+      <Rectangle
+        id="railModeBadge"
+        width="170"
+        height="28"
+        color="0x0284C733"
+        translation="[436, 12]">
+        <Label
+          text="ACTIVE BROWSING"
+          font="font:SmallBoldSystemFont"
+          color="0x38BDF8FF"
+          horizAlign="center"
+          width="170"
+          translation="[0, 5]" />
+      </Rectangle>
+    </Group>
+
     <!-- Right-Hand Rail: Live Synced Community Notes (620px wide) -->
     <Group id="railGroup" translation="[1250, 110]">
       <Rectangle
@@ -185,17 +218,26 @@
           text="Loading..."
           font="font:SmallBoldSystemFont"
           color="0x38BDF8FF"
-          translation="[480, 14]" />
+          horizAlign="right"
+          width="220"
+          translation="[350, 14]" />
       </Rectangle>
 
-      <!-- Note Card 1 (Active Synced) -->
+      <!-- Note Card 1 (Active Synced / Focusable) -->
+      <Rectangle
+        id="card1Outline"
+        width="594"
+        height="264"
+        color="0x38BDF8FF"
+        translation="[-2, 66]"
+        visible="false" />
       <Rectangle
         id="card1"
         width="590"
         height="260"
         color="0x0F172AFF"
         translation="[0, 68]">
-        <Rectangle width="590" height="4" color="0x38BDF8FF" translation="[0, 0]" />
+        <Rectangle id="card1Accent" width="590" height="4" color="0x38BDF8FF" translation="[0, 0]" />
         <Label id="card1Author" text="@annotated" font="font:MediumBoldSystemFont" color="0xF8FAFCFF" translation="[20, 16]" />
         <Label id="card1Time" text="Live" font="font:SmallBoldSystemFont" color="0x38BDF8FF" translation="[500, 16]" />
         
@@ -230,11 +272,19 @@
 
       <!-- Note Card 2 -->
       <Rectangle
+        id="card2Outline"
+        width="594"
+        height="224"
+        color="0x38BDF8FF"
+        translation="[-2, 343]"
+        visible="false" />
+      <Rectangle
         id="card2"
         width="590"
         height="220"
         color="0x111827FF"
         translation="[0, 345]">
+        <Rectangle id="card2Accent" width="590" height="4" color="0x1E293BFF" translation="[0, 0]" />
         <Label id="card2Author" text="@community" font="font:MediumBoldSystemFont" color="0xF8FAFCFF" translation="[20, 16]" />
         <Label id="card2Time" text="" font="font:SmallBoldSystemFont" color="0x64748BFF" translation="[500, 16]" />
         <Label
@@ -256,11 +306,19 @@
 
       <!-- Note Card 3 -->
       <Rectangle
+        id="card3Outline"
+        width="594"
+        height="274"
+        color="0x38BDF8FF"
+        translation="[-2, 583]"
+        visible="false" />
+      <Rectangle
         id="card3"
         width="590"
         height="270"
         color="0x111827FF"
         translation="[0, 585]">
+        <Rectangle id="card3Accent" width="590" height="4" color="0x1E293BFF" translation="[0, 0]" />
         <Label id="card3Author" text="@community" font="font:MediumBoldSystemFont" color="0xF8FAFCFF" translation="[20, 16]" />
         <Label id="card3Time" text="" font="font:SmallBoldSystemFont" color="0x64748BFF" translation="[500, 16]" />
         <Label
