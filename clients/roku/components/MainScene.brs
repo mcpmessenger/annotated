@@ -134,12 +134,12 @@ sub init()
 end sub
 
 function resolvePlayableVideoUrl(mediaUrl as Dynamic) as String
-    if mediaUrl = invalid then return "http://192.168.4.22:8090/demo.mp4"
+    if mediaUrl = invalid then return ""
     mUrl = ""
     if type(mediaUrl) = "String" or type(mediaUrl) = "roString"
         mUrl = mediaUrl.trim()
     end if
-    if mUrl = "" then return "http://192.168.4.22:8090/demo.mp4"
+    if mUrl = "" then return ""
 
     ext = LCase(Right(mUrl, 4))
     ext5 = LCase(Right(mUrl, 5))
@@ -157,7 +157,7 @@ function resolvePlayableVideoUrl(mediaUrl as Dynamic) as String
         end if
     end if
 
-    return "http://192.168.4.22:8090/demo.mp4"
+    return mUrl
 end function
 
 sub playAnnotationVideo(index as Integer)
@@ -166,7 +166,12 @@ sub playAnnotationVideo(index as Integer)
     end if
 
     item = m.annotations[index]
-    videoUrl = resolvePlayableVideoUrl(item.media_url)
+    videoUrl = ""
+    if item.video_url <> invalid and item.video_url <> ""
+        videoUrl = item.video_url
+    else
+        videoUrl = resolvePlayableVideoUrl(item.media_url)
+    end if
 
     title = "Annotated Community Clip"
     if item.page_title <> invalid and item.page_title <> ""
@@ -386,6 +391,17 @@ sub onVideoPositionChanged()
 
     m.timestampBadge.text = posMStr + ":" + posSStr + " / " + durMStr + ":" + durSStr
 
+    ' --- Continuous Sequential Autoplay: Check if clip reached conclusion ---
+    if durSecTotal > 2 and posSecTotal >= durSecTotal - 1 and m.mainVideo.state = "playing"
+        nowTick = CreateObject("roDateTime").AsSeconds()
+        if m.lastAutoPlayTime = invalid or (nowTick - m.lastAutoPlayTime > 3)
+            m.lastAutoPlayTime = nowTick
+            print "[Annotated Playlist] Clip reached end position ("; posSecTotal; " / "; durSecTotal; ")! Advancing to next video..."
+            playNextVideo()
+            return
+        end if
+    end if
+
     ' --- Auto-Scroll Timeline Sync for State A ---
     activeIdx = 0
     if m.cardTimestamps.count() >= 3 and posSecTotal >= m.cardTimestamps[2] and m.cardTimestamps[2] > 0
@@ -418,7 +434,37 @@ sub onVideoStateChanged()
     print "[Annotated] Video Player state changed: "; m.mainVideo.state
     if m.mainVideo.state = "error"
         print "[Annotated] Video Player error: "; m.mainVideo.errorStr; " code: "; m.mainVideo.errorCode
+    else if m.mainVideo.state = "finished"
+        nowTick = CreateObject("roDateTime").AsSeconds()
+        if m.lastAutoPlayTime = invalid or (nowTick - m.lastAutoPlayTime > 3)
+            m.lastAutoPlayTime = nowTick
+            print "[Annotated Playlist] Video playback finished event received. Autoplaying next clip!"
+            playNextVideo()
+        end if
     end if
+end sub
+
+sub playNextVideo()
+    if m.annotations = invalid or m.annotations.count() = 0 then return
+
+    nextIndex = m.currentPlayingCardIndex + 1
+    if nextIndex >= m.annotations.count()
+        nextIndex = 0 ' Loop back to start of playlist
+    end if
+
+    print "[Annotated Playlist] Autoplay advancing to clip ["; nextIndex; " / "; m.annotations.count(); "]"
+
+    ' Automatically advance rail scroll window so the active playing card is always visible in the right rail
+    if nextIndex < m.railStartIndex
+        m.railStartIndex = nextIndex
+    else if nextIndex > m.railStartIndex + 2
+        m.railStartIndex = nextIndex - 2
+    else if nextIndex = m.railStartIndex + 2 and m.railStartIndex + 3 < m.annotations.count()
+        m.railStartIndex = m.railStartIndex + 1
+    end if
+
+    renderRailCardsWindow()
+    playAnnotationVideo(nextIndex)
 end sub
 
 sub onIntroAnimState()

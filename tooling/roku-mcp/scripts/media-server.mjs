@@ -213,8 +213,20 @@ async function getEnrichedFeed() {
         }
       }
 
+      // Compute direct playable video URL
+      let videoUrl = '';
+      if (a.media_url && a.media_url.trim() !== '') {
+        const slashParts = a.media_url.split('/');
+        const fname = slashParts[slashParts.length - 1];
+        const baseName = fname.replace('.webm', '');
+        videoUrl = `http://192.168.4.22:${PORT}/clip/${baseName}.mp4`;
+      } else {
+        videoUrl = `http://192.168.4.22:${PORT}/slate/${a.id}.mp4`;
+      }
+
       return {
         ...a,
+        video_url: videoUrl,
         comment: cleanComment,
         quote: stripEmoji(a.quote || ''),
         page_title: stripEmoji(a.page_title || ''),
@@ -225,9 +237,14 @@ async function getEnrichedFeed() {
       };
     });
 
-    cachedFeed = enriched;
+    // Prioritize authentic recorded video clips at the top of the feed
+    const videoAnns = enriched.filter(item => item.media_url);
+    const webAnns = enriched.filter(item => !item.media_url);
+    const sortedFeed = [...videoAnns, ...webAnns];
+
+    cachedFeed = sortedFeed;
     lastFeedTime = now;
-    return enriched;
+    return sortedFeed;
   } catch (err) {
     console.error('[MediaServer] Error fetching feed:', err.message);
     return cachedFeed || [];
@@ -292,6 +309,35 @@ const server = http.createServer(async (req, res) => {
       }
     });
     return;
+  }
+
+  if (pathname.startsWith('/slate/')) {
+    const filename = path.basename(pathname);
+    const annId = path.basename(filename, '.mp4');
+    const filePath = path.join(CACHE_DIR, `slate_${annId}.mp4`);
+
+    if (fs.existsSync(filePath)) {
+      return streamFileWithRange(filePath, req, res);
+    }
+
+    console.log(`[MediaServer] Generating on-demand slate for annotation ${annId}...`);
+    try {
+      const feed = await getEnrichedFeed();
+      const item = feed.find(x => x.id === annId) || {};
+      const title = (item.page_title || 'Annotated Community Note').replace(/[^\w\s.,-]/g, '').slice(0, 48);
+      const author = (item.hostname ? `@${item.hostname}` : '@annotated').replace(/[^\w@.-]/g, '');
+
+      const safeTitle = title.replace(/'/g, "\\'");
+      const safeAuthor = author.replace(/'/g, "\\'");
+      const vf = `drawtext=text='${safeAuthor}':fontcolor=0x38bdf8:fontsize=36:x=(w-text_w)/2:y=240,drawtext=text='${safeTitle}':fontcolor=white:fontsize=32:x=(w-text_w)/2:y=320,drawtext=text='COMMUNITY ANNOTATION':fontcolor=0x94a3b8:fontsize=24:x=(w-text_w)/2:y=400`;
+
+      execSync(`"${FFMPEG}" -y -f lavfi -i color=c=0x030712:s=1280x720:d=8 -f lavfi -i anullsrc=r=44100:cl=stereo -vf "${vf}" -c:v libx264 -preset ultrafast -pix_fmt yuv420p -c:a aac -shortest -movflags +faststart "${filePath}"`, { stdio: 'pipe' });
+      return streamFileWithRange(filePath, req, res);
+    } catch (err) {
+      console.error('[MediaServer] Slate error, generating minimal background:', err.message);
+      execSync(`"${FFMPEG}" -y -f lavfi -i color=c=0x030712:s=1280x720:d=8 -f lavfi -i anullsrc=r=44100:cl=stereo -c:v libx264 -preset ultrafast -pix_fmt yuv420p -c:a aac -shortest -movflags +faststart "${filePath}"`, { stdio: 'pipe' });
+      return streamFileWithRange(filePath, req, res);
+    }
   }
 
   if (pathname === '/' || pathname === '/demo.mp4') {
