@@ -1,4 +1,4 @@
-﻿# Product Requirement Document (PRD) & Technical Specification
+# Product Requirement Document (PRD) & Technical Specification
 ## Annotated Consumer TV Application (Roku OS / SceneGraph)
 **Version:** 1.0.0-FHD  
 **Author:** Annotated Core Architecture Team  
@@ -77,16 +77,118 @@ To maintain visual consistency with the web platform (`annotated-repo`):
 
 ---
 
-## 4. Autonomous OODA Quality Loop (MCP Driven)
+## 4. 10-Foot Lean-Back UX & Remote Interaction Architecture
 
-The app development cycle is governed by an automated **OODA (Observe, Orient, Decide, Act)** loop using the `annotated-roku-mcp` tools:
+Designing for a 5-way D-pad (`Up`, `Down`, `Left`, `Right`, `OK`, `Back`, `Options / *`) requires a strict dual-mode focus hierarchy tailored for living room consumption.
+
+### 4.1 Dual-Mode Focus Hierarchy
+
+```
+[State A: Passive Playback (Default)]
+       │
+       │  Press [*] Star / Options
+       ▼
+[State B: Active Browsing (Modal/Rail Focus)]
+       │
+       │  Press [Back] or [OK]
+       ▼
+[Resume Playback at Target Timestamp]
+```
+
+#### State A: Passive Playback (Default)
+- **Focus Target**: Held invisibly by the hidden video transport controller.
+- **Behavior**: The video plays continuously. The Community Notes Rail **auto-scrolls** via a high-efficiency timer observing the `<Video>` node's `position` field. When playback passes `00:15`, the note anchored to `00:15` automatically highlights and centers in the rail.
+- **Remote Mapping**:
+  - `Left` / `Right`: Instant seek backward / forward 10 seconds.
+  - `Up` / `Down`: Skip to previous / next annotated video in the live feed.
+  - `OK`: Toggle Pause / Play.
+  - `* (Options)`: Transition to **State B (Active Browsing)**.
+
+#### State B: Active Browsing
+- **Trigger**: User presses `Options / *` or navigates focus into the Notes Rail.
+- **Behavior**: Playback soft-pauses (or audio ducks to 20% with slight video dimming). Focus locks directly onto the Community Notes Rail. Auto-scrolling disables to prevent layout thrashing while reading.
+- **Remote Mapping**:
+  - `Up` / `Down`: Manually scroll through the chronological or upvoted annotation timeline.
+  - `OK`: Expand selected note to read full discourse, view verified sources, or fire reactions.
+  - `Back`: Exit Active Browsing, restore focus to video, and resume playback from the selected note's exact `media_timestamp`.
+
+---
+
+## 5. Cross-App TV Video Annotation Sync (The Overlay Challenge)
+
+Roku OS enforces a strict channel sandbox boundary: **third-party channels cannot draw UI overlays on top of external commercial apps** (e.g. Netflix, Disney+, Amazon Prime Video, or YouTube).
+
+### 5.1 Architecture Evaluation Matrix
+
+| Strategy | ECP Second-Screen Polling (Roku API) | ACR / Audio Fingerprinting (Companion Mic) | In-Channel Native Stage (Current) |
+| :--- | :--- | :--- | :--- |
+| **How it Works** | Mobile/web app polls Roku ECP `:8060/query/media-player` over local Wi-Fi. | Mobile companion listens to TV speaker audio and queries an acoustic fingerprint DB. | User-clipped videos play directly within the Annotated Roku Channel `<Video>` node. |
+| **App Compatibility** | **Low**. DRM channels (Netflix, YouTube) block timestamp exposure. | **Universal**. Syncs to Netflix, cable TV, PlayStation, or Blu-ray. | **100% Native**. Complete control over canvas, annotations, and reactions. |
+| **Latency** | Extremely low (<500ms). | Moderate (1–3s acoustic sync match). | Zero latency (synchronized in-process). |
+| **Battery Impact** | Low (standard background HTTP polling). | High (continuous DSP audio sampling). | Zero mobile battery impact (runs on TV). |
+| **Privacy Footprint**| High (only inspects LAN device status). | Low (requires continuous microphone access).| Full privacy (standard TV streaming). |
+
+### 5.2 Architectural Recommendation
+1. **Primary Experience**: The native **Annotated Roku Channel** renders user-generated clips and community commentary directly on the TV canvas using hardware-accelerated SceneGraph nodes.
+2. **Companion Second-Screen Experience**: For full-length Hollywood films and Netflix/Prime shows, provide a lightweight Companion Mobile/Web extension that utilizes Audio Content Recognition (ACR) to deliver timestamped community notes to the user's secondary device.
+
+---
+
+## 6. Web-to-TV Video Codec & Transcoding Pipeline
+
+Chrome's `MediaRecorder` API outputs web captures in `video/webm` using the Google VP8/Opus codec. Roku TV hardware (`L809X`, OS 15.3+) lacks hardware decode blocks for VP8 in WebM containers and returns a fatal hardware error (`:pump:Unsupported video format: Google's VP8 codec`).
+
+### 6.1 Serverless Transcoding Pipeline
+Attempting FFmpeg WASM inside Supabase Edge Functions fails due to execution time and memory limits (10-60s timeout). The production cloud architecture requires automated webhook transcoding:
+
+```
+[Chrome Extension Clipper]
+       │
+       │ (Uploads WebM raw capture)
+       ▼
+[Cloudflare Stream / Mux Ingest Bucket]
+       │
+       │ (Auto-transcodes to H.264 / AAC & HLS)
+       ▼
+[Supabase annotations Table]
+       ├── media_url_hls: "https://stream.cloudflare.com/.../manifest/video.m3u8"
+       └── media_url_mp4: "https://storage.../video_1080p.mp4"
+       │
+       ▼
+[Annotated Roku Channel]
+   (Hardware H.264 / HLS native decode @ 60fps)
+```
+
+- **Recommended Provider**: **Cloudflare Stream** (zero egress fee model, instant HLS generation, highly economical for millions of living room stream requests).
+
+---
+
+## 7. Real-Time Multiplayer Reaction HUD (60fps SceneGraph Budget)
+
+Displaying dynamic reactions (🔥, 💡, 💯, ⚡) on low-power TV ARM processors requires strict memory and garbage collection discipline.
+
+### 7.1 SceneGraph Object Pooling & Animation Rules
+- **No Dynamic Node Allocation**: Never invoke `CreateObject("roSGNode", "Poster")` or dynamically append children during active playback.
+- **Fixed Object Pool**: Pre-allocate an immutable pool of 15 `<Poster>` nodes during `init()` with `visible="false"`.
+- **Recycling Engine**: When a real-time reaction event is consumed, acquire an idle `Poster` from the pool, set `visible="true"`, and trigger a `ParallelAnimation`.
+- **Interpolation Paths**:
+  - `Vector2DFieldInterpolator`: Floats the emoji upward along an gentle "S-curve" path over 2.5 seconds.
+  - `FloatFieldInterpolator`: Animates `opacity` from `1.0` down to `0.0`.
+- **Aggregated Density**: If >10 reactions arrive within 500ms, collapse them into a single hero icon with an animated `+N` badge counter.
+- **Typography & Glyph Integrity**: Strictly use pre-rendered 32x32 transparent PNG assets (`pkg:/images/icon_*.png`). Never rely on system emoji fonts, which render as blank rectangles (`[]`) on Roku OS.
+
+---
+
+## 8. Autonomous OODA Quality Loop (MCP Driven)
+
+The app development and visual verification lifecycle is governed by an automated **OODA (Observe, Orient, Decide, Act)** loop using `annotated-roku-mcp`:
 
 1. **Observe**:
-   - `roku_capture_screenshot`: Ingests active TV screen frame buffer into AI vision context.
-   - `roku_read_logs`: Ingests BrightScript runtime stack traces and debug output.
+   - `roku_capture_screenshot`: Pulls physical TV screen buffer via port 80 inspect API into AI vision context.
+   - `roku_read_logs`: Inspects BrightScript runtime stack traces on port 8085.
 2. **Orient**:
-   - Compares screen pixels, typography, line wraps, and color values against the PRD design tokens.
+   - Evaluates screen captures against design tokens, safe zones, kerning, and 60fps budget.
 3. **Decide**:
-   - Identifies layout discrepancies (e.g. text overlap, unaligned elements, contrast failures).
+   - Isolates regressions (e.g. text truncation, misplaced red period, codec decode failure).
 4. **Act**:
-   - Updates SceneGraph XML/BRS files, triggers `package.ps1`, sideloads via `roku_install_channel`, and repeats.
+   - Updates BrightScript/SceneGraph sources, invokes `package.ps1`, deploys via port 80 digest auth, and automatically captures the updated screen.
