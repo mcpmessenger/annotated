@@ -482,7 +482,7 @@
             color="0x38BDF8FF"
             translation="[0, 0]" />
           <!-- Vertical Accent Line -->
-          <Rectangle width="3" height="66" color="0x38BDF888" translation="[0, 28]" />
+          <Rectangle width="3" height="195" color="0x38BDF888" translation="[0, 26]" />
           <Label
             id="modalFullQuote"
             text="Connecting to primary source..."
@@ -490,19 +490,19 @@
             color="0xE2E8F0FF"
             width="830"
             wrap="true"
-            maxLines="2"
-            translation="[18, 28]" />
+            maxLines="5"
+            translation="[18, 26]" />
 
           <!-- Subtle Divider -->
-          <Rectangle width="860" height="1" color="0x1E293B66" translation="[0, 115]" />
+          <Rectangle width="860" height="1" color="0x1E293B66" translation="[0, 230]" />
 
           <!-- Annotation Section -->
           <Label
             text="ANNOTATION"
             font="font:SmallBoldSystemFont"
             color="0x34D399FF"
-            translation="[0, 135]" />
-          <Poster id="modalEmojiIcon" uri="pkg:/images/icon_idea.png" width="22" height="22" translation="[0, 168]" />
+            translation="[0, 248]" />
+          <Poster id="modalEmojiIcon" uri="pkg:/images/icon_idea.png" width="22" height="22" translation="[0, 280]" />
           <Label
             id="modalFullComment"
             text="Loading community annotation..."
@@ -511,13 +511,13 @@
             width="820"
             wrap="true"
             maxLines="3"
-            translation="[30, 165]" />
+            translation="[30, 277]" />
 
           <!-- Generous Divider -->
-          <Rectangle width="860" height="1" color="0x334155AA" translation="[0, 335]" />
+          <Rectangle width="860" height="1" color="0x334155AA" translation="[0, 390]" />
 
           <!-- Compact Status / Verification Section (Generously Spaced) -->
-          <Group id="modalFcBox" translation="[0, 365]">
+          <Group id="modalFcBox" translation="[0, 410]">
             <Poster id="modalFcIcon" uri="pkg:/images/icon_bolt.png" width="22" height="22" translation="[0, 2]" />
             <Label
               id="modalFcHeadline"
@@ -532,14 +532,14 @@
               color="0x94A3B8FF"
               width="820"
               maxLines="2"
-              translation="[32, 38]" />
+              translation="[32, 36]" />
           </Group>
 
           <!-- Generous Divider -->
-          <Rectangle width="860" height="1" color="0x334155AA" translation="[0, 475]" />
+          <Rectangle width="860" height="1" color="0x334155AA" translation="[0, 498]" />
 
           <!-- Interactive Action Controls -->
-          <Group translation="[0, 505]">
+          <Group translation="[0, 520]">
             <!-- Action: Play Clip -->
             <Rectangle
               id="btnModalPlay"

@@ -492,17 +492,24 @@ sub openDetailModal(index as Integer)
         if m.modalFcDetail <> invalid and fc.detail <> invalid then m.modalFcDetail.text = fc.detail
     end if
 
-    ' 5. QR Code & Short URL
+    ' 5. QR Code & Short URL (Direct to live Annotated Web App)
+    slugOrId = item.id
+    if item.slug <> invalid and item.slug <> "" then slugOrId = item.slug
+    targetWebUrl = "https://annotated-repo.vercel.app/n/" + slugOrId
+
     if m.modalQrPoster <> invalid
         if item.qr_url <> invalid and item.qr_url <> ""
             m.modalQrPoster.uri = item.qr_url
         else
-            m.modalQrPoster.uri = "http://192.168.4.22:8090/qr/" + item.id + ".png"
+            ' Universally scannable QR code generator pointing directly to the web annotation pass
+            m.modalQrPoster.uri = "https://api.qrserver.com/v1/create-qr-code/?size=300x300&margin=10&data=" + targetWebUrl
         end if
     end if
 
     if m.modalUrlLabel <> invalid
-        m.modalUrlLabel.text = "annotated.com/n/" + Left(item.id, 8)
+        displaySlug = slugOrId
+        if Len(displaySlug) > 12 then displaySlug = Left(displaySlug, 12) + "..."
+        m.modalUrlLabel.text = "annotated-repo.vercel.app/n/" + displaySlug
     end if
 
     ' Show modal and duck audio
