@@ -8,6 +8,9 @@ export function Footer() {
         <div className="mt-6 pt-6 border-t border-[hsl(var(--border))] flex flex-col sm:flex-row justify-between gap-4">
           <p>&copy; {new Date().getFullYear()} Annotated. All rights reserved.</p>
           <div className="flex gap-4">
+            <a href="/support" className="hover:text-[hsl(var(--foreground))] transition-colors">
+              Support
+            </a>
             <a href="/terms" className="hover:text-[hsl(var(--foreground))] transition-colors">
               Terms & Conditions
             </a>
