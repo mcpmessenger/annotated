@@ -1030,7 +1030,7 @@ sub renderRailCardsWindow()
 
     if m.uiState = "STATE_B"
         currentPos = m.railStartIndex + m.focusedCardIndex + 1
-        m.railCount.text = Str(currentPos).trim() + " / " + Str(totalCount).trim()
+        if m.railCount <> invalid then m.railCount.text = Str(currentPos).trim() + " / " + Str(totalCount).trim()
     end if
 end sub
 
@@ -1038,7 +1038,7 @@ sub onAnnotationsLoaded()
     annotations = m.feedTask.annotations
     if annotations = invalid or annotations.count() = 0
         print "[Annotated] No annotations returned from feed task."
-        m.railCount.text = "0 Notes"
+        if m.railCount <> invalid then m.railCount.text = "0 Notes"
         signalAppLaunchComplete()
         return
     end if
@@ -1047,7 +1047,7 @@ sub onAnnotationsLoaded()
     m.totalNotesCount = annotations.count()
     print "[Annotated] Binding "; m.totalNotesCount; " live annotations to UI!"
     if m.uiState = "STATE_A"
-        m.railCount.text = Str(m.totalNotesCount).trim() + " Notes"
+        if m.railCount <> invalid then m.railCount.text = Str(m.totalNotesCount).trim() + " Notes"
     end if
 
     renderRailCardsWindow()
@@ -1255,7 +1255,7 @@ function onKeyEvent(key as String, press as Boolean) as Boolean
                     m.focusedCardIndex = m.focusedCardIndex - 1
                     updateCardFocus()
                     currentPos = m.railStartIndex + m.focusedCardIndex + 1
-                    m.railCount.text = Str(currentPos).trim() + " / " + Str(m.totalNotesCount).trim()
+                    if m.railCount <> invalid then m.railCount.text = Str(currentPos).trim() + " / " + Str(m.totalNotesCount).trim()
                     handled = true
                 else if m.railStartIndex > 0
                     ' Scroll window up!
@@ -1268,7 +1268,7 @@ function onKeyEvent(key as String, press as Boolean) as Boolean
                     m.focusedCardIndex = m.focusedCardIndex + 1
                     updateCardFocus()
                     currentPos = m.railStartIndex + m.focusedCardIndex + 1
-                    m.railCount.text = Str(currentPos).trim() + " / " + Str(m.totalNotesCount).trim()
+                    if m.railCount <> invalid then m.railCount.text = Str(currentPos).trim() + " / " + Str(m.totalNotesCount).trim()
                     handled = true
                 else if m.annotations <> invalid and m.railStartIndex + 3 < m.annotations.count()
                     ' Scroll window down!
