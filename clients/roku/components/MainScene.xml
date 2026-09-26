@@ -9,13 +9,14 @@
     <!-- Roku Plane Architecture: Hardware video plane renders BEHIND graphics plane.
          Framing rectangles surround the video viewport [80, 110] to [1220, 750] so video plane is unblocked -->
     <Group id="bgRect" visible="false" />
-    <Rectangle id="bgHeader" width="1920" height="110" color="0x000000FF" translation="[0, 0]" />
-    <Rectangle id="bgLeft" width="80" height="640" color="0x000000FF" translation="[0, 110]" />
-    <Rectangle id="bgBottom" width="1220" height="330" color="0x000000FF" translation="[0, 750]" />
-    <Rectangle id="bgRight" width="700" height="970" color="0x000000FF" translation="[1220, 110]" />
+    <!-- Framing rectangles surround the video viewport [50, 100] to [1250, 775] so video plane is unblocked -->
+    <Rectangle id="bgHeader" width="1920" height="100" color="0x000000FF" translation="[0, 0]" />
+    <Rectangle id="bgLeft" width="50" height="675" color="0x000000FF" translation="[0, 100]" />
+    <Rectangle id="bgBottom" width="1250" height="305" color="0x000000FF" translation="[0, 775]" />
+    <Rectangle id="bgRight" width="670" height="980" color="0x000000FF" translation="[1250, 100]" />
 
     <!-- Top Navigation Header -->
-    <Group id="headerGroup" translation="[80, 40]">
+    <Group id="headerGroup" translation="[50, 32]">
       <!-- Official App Logo -->
       <Poster
         id="appLogo"
@@ -59,28 +60,27 @@
         translation="[1040, 10]" />
     </Group>
 
-    <!-- Main Video Stage (Left: 1140px wide) -->
-    <Group id="stageGroup" translation="[80, 110]">
+    <!-- Main Video Stage (Expanded to 1200x675 True 16:9) -->
+    <Group id="stageGroup" translation="[50, 100]">
       <!-- Transparent Video Container -->
       <Group id="videoFrame">
-        <!-- Embedded Video Player Node (Sequential Advance) -->
         <Video
           id="mainVideo"
-          width="1140"
-          height="640"
+          width="1200"
+          height="675"
           loop="false"
           visible="true" />
 
         <!-- Crisp Frame Border Lines around video viewport -->
-        <Rectangle width="1140" height="2" color="0x1F2937FF" translation="[0, 0]" />
-        <Rectangle width="1140" height="2" color="0x1F2937FF" translation="[0, 638]" />
-        <Rectangle width="2" height="640" color="0x1F2937FF" translation="[0, 0]" />
-        <Rectangle width="2" height="640" color="0x1F2937FF" translation="[1138, 0]" />
+        <Rectangle width="1200" height="2" color="0x1F2937FF" translation="[0, 0]" />
+        <Rectangle width="1200" height="2" color="0x1F2937FF" translation="[0, 673]" />
+        <Rectangle width="2" height="675" color="0x1F2937FF" translation="[0, 0]" />
+        <Rectangle width="2" height="675" color="0x1F2937FF" translation="[1198, 0]" />
 
         <!-- Video Overlay Header (Title & Timestamp) with translucent tint -->
         <Rectangle
           id="videoOverlayTop"
-          width="1140"
+          width="1200"
           height="54"
           color="0x00000088">
           <Label
@@ -88,19 +88,33 @@
             text="Loading community annotations..."
             font="font:MediumBoldSystemFont"
             color="0xFFFFFFFF"
-            width="880"
+            width="940"
             translation="[20, 14]" />
           <Label
             id="timestampBadge"
             text="00:00 / 00:00"
             font="font:MediumBoldSystemFont"
             color="0x38BDF8FF"
-            translation="[920, 14]" />
+            translation="[980, 14]" />
         </Rectangle>
       </Group>
 
-      <!-- Action Pill Bar (Directly below video) -->
-      <Group id="actionBarGroup" translation="[0, 660]">
+      <!-- Playback Progress Bar (Full 1200px width tracking 15s or 90s) -->
+      <Group id="progressGroup" translation="[0, 683]">
+        <Rectangle
+          id="progressBarBg"
+          width="1200"
+          height="8"
+          color="0x1E293BFF" />
+        <Rectangle
+          id="videoProgressBar"
+          width="0"
+          height="8"
+          color="0x38BDF8FF" />
+      </Group>
+
+      <!-- Action Pill Bar (Directly below progress bar) -->
+      <Group id="actionBarGroup" translation="[0, 703]">
         <!-- Fact Check Pill Button -->
         <Rectangle
           id="btnFactCheck"
@@ -146,37 +160,21 @@
           <Poster uri="pkg:/images/icon_down.png" width="26" height="26" translation="[13, 13]" />
           <Label id="lblDownCount" text="0" font="font:MediumBoldSystemFont" color="0xFFFFFFFF" translation="[46, 12]" />
         </Rectangle>
-      </Group>
 
-      <!-- Active Fact Check Detail Card (Directly below action bar) -->
-      <Rectangle
-        id="factCheckBanner"
-        width="1140"
-        height="140"
-        color="0x064E3BDD"
-        translation="[0, 730]">
-        <Rectangle id="fcBorder" width="6" height="140" color="0x34D399FF" translation="[0, 0]" />
-        <Poster id="fcIcon" uri="pkg:/images/icon_bolt.png" width="28" height="28" translation="[24, 16]" />
+        <!-- Mode Indicator -->
         <Label
-          id="fcHeadline"
-          text="COMMUNITY FACT CHECK: VERIFIED ACCURATE"
-          font="font:MediumBoldSystemFont"
-          color="0x34D399FF"
-          translation="[62, 18]" />
-        <Label
-          id="fcDetail"
-          text="The community verified the referenced claims against primary sources. Multi-source consensus confirmed."
-          font="font:SmallSystemFont"
-          color="0xF1F5F9FF"
-          width="1060"
-          wrap="true"
-          maxLines="2"
-          translation="[24, 60]" />
-      </Rectangle>
+          id="progressModeLabel"
+          text="15s Internet Note"
+          font="font:SmallBoldSystemFont"
+          color="0x64748BFF"
+          horizAlign="right"
+          width="320"
+          translation="[880, 16]" />
+      </Group>
     </Group>
 
     <!-- Backdrop Glassmorphic Panel for Active Rail Browsing (State B) -->
-    <Group id="railBackdropGroup" translation="[1230, 95]" visible="false">
+    <Group id="railBackdropGroup" translation="[1265, 85]" visible="false">
       <!-- Dark Frosted Backdrop -->
       <Rectangle
         id="railBackdrop"
@@ -207,7 +205,7 @@
     </Group>
 
     <!-- Right-Hand Rail: Live Synced Community Notes (620px wide) -->
-    <Group id="railGroup" translation="[1250, 110]">
+    <Group id="railGroup" translation="[1275, 100]">
       <Rectangle
         id="railHeaderBg"
         width="590"
@@ -648,5 +646,6 @@
         </Group>
       </Rectangle>
     </Group>
+      <Timer id="playbackTimer" repeat="true" duration="0.25" />
   </children>
 </component>

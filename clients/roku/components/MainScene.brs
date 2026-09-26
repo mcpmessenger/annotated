@@ -24,6 +24,13 @@ sub init()
     m.lblIdeaCount = m.top.findNode("lblIdeaCount")
     m.lblHundredCount = m.top.findNode("lblHundredCount")
     m.lblDownCount = m.top.findNode("lblDownCount")
+    m.videoProgressBar = m.top.findNode("videoProgressBar")
+    m.progressModeLabel = m.top.findNode("progressModeLabel")
+    m.playbackTimer = m.top.findNode("playbackTimer")
+    if m.playbackTimer <> invalid
+        m.playbackTimer.observeField("fire", "onPlaybackTimerTick")
+        m.playbackTimer.control = "start"
+    end if
 
     ' Fact Check Dynamic Banner & Button Elements
     m.fcBorder = m.top.findNode("fcBorder")
@@ -255,6 +262,7 @@ sub playAnnotationVideo(index as Integer)
     m.currentPlayingCardIndex = index
     m.initialVideoPos = invalid
     m.clipStartTime = CreateObject("roDateTime").AsSeconds()
+    if m.videoProgressBar <> invalid then m.videoProgressBar.width = 0
 
     ' Ensure right rail window centers and moves as videos play, keeping active on-screen note in view
     if index < m.railStartIndex
@@ -677,53 +685,91 @@ sub closeDetailModal()
 end sub
 
 sub onVideoPositionChanged()
-    vPos = 0
-    if m.mainVideo.position <> invalid then vPos = m.mainVideo.position
-    vDur = 0
-    if m.mainVideo.duration <> invalid and m.mainVideo.duration > 0 then vDur = m.mainVideo.duration
+    onPlaybackTimerTick()
+end sub
 
-    posSecTotal = 0
-    durSecTotal = 0
-    
-    posParts = Str(vPos).trim().split(".")
-    if posParts.count() > 0 then posSecTotal = Val(posParts[0])
-
-    durParts = Str(vDur).trim().split(".")
-    if durParts.count() > 0 then durSecTotal = Val(durParts[0])
-
-    if posSecTotal > durSecTotal and durSecTotal > 0
-        if m.initialVideoPos = invalid or m.initialVideoPos = 0
-            m.initialVideoPos = posSecTotal
-        end if
-        posSecTotal = posSecTotal - m.initialVideoPos
-        if posSecTotal < 0 then posSecTotal = 0
-    else
-        m.initialVideoPos = 0
-    end if
+sub onPlaybackTimerTick()
+    if m.annotations = invalid or m.annotations.count() = 0 then return
 
     activeItem = invalid
-    if m.annotations <> invalid and m.currentPlayingCardIndex >= 0 and m.currentPlayingCardIndex < m.annotations.count()
+    if m.currentPlayingCardIndex >= 0 and m.currentPlayingCardIndex < m.annotations.count()
         activeItem = m.annotations[m.currentPlayingCardIndex]
     end if
+
     isVideoClip = false
-    if activeItem <> invalid and activeItem.is_video = true
-        isVideoClip = true
+    if activeItem <> invalid
+        if activeItem.is_video = true
+            isVideoClip = true
+        else if activeItem.video_url <> invalid and activeItem.video_url <> ""
+            isVideoClip = true
+        else if activeItem.media_url <> invalid and Instr(1, activeItem.media_url, ".mp4") > 0
+            isVideoClip = true
+        end if
     end if
 
-    ' Target display duration
-    displayDur = durSecTotal
+    nowTick = CreateObject("roDateTime").AsSeconds()
+    elapsed = 0.0
+    if m.clipStartTime <> invalid then elapsed = CDbl(nowTick - m.clipStartTime)
+
+    currentPos = 0.0
+    totalDur = 15.0
+
     if isVideoClip
-        if displayDur <= 0 or displayDur > 90
-            displayDur = 90
+        vPos = 0.0
+        if m.mainVideo <> invalid and m.mainVideo.position <> invalid then vPos = CDbl(m.mainVideo.position)
+        vDur = 0.0
+        if m.mainVideo <> invalid and m.mainVideo.duration <> invalid and m.mainVideo.duration > 0
+            vDur = CDbl(m.mainVideo.duration)
+        end if
+
+        if vPos > 0.0
+            currentPos = vPos
+        else
+            currentPos = elapsed
+        end if
+
+        if vDur > 0.0 and vDur <= 90.0
+            totalDur = vDur
+        else
+            totalDur = 90.0
+        end if
+
+        if m.progressModeLabel <> invalid
+            m.progressModeLabel.text = "Video Clip (" + Str(Fix(totalDur)).trim() + "s max)"
+            m.progressModeLabel.color = "0x38BDF8FF"
         end if
     else
-        displayDur = 15
+        ' 15-second internet annotation showcase
+        totalDur = 15.0
+        currentPos = elapsed
+        if m.progressModeLabel <> invalid
+            m.progressModeLabel.text = "Internet Note (15s Auto-Advance)"
+            m.progressModeLabel.color = "0x94A3B8FF"
+        end if
     end if
 
-    posMin = posSecTotal \ 60
+    ' Progress ratio clamped [0.0, 1.0]
+    progressRatio = 0.0
+    if totalDur > 0.0
+        progressRatio = currentPos / totalDur
+    end if
+    if progressRatio > 1.0 then progressRatio = 1.0
+    if progressRatio < 0.0 then progressRatio = 0.0
+
+    ' Update progress bar width (max 1200px)
+    barWidth = Fix(progressRatio * 1200.0)
+    if barWidth < 4 and progressRatio > 0.01 then barWidth = 4
+    if m.videoProgressBar <> invalid
+        m.videoProgressBar.width = barWidth
+    end if
+
+    ' Format timestamps MM:SS / MM:SS
+    posSecTotal = Fix(currentPos)
+    durSecTotal = Fix(totalDur)
+    posMin = Int(posSecTotal / 60)
     posSec = posSecTotal - (posMin * 60)
-    durMin = displayDur \ 60
-    durSec = displayDur - (durMin * 60)
+    durMin = Int(durSecTotal / 60)
+    durSec = durSecTotal - (durMin * 60)
 
     posMStr = Str(posMin).trim()
     posSStr = Str(posSec).trim()
@@ -735,13 +781,15 @@ sub onVideoPositionChanged()
     if durMin < 10 then durMStr = "0" + durMStr
     if durSec < 10 then durSStr = "0" + durSStr
 
-    m.timestampBadge.text = posMStr + ":" + posSStr + " / " + durMStr + ":" + durSStr
+    if m.timestampBadge <> invalid
+        m.timestampBadge.text = posMStr + ":" + posSStr + " / " + durMStr + ":" + durSStr
+    end if
 
     ' --- Auto-Scroll Timeline Sync for State A ---
     activeIdx = 0
-    if m.cardTimestamps.count() >= 3 and posSecTotal >= m.cardTimestamps[2] and m.cardTimestamps[2] > 0
+    if m.cardTimestamps <> invalid and m.cardTimestamps.count() >= 3 and posSecTotal >= m.cardTimestamps[2] and m.cardTimestamps[2] > 0
         activeIdx = 2
-    else if m.cardTimestamps.count() >= 2 and posSecTotal >= m.cardTimestamps[1] and m.cardTimestamps[1] > 0
+    else if m.cardTimestamps <> invalid and m.cardTimestamps.count() >= 2 and posSecTotal >= m.cardTimestamps[1] and m.cardTimestamps[1] > 0
         activeIdx = 1
     else
         activeIdx = 0
@@ -749,51 +797,37 @@ sub onVideoPositionChanged()
 
     if activeIdx <> m.activeSyncIndex
         m.activeSyncIndex = activeIdx
-        ' In State A, update the accent bar of the currently active annotation
-        if m.uiState = "STATE_A"
+        if m.uiState = "STATE_A" and m.cardAccents <> invalid
             for i = 0 to m.cardAccents.count() - 1
                 accent = m.cardAccents[i]
                 if accent <> invalid
                     if i = m.activeSyncIndex
-                        accent.color = "0x38BDF8FF" ' Cyan active highlight
+                        accent.color = "0x38BDF8FF"
                     else
-                        accent.color = "0x1E293BFF" ' Muted slate
+                        accent.color = "0x1E293BFF"
                     end if
                 end if
             end for
         end if
     end if
 
-    nowTick = CreateObject("roDateTime").AsSeconds()
-    elapsed = 0
-    if m.clipStartTime <> invalid then elapsed = nowTick - m.clipStartTime
-
+    ' Segment auto-advance watchdog
+    advanceNow = false
     if isVideoClip
-        ' For full video clips: let video play up to natural duration or 90s max
-        clipFinished = false
-        if durSecTotal > 0 and posSecTotal >= (durSecTotal - 1)
-            clipFinished = true
-        else if posSecTotal >= 90 or elapsed >= 90
-            clipFinished = true
-        end if
-
-        if clipFinished
-            if m.lastAutoPlayTime = invalid or (nowTick - m.lastAutoPlayTime > 3)
-                m.lastAutoPlayTime = nowTick
-                print "[Annotated Watchdog] Full video clip finished or reached 90s cap (pos="; posSecTotal; " dur="; durSecTotal; " elapsed="; elapsed; "). Advancing to next!"
-                playNextVideo()
-                return
-            end if
+        if (durSecTotal > 0 and posSecTotal >= durSecTotal) or posSecTotal >= 90 or elapsed >= 90.0
+            advanceNow = true
         end if
     else
-        ' For stagnant slates: showcase for 15s then advance
-        if elapsed >= 15
-            if m.lastAutoPlayTime = invalid or (nowTick - m.lastAutoPlayTime > 3)
-                m.lastAutoPlayTime = nowTick
-                print "[Annotated Watchdog] 15s slate showcase elapsed. Advancing to next note!"
-                playNextVideo()
-                return
-            end if
+        if elapsed >= 15.0
+            advanceNow = true
+        end if
+    end if
+
+    if advanceNow
+        if m.lastAutoPlayTime = invalid or (nowTick - m.lastAutoPlayTime > 2)
+            m.lastAutoPlayTime = nowTick
+            print "[Annotated Engine] Segment completed (" + Str(posSecTotal).trim() + "s / " + Str(durSecTotal).trim() + "s). Advancing..."
+            playNextVideo()
         end if
     end if
 end sub
