@@ -1,8 +1,6 @@
-// ─── Floating Shadow DOM Host & Window Message Router ───────────────────────
-
 import type { Annotation } from '../types/annotation';
 import type { PostMessage } from '../types/messages';
-import { buildPageInfo, seekToTimestamp } from './selection';
+import { buildPageInfo, seekToTimestamp, getActiveVideoState } from './selection';
 import { startCropScreenshot } from './screenshot-crop';
 import { startDictation, stopDictation } from './dictation';
 import { capture240pVideoClip, stopRecordingNow } from './video-clip';
@@ -13,6 +11,33 @@ export let widgetIframe: HTMLIFrameElement | null = null;
 
 let isDragging = false;
 let dragOffset = { x: 0, y: 0 };
+let videoTrackerInterval: any = null;
+
+export function startVideoTracker(): void {
+  if (videoTrackerInterval) return;
+  videoTrackerInterval = setInterval(() => {
+    if (!widgetIframe || widgetIframe.style.display === 'none') {
+      stopVideoTracker();
+      return;
+    }
+    const state = getActiveVideoState();
+    if (widgetIframe.contentWindow && (state.currentTime > 0 || state.duration > 0)) {
+      widgetIframe.contentWindow.postMessage({
+        type: 'VIDEO_STATE_RESPONSE',
+        currentTime: state.currentTime,
+        duration: state.duration,
+        paused: state.paused,
+      }, '*');
+    }
+  }, 1000);
+}
+
+export function stopVideoTracker(): void {
+  if (videoTrackerInterval) {
+    clearInterval(videoTrackerInterval);
+    videoTrackerInterval = null;
+  }
+}
 
 export function ensureWidgetContainer(): { container: HTMLElement; shadow: ShadowRoot } {
   if (widgetContainer && shadowRoot && document.body.contains(widgetContainer)) {
@@ -56,6 +81,7 @@ export function createWidget(): HTMLIFrameElement {
     if (!hasUserDragged) {
       positionWidget(widgetIframe);
     }
+    startVideoTracker();
     return widgetIframe;
   }
 
@@ -70,6 +96,7 @@ export function createWidget(): HTMLIFrameElement {
     bottom: auto;
     width: 380px;
     height: 540px;
+    max-height: calc(100vh - 30px);
     border: none;
     border-radius: 12px;
     box-shadow: 0 12px 40px rgba(0,0,0,0.25), 0 0 0 1px rgba(0,0,0,0.08);
@@ -82,6 +109,7 @@ export function createWidget(): HTMLIFrameElement {
 
   shadow.appendChild(widgetIframe);
   positionWidget(widgetIframe);
+  startVideoTracker();
 
   // Wire dragging handlers on document
   document.addEventListener('mousemove', (e) => {
@@ -176,15 +204,18 @@ export function setupMessageRouter(onReloadAnnotations: () => void): void {
           hasUserDragged = false;
           positionWidget(widgetIframe);
           stopDictation(widgetIframe);
+          stopVideoTracker();
         }
         break;
 
       case 'RESIZE_WIDGET':
         if (widgetIframe && data.height) {
-          widgetIframe.style.height = `${data.height}px`;
+          const maxAllowed = Math.max(300, window.innerHeight - 30);
+          widgetIframe.style.height = `${Math.min(data.height, maxAllowed)}px`;
         }
         break;
 
+      case 'SEEK_VIDEO':
       case 'SEEK_MEDIA':
         if (typeof data.seconds === 'number') {
           seekToTimestamp(data.seconds);
@@ -199,12 +230,30 @@ export function setupMessageRouter(onReloadAnnotations: () => void): void {
         stopDictation(widgetIframe);
         break;
 
+      case 'GET_VIDEO_STATE':
+        if (widgetIframe?.contentWindow) {
+          const state = getActiveVideoState();
+          widgetIframe.contentWindow.postMessage({
+            type: 'VIDEO_STATE_RESPONSE',
+            currentTime: state.currentTime,
+            duration: state.duration,
+            paused: state.paused,
+          }, '*');
+        }
+        break;
+
       case 'CAPTURE_VIDEO':
-        capture240pVideoClip(data.duration || 15, (res: any) => {
-          if (widgetIframe?.contentWindow) {
-            widgetIframe.contentWindow.postMessage({ type: 'VIDEO_CAPTURED', ...res }, '*');
-          }
-        });
+        capture240pVideoClip(
+          data.duration || 90,
+          (res: any) => {
+            if (widgetIframe?.contentWindow) {
+              widgetIframe.contentWindow.postMessage({ type: 'VIDEO_CAPTURED', ...res }, '*');
+            }
+          },
+          data.startTs,
+          data.endTs,
+          data.isLiveRecord
+        );
         break;
 
       case 'STOP_VIDEO':

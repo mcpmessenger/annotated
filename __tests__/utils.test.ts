@@ -40,10 +40,10 @@ describe('Shared Utilities Unit Tests', () => {
 
   describe('formatSeconds', () => {
     it('formats seconds into mm:ss', () => {
-      expect(formatSeconds(0)).toBe('0:00');
-      expect(formatSeconds(45)).toBe('0:45');
-      expect(formatSeconds(75)).toBe('1:15');
-      expect(formatSeconds(599)).toBe('9:59');
+      expect(formatSeconds(0)).toBe('00:00');
+      expect(formatSeconds(45)).toBe('00:45');
+      expect(formatSeconds(75)).toBe('01:15');
+      expect(formatSeconds(599)).toBe('09:59');
     });
 
     it('formats hours into h:mm:ss', () => {

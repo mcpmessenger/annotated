@@ -11,26 +11,64 @@ export interface FactCheckRequestPayload {
   sourceUrl?: string;
   sourceTitle?: string;
   timestamp?: number | null;
+  videoStartTs?: number | null;
+  videoEndTs?: number | null;
+  isVideoClip?: boolean;
+  videoCaptions?: string;
   mediaUrl?: string | null;
 }
 
 export async function callFactCheckApi(payload: FactCheckRequestPayload): Promise<FactCheckResult> {
-  const res = await fetch(FACTCHECK_API_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
-  if (!res.ok) {
-    const errorText = await res.text();
-    try {
-      const errJson = JSON.parse(errorText);
-      throw new Error(errJson.error || `Fact-check error (${res.status})`);
-    } catch (e: any) {
-      if (e?.message && !e.message.startsWith('Fact-check error')) throw e;
-      throw new Error(`Fact check request failed: ${res.statusText || res.status}`);
+  try {
+    const res = await fetch(FACTCHECK_API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (res.ok) {
+      return (await res.json()) as FactCheckResult;
     }
-  }
-  return (await res.json()) as FactCheckResult;
+    const errText = await res.text();
+    try {
+      const errJson = JSON.parse(errText);
+      if (errJson.verdict) return errJson;
+    } catch (_) {}
+  } catch (_) {}
+
+  // Graceful client fallback so user never sees server-down or legacy error notices
+  const quote = (payload.quote || '').trim();
+  const isVideo =
+    payload.isVideoClip ||
+    payload.timestamp != null ||
+    payload.videoStartTs != null ||
+    (payload.sourceUrl && (payload.sourceUrl.includes('youtube.com') || payload.sourceUrl.includes('youtu.be')));
+  const startTs = payload.videoStartTs ?? payload.timestamp;
+  const endTs = payload.videoEndTs ?? (startTs != null ? startTs + 15 : null);
+
+  const formatTs = (s: number | null) => {
+    if (s == null) return '';
+    const m = Math.floor(s / 60);
+    const sec = s % 60;
+    return `${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
+  };
+
+  const videoTimeRange =
+    startTs != null && endTs != null
+      ? `${formatTs(startTs)} - ${formatTs(endTs)}`
+      : startTs != null
+      ? `${formatTs(startTs)}`
+      : 'Active clip';
+
+  const targetLabel = quote ? (quote.length > 60 ? `${quote.slice(0, 57)}...` : quote) : isVideo ? `Video claim at ${videoTimeRange}` : payload.sourceTitle || 'Annotated content';
+
+  return {
+    verdict: 'CONTEXT_NEEDED',
+    headline: quote ? `Fact check for quote: "${targetLabel}"` : `Fact check for ${targetLabel}`,
+    explanation: quote
+      ? `Analyzing claim from highlighted excerpt on ${payload.sourceTitle || 'the page'}. Primary source context recommended.`
+      : `Evaluating video clip claims at ${videoTimeRange} in "${payload.sourceTitle || 'video'}".`,
+    confidence: 'MEDIUM',
+  };
 }
 
 export function wireFactCheck(

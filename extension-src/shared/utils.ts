@@ -32,7 +32,36 @@ export function formatSeconds(sec?: number | null): string {
   if (hrs > 0) {
     return `${hrs}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
   }
-  return `${mins}:${String(secs).padStart(2, '0')}`;
+  return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+}
+
+export function parseFormattedTime(raw?: string | null): number | null {
+  if (!raw) return null;
+  const s = String(raw).trim();
+  if (!s) return null;
+
+  // Split by colons: HH:MM:SS or MM:SS or SS
+  const parts = s.split(':').map((p) => p.trim());
+  if (parts.length === 3) {
+    const h = parseInt(parts[0], 10);
+    const m = parseInt(parts[1], 10);
+    const sec = parseFloat(parts[2]);
+    if (!isNaN(h) && !isNaN(m) && !isNaN(sec)) {
+      return Math.max(0, h * 3600 + m * 60 + Math.floor(sec));
+    }
+  } else if (parts.length === 2) {
+    const m = parseInt(parts[0], 10);
+    const sec = parseFloat(parts[1]);
+    if (!isNaN(m) && !isNaN(sec)) {
+      return Math.max(0, m * 60 + Math.floor(sec));
+    }
+  } else if (parts.length === 1) {
+    const sec = parseFloat(parts[0].replace(/s$/i, ''));
+    if (!isNaN(sec)) {
+      return Math.max(0, Math.floor(sec));
+    }
+  }
+  return null;
 }
 
 export function extractTimestamp(url?: string | null, comment?: string | null): number | null {

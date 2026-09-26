@@ -57,26 +57,83 @@
   <!-- MAIN APP -->
   <main id="mainApp">
     <section id="composerSection" class="composer card">
-      <div id="composerTimestampBadge" class="timestamp-badge clickable-badge hidden" style="margin-bottom: 8px; display: inline-flex; align-items: center; gap: 4px;" data-tooltip="Captured video timestamp">&#9203; <span id="composerTimestampText">00:00</span><button id="clearComposerTimestampBtn" data-tooltip="Remove timestamp" data-tooltip-pos="left" style="background: none; border: none; color: inherit; cursor: pointer; padding: 0 2px; font-size: 11px; margin-left: 2px; line-height: 1;">&#10005;</button></div>
       <div class="quote-box"><div class="quote-mark">"</div><div id="quote" class="quote">Select text on any page to anchor a comment here.</div></div>
-      <div id="videoTrimmerBox" class="video-trimmer-box hidden" style="margin-top: 10px; padding: 10px; background: var(--soft); border: 1px solid var(--line); border-radius: 8px;">
-        <div style="font-size: 11px; font-weight: 750; margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center;">
-          <span>&#127916; Preview</span>
-          <div style="display: flex; align-items: center; gap: 8px;">
-            <span id="trimDurationLabel" style="color: var(--muted); font-size: 10px;">15s</span>
-            <button id="clearVideoBtn" data-tooltip="Clear video clip" style="background: none; border: none; color: var(--muted); cursor: pointer; font-size: 12px; font-weight: bold; padding: 0 4px; line-height: 1; border-radius: 3px; display: inline-flex; align-items: center; justify-content: center;">&#10005;</button>
+      <!-- VIDEO TRIMMER & CLIP PROGRESS BAR / SLIDERS -->
+      <div id="videoTrimmerBox" class="video-trimmer-box hidden">
+        <div class="trimmer-header">
+          <div class="trimmer-title-wrap">
+            <span class="trimmer-icon">🎥</span>
+            <span class="trimmer-title">Video Clip</span>
+            <span id="trimModeBadge" class="trim-mode-badge">CLIPPER</span>
+          </div>
+          <div class="trimmer-header-right">
+            <span id="trimDurationBadge" class="trim-duration-badge" data-tooltip="Clip Duration (Max 90s)">90s</span>
+            <button type="button" id="clearVideoBtn" data-tooltip="Clear / close video clip" class="trimmer-close-btn">&#10005;</button>
           </div>
         </div>
-        <video id="videoPreviewEl" controls style="width: 100%; max-height: 140px; border-radius: 6px; background: #000;" playsinline></video>
-        <div style="display: flex; gap: 8px; align-items: center; margin-top: 8px; font-size: 11px;">
-          <label style="flex: 1; display: flex; flex-direction: column; gap: 2px;">
-            <span style="font-size: 10px; color: var(--muted);">Start (sec):</span>
-            <input type="number" id="trimStartInput" min="0" value="0" style="padding: 4px; border: 1px solid var(--line); border-radius: 4px; background: var(--surface); color: var(--ink); font-size: 11px;" />
-          </label>
-          <label style="flex: 1; display: flex; flex-direction: column; gap: 2px;">
-            <span style="font-size: 10px; color: var(--muted);">End (sec):</span>
-            <input type="number" id="trimEndInput" min="1" max="90" value="15" style="padding: 4px; border: 1px solid var(--line); border-radius: 4px; background: var(--surface); color: var(--ink); font-size: 11px;" />
-          </label>
+
+        <div id="videoPreviewContainer" class="video-preview-container">
+          <video id="videoPreviewEl" controls playsinline style="width: 100%; max-height: 72px; object-fit: contain; border-radius: 6px; background: #000;"></video>
+        </div>
+
+        <!-- Progress Bar & Dual Range Sliders -->
+        <div class="trimmer-timeline-box" id="trimmerTimelineBox">
+          <div class="timeline-labels">
+            <span id="timelineStartLabel" class="timeline-bound-lbl">00:00</span>
+            <span id="timelineCurrentPlayheadLabel" class="timeline-center-lbl">00:00</span>
+            <span id="timelineEndLabel" class="timeline-bound-lbl">01:30</span>
+          </div>
+          <div class="trimmer-slider-wrap" id="trimmerSliderWrap">
+            <div class="trimmer-track-bg">
+              <div id="trimmerActiveFill" class="trimmer-active-fill"></div>
+              <div id="trimmerPlayheadMarker" class="trimmer-playhead-marker"></div>
+            </div>
+            <input type="range" id="trimStartSlider" min="0" max="90" value="0" step="1" class="trim-range-input range-start" />
+            <input type="range" id="trimEndSlider" min="0" max="90" value="90" step="1" class="trim-range-input range-end" />
+          </div>
+        </div>
+
+        <!-- High-Precision Start & Stop Controls (Single Streamlined Row) -->
+        <div class="trimmer-controls-compact">
+          <!-- Start Control Group -->
+          <div class="trim-group">
+            <span class="trim-tag start-tag">START</span>
+            <button type="button" id="startMinusBtn" class="step-btn" data-tooltip="-1s (Shift: -5s)">‹</button>
+            <input type="text" id="trimStartFormatted" class="time-input" value="00:00" placeholder="00:00" title="Start Time (e.g. 01:25 or 85)" />
+            <button type="button" id="startPlusBtn" class="step-btn" data-tooltip="+1s (Shift: +5s)">›</button>
+            <button type="button" id="setStartCurrentBtn" class="time-now-btn" data-tooltip="Snap Start to current video time">📍</button>
+            <input type="hidden" id="trimStartInput" value="0" />
+          </div>
+
+          <!-- Live Duration Badge in Center -->
+          <div class="trim-duration-badge-compact" data-tooltip="Clip Duration (Max 90s)">
+            ⏱️ <span id="trimDurationLabel" class="time-duration-val">90s</span>
+          </div>
+
+          <!-- Stop Control Group -->
+          <div class="trim-group">
+            <span class="trim-tag stop-tag">STOP</span>
+            <button type="button" id="endMinusBtn" class="step-btn" data-tooltip="-1s (Shift: -5s)">‹</button>
+            <input type="text" id="trimEndFormatted" class="time-input" value="01:30" placeholder="01:30" title="Stop Time (e.g. 01:30 or 90)" />
+            <button type="button" id="endPlusBtn" class="step-btn" data-tooltip="+1s (Shift: +5s)">›</button>
+            <button type="button" id="setEndCurrentBtn" class="time-now-btn" data-tooltip="Snap Stop to current video time">📍</button>
+            <input type="hidden" id="trimEndInput" value="90" />
+          </div>
+        </div>
+
+        <!-- Action Row: Live Record & Range Grab -->
+        <div class="trimmer-actions-bar" id="trimmerActionsBar">
+          <button type="button" id="recordNowBtn" class="record-now-action-btn" data-tooltip="Record live from current video position — click Stop anytime">
+            <span id="recordNowBtnIcon">🔴</span>
+            <span id="recordNowBtnLabel">Record Now</span>
+          </button>
+          <button type="button" id="grabClipBtn" class="grab-clip-action-btn" data-tooltip="Grab clip using Start & Stop range">
+            <span id="grabClipBtnIcon">✂️</span>
+            <span id="grabClipBtnLabel">Grab Range</span>
+          </button>
+          <button type="button" id="previewTrimLoopBtn" class="preview-trim-btn" style="display:none;" data-tooltip="Loop preview clip">
+            🔁 Loop
+          </button>
         </div>
       </div>
       <!-- MEDIA ATTACHMENT / THUMBNAIL PREVIEW -->
@@ -112,7 +169,7 @@
             <button id="composerFactCheckCloseBtn" type="button" data-tooltip="Hide Fact Check" data-tooltip-pos="left" style="background: none; border: none; color: var(--muted); cursor: pointer; font-size: 11px; font-weight: 700; padding: 0 4px;">✕</button>
           </div>
         </div>
-        <div id="composerFactCheckText" style="line-height: 1.4; color: var(--ink);">Select text on any webpage to fact-check with Gemini AI.</div>
+        <div id="composerFactCheckText" style="line-height: 1.4; color: var(--ink);">Highlight text or clip a video to fact-check with Gemini AI.</div>
       </div>
 
       <div class="textarea-footer" style="display: flex; gap: 6px; justify-content: space-between; align-items: center; border-top: 1px solid var(--border); padding-top: 12px; margin-top: 12px;">

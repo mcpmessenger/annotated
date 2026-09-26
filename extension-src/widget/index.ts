@@ -13,6 +13,8 @@ import {
   composerState,
   updatePublishButton,
   getComposerHeight,
+  updateVideoState,
+  handleVideoCaptured,
 } from './composer';
 import { renderFeed, loadFeedFromSupabase } from './feed';
 import { showAnnotationDetail } from './detail';
@@ -87,6 +89,7 @@ function setupParentMessageListener(): void {
           title: data.title || page.title,
           url: data.url || page.url,
           hostname: data.hostname || page.hostname,
+          video_captions: data.video_captions || page.video_captions,
         };
         const pageHost = $('#pageHost');
         if (pageHost) pageHost.textContent = page.hostname.replace(/^www\./, '');
@@ -97,46 +100,19 @@ function setupParentMessageListener(): void {
             showComposer(resizeWidget);
           }
         }
-        if (data.media_timestamp != null) {
-          composerState.currentMediaTimestamp = data.media_timestamp;
-          const badge = $('#composerTimestampBadge');
-          const txt = $('#composerTimestampText');
-          if (badge && txt) {
-            txt.textContent = formatSeconds(data.media_timestamp);
-            badge.classList.remove('hidden');
-          }
-        } else {
-          composerState.currentMediaTimestamp = null;
-          const badge = $('#composerTimestampBadge');
-          if (badge) badge.classList.add('hidden');
+        composerState.currentMediaTimestamp = data.media_timestamp != null ? data.media_timestamp : null;
+        if (data.media_duration != null) {
+          updateVideoState(data.media_timestamp || 0, data.media_duration, false);
         }
         refreshAll();
         break;
 
+      case 'VIDEO_STATE_RESPONSE':
+        updateVideoState(data.currentTime, data.duration, data.paused);
+        break;
+
       case 'VIDEO_CAPTURED':
-        const clipBtn = $('#clipVideoBtn');
-        if (clipBtn) {
-          clipBtn.classList.remove('recording');
-          clipBtn.innerText = '🎥';
-        }
-        if (data.dataUrl) {
-          fetch(data.dataUrl)
-            .then((r) => r.blob())
-            .then((blob) => {
-              composerState.videoClipBlob = blob;
-              if (data.startTs !== undefined) {
-                composerState.videoStartTs = data.startTs;
-                composerState.videoEndTs = data.endTs;
-              }
-              const preview = $('#videoPreviewEl') as HTMLVideoElement | null;
-              if (preview) {
-                preview.src = URL.createObjectURL(blob);
-              }
-              $('#videoTrimmerBox')?.classList.remove('hidden');
-              resizeWidget(630);
-              updatePublishButton();
-            });
-        }
+        handleVideoCaptured(data, resizeWidget);
         break;
 
       case 'DICTATION_RESULT':

@@ -329,7 +329,7 @@ sub updateCardPlayingIndicator()
                 if m.cardRawTimes[i] <> invalid and m.cardRawTimes[i] <> ""
                     lbl.text = m.cardRawTimes[i]
                 else
-                    lbl.text = "15s"
+                    lbl.text = "NOTE"
                 end if
                 lbl.color = "0x94A3B8FF" ' Muted slate
             end if
@@ -782,8 +782,14 @@ sub renderRailCardsWindow()
                 m.cardRawTimes[slot] = item.media_timestamp
                 ts = parseTimestampToSeconds(item.media_timestamp)
                 if ts >= 0 then m.cardTimestamps[slot] = ts
+            else if item.is_video = true and item.video_duration <> invalid and item.video_duration <> ""
+                m.cardRawTimes[slot] = item.video_duration
+                m.cardTimestamps[slot] = 0
+            else if item.is_video = true
+                m.cardRawTimes[slot] = "CLIP"
+                m.cardTimestamps[slot] = 0
             else
-                m.cardRawTimes[slot] = "15s"
+                m.cardRawTimes[slot] = "NOTE"
                 m.cardTimestamps[slot] = 0
             end if
 

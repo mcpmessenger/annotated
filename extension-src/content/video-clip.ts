@@ -1,4 +1,4 @@
-// ─── Multimodal 240p Video Clipper & Audio Fusion Subsystem ───────────────────
+import { getActiveVideoElement } from './selection';
 
 declare global {
   interface Window {
@@ -60,24 +60,57 @@ export function stopRecordingNow(): void {
 }
 
 export async function capture240pVideoClip(
-  durationSeconds: number = 15,
-  sendResponse: (res: unknown) => void
+  durationSeconds: number = 90,
+  sendResponse: (res: unknown) => void,
+  startTsParam?: number,
+  endTsParam?: number,
+  isLiveRecord?: boolean
 ): Promise<void> {
   if (isRecordingVideo) {
     sendResponse({ error: 'Video recording already in progress' });
     return;
   }
 
-  const videoEl = document.querySelector('video');
+  const videoEl = getActiveVideoElement() || (document.querySelector('video') as HTMLVideoElement | null);
   if (!videoEl) {
     sendResponse({ error: 'No video playing on page' });
     return;
   }
 
+  // If live recording: do NOT seek, start immediately and ensure video plays
+  if (isLiveRecord) {
+    try {
+      if (videoEl.paused) {
+        videoEl.play().catch(() => {});
+      }
+    } catch (_) {}
+  } else if (startTsParam != null && startTsParam >= 0) {
+    // Range grab: seek video to start point first
+    try {
+      const moviePlayer = document.getElementById('movie_player') as any;
+      if (moviePlayer && typeof moviePlayer.seekTo === 'function') {
+        moviePlayer.seekTo(startTsParam, true);
+        if (typeof moviePlayer.playVideo === 'function') moviePlayer.playVideo();
+      } else {
+        videoEl.currentTime = startTsParam;
+        videoEl.play().catch(() => {});
+      }
+      await new Promise((r) => setTimeout(r, 250));
+    } catch (_) {}
+  }
+
+  if (endTsParam != null && startTsParam != null && endTsParam > startTsParam && !isLiveRecord) {
+    durationSeconds = Math.min(90, Math.max(1, endTsParam - startTsParam));
+  } else if (!durationSeconds || durationSeconds <= 0) {
+    durationSeconds = 90;
+  } else if (durationSeconds > 90) {
+    durationSeconds = 90;
+  }
+
   isRecordingVideo = true;
   pendingSendResponse = sendResponse;
   activeVideoEl = videoEl;
-  const startTs = Math.floor(videoEl.currentTime || 0);
+  const startTs = isLiveRecord ? Math.floor(videoEl.currentTime || 0) : (startTsParam != null ? startTsParam : Math.floor(videoEl.currentTime || 0));
 
   const canvas = document.createElement('canvas');
   canvas.width = 426;
@@ -167,9 +200,9 @@ export async function capture240pVideoClip(
       if (canvasStream) canvasStream.getTracks().forEach((t) => t.stop());
       if (audioContext) audioContext.close().catch(() => {});
 
-      const endTs = Math.floor(videoEl.currentTime || startTs + durationSeconds);
+      const endTs = endTsParam != null && !isLiveRecord ? endTsParam : Math.max(startTs + 1, Math.floor(videoEl.currentTime || startTs + 1));
       const rawBlob = new Blob(chunks, { type: 'video/webm' });
-      const durationMs = (endTs - startTs) * 1000;
+      const durationMs = Math.max(1000, (endTs - startTs) * 1000);
 
       const finishWithBlob = (blob: Blob) => {
         const reader = new FileReader();

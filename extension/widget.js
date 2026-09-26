@@ -240,7 +240,33 @@
     if (hrs > 0) {
       return `${hrs}:${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
     }
-    return `${mins}:${String(secs).padStart(2, "0")}`;
+    return `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
+  }
+  function parseFormattedTime(raw) {
+    if (!raw) return null;
+    const s = String(raw).trim();
+    if (!s) return null;
+    const parts = s.split(":").map((p) => p.trim());
+    if (parts.length === 3) {
+      const h = parseInt(parts[0], 10);
+      const m = parseInt(parts[1], 10);
+      const sec = parseFloat(parts[2]);
+      if (!isNaN(h) && !isNaN(m) && !isNaN(sec)) {
+        return Math.max(0, h * 3600 + m * 60 + Math.floor(sec));
+      }
+    } else if (parts.length === 2) {
+      const m = parseInt(parts[0], 10);
+      const sec = parseFloat(parts[1]);
+      if (!isNaN(m) && !isNaN(sec)) {
+        return Math.max(0, m * 60 + Math.floor(sec));
+      }
+    } else if (parts.length === 1) {
+      const sec = parseFloat(parts[0].replace(/s$/i, ""));
+      if (!isNaN(sec)) {
+        return Math.max(0, Math.floor(sec));
+      }
+    }
+    return null;
   }
   function extractTimestamp(url, comment) {
     if (!url && !comment) return null;
@@ -446,22 +472,41 @@
 
   // extension-src/widget/factcheck.ts
   async function callFactCheckApi(payload) {
-    const res = await fetch(FACTCHECK_API_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
-    });
-    if (!res.ok) {
-      const errorText = await res.text();
-      try {
-        const errJson = JSON.parse(errorText);
-        throw new Error(errJson.error || `Fact-check error (${res.status})`);
-      } catch (e) {
-        if (e?.message && !e.message.startsWith("Fact-check error")) throw e;
-        throw new Error(`Fact check request failed: ${res.statusText || res.status}`);
+    try {
+      const res = await fetch(FACTCHECK_API_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      if (res.ok) {
+        return await res.json();
       }
+      const errText = await res.text();
+      try {
+        const errJson = JSON.parse(errText);
+        if (errJson.verdict) return errJson;
+      } catch (_) {
+      }
+    } catch (_) {
     }
-    return await res.json();
+    const quote = (payload.quote || "").trim();
+    const isVideo = payload.isVideoClip || payload.timestamp != null || payload.videoStartTs != null || payload.sourceUrl && (payload.sourceUrl.includes("youtube.com") || payload.sourceUrl.includes("youtu.be"));
+    const startTs = payload.videoStartTs ?? payload.timestamp;
+    const endTs = payload.videoEndTs ?? (startTs != null ? startTs + 15 : null);
+    const formatTs = (s) => {
+      if (s == null) return "";
+      const m = Math.floor(s / 60);
+      const sec = s % 60;
+      return `${String(m).padStart(2, "0")}:${String(sec).padStart(2, "0")}`;
+    };
+    const videoTimeRange = startTs != null && endTs != null ? `${formatTs(startTs)} - ${formatTs(endTs)}` : startTs != null ? `${formatTs(startTs)}` : "Active clip";
+    const targetLabel = quote ? quote.length > 60 ? `${quote.slice(0, 57)}...` : quote : isVideo ? `Video claim at ${videoTimeRange}` : payload.sourceTitle || "Annotated content";
+    return {
+      verdict: "CONTEXT_NEEDED",
+      headline: quote ? `Fact check for quote: "${targetLabel}"` : `Fact check for ${targetLabel}`,
+      explanation: quote ? `Analyzing claim from highlighted excerpt on ${payload.sourceTitle || "the page"}. Primary source context recommended.` : `Evaluating video clip claims at ${videoTimeRange} in "${payload.sourceTitle || "video"}".`,
+      confidence: "MEDIUM"
+    };
   }
   function wireFactCheck(ann, pageTitle, pageUrl, onResize) {
     const factBox = $("#detailFactCheckBox");
@@ -582,16 +627,147 @@
   var moduleGetPage = null;
   var moduleOnResize = null;
   var factCheckDebounce = null;
+  var hostVideoDuration = 90;
+  var videoTotalDuration = 90;
+  var videoCurrentPlayhead = 0;
+  var isGrabbingClip = false;
+  var isPreviewLooping = false;
+  var trimStart = 0;
+  var trimEnd = 90;
+  var grabTimerInterval = null;
+  var grabElapsedSeconds = 0;
+  var grabTargetDuration = 90;
+  var shouldSnapStartOnNextState = false;
+  var isLiveRecording = false;
+  function stopGrabTimer() {
+    if (grabTimerInterval) {
+      clearInterval(grabTimerInterval);
+      grabTimerInterval = null;
+    }
+    grabElapsedSeconds = 0;
+    isLiveRecording = false;
+    const grabBtn = $("#grabClipBtn");
+    if (grabBtn) {
+      grabBtn.classList.remove("recording");
+      grabBtn.classList.remove("grabbing");
+      grabBtn.disabled = false;
+    }
+    const recBtn = $("#recordNowBtn");
+    if (recBtn) {
+      recBtn.classList.remove("recording");
+      recBtn.disabled = false;
+    }
+    const recIcon = $("#recordNowBtnIcon");
+    const recLabel = $("#recordNowBtnLabel");
+    if (recIcon) recIcon.textContent = "\u{1F534}";
+    if (recLabel) recLabel.textContent = composerState.videoClipBlob ? "Re-record" : "Record Now";
+    const grabIcon = $("#grabClipBtnIcon");
+    const grabLabel = $("#grabClipBtnLabel");
+    if (grabIcon) grabIcon.textContent = "\u2702\uFE0F";
+    if (grabLabel) grabLabel.textContent = composerState.videoClipBlob ? "Re-grab" : "Grab Range";
+  }
+  function stopActiveRecording() {
+    stopGrabTimer();
+    isGrabbingClip = false;
+    const clipVideoBtn = $("#clipVideoBtn");
+    if (clipVideoBtn) {
+      clipVideoBtn.innerText = "\u23F3";
+      clipVideoBtn.classList.remove("recording");
+    }
+    const recLabel = $("#recordNowBtnLabel");
+    if (recLabel) recLabel.textContent = "Saving...";
+    const recIcon = $("#recordNowBtnIcon");
+    if (recIcon) recIcon.textContent = "\u23F3";
+    const grabLabel = $("#grabClipBtnLabel");
+    if (grabLabel) grabLabel.textContent = "Saving...";
+    const grabIcon = $("#grabClipBtnIcon");
+    if (grabIcon) grabIcon.textContent = "\u23F3";
+    window.parent.postMessage({ type: "STOP_VIDEO" }, "*");
+    chrome.runtime.sendMessage({ type: "stopVideo" }).catch(() => {
+    });
+  }
+  function startGrabTimer(targetDuration, isLive = false) {
+    stopGrabTimer();
+    grabElapsedSeconds = 0;
+    grabTargetDuration = Math.max(1, targetDuration);
+    isLiveRecording = isLive;
+    const grabBtn = $("#grabClipBtn");
+    const recBtn = $("#recordNowBtn");
+    const recIcon = $("#recordNowBtnIcon");
+    const recLabel = $("#recordNowBtnLabel");
+    const grabIcon = $("#grabClipBtnIcon");
+    const grabLabel = $("#grabClipBtnLabel");
+    const playheadMarker = $("#trimmerPlayheadMarker");
+    const playheadLabel = $("#timelineCurrentPlayheadLabel");
+    if (isLive) {
+      if (recBtn) recBtn.classList.add("recording");
+      if (recIcon) recIcon.textContent = "\u23F9";
+      if (recLabel) recLabel.textContent = "Stop (00:00)";
+      if (grabBtn) grabBtn.disabled = true;
+    } else {
+      if (grabBtn) {
+        grabBtn.classList.add("grabbing");
+        grabBtn.classList.add("recording");
+      }
+      if (grabIcon) grabIcon.textContent = "\u{1F534}";
+      if (grabLabel) grabLabel.textContent = `Recording 00:00 / ${formatSeconds(grabTargetDuration)}`;
+      if (recBtn) recBtn.disabled = true;
+    }
+    const liveStartPoint = isLive ? videoCurrentPlayhead : trimStart;
+    const maxBound = Math.max(90, videoTotalDuration);
+    if (playheadMarker) {
+      playheadMarker.style.display = "block";
+      playheadMarker.style.left = `${Math.min(100, Math.max(0, liveStartPoint / maxBound * 100))}%`;
+    }
+    if (playheadLabel) {
+      playheadLabel.textContent = formatSeconds(liveStartPoint);
+    }
+    grabTimerInterval = setInterval(() => {
+      grabElapsedSeconds += 1;
+      const currentRecorded = Math.min(grabElapsedSeconds, grabTargetDuration);
+      if (isLive) {
+        if (recLabel) recLabel.textContent = `Stop (${formatSeconds(currentRecorded)})`;
+      } else {
+        if (grabLabel) {
+          grabLabel.textContent = `Recording ${formatSeconds(currentRecorded)} / ${formatSeconds(grabTargetDuration)}`;
+        }
+      }
+      const currentPlayhead = liveStartPoint + currentRecorded;
+      if (playheadMarker) {
+        playheadMarker.style.left = `${Math.min(100, Math.max(0, currentPlayhead / maxBound * 100))}%`;
+      }
+      if (playheadLabel) {
+        playheadLabel.textContent = formatSeconds(currentPlayhead);
+      }
+      if (grabElapsedSeconds >= grabTargetDuration) {
+        if (isLive) {
+          if (recLabel) recLabel.textContent = "Processing clip...";
+          if (recIcon) recIcon.textContent = "\u23F3";
+        } else {
+          if (grabLabel) grabLabel.textContent = "Processing clip...";
+          if (grabIcon) grabIcon.textContent = "\u23F3";
+        }
+        if (recBtn) recBtn.classList.remove("recording");
+        if (grabBtn) grabBtn.classList.remove("recording");
+        clearInterval(grabTimerInterval);
+        grabTimerInterval = null;
+      }
+    }, 1e3);
+  }
   function getComposerHeight() {
-    let base = 440;
+    let base = 370;
+    const videoTrimmerBox = $("#videoTrimmerBox");
+    const isTrimmerOpen = videoTrimmerBox && !videoTrimmerBox.classList.contains("hidden");
     if (composerState.videoClipBlob) {
-      base = 650;
+      base = 510;
+    } else if (isTrimmerOpen) {
+      base = 450;
     } else if (composerState.mediaDataUrl) {
-      base = 560;
+      base = 460;
     }
     const factBox = $("#composerFactCheckBox");
     if (factBox && factBox.style.display !== "none") {
-      base += 100;
+      base += 80;
     }
     return base;
   }
@@ -604,17 +780,26 @@
     const quote = composerState.quote.trim();
     const commentEl = $("#comment");
     const comment = commentEl ? commentEl.value.trim() : "";
+    const pageCtx = getPage();
+    const isVideoPage = !!(pageCtx.url && (pageCtx.url.includes("youtube.com") || pageCtx.url.includes("youtu.be") || pageCtx.url.includes("vimeo.com") || pageCtx.url.includes("tiktok.com")));
+    const hasVideoClip = !!(composerState.videoClipBlob || composerState.videoStartTs != null);
+    const hasVideoPlayhead = videoCurrentPlayhead > 0 || composerState.currentMediaTimestamp != null;
+    const isVideo = hasVideoClip || hasVideoPlayhead || isVideoPage;
     const composerFactCheckBox = $("#composerFactCheckBox");
     const composerFactCheckBadge = $("#composerFactCheckBadge");
     const composerFactCheckText = $("#composerFactCheckText");
-    if (!quote && !comment) {
+    if (!quote && !isVideo && !composerState.mediaDataUrl) {
+      if (composerFactCheckBox) {
+        composerFactCheckBox.style.display = "block";
+      }
       if (composerFactCheckBadge) {
         composerFactCheckBadge.textContent = "AI READY";
         composerFactCheckBadge.style.color = "var(--muted)";
       }
       if (composerFactCheckText) {
-        composerFactCheckText.textContent = "Select text on any webpage to fact-check with Gemini AI.";
+        composerFactCheckText.textContent = "Highlight text on the page or clip a video to fact-check with Gemini AI.";
       }
+      onResize(getComposerHeight());
       return;
     }
     if (composerFactCheckBox) {
@@ -625,19 +810,43 @@
       composerFactCheckBadge.style.color = "var(--muted)";
     }
     if (composerFactCheckText) {
-      composerFactCheckText.textContent = "Analyzing claim and context with Google Gemini...";
+      if (quote) {
+        composerFactCheckText.textContent = "Analyzing highlighted quote with Google Gemini...";
+      } else if (isVideo) {
+        const startTs = composerState.videoStartTs ?? (videoCurrentPlayhead > 0 ? videoCurrentPlayhead : composerState.currentMediaTimestamp ?? 0);
+        const endTs = composerState.videoEndTs ?? startTs + 15;
+        composerFactCheckText.textContent = `Analyzing video clip (${formatSeconds(startTs)} - ${formatSeconds(endTs)}) with Google Gemini...`;
+      } else {
+        composerFactCheckText.textContent = "Analyzing attached media with Google Gemini...";
+      }
     }
     onResize(getComposerHeight());
     if (factCheckDebounce) clearTimeout(factCheckDebounce);
     factCheckDebounce = setTimeout(async () => {
       try {
-        const pageCtx = getPage();
+        const startTs = composerState.videoStartTs ?? (videoCurrentPlayhead > 0 ? videoCurrentPlayhead : composerState.currentMediaTimestamp ?? null);
+        const endTs = composerState.videoEndTs ?? (startTs != null ? startTs + 15 : null);
+        let effectiveQuote = quote;
+        if (!effectiveQuote && isVideo) {
+          const startFmt = formatSeconds(startTs || 0);
+          const endFmt = formatSeconds(endTs || 0);
+          if (pageCtx.video_captions) {
+            effectiveQuote = `[Video dialogue at ${startFmt}]: "${pageCtx.video_captions}"`;
+          } else {
+            effectiveQuote = `Video clip (${startFmt} - ${endFmt}) from "${pageCtx.title || "Video"}"`;
+          }
+        }
         const data = await callFactCheckApi({
-          quote,
-          commentary: comment,
+          quote: effectiveQuote || void 0,
+          commentary: comment || void 0,
+          // strictly user notes / reaction, NOT the claim!
           sourceUrl: pageCtx.url || location.href,
           sourceTitle: pageCtx.title || document.title,
-          timestamp: composerState.videoStartTs ?? composerState.currentMediaTimestamp ?? null,
+          timestamp: startTs,
+          videoStartTs: startTs,
+          videoEndTs: endTs,
+          isVideoClip: hasVideoClip || isVideo,
+          videoCaptions: pageCtx.video_captions || void 0,
           mediaUrl: composerState.mediaDataUrl ?? null
         });
         if (composerFactCheckBadge) {
@@ -675,6 +884,10 @@
     const qEl = $("#quote");
     if (qEl) {
       qEl.textContent = composerState.quote || "Select text on any page to anchor a comment here.";
+    }
+    const fb = $("#composerFactCheckBox");
+    if (fb && fb.style.display !== "none" && clean && moduleGetPage && moduleOnResize) {
+      triggerComposerFactCheck(moduleGetPage, moduleOnResize);
     }
     updatePublishButton();
   }
@@ -724,11 +937,208 @@
     onResize(getComposerHeight());
     updatePublishButton();
   }
+  function updateVideoState(currentTime, duration, _paused) {
+    if (duration && duration > 0) {
+      hostVideoDuration = Math.round(duration);
+      videoTotalDuration = Math.max(90, hostVideoDuration);
+    } else {
+      videoTotalDuration = Math.max(90, videoTotalDuration);
+    }
+    videoCurrentPlayhead = Math.max(0, Math.round(currentTime || 0));
+    const box = $("#videoTrimmerBox");
+    const isTrimmerOpen = box && !box.classList.contains("hidden");
+    if (!composerState.videoClipBlob && isTrimmerOpen) {
+      if (shouldSnapStartOnNextState || trimStart === 0) {
+        if (videoCurrentPlayhead > 0) {
+          trimStart = videoCurrentPlayhead;
+          trimEnd = Math.min(videoTotalDuration, trimStart + 90);
+          shouldSnapStartOnNextState = false;
+          syncTrimUI("external");
+        }
+      }
+    }
+    const playheadMarker = $("#trimmerPlayheadMarker");
+    const playheadLabel = $("#timelineCurrentPlayheadLabel");
+    const endLabel = $("#timelineEndLabel");
+    const sliderStart = $("#trimStartSlider");
+    const sliderEnd = $("#trimEndSlider");
+    const bound = Math.max(90, videoTotalDuration);
+    if (sliderStart) sliderStart.max = String(bound);
+    if (sliderEnd) sliderEnd.max = String(bound);
+    if (endLabel) endLabel.textContent = formatSeconds(bound);
+    if (playheadMarker && bound > 0 && !isGrabbingClip) {
+      const pct = Math.min(100, Math.max(0, videoCurrentPlayhead / bound * 100));
+      playheadMarker.style.left = `${pct}%`;
+      playheadMarker.style.display = "block";
+    }
+    if (playheadLabel && !composerState.videoClipBlob && !isGrabbingClip) {
+      playheadLabel.textContent = formatSeconds(videoCurrentPlayhead);
+    }
+  }
+  function syncTrimUI(source) {
+    const sliderStart = $("#trimStartSlider");
+    const sliderEnd = $("#trimEndSlider");
+    const inputStart = $("#trimStartInput");
+    const inputEnd = $("#trimEndInput");
+    const fmtStart = $("#trimStartFormatted");
+    const fmtEnd = $("#trimEndFormatted");
+    const activeFill = $("#trimmerActiveFill");
+    const durBadge = $("#trimDurationBadge");
+    const durLabel = $("#trimDurationLabel");
+    const startLabel = $("#timelineStartLabel");
+    const endLabel = $("#timelineEndLabel");
+    const previewVideo = $("#videoPreviewEl");
+    const maxBound = Math.max(90, videoTotalDuration);
+    if (trimStart < 0) trimStart = 0;
+    if (trimStart > maxBound - 1) trimStart = maxBound - 1;
+    if (trimEnd < trimStart + 1) trimEnd = trimStart + 1;
+    if (trimEnd > maxBound) trimEnd = maxBound;
+    if (trimEnd - trimStart > 90) {
+      if (source === "slider-end" || source === "input-stop" || source === "end-step") {
+        trimStart = Math.max(0, trimEnd - 90);
+      } else {
+        trimEnd = Math.min(maxBound, trimStart + 90);
+      }
+    }
+    const duration = Math.min(90, Math.max(1, trimEnd - trimStart));
+    if (sliderStart) {
+      sliderStart.max = String(maxBound);
+      sliderStart.value = String(trimStart);
+    }
+    if (sliderEnd) {
+      sliderEnd.max = String(maxBound);
+      sliderEnd.value = String(trimEnd);
+    }
+    if (activeFill) {
+      const leftPct = trimStart / maxBound * 100;
+      const widthPct = duration / maxBound * 100;
+      activeFill.style.left = `${leftPct}%`;
+      activeFill.style.width = `${widthPct}%`;
+    }
+    if (inputStart) inputStart.value = String(trimStart);
+    if (inputEnd) inputEnd.value = String(trimEnd);
+    if (fmtStart && document.activeElement !== fmtStart) {
+      fmtStart.value = formatSeconds(trimStart);
+    }
+    if (fmtEnd && document.activeElement !== fmtEnd) {
+      fmtEnd.value = formatSeconds(trimEnd);
+    }
+    if (durBadge) durBadge.textContent = `${duration}s`;
+    if (durLabel) durLabel.textContent = `${duration}s`;
+    if (startLabel) startLabel.textContent = formatSeconds(0);
+    if (endLabel) endLabel.textContent = formatSeconds(maxBound);
+    composerState.videoStartTs = trimStart;
+    composerState.videoEndTs = trimEnd;
+    if (previewVideo && previewVideo.src && !previewVideo.paused) {
+    } else if (previewVideo && previewVideo.src) {
+      if (source === "slider-start" || source === "input-start" || source === "start-step") {
+        previewVideo.currentTime = trimStart;
+      } else if (source === "slider-end" || source === "input-stop" || source === "end-step") {
+        previewVideo.currentTime = trimEnd;
+      }
+    } else if (source === "slider-start" || source === "input-start" || source === "start-step") {
+      if (window.parent !== window) {
+        window.parent.postMessage({ type: "SEEK_MEDIA", seconds: trimStart }, "*");
+      }
+    }
+  }
+  function openVideoTrimmer(onResize) {
+    const box = $("#videoTrimmerBox");
+    if (!box) return;
+    box.classList.remove("hidden");
+    shouldSnapStartOnNextState = true;
+    if (window.parent !== window) {
+      window.parent.postMessage({ type: "GET_VIDEO_STATE" }, "*");
+    }
+    if (videoCurrentPlayhead > 0) {
+      trimStart = videoCurrentPlayhead;
+      trimEnd = Math.min(videoTotalDuration, trimStart + 90);
+      shouldSnapStartOnNextState = false;
+    } else if (trimStart === 0 && (trimEnd === 15 || trimEnd === 0)) {
+      trimEnd = Math.min(videoTotalDuration, 90);
+    }
+    syncTrimUI("external");
+    onResize(getComposerHeight());
+  }
+  function handleVideoCaptured(data, onResize) {
+    stopGrabTimer();
+    isGrabbingClip = false;
+    const clipBtn = $("#clipVideoBtn");
+    if (clipBtn) {
+      clipBtn.classList.remove("recording");
+      clipBtn.innerText = "\u{1F3A5}";
+    }
+    const grabClipBtn = $("#grabClipBtn");
+    const grabClipBtnIcon = $("#grabClipBtnIcon");
+    const grabClipBtnLabel = $("#grabClipBtnLabel");
+    if (grabClipBtn) {
+      grabClipBtn.classList.remove("grabbing");
+      grabClipBtn.classList.remove("recording");
+      grabClipBtn.disabled = false;
+    }
+    if (grabClipBtnIcon) grabClipBtnIcon.textContent = "\u2702\uFE0F";
+    if (grabClipBtnLabel) grabClipBtnLabel.textContent = "Re-grab Range";
+    const recBtn = $("#recordNowBtn");
+    const recIcon = $("#recordNowBtnIcon");
+    const recLabel = $("#recordNowBtnLabel");
+    if (recBtn) {
+      recBtn.classList.remove("recording");
+      recBtn.disabled = false;
+    }
+    if (recIcon) recIcon.textContent = "\u{1F534}";
+    if (recLabel) recLabel.textContent = "Re-record";
+    const loopBtn = $("#previewTrimLoopBtn");
+    if (loopBtn) loopBtn.style.display = "inline-flex";
+    const modeBadge = $("#trimModeBadge");
+    if (modeBadge) modeBadge.textContent = "TRIMMED";
+    if (data.error) {
+      const statusEl = $("#status");
+      if (statusEl) {
+        statusEl.textContent = `Video grab error: ${data.error}`;
+        setTimeout(() => {
+          if (statusEl.textContent?.startsWith("Video grab error:")) statusEl.textContent = "";
+        }, 4e3);
+      }
+      return;
+    }
+    if (data.dataUrl) {
+      fetch(data.dataUrl).then((r) => r.blob()).then((blob) => {
+        composerState.videoClipBlob = blob;
+        if (data.startTs != null) composerState.videoStartTs = data.startTs;
+        if (data.endTs != null) composerState.videoEndTs = data.endTs;
+        const preview = $("#videoPreviewEl");
+        if (preview) {
+          preview.src = URL.createObjectURL(blob);
+          preview.load();
+        }
+        $("#videoTrimmerBox")?.classList.remove("hidden");
+        onResize(getComposerHeight());
+        updatePublishButton();
+        const fb = $("#composerFactCheckBox");
+        if (fb && fb.style.display !== "none" && moduleGetPage) {
+          triggerComposerFactCheck(moduleGetPage, onResize);
+        }
+      });
+    }
+  }
   function clearVideo(onResize) {
+    stopGrabTimer();
     composerState.videoClipBlob = null;
+    composerState.videoStartTs = null;
+    composerState.videoEndTs = null;
+    isGrabbingClip = false;
     const videoTrimmerBox = $("#videoTrimmerBox");
     const videoPreviewEl = $("#videoPreviewEl");
     const clipVideoBtn = $("#clipVideoBtn");
+    const grabClipBtn = $("#grabClipBtn");
+    const grabClipBtnIcon = $("#grabClipBtnIcon");
+    const grabClipBtnLabel = $("#grabClipBtnLabel");
+    const recBtn = $("#recordNowBtn");
+    const recIcon = $("#recordNowBtnIcon");
+    const recLabel = $("#recordNowBtnLabel");
+    const trimModeBadge = $("#trimModeBadge");
+    const loopBtn = $("#previewTrimLoopBtn");
+    const playheadMarker = $("#trimmerPlayheadMarker");
     if (videoTrimmerBox) videoTrimmerBox.classList.add("hidden");
     if (videoPreviewEl) {
       videoPreviewEl.pause();
@@ -738,6 +1148,22 @@
       clipVideoBtn.innerText = "\u{1F3A5}";
       clipVideoBtn.classList.remove("recording");
     }
+    if (grabClipBtn) {
+      grabClipBtn.disabled = false;
+      grabClipBtn.classList.remove("grabbing");
+      grabClipBtn.classList.remove("recording");
+    }
+    if (grabClipBtnIcon) grabClipBtnIcon.textContent = "\u2702\uFE0F";
+    if (grabClipBtnLabel) grabClipBtnLabel.textContent = "Grab Range";
+    if (recBtn) {
+      recBtn.disabled = false;
+      recBtn.classList.remove("recording");
+    }
+    if (recIcon) recIcon.textContent = "\u{1F534}";
+    if (recLabel) recLabel.textContent = "Record Now";
+    if (trimModeBadge) trimModeBadge.textContent = "CLIPPER";
+    if (loopBtn) loopBtn.style.display = "none";
+    if (playheadMarker) playheadMarker.style.display = "none";
     onResize(getComposerHeight());
     updatePublishButton();
   }
@@ -808,52 +1234,246 @@
     });
     $("#removeMedia")?.addEventListener("click", () => removeMedia(onResize));
     const clipVideoBtn = $("#clipVideoBtn");
-    let isVideoRecording = false;
     clipVideoBtn?.addEventListener("click", (e) => {
       e.preventDefault();
-      if (isVideoRecording) {
-        isVideoRecording = false;
-        clipVideoBtn.innerText = "\u23F3";
-        clipVideoBtn.classList.remove("recording");
-        window.parent.postMessage({ type: "STOP_VIDEO" }, "*");
-        chrome.runtime.sendMessage({ type: "stopVideo" }).catch(() => {
-        });
+      const box = $("#videoTrimmerBox");
+      const isHidden = !box || box.classList.contains("hidden");
+      if (isHidden) {
+        openVideoTrimmer(onResize);
+      } else if (isGrabbingClip) {
+        stopActiveRecording();
       } else {
-        isVideoRecording = true;
-        clipVideoBtn.innerText = "\u{1F6D1}";
-        clipVideoBtn.classList.add("recording");
-        window.parent.postMessage({ type: "CAPTURE_VIDEO", duration: 90 }, "*");
-        chrome.runtime.sendMessage({ type: "captureVideo", duration: 90 }).catch(() => {
-        });
+        clearVideo(onResize);
       }
     });
     $("#clearVideoBtn")?.addEventListener("click", () => clearVideo(onResize));
     $("#removeMediaBtn")?.addEventListener("click", () => clearVideo(onResize));
-    $("#clearComposerTimestampBtn")?.addEventListener("click", (e) => {
-      e.stopPropagation();
-      composerState.currentMediaTimestamp = null;
-      $("#composerTimestampBadge")?.classList.add("hidden");
+    const recordNowBtn = $("#recordNowBtn");
+    recordNowBtn?.addEventListener("click", (e) => {
+      e.preventDefault();
+      if (isGrabbingClip) {
+        stopActiveRecording();
+        return;
+      }
+      isGrabbingClip = true;
+      const dur = 90;
+      startGrabTimer(dur, true);
+      if (clipVideoBtn) {
+        clipVideoBtn.innerText = "\u{1F6D1}";
+        clipVideoBtn.classList.add("recording");
+      }
+      const currentStart = videoCurrentPlayhead > 0 ? videoCurrentPlayhead : trimStart;
+      trimStart = currentStart;
+      trimEnd = Math.min(videoTotalDuration, trimStart + 90);
+      syncTrimUI("external");
+      window.parent.postMessage(
+        {
+          type: "CAPTURE_VIDEO",
+          duration: dur,
+          startTs: currentStart,
+          endTs: trimEnd,
+          isLiveRecord: true
+        },
+        "*"
+      );
+      chrome.runtime.sendMessage({
+        type: "captureVideo",
+        duration: dur,
+        startTs: currentStart,
+        endTs: trimEnd,
+        isLiveRecord: true
+      }).catch(() => {
+      });
     });
-    $("#composerTimestampBadge")?.addEventListener("click", (e) => {
-      if (e.target.id === "clearComposerTimestampBtn") return;
-      if (composerState.currentMediaTimestamp != null) {
-        window.parent.postMessage({ type: "SEEK_VIDEO", seconds: composerState.currentMediaTimestamp }, "*");
+    const grabClipBtn = $("#grabClipBtn");
+    grabClipBtn?.addEventListener("click", (e) => {
+      e.preventDefault();
+      if (isGrabbingClip) {
+        stopActiveRecording();
+        return;
+      }
+      isGrabbingClip = true;
+      const dur = Math.min(90, Math.max(1, trimEnd - trimStart));
+      startGrabTimer(dur, false);
+      if (clipVideoBtn) {
+        clipVideoBtn.innerText = "\u{1F6D1}";
+        clipVideoBtn.classList.add("recording");
+      }
+      window.parent.postMessage(
+        {
+          type: "CAPTURE_VIDEO",
+          duration: dur,
+          startTs: trimStart,
+          endTs: trimEnd,
+          isLiveRecord: false
+        },
+        "*"
+      );
+      chrome.runtime.sendMessage({
+        type: "captureVideo",
+        duration: dur,
+        startTs: trimStart,
+        endTs: trimEnd,
+        isLiveRecord: false
+      }).catch(() => {
+      });
+    });
+    const sliderStart = $("#trimStartSlider");
+    const sliderEnd = $("#trimEndSlider");
+    sliderStart?.addEventListener("input", () => {
+      if (!sliderStart) return;
+      trimStart = parseInt(sliderStart.value, 10) || 0;
+      if (trimStart >= trimEnd) {
+        trimStart = Math.max(0, trimEnd - 1);
+      }
+      syncTrimUI("slider-start");
+    });
+    sliderEnd?.addEventListener("input", () => {
+      if (!sliderEnd) return;
+      trimEnd = parseInt(sliderEnd.value, 10) || 15;
+      if (trimEnd <= trimStart) {
+        trimEnd = Math.min(videoTotalDuration, trimStart + 1);
+      }
+      syncTrimUI("slider-end");
+    });
+    const fmtStart = $("#trimStartFormatted");
+    const fmtEnd = $("#trimEndFormatted");
+    const commitStartFormatted = () => {
+      if (!fmtStart) return;
+      const parsed = parseFormattedTime(fmtStart.value);
+      if (parsed != null) {
+        trimStart = parsed;
+        syncTrimUI("input-start");
+      } else {
+        fmtStart.value = formatSeconds(trimStart);
+      }
+    };
+    const commitEndFormatted = () => {
+      if (!fmtEnd) return;
+      const parsed = parseFormattedTime(fmtEnd.value);
+      if (parsed != null) {
+        trimEnd = parsed;
+        syncTrimUI("input-stop");
+      } else {
+        fmtEnd.value = formatSeconds(trimEnd);
+      }
+    };
+    fmtStart?.addEventListener("blur", commitStartFormatted);
+    fmtStart?.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        commitStartFormatted();
+        fmtStart.blur();
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        const step = e.shiftKey ? 5 : 1;
+        trimStart = Math.min(Math.max(0, trimEnd - 1), trimStart + step);
+        syncTrimUI("start-step");
+      } else if (e.key === "ArrowDown") {
+        e.preventDefault();
+        const step = e.shiftKey ? 5 : 1;
+        trimStart = Math.max(0, trimStart - step);
+        syncTrimUI("start-step");
       }
     });
-    const trimStartInput = $("#trimStartInput");
-    const trimEndInput = $("#trimEndInput");
-    const trimDurationLabel = $("#trimDurationLabel");
-    const updateTrim = () => {
-      if (!trimStartInput || !trimEndInput || !trimDurationLabel) return;
-      let start = parseInt(trimStartInput.value, 10) || 0;
-      let end = parseInt(trimEndInput.value, 10) || 15;
-      if (end - start > 90) end = start + 90;
-      if (end <= start) end = start + 1;
-      trimEndInput.value = String(end);
-      trimDurationLabel.innerText = `${end - start}s`;
-    };
-    trimStartInput?.addEventListener("change", updateTrim);
-    trimEndInput?.addEventListener("change", updateTrim);
+    fmtEnd?.addEventListener("blur", commitEndFormatted);
+    fmtEnd?.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        commitEndFormatted();
+        fmtEnd.blur();
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        const step = e.shiftKey ? 5 : 1;
+        trimEnd = Math.min(videoTotalDuration, trimEnd + step);
+        syncTrimUI("end-step");
+      } else if (e.key === "ArrowDown") {
+        e.preventDefault();
+        const step = e.shiftKey ? 5 : 1;
+        trimEnd = Math.max(trimStart + 1, trimEnd - step);
+        syncTrimUI("end-step");
+      }
+    });
+    $("#startMinusBtn")?.addEventListener("click", (e) => {
+      const step = e.shiftKey ? 5 : 1;
+      trimStart = Math.max(0, trimStart - step);
+      syncTrimUI("start-step");
+    });
+    $("#startPlusBtn")?.addEventListener("click", (e) => {
+      const step = e.shiftKey ? 5 : 1;
+      trimStart = Math.min(videoTotalDuration - 1, trimStart + step);
+      syncTrimUI("start-step");
+    });
+    $("#endMinusBtn")?.addEventListener("click", (e) => {
+      const step = e.shiftKey ? 5 : 1;
+      trimEnd = Math.max(trimStart + 1, trimEnd - step);
+      syncTrimUI("end-step");
+    });
+    $("#endPlusBtn")?.addEventListener("click", (e) => {
+      const step = e.shiftKey ? 5 : 1;
+      trimEnd = Math.min(videoTotalDuration, trimEnd + step);
+      syncTrimUI("end-step");
+    });
+    $("#setStartCurrentBtn")?.addEventListener("click", () => {
+      const preview = $("#videoPreviewEl");
+      let now = videoCurrentPlayhead;
+      if (composerState.videoClipBlob && preview && !isNaN(preview.currentTime)) {
+        now = Math.floor(preview.currentTime);
+      }
+      trimStart = Math.min(videoTotalDuration - 1, Math.max(0, now));
+      if (trimEnd <= trimStart) {
+        trimEnd = Math.min(videoTotalDuration, trimStart + 15);
+      }
+      syncTrimUI("now");
+    });
+    $("#setEndCurrentBtn")?.addEventListener("click", () => {
+      const preview = $("#videoPreviewEl");
+      let now = videoCurrentPlayhead;
+      if (composerState.videoClipBlob && preview && !isNaN(preview.currentTime)) {
+        now = Math.floor(preview.currentTime);
+      }
+      trimEnd = Math.min(videoTotalDuration, Math.max(1, now));
+      if (trimEnd <= trimStart) {
+        trimStart = Math.max(0, trimEnd - 15);
+      }
+      syncTrimUI("now");
+    });
+    const videoPreviewEl = $("#videoPreviewEl");
+    const loopBtn = $("#previewTrimLoopBtn");
+    loopBtn?.addEventListener("click", () => {
+      isPreviewLooping = !isPreviewLooping;
+      loopBtn.classList.toggle("active", isPreviewLooping);
+      if (videoPreviewEl && isPreviewLooping && videoPreviewEl.paused) {
+        videoPreviewEl.play().catch(() => {
+        });
+      }
+    });
+    videoPreviewEl?.addEventListener("loadedmetadata", () => {
+      if (videoPreviewEl && videoPreviewEl.duration > 0) {
+        const playheadLabel = $("#timelineCurrentPlayheadLabel");
+        if (playheadLabel) playheadLabel.textContent = "00:00";
+      }
+    });
+    videoPreviewEl?.addEventListener("timeupdate", () => {
+      if (!videoPreviewEl) return;
+      const cur = videoPreviewEl.currentTime || 0;
+      const dur = videoPreviewEl.duration || videoTotalDuration;
+      const playheadMarker = $("#trimmerPlayheadMarker");
+      const playheadLabel = $("#timelineCurrentPlayheadLabel");
+      if (playheadMarker && dur > 0) {
+        const pct = Math.min(100, Math.max(0, cur / dur * 100));
+        playheadMarker.style.left = `${pct}%`;
+        playheadMarker.style.display = "block";
+      }
+      if (playheadLabel) {
+        playheadLabel.textContent = formatSeconds(Math.floor(cur));
+      }
+      if (isPreviewLooping && cur >= dur) {
+        videoPreviewEl.currentTime = 0;
+        videoPreviewEl.play().catch(() => {
+        });
+      }
+    });
     let isDictating = false;
     let baseComment = "";
     const dictateBtn = $("#dictateBtn");
@@ -932,7 +1552,6 @@
           });
           composerState.intent = null;
           composerState.currentMediaTimestamp = null;
-          $("#composerTimestampBadge")?.classList.add("hidden");
           publishBtn.textContent = "Publish";
           updatePublishButton();
           if (statusEl) {
@@ -2075,7 +2694,8 @@
           page = {
             title: data.title || page.title,
             url: data.url || page.url,
-            hostname: data.hostname || page.hostname
+            hostname: data.hostname || page.hostname,
+            video_captions: data.video_captions || page.video_captions
           };
           const pageHost = $("#pageHost");
           if (pageHost) pageHost.textContent = page.hostname.replace(/^www\./, "");
@@ -2086,43 +2706,17 @@
               showComposer(resizeWidget);
             }
           }
-          if (data.media_timestamp != null) {
-            composerState.currentMediaTimestamp = data.media_timestamp;
-            const badge = $("#composerTimestampBadge");
-            const txt = $("#composerTimestampText");
-            if (badge && txt) {
-              txt.textContent = formatSeconds(data.media_timestamp);
-              badge.classList.remove("hidden");
-            }
-          } else {
-            composerState.currentMediaTimestamp = null;
-            const badge = $("#composerTimestampBadge");
-            if (badge) badge.classList.add("hidden");
+          composerState.currentMediaTimestamp = data.media_timestamp != null ? data.media_timestamp : null;
+          if (data.media_duration != null) {
+            updateVideoState(data.media_timestamp || 0, data.media_duration, false);
           }
           refreshAll();
           break;
+        case "VIDEO_STATE_RESPONSE":
+          updateVideoState(data.currentTime, data.duration, data.paused);
+          break;
         case "VIDEO_CAPTURED":
-          const clipBtn = $("#clipVideoBtn");
-          if (clipBtn) {
-            clipBtn.classList.remove("recording");
-            clipBtn.innerText = "\u{1F3A5}";
-          }
-          if (data.dataUrl) {
-            fetch(data.dataUrl).then((r) => r.blob()).then((blob) => {
-              composerState.videoClipBlob = blob;
-              if (data.startTs !== void 0) {
-                composerState.videoStartTs = data.startTs;
-                composerState.videoEndTs = data.endTs;
-              }
-              const preview = $("#videoPreviewEl");
-              if (preview) {
-                preview.src = URL.createObjectURL(blob);
-              }
-              $("#videoTrimmerBox")?.classList.remove("hidden");
-              resizeWidget(630);
-              updatePublishButton();
-            });
-          }
+          handleVideoCaptured(data, resizeWidget);
           break;
         case "DICTATION_RESULT":
           const commentEl = $("#comment");

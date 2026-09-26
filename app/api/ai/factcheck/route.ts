@@ -21,49 +21,102 @@ export async function POST(req: NextRequest) {
       sourceUrl = "",
       sourceTitle = "",
       timestamp = null,
+      videoStartTs = null,
+      videoEndTs = null,
+      isVideoClip = false,
+      videoCaptions = "",
       mediaUrl = null,
     } = body;
 
-    if (!quote && !commentary) {
+    const trimmedQuote = (quote || "").trim();
+    const hasQuote = trimmedQuote.length > 0;
+    const isVideo =
+      isVideoClip ||
+      timestamp != null ||
+      videoStartTs != null ||
+      (sourceUrl && (sourceUrl.includes("youtube.com") || sourceUrl.includes("youtu.be") || sourceUrl.includes("vimeo.com") || sourceUrl.includes("tiktok.com")));
+
+    if (!hasQuote && !isVideo && !mediaUrl) {
       return NextResponse.json(
-        { error: "Please provide a quote or commentary to fact check." },
+        { error: "Please highlight text or attach a video clip to fact check." },
         { status: 400, headers: CORS_HEADERS }
       );
     }
 
     const geminiKey = process.env.GEMINI_API_KEY;
 
-    if (geminiKey) {
-      const prompt = `You are a real-time fact-checking intelligence system for the web annotation layer "Annotated".
-Fact check the following claim made in an online annotation.
+    // Build format time helper for prompt
+    const formatTs = (s: number | null) => {
+      if (s == null) return null;
+      const m = Math.floor(s / 60);
+      const sec = s % 60;
+      return `${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
+    };
 
+    const timeStart = videoStartTs ?? timestamp;
+    const timeEnd = videoEndTs ?? (timeStart != null ? timeStart + 15 : null);
+    const videoTimeRange =
+      timeStart != null && timeEnd != null
+        ? `${formatTs(timeStart)} - ${formatTs(timeEnd)} (${timeStart}s - ${timeEnd}s)`
+        : timeStart != null
+        ? `${formatTs(timeStart)} (${timeStart}s)`
+        : "Active clip segment";
+
+    if (geminiKey) {
+      let promptTarget = "";
+      if (hasQuote) {
+        promptTarget = `TARGET TO FACT CHECK:
+Subject: Highlighted Webpage Text (Quote)
+Source Webpage: ${sourceTitle || "Online Page"}
 Source URL: ${sourceUrl}
-Source Title: ${sourceTitle}
-Video Timestamp: ${timestamp != null ? `${timestamp}s` : "N/A"}
-Media Attached: ${mediaUrl || "None"}
-Annotated Quote: "${quote}"
-User Commentary / Claim: "${commentary}"
+${isVideo ? `Video Timestamp: ${videoTimeRange}` : ""}
+Highlighted Quote from Source: "${trimmedQuote}"
+
+USER CONTEXT:
+User Note / Reaction: "${(commentary || "").trim() || "None"}"
+(CRITICAL: The user note is only their personal reaction or question. DO NOT fact-check the user's note. Focus 100% of your verification on the Highlighted Quote from the webpage).
 
 Instructions:
-1. Evaluate if the claim or quoted statement is accurate, misleading, false, or needs important context.
-2. If this is a video with a timestamp, evaluate the surrounding context.
-3. Respond ONLY with a valid JSON object matching this schema (do not add conversational text outside JSON):
+1. Evaluate whether the claim or statement made in the Highlighted Quote from the webpage is accurate, misleading, false, or needs important context.
+2. In your headline and explanation, refer to the claim made in the highlighted text or article, NEVER the user.`;
+      } else {
+        promptTarget = `TARGET TO FACT CHECK:
+Subject: Video Clip / Video Content
+Source Video: ${sourceTitle || "Online Video"}
+Source URL: ${sourceUrl}
+Video Timestamp / Segment: ${videoTimeRange}
+${videoCaptions ? `Spoken Words / Captions at this moment: "${videoCaptions}"` : ""}
+
+USER CONTEXT:
+User Note / Reaction: "${(commentary || "").trim() || "None"}"
+(CRITICAL: The user note is only their personal reaction or question. DO NOT fact-check the user's note. Focus 100% of your verification on the claims or presentation in the Video Clip at ${videoTimeRange}).
+
+Instructions:
+1. Evaluate whether the claims or presentation made in this Video Clip are accurate, misleading, false, or need important context based on authoritative evidence.
+2. In your headline and explanation, refer to the video's claim or thesis, NEVER the user.`;
+      }
+
+      const prompt = `You are a real-time fact-checking intelligence system for the web annotation layer "Annotated".
+
+${promptTarget}
+
+3. Respond ONLY with a valid JSON object matching this schema (do not add conversational text or markdown code fences outside JSON):
 {
   "verdict": "VERIFIED" | "MISLEADING" | "FALSE" | "CONTEXT_NEEDED",
-  "headline": "Brief 1-sentence verdict",
-  "explanation": "2-3 sentences explaining why, referencing facts",
+  "headline": "Brief 1-sentence verdict on the highlighted text or video claim",
+  "explanation": "2-3 sentences explaining why based on scientific or journalistic evidence",
   "confidence": "HIGH" | "MEDIUM" | "LOW",
-  "timestampAnalysis": "Short note about timestamp or N/A",
+  "timestampAnalysis": "${isVideo ? `Short note about context at ${videoTimeRange}` : "N/A"}",
   "sources": [
     { "title": "Source name", "url": "https://..." }
   ]
 }`;
 
       const candidateModels = [
-        "gemini-3.5-flash-lite",
-        "gemini-flash-lite-latest",
+        "gemini-flash-latest",
         "gemini-3.5-flash",
-        "gemini-3.6-flash",
+        "gemini-flash-lite-latest",
+        "gemini-3.5-flash-lite",
       ];
 
       for (const model of candidateModels) {
@@ -81,7 +134,8 @@ Instructions:
 
           if (geminiRes.ok) {
             const gData = await geminiRes.json();
-            let rawText = gData?.candidates?.[0]?.content?.parts?.[0]?.text || "";
+            const partWithText = gData?.candidates?.[0]?.content?.parts?.find((p: any) => p.text && !p.thought);
+            let rawText = partWithText?.text || gData?.candidates?.[0]?.content?.parts?.[0]?.text || "";
             
             // Strip markdown code fences if present (```json ... ```)
             rawText = rawText.replace(/```(?:json)?/gi, "").replace(/```/g, "").trim();
@@ -105,17 +159,26 @@ Instructions:
       }
     }
 
-    // Fallback heuristic response if API call fails
-    const claim = (commentary || quote).slice(0, 80);
-    const hasTimestamp = timestamp != null;
+    // Fallback heuristic response if API call fails or no API key
+    let targetClaim = "";
+    if (hasQuote) {
+      targetClaim = trimmedQuote.length > 70 ? `${trimmedQuote.slice(0, 67)}...` : trimmedQuote;
+    } else if (isVideo) {
+      targetClaim = `claims in "${sourceTitle || 'video'}" at ${videoTimeRange}`;
+    } else {
+      targetClaim = sourceTitle || "Annotated content";
+    }
+
     const fallbackVerdict = {
       verdict: "CONTEXT_NEEDED",
-      headline: `Context analysis for: "${claim}..."`,
-      explanation: hasTimestamp
-        ? `This annotation anchors to timestamp ${timestamp}s. Verification assesses the surrounding clip context and primary source material.`
-        : `This annotation highlights an excerpt on ${sourceTitle || "the page"}. Primary source verification recommended.`,
+      headline: hasQuote
+        ? `Fact check for highlighted text: "${targetClaim}"`
+        : `Fact check for ${targetClaim}`,
+      explanation: hasQuote
+        ? `Evaluating the accuracy of the highlighted excerpt from ${sourceTitle || "the page"}. Primary source verification recommended.`
+        : `Evaluating content and claims presented in the video clip (${videoTimeRange}) from "${sourceTitle || "the source"}". Primary source context recommended.`,
       confidence: "MEDIUM",
-      timestampAnalysis: hasTimestamp ? `Anchored at ${timestamp} seconds in media stream.` : "No video timestamp specified.",
+      timestampAnalysis: isVideo ? `Anchored at video clip range ${videoTimeRange}.` : "N/A",
       sources: sourceUrl ? [{ title: sourceTitle || "Source Webpage", url: sourceUrl }] : [],
       geminiConfigured: !!geminiKey,
     };

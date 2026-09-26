@@ -59,12 +59,15 @@ export interface PageContext {
   title: string;
   url: string;
   hostname: string;
+  video_captions?: string;
 }
 
 export interface FactCheckResult {
   verdict?: string;
   headline?: string;
   explanation?: string;
+  confidence?: string;
+  sources?: Array<{ title?: string; url?: string }>;
   communityNote?: string;
   tweetIntentUrl?: string;
 }

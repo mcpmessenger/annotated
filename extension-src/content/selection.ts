@@ -9,11 +9,94 @@ export interface PageInfoPayload {
   selectedText: string;
   quote: string;
   media_timestamp: number | null;
+  media_duration?: number | null;
+  video_captions?: string;
 }
 
 export let lastKnownSelection: string | null = null;
 export let lastKnownRect: DOMRect | null = null;
 export let lastKnownElement: Element | null = null;
+
+export function getActiveVideoElement(): HTMLVideoElement | null {
+  // 1. YouTube primary player video
+  const yt = document.querySelector('video.html5-main-video, .html5-video-player video') as HTMLVideoElement | null;
+  if (yt && (yt.duration > 0 || yt.currentTime > 0 || !yt.paused)) return yt;
+
+  // 2. Any currently playing video
+  const allVideos = Array.from(document.querySelectorAll('video')) as HTMLVideoElement[];
+  const playing = allVideos.find((v) => !v.paused && !v.ended && v.currentTime > 0);
+  if (playing) return playing;
+
+  // 3. Largest visible video with duration > 0
+  const valid = allVideos.filter((v) => v.duration > 0 || v.currentTime > 0);
+  if (valid.length > 0) {
+    valid.sort((a, b) => (b.videoWidth * b.videoHeight) - (a.videoWidth * a.videoHeight));
+    return valid[0];
+  }
+
+  return allVideos[0] || null;
+}
+
+export function getActiveVideoState(): { currentTime: number; duration: number; paused: boolean } {
+  const v = getActiveVideoElement();
+  let curTime = 0;
+  let dur = 0;
+  let paused = true;
+
+  if (v) {
+    curTime = Math.floor(v.currentTime || 0);
+    dur = Math.floor(v.duration || 0);
+    paused = v.paused;
+  }
+
+  // Also verify movie_player if available (YouTube API)
+  try {
+    const moviePlayer = document.getElementById('movie_player') as any;
+    if (moviePlayer && typeof moviePlayer.getCurrentTime === 'function') {
+      const ytCur = Math.floor(moviePlayer.getCurrentTime() || 0);
+      const ytDur = Math.floor(moviePlayer.getDuration() || 0);
+      if (ytCur > 0 || ytDur > 0) {
+        curTime = ytCur;
+        if (ytDur > 0) dur = ytDur;
+        paused = typeof moviePlayer.getPlayerState === 'function' ? moviePlayer.getPlayerState() !== 1 : paused;
+      }
+    }
+  } catch (_) {}
+
+  return { currentTime: curTime, duration: dur, paused };
+}
+
+export function getMediaDuration(): number | null {
+  const state = getActiveVideoState();
+  return state.duration > 0 ? state.duration : null;
+}
+
+export function getActiveVideoCaptions(): string {
+  // Check YouTube captions on screen
+  const ytSegments = Array.from(document.querySelectorAll('.ytp-caption-segment, .caption-visual-line'));
+  if (ytSegments.length > 0) {
+    const text = ytSegments.map((s) => s.textContent?.trim()).filter(Boolean).join(' ');
+    if (text) return text;
+  }
+
+  // Check HTML5 video text tracks
+  const v = getActiveVideoElement();
+  if (v && v.textTracks) {
+    for (let i = 0; i < v.textTracks.length; i++) {
+      const track = v.textTracks[i];
+      if (track.activeCues && track.activeCues.length > 0) {
+        const cueTexts: string[] = [];
+        for (let j = 0; j < track.activeCues.length; j++) {
+          const cue = track.activeCues[j] as any;
+          if (cue && cue.text) cueTexts.push(cue.text);
+        }
+        if (cueTexts.length > 0) return cueTexts.join(' ');
+      }
+    }
+  }
+
+  return '';
+}
 
 export function getMediaTimestamp(isTextSelection: boolean = false): number | null {
   // If the user highlighted text, only capture a video timestamp if the selection
@@ -23,62 +106,13 @@ export function getMediaTimestamp(isTextSelection: boolean = false): number | nu
     const mediaContainer = lastKnownElement.closest(
       'div[data-testid="videoPlayer"], div[data-testid="videoComponent"], .html5-video-player, ytd-player, .ytp-caption-window-container, ytd-transcript-renderer, ytd-transcript-segment-renderer, video, audio'
     );
-    // Explicitly exclude non-video regions like comments, sidebar, description
     if (!mediaContainer || lastKnownElement.closest('ytd-comments, #comments, ytd-item-section-renderer, #secondary, #description')) {
       return null;
     }
-
-    try {
-      const moviePlayer = document.getElementById('movie_player') as any;
-      if (moviePlayer && typeof moviePlayer.getCurrentTime === 'function') {
-        const t = moviePlayer.getCurrentTime();
-        if (t != null && !isNaN(t) && t > 0) return Math.floor(t);
-      }
-    } catch (_) {}
-
-    try {
-      const media = mediaContainer.querySelector('video, audio') as HTMLMediaElement | null;
-      if (media && media.currentTime != null && !isNaN(media.currentTime) && media.currentTime > 0) {
-        return Math.floor(media.currentTime);
-      }
-    } catch (_) {}
-
-    return null;
   }
 
-  // Not a text selection (e.g. user invoked widget directly while watching a video)
-  try {
-    const moviePlayer = document.getElementById('movie_player') as any;
-    if (moviePlayer && typeof moviePlayer.getCurrentTime === 'function') {
-      const t = moviePlayer.getCurrentTime();
-      if (t != null && !isNaN(t) && t > 0) return Math.floor(t);
-    }
-  } catch (_) {}
-
-  // Scoped video search
-  try {
-    if (lastKnownElement) {
-      const container = lastKnownElement.closest(
-        'div[data-testid="videoPlayer"], div[data-testid="videoComponent"], .html5-video-player, video, audio'
-      );
-      if (container) {
-        const media = container.querySelector('video, audio') as HTMLMediaElement | null;
-        if (media && media.currentTime != null && !isNaN(media.currentTime) && media.currentTime > 0) {
-          return Math.floor(media.currentTime);
-        }
-      }
-    }
-  } catch (_) {}
-
-  // Global video search (only if video is playing or currentTime > 0)
-  try {
-    const v = document.querySelector('video, audio') as HTMLMediaElement | null;
-    if (v && v.currentTime != null && !isNaN(v.currentTime) && v.currentTime > 0) {
-      return Math.floor(v.currentTime);
-    }
-  } catch (_) {}
-
-  return null;
+  const state = getActiveVideoState();
+  return state.currentTime > 0 ? state.currentTime : null;
 }
 
 export function seekToTimestamp(seconds: number): void {
@@ -109,6 +143,16 @@ export function getSmartPageTitle(targetEl?: Element | null): string {
       return `Post by ${author} on X`;
     }
   }
+
+  // Clean YouTube video title
+  if (location.hostname.includes('youtube.com')) {
+    const ytTitle = document.querySelector('h1.ytd-watch-metadata yt-formatted-string, #title h1 yt-formatted-string, ytd-watch-flexy #title h1');
+    if (ytTitle && ytTitle.textContent?.trim()) {
+      return ytTitle.textContent.trim();
+    }
+    return (document.title || '').replace(/ - YouTube$/, '').trim() || 'YouTube Video';
+  }
+
   return document.title || 'Current page';
 }
 
@@ -142,6 +186,8 @@ export function buildPageInfo(): PageInfoPayload {
     selectedText: sel,
     quote: sel,
     media_timestamp: mediaTs,
+    media_duration: getMediaDuration(),
+    video_captions: getActiveVideoCaptions() || undefined,
   };
 }
 

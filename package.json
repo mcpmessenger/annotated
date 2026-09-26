@@ -1,6 +1,6 @@
 {
     "name": "annotated",
-    "version": "2.2.5",
+    "version": "2.2.14",
     "private": true,
     "license": "AGPL-3.0-or-later",
     "packageManager": "pnpm@11.9.0",

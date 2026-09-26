@@ -25,6 +25,11 @@ export interface SeekMediaMessage {
   seconds: number;
 }
 
+export interface SeekVideoMessage {
+  type: 'SEEK_VIDEO';
+  seconds: number;
+}
+
 export interface StartDictationMessage {
   type: 'START_DICTATION';
 }
@@ -36,10 +41,17 @@ export interface StopDictationMessage {
 export interface CaptureVideoMessage {
   type: 'CAPTURE_VIDEO';
   duration: number;
+  startTs?: number;
+  endTs?: number;
+  isLiveRecord?: boolean;
 }
 
 export interface StopVideoMessage {
   type: 'STOP_VIDEO';
+}
+
+export interface GetVideoStateMessage {
+  type: 'GET_VIDEO_STATE';
 }
 
 export interface GetPageInfoMessage {
@@ -83,6 +95,15 @@ export interface PageInfoResponseMessage {
   quote?: string;
   selectedText?: string;
   media_timestamp?: number | null;
+  media_duration?: number | null;
+  video_captions?: string;
+}
+
+export interface VideoStateResponseMessage {
+  type: 'VIDEO_STATE_RESPONSE';
+  currentTime: number;
+  duration: number;
+  paused: boolean;
 }
 
 export interface ScreenshotCapturedMessage {
@@ -217,10 +238,12 @@ export type WidgetToContentMessage =
   | CloseWidgetMessage
   | ResizeWidgetMessage
   | SeekMediaMessage
+  | SeekVideoMessage
   | StartDictationMessage
   | StopDictationMessage
   | CaptureVideoMessage
   | StopVideoMessage
+  | GetVideoStateMessage
   | GetPageInfoMessage
   | SaveAnnotationMessage
   | ReloadAnnotationsMessage
@@ -232,6 +255,7 @@ export type WidgetToContentMessage =
 /** Messages sent from content script to widget iframe via postMessage */
 export type ContentToWidgetMessage =
   | PageInfoResponseMessage
+  | VideoStateResponseMessage
   | ScreenshotCapturedMessage
   | VideoCapturedMessage
   | ViewAnnotationMessage

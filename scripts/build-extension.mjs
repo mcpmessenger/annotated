@@ -81,6 +81,7 @@ async function build() {
     // Mirror to all unpacked extension locations
     const targetDirs = [
       desktopDir,
+      `C:\\Users\\senti\\Desktop\\annotated-v${version}`,
       'C:\\Users\\senti\\OneDrive\\Desktop\\Extensions\\Annotated\\annotated-extension-unpacked',
       'C:\\Users\\senti\\OneDrive\\Desktop\\Extensions\\Annotated\\annotated-extension-w-logos',
     ];
@@ -105,7 +106,7 @@ async function build() {
     // Auto-package into fresh zip files for distribution
     try {
       const { execSync } = await import('node:child_process');
-      const zipCmd = `powershell -NoProfile -Command "Compress-Archive -Path '${desktopDir}\\*' -DestinationPath 'C:\\Users\\senti\\OneDrive\\Desktop\\annotated-v${version}.zip' -Force; Copy-Item 'C:\\Users\\senti\\OneDrive\\Desktop\\annotated-v${version}.zip' -Destination 'C:\\Users\\senti\\OneDrive\\Desktop\\Extensions\\Annotated\\annotated-extension-v${version}.zip' -Force"`;
+      const zipCmd = `powershell -NoProfile -Command "Compress-Archive -Path '${desktopDir}\\*' -DestinationPath 'C:\\Users\\senti\\OneDrive\\Desktop\\annotated-v${version}.zip' -Force; Copy-Item 'C:\\Users\\senti\\OneDrive\\Desktop\\annotated-v${version}.zip' -Destination 'C:\\Users\\senti\\OneDrive\\Desktop\\annotated-extension.zip' -Force; Copy-Item 'C:\\Users\\senti\\OneDrive\\Desktop\\annotated-v${version}.zip' -Destination 'C:\\Users\\senti\\OneDrive\\Desktop\\annotated.zip' -Force; Copy-Item 'C:\\Users\\senti\\OneDrive\\Desktop\\annotated-v${version}.zip' -Destination 'C:\\Users\\senti\\OneDrive\\Desktop\\Extensions\\Annotated\\annotated-extension-v${version}.zip' -Force; if (Test-Path 'C:\\Users\\senti\\Desktop') { Copy-Item 'C:\\Users\\senti\\OneDrive\\Desktop\\annotated-v${version}.zip' -Destination 'C:\\Users\\senti\\Desktop\\annotated-v${version}.zip' -Force; Copy-Item 'C:\\Users\\senti\\OneDrive\\Desktop\\annotated-v${version}.zip' -Destination 'C:\\Users\\senti\\Desktop\\annotated.zip' -Force }"`;
       execSync(zipCmd);
       console.log(`🗜️  Generated fresh zip: C:\\Users\\senti\\OneDrive\\Desktop\\annotated-v${version}.zip`);
     } catch (zipErr) {
