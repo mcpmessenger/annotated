@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, FlatList, RefreshControl, StyleSheet, Text, ActivityIndicator } from 'react-native';
+import { View, FlatList, RefreshControl, StyleSheet, Text, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { Colors } from '../theme/colors';
 import { Header } from '../components/Header';
 import { NoteCard } from '../components/NoteCard';
@@ -8,9 +8,14 @@ import { fetchAnnotationsFeed, NoteItem } from '../services/supabase';
 interface FeedScreenProps {
   onSelectNote: (note: NoteItem) => void;
   onOpenScanner: () => void;
+  onCompose: () => void;
 }
 
-export const FeedScreen: React.FC<FeedScreenProps> = ({ onSelectNote, onOpenScanner }) => {
+export const FeedScreen: React.FC<FeedScreenProps> = ({
+  onSelectNote,
+  onOpenScanner,
+  onCompose,
+}) => {
   const [notes, setNotes] = useState<NoteItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -58,6 +63,11 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({ onSelectNote, onOpenScan
           contentContainerStyle={styles.listContent}
         />
       )}
+
+      {/* Floating Action Button (Compose Note) */}
+      <TouchableOpacity style={styles.fab} activeOpacity={0.8} onPress={onCompose}>
+        <Text style={styles.fabText}>+</Text>
+      </TouchableOpacity>
     </View>
   );
 };
@@ -69,6 +79,7 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingVertical: 10,
+    paddingBottom: 80,
   },
   center: {
     flex: 1,
@@ -80,5 +91,27 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     fontSize: 14,
     fontWeight: '600',
+  },
+  fab: {
+    position: 'absolute',
+    bottom: 24,
+    right: 24,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: Colors.cyan,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: Colors.cyan,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  fabText: {
+    color: '#000000',
+    fontSize: 30,
+    fontWeight: '900',
+    lineHeight: 34,
   },
 });
