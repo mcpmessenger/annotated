@@ -47,6 +47,47 @@ export default function InstallPage() {
               </div>
             </section>
 
+            {/* Living Room & Smart TV */}
+            <section className="border-t border-[hsl(var(--border))] pt-12">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                  Beta
+                </span>
+                <h2 className="text-2xl font-bold">Living Room &amp; Smart TV</h2>
+              </div>
+              <p className="text-base leading-relaxed text-[hsl(var(--foreground))] mb-6">
+                Watch video commentary and community fact-checks from your couch with our official Roku TV channel.
+              </p>
+
+              <div className="border border-[hsl(var(--border))] rounded-lg p-6 max-w-2xl bg-[hsl(var(--card))]">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                  <div>
+                    <h3 className="font-bold text-lg mb-1">Roku TV &amp; Streaming Players</h3>
+                    <p className="text-sm text-[hsl(var(--text-muted))]">
+                      Channel Code: <code className="px-1.5 py-0.5 rounded bg-[hsl(var(--background))] border border-[hsl(var(--border))] font-mono text-xs font-bold">5HNKDDJ</code>
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <Link
+                      href="/roku"
+                      className="inline-flex items-center px-4 py-2 bg-transparent border border-[hsl(var(--border))] text-[hsl(var(--foreground))] rounded text-sm font-medium hover:bg-[hsl(var(--border))] transition-colors"
+                    >
+                      Guide
+                    </Link>
+                    <a
+                      href="https://my.roku.com/add/5HNKDDJ"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center px-4 py-2 bg-[hsl(var(--foreground))] text-[hsl(var(--background))] rounded text-sm font-medium hover:opacity-90 transition-opacity"
+                    >
+                      Add Channel &rarr;
+                    </a>
+                  </div>
+                </div>
+              </div>
+            </section>
+
             {/* Getting Started */}
             <section className="border-t border-[hsl(var(--border))] pt-12">
               <h2 className="text-2xl font-bold mb-4">Getting Started</h2>

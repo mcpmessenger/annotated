@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <component name="MainScene" extends="Scene">
   <field id="launchArgs" type="assocarray" onChange="onLaunchArgsChanged" />
+  <field id="inputArgs" type="assocarray" onChange="onInputArgsChanged" />
   <script type="text/brightscript" uri="pkg:/components/MainScene.brs" />
 
   <children>
@@ -8,10 +9,10 @@
     <!-- Roku Plane Architecture: Hardware video plane renders BEHIND graphics plane.
          Framing rectangles surround the video viewport [80, 110] to [1220, 750] so video plane is unblocked -->
     <Group id="bgRect" visible="false" />
-    <Rectangle id="bgHeader" width="1920" height="110" color="0x090D16FF" translation="[0, 0]" />
-    <Rectangle id="bgLeft" width="80" height="640" color="0x090D16FF" translation="[0, 110]" />
-    <Rectangle id="bgBottom" width="1220" height="330" color="0x090D16FF" translation="[0, 750]" />
-    <Rectangle id="bgRight" width="700" height="970" color="0x090D16FF" translation="[1220, 110]" />
+    <Rectangle id="bgHeader" width="1920" height="110" color="0x000000FF" translation="[0, 0]" />
+    <Rectangle id="bgLeft" width="80" height="640" color="0x000000FF" translation="[0, 110]" />
+    <Rectangle id="bgBottom" width="1220" height="330" color="0x000000FF" translation="[0, 750]" />
+    <Rectangle id="bgRight" width="700" height="970" color="0x000000FF" translation="[1220, 110]" />
 
     <!-- Top Navigation Header -->
     <Group id="headerGroup" translation="[80, 40]">

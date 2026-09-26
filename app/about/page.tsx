@@ -53,6 +53,59 @@ export default function AboutPage() {
           </section>
 
           <section className="mb-10">
+            <h2 className="text-2xl font-bold mb-4">The Multi-Platform Ecosystem</h2>
+            <p className="text-base leading-relaxed text-[hsl(var(--foreground))] mb-4">
+              Knowledge doesn&apos;t live on a single screen. Annotated is designed as a unified, cross-device ecosystem where commentary flows seamlessly between creation, exploration, and lean-back consumption:
+            </p>
+            
+            <div className="grid sm:grid-cols-1 md:grid-cols-3 gap-6 my-6 not-prose">
+              <div className="border border-[hsl(var(--border))] rounded-lg p-5 bg-[hsl(var(--card))]">
+                <div className="text-2xl mb-2">💻</div>
+                <h3 className="font-bold text-base mb-1">Browser Extension</h3>
+                <span className="text-xs font-semibold text-[hsl(var(--accent))] uppercase tracking-wider block mb-2">The Creation Engine</span>
+                <p className="text-sm text-[hsl(var(--text-muted))]">
+                  Highlight text, timestamp videos, and publish contextual margins directly on any webpage as you browse.
+                </p>
+              </div>
+
+              <div className="border border-[hsl(var(--border))] rounded-lg p-5 bg-[hsl(var(--card))]">
+                <div className="text-2xl mb-2">🌐</div>
+                <h3 className="font-bold text-base mb-1">Web Platform</h3>
+                <span className="text-xs font-semibold text-emerald-500 uppercase tracking-wider block mb-2">The Community Hub</span>
+                <p className="text-sm text-[hsl(var(--text-muted))]">
+                  Search annotations, explore trending discussions, follow trusted curators, and manage your public profile.
+                </p>
+              </div>
+
+              <div className="border border-[hsl(var(--border))] rounded-lg p-5 bg-[hsl(var(--card))]">
+                <div className="text-2xl mb-2">📺</div>
+                <h3 className="font-bold text-base mb-1">Roku TV Channel</h3>
+                <span className="text-xs font-semibold text-sky-400 uppercase tracking-wider block mb-2">The Living Room</span>
+                <p className="text-sm text-[hsl(var(--text-muted))]">
+                  Experience video annotations and community fact-checking on the big screen with your TV remote.
+                </p>
+              </div>
+            </div>
+
+            <div className="rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-5 mt-4 not-prose">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div>
+                  <h4 className="font-bold text-sm text-[hsl(var(--foreground))]">Why TV? Fact-Checking on the Big Screen</h4>
+                  <p className="text-xs text-[hsl(var(--text-muted))] mt-1 max-w-xl">
+                    Long-form video essays, news reports, and documentaries are best watched on television. Our official Roku channel brings community consensus badges (Verified, Disputed, Unverified), timestamped commentary, and remote reactions directly to your living room.
+                  </p>
+                </div>
+                <Link
+                  href="/roku"
+                  className="inline-flex items-center px-4 py-2 rounded text-xs font-semibold bg-[hsl(var(--foreground))] text-[hsl(var(--background))] hover:opacity-90 transition-opacity flex-shrink-0"
+                >
+                  Explore Roku Channel &rarr;
+                </Link>
+              </div>
+            </div>
+          </section>
+
+          <section className="mb-10">
             <h2 className="text-2xl font-bold mb-4">Our Principles</h2>
             <ul className="space-y-2 text-base text-[hsl(var(--foreground))]">
               <li>

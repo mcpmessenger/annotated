@@ -40,6 +40,15 @@ export default async function Home() {
                 </Link>
               </div>
 
+              {/* Subtle Ecosystem Note */}
+              <div className="flex items-center gap-2 pt-1 text-xs text-[hsl(var(--text-muted))]">
+                <span>Also available on</span>
+                <Link href="/roku" className="inline-flex items-center gap-1.5 font-medium text-[hsl(var(--foreground))] hover:underline">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block animate-pulse"></span>
+                  Roku TV (Beta)
+                </Link>
+              </div>
+
               {/* Video Embed */}
               <div className="mt-12 relative w-full max-w-4xl rounded-[12px] overflow-hidden border border-[hsl(var(--border))] shadow-2xl bg-[hsl(var(--card))]">
                 <div className="aspect-video">

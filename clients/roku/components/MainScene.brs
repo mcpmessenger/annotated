@@ -109,6 +109,7 @@ sub init()
     m.isModalOpen = false
     m.modalItemIndex = -1
     m.focusedModalButton = 0
+    m.isLaunchBeaconSent = false
 
     ' Interaction States: STATE_A (Passive Playback) or STATE_B (Active Browsing)
     m.uiState = "STATE_A"
@@ -152,12 +153,47 @@ sub init()
     print "[Annotated] MainScene initialized. Ready in STATE_A (Passive Playback)."
 end sub
 
+function handleDeepLink(args as Object) as Boolean
+    if args = invalid then return false
+    contentId = ""
+    if args.contentId <> invalid then contentId = args.contentId
+    mediaType = ""
+    if args.mediaType <> invalid then mediaType = args.mediaType
+    print "[Annotated Deep Link] Handling deep link -> contentId: '"; contentId; "' mediaType: '"; mediaType; "'"
+
+    if contentId <> "" and m.annotations <> invalid and m.annotations.count() > 0
+        for i = 0 to m.annotations.count() - 1
+            item = m.annotations[i]
+            if item.id = contentId or (item.slug <> invalid and item.slug = contentId)
+                print "[Annotated Deep Link] Found matching annotation at index: "; i; " -> Playing clip!"
+                playAnnotationVideo(i)
+                m.top.signalBeacon("AppLaunchComplete")
+                return true
+            end if
+        end for
+
+        targetIdx = Val(contentId)
+        if targetIdx >= 0 and targetIdx < m.annotations.count()
+            print "[Annotated Deep Link] Found matching index: "; targetIdx; " -> Playing clip!"
+            playAnnotationVideo(targetIdx)
+            m.top.signalBeacon("AppLaunchComplete")
+            return true
+        end if
+    end if
+    return false
+end function
+
 sub onLaunchArgsChanged()
     if m.top.launchArgs <> invalid
         print "[Annotated Deep Link] Received launch args: "; m.top.launchArgs
-        if m.top.launchArgs.contentId <> invalid
-            print "[Annotated Deep Link] Target Content ID: "; m.top.launchArgs.contentId
-        end if
+        handleDeepLink(m.top.launchArgs)
+    end if
+end sub
+
+sub onInputArgsChanged()
+    if m.top.inputArgs <> invalid
+        print "[Annotated Deep Link] Received roInput event args: "; m.top.inputArgs
+        handleDeepLink(m.top.inputArgs)
     end if
 end sub
 
@@ -268,26 +304,72 @@ sub updateStageMetrics(item as Object)
 
     ' 2. Dynamic Fact Check Status & Banner (Nordic Minimalist: Symbols & TL;DR)
     fc = item.fact_check
-    status = "verified"
-    headline = "VERIFIED ACCURATE"
-    detail = "Primary sources cross-referenced and confirmed."
-    pillText = "Verified"
-    badgeColor = "0x34D399FF"
-    bannerColor = "0x064E3BDD"
-    borderColor = "0x34D399FF"
-    iconUri = "pkg:/images/icon_bolt.png"
+    status = "note"
+    headline = "COMMUNITY NOTE"
+    detail = "Community commentary attached to video segment."
+    pillText = "Note"
+    badgeColor = "0x38BDF8FF"
+    bannerColor = "0x0C4A6EDD"
+    borderColor = "0x38BDF8FF"
+    iconUri = "pkg:/images/icon_idea.png"
 
     if fc <> invalid
-        if fc.status <> invalid then status = fc.status
-        if fc.headline <> invalid then headline = fc.headline
-        if fc.detail <> invalid then detail = fc.detail
-        if fc.pillText <> invalid then pillText = fc.pillText
-        if fc.badgeColor <> invalid then badgeColor = fc.badgeColor
-        if fc.bannerColor <> invalid then bannerColor = fc.bannerColor
-        if fc.borderColor <> invalid then borderColor = fc.borderColor
-        if fc.icon <> invalid then iconUri = fc.icon
+        if fc.status <> invalid then status = LCase(fc.status)
+        if fc.verdict <> invalid
+            vUpper = UCase(fc.verdict)
+            if vUpper = "FALSE" then status = "false"
+            if vUpper = "MISLEADING" then status = "misleading"
+            if vUpper = "CONTEXT_NEEDED" then status = "context_needed"
+            if vUpper = "VERIFIED" then status = "verified"
+        end if
+
+        if status = "false" or status = "disputed"
+            status = "false"
+            headline = "FACT CHECK: FALSE CLAIM"
+            if fc.headline <> invalid and fc.headline <> "" then headline = fc.headline
+            detail = "Claims evaluated as false or AI-generated synthetic media."
+            if fc.detail <> invalid and fc.detail <> "" then detail = fc.detail
+            if fc.explanation <> invalid and fc.explanation <> "" then detail = fc.explanation
+            pillText = "False"
+            badgeColor = "0xEF4444FF"
+            bannerColor = "0x7F1D1DDD"
+            borderColor = "0xEF4444FF"
+            iconUri = "pkg:/images/icon_down.png"
+        else if status = "misleading"
+            headline = "FACT CHECK: MISLEADING"
+            if fc.headline <> invalid and fc.headline <> "" then headline = fc.headline
+            detail = "Content lacks essential context or presents disputed claims."
+            if fc.detail <> invalid and fc.detail <> "" then detail = fc.detail
+            if fc.explanation <> invalid and fc.explanation <> "" then detail = fc.explanation
+            pillText = "Misleading"
+            badgeColor = "0xF87171FF"
+            bannerColor = "0x7F1D1DDD"
+            borderColor = "0xF87171FF"
+            iconUri = "pkg:/images/icon_down.png"
+        else if status = "context_needed"
+            headline = "FACT CHECK: NEEDS CONTEXT"
+            if fc.headline <> invalid and fc.headline <> "" then headline = fc.headline
+            detail = "Missing primary source records or disputed context."
+            if fc.detail <> invalid and fc.detail <> "" then detail = fc.detail
+            if fc.explanation <> invalid and fc.explanation <> "" then detail = fc.explanation
+            pillText = "Needs Context"
+            badgeColor = "0xF59E0BFF"
+            bannerColor = "0x78350FDD"
+            borderColor = "0xF59E0BFF"
+            iconUri = "pkg:/images/icon_think.png"
+        else if status = "verified"
+            headline = "COMMUNITY FACT CHECK: VERIFIED ACCURATE"
+            if fc.headline <> invalid and fc.headline <> "" then headline = fc.headline
+            detail = "Primary sources cross-referenced and confirmed."
+            if fc.detail <> invalid and fc.detail <> "" then detail = fc.detail
+            pillText = "Verified"
+            badgeColor = "0x34D399FF"
+            bannerColor = "0x064E3BDD"
+            borderColor = "0x34D399FF"
+            iconUri = "pkg:/images/icon_bolt.png"
+        end if
     else if item.is_disputed = true
-        status = "disputed"
+        status = "false"
         headline = "DISPUTED CLAIM"
         detail = "Community reviewers flagged statement as disputed."
         pillText = "Disputed"
@@ -310,11 +392,11 @@ sub updateStageMetrics(item as Object)
         if status = "verified"
             m.btnFactCheck.color = "0x064E3BFF"
         else if status = "context_needed"
-            m.btnFactCheck.color = "0x1E1B4BFF"
-        else if status = "disputed"
+            m.btnFactCheck.color = "0x78350FFF"
+        else if status = "false" or status = "disputed" or status = "misleading"
             m.btnFactCheck.color = "0x7F1D1DFF"
         else
-            m.btnFactCheck.color = "0x1F2937FF"
+            m.btnFactCheck.color = "0x1E293BFF"
         end if
     end if
     if m.lblFactCheck <> invalid
@@ -427,6 +509,7 @@ sub openDetailModal(index as Integer)
     m.isModalOpen = true
     m.focusedModalButton = 0
     updateModalButtonFocus()
+    m.top.signalBeacon("AppDialogInitiate")
 
     ' 1. Author and Platform
     if m.modalAuthor <> invalid
@@ -491,14 +574,61 @@ sub openDetailModal(index as Integer)
     ' 4. Fact Check Status (Intuitive TL;DR symbols)
     fc = item.fact_check
     if fc <> invalid
-        if m.modalFcIcon <> invalid and fc.icon <> invalid then m.modalFcIcon.uri = fc.icon
-        if m.modalFcHeadline <> invalid
-            hl = "VERIFIED ACCURATE"
-            if fc.headline <> invalid then hl = fc.headline
-            m.modalFcHeadline.text = hl
-            if fc.badgeColor <> invalid then m.modalFcHeadline.color = fc.badgeColor
+        fcStatus = ""
+        if fc.status <> invalid then fcStatus = LCase(fc.status)
+        if fc.verdict <> invalid
+            vUpper = UCase(fc.verdict)
+            if vUpper = "FALSE" then fcStatus = "false"
+            if vUpper = "MISLEADING" then fcStatus = "misleading"
+            if vUpper = "CONTEXT_NEEDED" then fcStatus = "context_needed"
+            if vUpper = "VERIFIED" then fcStatus = "verified"
         end if
-        if m.modalFcDetail <> invalid and fc.detail <> invalid then m.modalFcDetail.text = fc.detail
+
+        if fcStatus = "false"
+            if m.modalFcIcon <> invalid then m.modalFcIcon.uri = "pkg:/images/icon_down.png"
+            if m.modalFcHeadline <> invalid
+                hl = "FACT CHECK: FALSE CLAIM"
+                if fc.headline <> invalid and fc.headline <> "" then hl = fc.headline
+                m.modalFcHeadline.text = hl
+                m.modalFcHeadline.color = "0xEF4444FF"
+            end if
+        else if fcStatus = "misleading"
+            if m.modalFcIcon <> invalid then m.modalFcIcon.uri = "pkg:/images/icon_down.png"
+            if m.modalFcHeadline <> invalid
+                hl = "FACT CHECK: MISLEADING"
+                if fc.headline <> invalid and fc.headline <> "" then hl = fc.headline
+                m.modalFcHeadline.text = hl
+                m.modalFcHeadline.color = "0xF87171FF"
+            end if
+        else if fcStatus = "context_needed"
+            if m.modalFcIcon <> invalid then m.modalFcIcon.uri = "pkg:/images/icon_think.png"
+            if m.modalFcHeadline <> invalid
+                hl = "FACT CHECK: NEEDS CONTEXT"
+                if fc.headline <> invalid and fc.headline <> "" then hl = fc.headline
+                m.modalFcHeadline.text = hl
+                m.modalFcHeadline.color = "0xF59E0BFF"
+            end if
+        else
+            if m.modalFcIcon <> invalid and fc.icon <> invalid then m.modalFcIcon.uri = fc.icon
+            if m.modalFcHeadline <> invalid
+                hl = "VERIFIED ACCURATE"
+                if fc.headline <> invalid and fc.headline <> "" then hl = fc.headline
+                m.modalFcHeadline.text = hl
+                if fc.badgeColor <> invalid then m.modalFcHeadline.color = fc.badgeColor else m.modalFcHeadline.color = "0x34D399FF"
+            end if
+        end if
+
+        detailText = "Consensus evaluated with primary sources."
+        if fc.detail <> invalid and fc.detail <> "" then detailText = fc.detail
+        if fc.explanation <> invalid and fc.explanation <> "" then detailText = fc.explanation
+        if m.modalFcDetail <> invalid then m.modalFcDetail.text = detailText
+    else
+        if m.modalFcIcon <> invalid then m.modalFcIcon.uri = "pkg:/images/icon_idea.png"
+        if m.modalFcHeadline <> invalid
+            m.modalFcHeadline.text = "COMMUNITY NOTE"
+            m.modalFcHeadline.color = "0x38BDF8FF"
+        end if
+        if m.modalFcDetail <> invalid then m.modalFcDetail.text = "Community annotation attached to source."
     end if
 
     ' 5. QR Code & Direct Web Link to the specific selected annotation
@@ -542,6 +672,7 @@ sub closeDetailModal()
     if m.uiState = "STATE_A"
         setVideoDucking(false)
     end if
+    m.top.signalBeacon("AppDialogComplete")
     print "[Annotated Modal] Closed Detail Modal."
 end sub
 
@@ -710,10 +841,19 @@ sub playNextVideo()
     playAnnotationVideo(nextIndex)
 end sub
 
+sub signalAppLaunchComplete()
+    if m.isLaunchBeaconSent <> true
+        m.isLaunchBeaconSent = true
+        m.top.signalBeacon("AppLaunchComplete")
+        print "[Annotated Beacon] Successfully signaled AppLaunchComplete beacon!"
+    end if
+end sub
+
 sub onIntroAnimState()
     if m.introAnim.state = "stopped"
         m.introOverlay.visible = false
         print "[Annotated] Cinematic intro completed. Revealing live dashboard."
+        signalAppLaunchComplete()
     end if
 end sub
 
@@ -875,6 +1015,7 @@ sub onAnnotationsLoaded()
     if annotations = invalid or annotations.count() = 0
         print "[Annotated] No annotations returned from feed task."
         m.railCount.text = "0 Notes"
+        signalAppLaunchComplete()
         return
     end if
 
@@ -887,9 +1028,18 @@ sub onAnnotationsLoaded()
 
     renderRailCardsWindow()
 
-    ' Automatically play the genuine video belonging to the first community annotation!
-    playAnnotationVideo(0)
-    print "[Annotated] Initial community video clip loaded and playing!"
+    handledDeepLink = false
+    if m.top.launchArgs <> invalid and m.top.launchArgs.contentId <> invalid
+        handledDeepLink = handleDeepLink(m.top.launchArgs)
+    end if
+
+    if not handledDeepLink
+        ' Automatically play the genuine video belonging to the first community annotation!
+        playAnnotationVideo(0)
+        print "[Annotated] Initial community video clip loaded and playing!"
+    end if
+
+    signalAppLaunchComplete()
 end sub
 
 sub updateButtonFocus()

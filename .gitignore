@@ -21,4 +21,8 @@ fix_*.py
 # Roku & MCP artifacts
 clients/roku/dist/
 *.zip
+*.pkg
 tooling/roku-mcp/dist/
+*ROKU*CREDENTIAL*
+*roku*credential*
+ROKU_PACKAGING_CREDENTIALS.md

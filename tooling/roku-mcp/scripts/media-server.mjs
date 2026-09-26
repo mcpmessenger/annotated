@@ -167,7 +167,20 @@ async function getEnrichedFeed() {
       };
 
       // Specific known anchors
-      if (a.id === '12620142-689d-4e1c-b033-1a49505f18eb') {
+      if (a.id === 'a74eae18-4c5e-4abf-bf31-7e0978f97f8d' || (a.page_title && (a.page_title.includes('lost Xi') || a.page_title.includes('Xi camera roll'))) || (a.quote && (a.quote.includes('lost Xi') || a.quote.includes('Xi camera roll')))) {
+        fc = {
+          status: 'false',
+          verdict: 'FALSE',
+          headline: 'FACT CHECK: FALSE CLAIM',
+          detail: 'The video claiming to show Chinese President Xi Jinping\'s lost camera roll is entirely AI-generated synthetic media.',
+          explanation: 'The media depicting Chinese President Xi Jinping and US President Joe Biden in informal scenarios after a State Dinner consists of synthetic, AI-generated images. Reuters verified these visuals were created using generative AI tools and do not represent real-life events.',
+          pillText: 'False',
+          badgeColor: '0xEF4444FF',
+          bannerColor: '0x7F1D1DDD',
+          borderColor: '0xEF4444FF',
+          icon: 'pkg:/images/icon_down.png'
+        };
+      } else if (a.id === '12620142-689d-4e1c-b033-1a49505f18eb') {
         fc = {
           status: 'verified',
           headline: 'VERIFIED ACCURATE',
@@ -288,7 +301,7 @@ async function getEnrichedFeed() {
         ...a,
         hostname: authorName,
         video_url: videoUrl,
-        qr_url: `http://192.168.4.22:${PORT}/qr/${a.id}.png`,
+        qr_url: '',
         source_url: a.url || '',
         is_video: isVideo,
         comment: cleanComment,
