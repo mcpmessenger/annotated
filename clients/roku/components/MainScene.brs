@@ -523,11 +523,11 @@ end sub
 sub onVideoPositionChanged()
     vPos = 0
     if m.mainVideo.position <> invalid then vPos = m.mainVideo.position
-    vDur = 41
+    vDur = 0
     if m.mainVideo.duration <> invalid and m.mainVideo.duration > 0 then vDur = m.mainVideo.duration
 
     posSecTotal = 0
-    durSecTotal = 41
+    durSecTotal = 0
     
     posParts = Str(vPos).trim().split(".")
     if posParts.count() > 0 then posSecTotal = Val(posParts[0])
@@ -535,7 +535,7 @@ sub onVideoPositionChanged()
     durParts = Str(vDur).trim().split(".")
     if durParts.count() > 0 then durSecTotal = Val(durParts[0])
 
-    if posSecTotal > durSecTotal
+    if posSecTotal > durSecTotal and durSecTotal > 0
         if m.initialVideoPos = invalid or m.initialVideoPos = 0
             m.initialVideoPos = posSecTotal
         end if
@@ -545,10 +545,29 @@ sub onVideoPositionChanged()
         m.initialVideoPos = 0
     end if
 
+    activeItem = invalid
+    if m.annotations <> invalid and m.currentPlayingCardIndex >= 0 and m.currentPlayingCardIndex < m.annotations.count()
+        activeItem = m.annotations[m.currentPlayingCardIndex]
+    end if
+    isVideoClip = false
+    if activeItem <> invalid and activeItem.is_video = true
+        isVideoClip = true
+    end if
+
+    ' Target display duration
+    displayDur = durSecTotal
+    if isVideoClip
+        if displayDur <= 0 or displayDur > 90
+            displayDur = 90
+        end if
+    else
+        displayDur = 15
+    end if
+
     posMin = posSecTotal \ 60
     posSec = posSecTotal - (posMin * 60)
-    durMin = durSecTotal \ 60
-    durSec = durSecTotal - (durMin * 60)
+    durMin = displayDur \ 60
+    durSec = displayDur - (durMin * 60)
 
     posMStr = Str(posMin).trim()
     posSStr = Str(posSec).trim()
@@ -589,25 +608,33 @@ sub onVideoPositionChanged()
         end if
     end if
 
-    ' Watchdog 1: Clip reached near its natural duration (posSecTotal >= durSecTotal - 1)
-    if durSecTotal > 0 and posSecTotal >= (durSecTotal - 1)
-        nowTick = CreateObject("roDateTime").AsSeconds()
-        if m.lastAutoPlayTime = invalid or (nowTick - m.lastAutoPlayTime > 3)
-            m.lastAutoPlayTime = nowTick
-            print "[Annotated Watchdog] Clip position reached duration (pos="; posSecTotal; " dur="; durSecTotal; "). Advancing to next!"
-            playNextVideo()
-            return
-        end if
-    end if
-
-    ' Watchdog 2: 15s showcase duration for stagnant slates
     nowTick = CreateObject("roDateTime").AsSeconds()
-    if m.clipStartTime <> invalid
-        elapsed = nowTick - m.clipStartTime
-        if durSecTotal <= 15 and elapsed >= 15
+    elapsed = 0
+    if m.clipStartTime <> invalid then elapsed = nowTick - m.clipStartTime
+
+    if isVideoClip
+        ' For full video clips: let video play up to natural duration or 90s max
+        clipFinished = false
+        if durSecTotal > 0 and posSecTotal >= (durSecTotal - 1)
+            clipFinished = true
+        else if posSecTotal >= 90 or elapsed >= 90
+            clipFinished = true
+        end if
+
+        if clipFinished
             if m.lastAutoPlayTime = invalid or (nowTick - m.lastAutoPlayTime > 3)
                 m.lastAutoPlayTime = nowTick
-                print "[Annotated Watchdog] 15s showcase elapsed. Advancing to next note!"
+                print "[Annotated Watchdog] Full video clip finished or reached 90s cap (pos="; posSecTotal; " dur="; durSecTotal; " elapsed="; elapsed; "). Advancing to next!"
+                playNextVideo()
+                return
+            end if
+        end if
+    else
+        ' For stagnant slates: showcase for 15s then advance
+        if elapsed >= 15
+            if m.lastAutoPlayTime = invalid or (nowTick - m.lastAutoPlayTime > 3)
+                m.lastAutoPlayTime = nowTick
+                print "[Annotated Watchdog] 15s slate showcase elapsed. Advancing to next note!"
                 playNextVideo()
                 return
             end if
