@@ -160,16 +160,6 @@
           <Poster uri="pkg:/images/icon_down.png" width="26" height="26" translation="[13, 13]" />
           <Label id="lblDownCount" text="0" font="font:MediumBoldSystemFont" color="0xFFFFFFFF" translation="[46, 12]" />
         </Rectangle>
-
-        <!-- Mode Indicator -->
-        <Label
-          id="progressModeLabel"
-          text="15s Internet Note"
-          font="font:SmallBoldSystemFont"
-          color="0x64748BFF"
-          horizAlign="right"
-          width="320"
-          translation="[880, 16]" />
       </Group>
 
       <!-- Streamlined AI Fact-Check Context Card (Pure AI Content) -->

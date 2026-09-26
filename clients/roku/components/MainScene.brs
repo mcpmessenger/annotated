@@ -25,7 +25,6 @@ sub init()
     m.lblHundredCount = m.top.findNode("lblHundredCount")
     m.lblDownCount = m.top.findNode("lblDownCount")
     m.videoProgressBar = m.top.findNode("videoProgressBar")
-    m.progressModeLabel = m.top.findNode("progressModeLabel")
     m.playbackTimer = m.top.findNode("playbackTimer")
     if m.playbackTimer <> invalid
         m.playbackTimer.observeField("fire", "onPlaybackTimerTick")
@@ -733,19 +732,10 @@ sub onPlaybackTimerTick()
         else
             totalDur = 90.0
         end if
-
-        if m.progressModeLabel <> invalid
-            m.progressModeLabel.text = "Video Clip (" + Str(Fix(totalDur)).trim() + "s max)"
-            m.progressModeLabel.color = "0x38BDF8FF"
-        end if
     else
         ' 15-second internet annotation showcase
         totalDur = 15.0
         currentPos = elapsed
-        if m.progressModeLabel <> invalid
-            m.progressModeLabel.text = "Internet Note (15s Auto-Advance)"
-            m.progressModeLabel.color = "0x94A3B8FF"
-        end if
     end if
 
     ' Progress ratio clamped [0.0, 1.0]
