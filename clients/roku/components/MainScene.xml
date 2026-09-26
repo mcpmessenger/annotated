@@ -171,6 +171,46 @@
           width="320"
           translation="[880, 16]" />
       </Group>
+
+      <!-- Sleek AI & Community Fact-Check Context Card -->
+      <Rectangle
+        id="factCheckBanner"
+        width="1200"
+        height="100"
+        color="0x064E3BDD"
+        translation="[0, 765]">
+        <!-- Left Color Accent Stripe -->
+        <Rectangle id="fcBorder" width="6" height="100" color="0x34D399FF" translation="[0, 0]" />
+        <!-- Status Icon -->
+        <Poster id="fcIcon" uri="pkg:/images/icon_bolt.png" width="22" height="22" translation="[20, 14]" />
+        <!-- Headline -->
+        <Label
+          id="fcHeadline"
+          text="COMMUNITY FACT CHECK: VERIFIED ACCURATE"
+          font="font:MediumBoldSystemFont"
+          color="0x34D399FF"
+          width="900"
+          translation="[52, 14]" />
+        <!-- AI Badge -->
+        <Label
+          id="fcAiBadge"
+          text="AI VERIFIER CONTEXT"
+          font="font:SmallBoldSystemFont"
+          color="0x64748BFF"
+          horizAlign="right"
+          width="220"
+          translation="[950, 14]" />
+        <!-- Explanation / Detail Context from AI Verifier -->
+        <Label
+          id="fcDetail"
+          text="The community verified the referenced claims against primary sources. Multi-source consensus confirmed."
+          font="font:SmallSystemFont"
+          color="0xF1F5F9FF"
+          width="1140"
+          wrap="true"
+          maxLines="2"
+          translation="[20, 44]" />
+      </Rectangle>
     </Group>
 
     <!-- Backdrop Glassmorphic Panel for Active Rail Browsing (State B) -->
