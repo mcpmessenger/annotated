@@ -39,6 +39,27 @@ export default function PrivacyPage() {
             </ul>
           </section>
 
+          <section className="mb-10 border border-[hsl(var(--border))] rounded-xl p-6 bg-[hsl(var(--card))] shadow-sm">
+            <h2 className="text-xl font-bold mb-3 text-[hsl(var(--accent))]">Roku Connected TV Application</h2>
+            <p className="text-base leading-relaxed text-[hsl(var(--foreground))] mb-3">
+              To comply with Roku Developer Certification and privacy standards, we disclose how the Annotated Roku channel handles your data:
+            </p>
+            <ul className="space-y-2 text-base text-[hsl(var(--foreground))]">
+              <li>
+                <strong>No Account Required on TV:</strong> You can browse public video clips, read community notes, and view AI fact-checks on Roku TV without creating an account or logging in.
+              </li>
+              <li>
+                <strong>Device Diagnostics:</strong> We receive standard anonymous technical diagnostic information provided by the Roku platform (such as device model, OS version, and screen resolution) used solely to ensure stable 1080p video streaming and responsive UI rendering.
+              </li>
+              <li>
+                <strong>No Targeted Advertising or Tracking:</strong> The Annotated Roku channel does not track your viewing habits across other channels, does not sell your viewer data, and does not serve personalized behavioral advertisements.
+              </li>
+              <li>
+                <strong>Scannable Mobile Pass & QR Codes:</strong> The TV channel displays QR codes pointing to public annotation passes (e.g. <code>annotated-repo.vercel.app/n/[id]</code>). Scanning a QR code does not transmit your Roku device ID or personal TV information to your mobile phone.
+              </li>
+            </ul>
+          </section>
+
           <section className="mb-10">
             <h2 className="text-2xl font-bold mb-4">Information We Collect</h2>
             <p className="text-base font-medium text-[hsl(var(--foreground))] mb-3">
