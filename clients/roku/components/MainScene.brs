@@ -105,6 +105,7 @@ sub init()
     m.modalFullComment = m.top.findNode("modalFullComment")
     m.modalEmojiIcon = m.top.findNode("modalEmojiIcon")
     m.modalFcBox = m.top.findNode("modalFcBox")
+    m.modalFcAccent = m.top.findNode("modalFcAccent")
     m.modalFcIcon = m.top.findNode("modalFcIcon")
     m.modalFcHeadline = m.top.findNode("modalFcHeadline")
     m.modalFcDetail = m.top.findNode("modalFcDetail")
@@ -599,6 +600,7 @@ sub openDetailModal(index as Integer)
                 m.modalFcHeadline.text = hl
                 m.modalFcHeadline.color = "0xEF4444FF"
             end if
+            if m.modalFcAccent <> invalid then m.modalFcAccent.color = "0xEF4444FF"
         else if fcStatus = "misleading"
             if m.modalFcIcon <> invalid then m.modalFcIcon.uri = "pkg:/images/icon_down.png"
             if m.modalFcHeadline <> invalid
@@ -607,6 +609,7 @@ sub openDetailModal(index as Integer)
                 m.modalFcHeadline.text = hl
                 m.modalFcHeadline.color = "0xF87171FF"
             end if
+            if m.modalFcAccent <> invalid then m.modalFcAccent.color = "0xF87171FF"
         else if fcStatus = "context_needed"
             if m.modalFcIcon <> invalid then m.modalFcIcon.uri = "pkg:/images/icon_think.png"
             if m.modalFcHeadline <> invalid
@@ -615,6 +618,7 @@ sub openDetailModal(index as Integer)
                 m.modalFcHeadline.text = hl
                 m.modalFcHeadline.color = "0xF59E0BFF"
             end if
+            if m.modalFcAccent <> invalid then m.modalFcAccent.color = "0xF59E0BFF"
         else
             if m.modalFcIcon <> invalid and fc.icon <> invalid then m.modalFcIcon.uri = fc.icon
             if m.modalFcHeadline <> invalid
@@ -623,6 +627,7 @@ sub openDetailModal(index as Integer)
                 m.modalFcHeadline.text = hl
                 if fc.badgeColor <> invalid then m.modalFcHeadline.color = fc.badgeColor else m.modalFcHeadline.color = "0x34D399FF"
             end if
+            if m.modalFcAccent <> invalid then m.modalFcAccent.color = "0x34D399FF"
         end if
 
         detailText = "Consensus evaluated with primary sources."
@@ -635,6 +640,7 @@ sub openDetailModal(index as Integer)
             m.modalFcHeadline.text = "COMMUNITY NOTE"
             m.modalFcHeadline.color = "0x38BDF8FF"
         end if
+        if m.modalFcAccent <> invalid then m.modalFcAccent.color = "0x38BDF8FF"
         if m.modalFcDetail <> invalid then m.modalFcDetail.text = "Community annotation attached to source."
     end if
 
@@ -1174,23 +1180,10 @@ function onKeyEvent(key as String, press as Boolean) as Boolean
 
         ' 1. Modal Navigation overrides other controls when open
         if m.isModalOpen = true
-            if key = "back" or key = "options" or key = "info"
+            if key = "back" or key = "options" or key = "info" or key = "down" or key = "up"
                 closeDetailModal()
                 handled = true
-            else if key = "left" or key = "right"
-                m.focusedModalButton = (m.focusedModalButton + 1) mod 2
-                updateModalButtonFocus()
-                handled = true
-            else if key = "OK"
-                if m.focusedModalButton = 0
-                    targetIdx = m.modalItemIndex
-                    closeDetailModal()
-                    if targetIdx >= 0 then playAnnotationVideo(targetIdx)
-                else
-                    closeDetailModal()
-                end if
-                handled = true
-            else if key = "play"
+            else if key = "OK" or key = "play"
                 targetIdx = m.modalItemIndex
                 closeDetailModal()
                 if targetIdx >= 0 then playAnnotationVideo(targetIdx)
