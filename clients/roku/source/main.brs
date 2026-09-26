@@ -1,4 +1,4 @@
-﻿sub Main(args as Dynamic)
+sub Main(args as Dynamic)
     print "[Annotated] Channel launching with args: "; args
     showChannelSGScreen(args)
 end sub
@@ -10,6 +10,9 @@ sub showChannelSGScreen(args as Dynamic)
 
     scene = screen.CreateScene("MainScene")
     scene.id = "RootMainScene"
+    if args <> invalid and type(args) = "roAssociativeArray"
+        scene.launchArgs = args
+    end if
     screen.show()
 
     while(true)

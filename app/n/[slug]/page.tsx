@@ -31,6 +31,10 @@ export default function MobilePassPage() {
     if (rawSlug) {
       getAnnotationBySlug(rawSlug)
         .then((data) => {
+          if (data?.username && data?.slug) {
+            router.replace(`/${data.username}/${data.slug}`);
+            return;
+          }
           setAnnotation(data);
           setLoading(false);
         })
@@ -41,7 +45,7 @@ export default function MobilePassPage() {
     } else {
       setLoading(false);
     }
-  }, [rawSlug]);
+  }, [rawSlug, router]);
 
   const handleShare = async () => {
     if (navigator.share) {

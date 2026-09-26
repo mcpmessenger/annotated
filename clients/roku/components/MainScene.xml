@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <component name="MainScene" extends="Scene">
+  <field id="launchArgs" type="assocarray" onChange="onLaunchArgsChanged" />
   <script type="text/brightscript" uri="pkg:/components/MainScene.brs" />
 
   <children>
