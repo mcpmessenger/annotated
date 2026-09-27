@@ -1,6 +1,7 @@
 import 'react-native-url-polyfill/auto';
 import React, { useEffect, useState } from 'react';
-import { SafeAreaView, StatusBar, StyleSheet, Alert } from 'react-native';
+import { StatusBar, StyleSheet, Alert } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { registerRootComponent } from 'expo';
 import * as Linking from 'expo-linking';
 import { Colors } from './src/theme/colors';
