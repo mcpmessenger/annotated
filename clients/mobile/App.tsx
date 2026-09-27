@@ -1,4 +1,4 @@
-import 'react-native-url-polyfill/auto';
+﻿import 'react-native-url-polyfill/auto';
 import React, { useEffect, useState } from 'react';
 import { StatusBar, StyleSheet, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -8,7 +8,6 @@ import { Colors } from './src/theme/colors';
 import { FeedScreen } from './src/screens/FeedScreen';
 import { DetailScreen } from './src/screens/DetailScreen';
 import { ComposeModal } from './src/components/ComposeModal';
-import { FloatingBubble } from './src/components/FloatingBubble';
 import { parseDeepLink } from './src/services/deepLink';
 import { parseSharedContent, ParsedVideoSource } from './src/services/shareIntent';
 import { NoteItem } from './src/services/supabase';
@@ -18,8 +17,7 @@ export default function App() {
   const [selectedNote, setSelectedNote] = useState<NoteItem | null>(null);
 
   // Floating Bubble State
-  const [isBubbleVisible, setIsBubbleVisible] = useState(true);
-
+  
   // Compose Modal State for Share Target & Bubble Tap
   const [isComposeVisible, setIsComposeVisible] = useState(false);
   const [sharedSource, setSharedSource] = useState<ParsedVideoSource | null>(null);
@@ -105,12 +103,7 @@ export default function App() {
         />
       )}
 
-      {/* Floating Draggable Bubble (Can be dragged anywhere on screen) */}
-      <FloatingBubble
-        visible={isBubbleVisible}
-        onPress={handleManualCompose}
-      />
-
+      
       {/* Quick Compose Modal (Opened via Floating Bubble, Android Share, or '+' button) */}
       <ComposeModal
         visible={isComposeVisible}
@@ -130,3 +123,4 @@ const styles = StyleSheet.create({
 });
 
 registerRootComponent(App);
+

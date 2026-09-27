@@ -28,3 +28,9 @@
 {"_e":"metro:instantiate","_t":1790471135540,"atlas":false,"workers":10,"host":"::","port":8081}
 {"_e":"metro:bundling:started","_t":1790471232926,"id":"3","platform":"android","environment":null,"entry":"node_modules\\expo\\AppEntry.js"}
 {"_e":"metro:bundling:done","_t":1790471238893,"id":"3","total":783,"ms":5967.0555}
+{"_e":"metro:bundling:started","_t":1790472108698,"id":"5","platform":"android","environment":null,"entry":"node_modules\\expo\\AppEntry.js"}
+{"_e":"metro:bundling:done","_t":1790472108785,"id":"5","total":1,"ms":87.8442}
+{"_e":"metro:bundling:started","_t":1790472335392,"id":"8","platform":"android","environment":null,"entry":"node_modules\\expo\\AppEntry.js"}
+{"_e":"metro:bundling:done","_t":1790472335420,"id":"8","total":1,"ms":27.7037}
+{"_e":"metro:bundling:started","_t":1790475595919,"id":"b","platform":"android","environment":null,"entry":"node_modules\\expo\\AppEntry.js"}
+{"_e":"metro:bundling:done","_t":1790475598844,"id":"b","total":1,"ms":2924.9179}

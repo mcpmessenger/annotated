@@ -1,4 +1,4 @@
-package com.annotated.mobile
+﻿package com.annotated.mobile
 
 import android.app.Application
 import android.content.res.Configuration
@@ -22,7 +22,7 @@ class MainApplication : Application(), ReactApplication {
       packageList =
         PackageList(this).packages.apply {
           // Packages that cannot be autolinked yet can be added manually here, for example:
-          add(OverlayPackage())
+          
         }
     )
   }
@@ -43,3 +43,5 @@ class MainApplication : Application(), ReactApplication {
     ApplicationLifecycleDispatcher.onConfigurationChanged(this, newConfig)
   }
 }
+
+
