@@ -28,9 +28,8 @@
       };
     }
     async getAuthHeaders(extra = {}) {
-      if (!this.token) {
-        await this.restoreSession();
-      }
+      // Always re-validate the session — token may be in memory but expired.
+      await this.restoreSession();
       return this.headers(extra);
     }
     from(table) {
@@ -87,6 +86,7 @@
       };
     }
     async uploadMedia(dataUrl, fileName) {
+      await this.restoreSession(); // ensure fresh token before storage upload
       if (!this.token) throw new Error("Not authenticated");
       const [header, base64] = dataUrl.split(",");
       const mimeMatch = header.match(/:(.*?);/);
@@ -355,18 +355,18 @@
     if (payload.videoClipBlob) {
       try {
         const fileName = `video_${Date.now()}.webm`;
+        const videoUploadHeaders = await supabase.getAuthHeaders({ "Content-Type": "video/webm" });
         const uploadRes = await fetch(`${SUPABASE_CONFIG.url}/storage/v1/object/annotation-media/${fileName}`, {
           method: "POST",
-          headers: {
-            apikey: SUPABASE_CONFIG.anonKey,
-            Authorization: `Bearer ${supabase.token || SUPABASE_CONFIG.anonKey}`,
-            "Content-Type": "video/webm"
-          },
+          headers: videoUploadHeaders,
           body: payload.videoClipBlob
         });
         if (uploadRes.ok) {
           media_url = `${SUPABASE_CONFIG.url}/storage/v1/object/public/annotation-media/${fileName}`;
           media_type = "video";
+        } else {
+          const errBody = await uploadRes.json().catch(() => ({}));
+          console.error("[VideoUpload] Failed:", uploadRes.status, errBody.message || errBody);
         }
       } catch (err) {
         console.error("[VideoUpload] Error:", err);
@@ -376,17 +376,17 @@
     if (payload.recordedAudioBlob) {
       try {
         const fileName = `audio_${Date.now()}.webm`;
+        const audioUploadHeaders = await supabase.getAuthHeaders({ "Content-Type": "audio/webm" });
         const uploadRes = await fetch(`${SUPABASE_CONFIG.url}/storage/v1/object/annotation-media/${fileName}`, {
           method: "POST",
-          headers: {
-            apikey: SUPABASE_CONFIG.anonKey,
-            Authorization: `Bearer ${supabase.token || SUPABASE_CONFIG.anonKey}`,
-            "Content-Type": "audio/webm"
-          },
+          headers: audioUploadHeaders,
           body: payload.recordedAudioBlob
         });
         if (uploadRes.ok) {
           audio_url = `${SUPABASE_CONFIG.url}/storage/v1/object/public/annotation-media/${fileName}`;
+        } else {
+          const errBody = await uploadRes.json().catch(() => ({}));
+          console.error("[AudioUpload] Failed:", uploadRes.status, errBody.message || errBody);
         }
       } catch (err) {
         console.error("[AudioUpload] Error:", err);
