@@ -58,12 +58,7 @@ export default function App() {
   }, []);
 
   const handleManualCompose = () => {
-    setSharedSource({
-      platform: 'youtube',
-      rawUrl: 'https://youtube.com',
-      displayTitle: 'New Video Annotation',
-      formattedTime: '00:00',
-    });
+    setSharedSource(null);
     setIsComposeVisible(true);
   };
 
@@ -123,4 +118,5 @@ const styles = StyleSheet.create({
 });
 
 registerRootComponent(App);
+
 

@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Colors } from '../theme/colors';
-import { OverlayController } from '../services/overlay';
+
 
 interface HeaderProps {
   onScanPress?: () => void;
@@ -9,7 +9,7 @@ interface HeaderProps {
 }
 
 export const Header: React.FC<HeaderProps> = ({ onScanPress, title = 'annotated' }) => {
-  const [bubbleActive, setBubbleActive] = useState(false);
+  
 
   return (
     <View style={styles.container}>
@@ -18,19 +18,12 @@ export const Header: React.FC<HeaderProps> = ({ onScanPress, title = 'annotated'
           {title}
           <Text style={styles.dot}>.</Text>
         </Text>
-        <TouchableOpacity
-          style={[styles.floatingBubbleToggle, bubbleActive && styles.floatingBubbleActive]}
-          onPress={() => OverlayController.toggleOverlay((active) => setBubbleActive(active))}
-        >
-          <Text style={[styles.floatingBubbleText, bubbleActive && styles.floatingBubbleTextActive]}>
-            {bubbleActive ? '● BUBBLE ON' : '⚡ FLOAT BUBBLE'}
-          </Text>
-        </TouchableOpacity>
+        
       </View>
 
       {onScanPress && (
         <TouchableOpacity style={styles.scanButton} onPress={onScanPress}>
-          <Text style={styles.scanButtonText}>TV PASS 📺</Text>
+          <Text style={styles.scanButtonText}>TV PASS ðŸ“º</Text>
         </TouchableOpacity>
       )}
     </View>
@@ -97,3 +90,4 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
 });
+
