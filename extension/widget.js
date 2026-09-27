@@ -37,47 +37,47 @@
       return {
         select: (cols = "*") => ({
           eq: (col, val) => ({
-            order: (ord, opts = {}) => fetch(
+            order: async (ord, opts = {}) => fetch(
               `${base}?select=${cols}&${col}=eq.${encodeURIComponent(val)}&order=${ord}${opts.ascending === false ? ".desc" : ""}`,
-              { headers: this.headers({ Prefer: "return=representation" }) }
+              { headers: await this.getAuthHeaders({ Prefer: "return=representation" }) }
             ).then((r) => r.json()),
-            execute: () => fetch(`${base}?select=${cols}&${col}=eq.${encodeURIComponent(val)}`, {
-              headers: this.headers()
+            execute: async () => fetch(`${base}?select=${cols}&${col}=eq.${encodeURIComponent(val)}`, {
+              headers: await this.getAuthHeaders()
             }).then((r) => r.json())
           }),
           ilike: (col, pattern) => ({
-            execute: () => fetch(`${base}?select=${cols}&${col}=ilike.${encodeURIComponent(pattern)}`, {
-              headers: this.headers()
+            execute: async () => fetch(`${base}?select=${cols}&${col}=ilike.${encodeURIComponent(pattern)}`, {
+              headers: await this.getAuthHeaders()
             }).then((r) => r.json())
           }),
           order: (ord, opts = {}) => ({
             limit: (n) => ({
-              execute: () => fetch(`${base}?select=${cols}&order=${ord}${opts.ascending === false ? ".desc" : ""}&limit=${n}`, {
-                headers: this.headers()
+              execute: async () => fetch(`${base}?select=${cols}&order=${ord}${opts.ascending === false ? ".desc" : ""}&limit=${n}`, {
+                headers: await this.getAuthHeaders()
               }).then((r) => r.json())
             })
           }),
-          execute: () => fetch(`${base}?select=${cols}`, { headers: this.headers() }).then((r) => r.json())
+          execute: async () => fetch(`${base}?select=${cols}`, { headers: await this.getAuthHeaders() }).then((r) => r.json())
         }),
-        insert: (data) => fetch(base, {
+        insert: async (data) => fetch(base, {
           method: "POST",
-          headers: this.headers({ Prefer: "return=representation" }),
+          headers: await this.getAuthHeaders({ Prefer: "return=representation" }),
           body: JSON.stringify(data)
         }).then((r) => r.json()),
         delete: () => ({
           eq: (col, val) => ({
-            execute: () => fetch(`${base}?${col}=eq.${encodeURIComponent(val)}`, {
+            execute: async () => fetch(`${base}?${col}=eq.${encodeURIComponent(val)}`, {
               method: "DELETE",
-              headers: this.headers()
+              headers: await this.getAuthHeaders()
             }).then((r) => r.json())
           })
         }),
         update: (data) => ({
           eq: (col, val) => ({
             eq: (col2, val2) => ({
-              execute: () => fetch(`${base}?${col}=eq.${encodeURIComponent(val)}&${col2}=eq.${encodeURIComponent(String(val2))}`, {
+              execute: async () => fetch(`${base}?${col}=eq.${encodeURIComponent(val)}&${col2}=eq.${encodeURIComponent(String(val2))}`, {
                 method: "PATCH",
-                headers: this.headers({ Prefer: "return=representation" }),
+                headers: await this.getAuthHeaders({ Prefer: "return=representation" }),
                 body: JSON.stringify(data)
               }).then((r) => r.json())
             })
@@ -158,7 +158,7 @@
       if (this.token) {
         await fetch(`${this.url}/auth/v1/logout`, {
           method: "POST",
-          headers: this.headers()
+          headers: await this.getAuthHeaders()
         }).catch(() => {
         });
       }
@@ -2810,3 +2810,5 @@
     boot();
   }
 })();
+
+
