@@ -67,8 +67,8 @@
             <span id="trimModeBadge" class="trim-mode-badge">CLIPPER</span>
           </div>
           <div class="trimmer-header-right">
-            <span id="trimDurationBadge" class="trim-duration-badge" data-tooltip="Clip Duration (Max 90s)">90s</span>
-            <button type="button" id="clearVideoBtn" data-tooltip="Clear / close video clip" class="trimmer-close-btn">&#10005;</button>
+            <span id="trimDurationBadge" class="trim-duration-badge" data-tooltip="Clip Duration (Max 90s)" data-tooltip-pos="top">90s</span>
+            <button type="button" id="clearVideoBtn" data-tooltip="Clear / close video clip" data-tooltip-pos="top" class="trimmer-close-btn">&#10005;</button>
           </div>
         </div>
 
@@ -98,32 +98,32 @@
           <!-- Start Control Group -->
           <div class="trim-group">
             <span class="trim-tag start-tag">START</span>
-            <button type="button" id="startMinusBtn" class="step-btn" data-tooltip="-1s (Shift: -5s)">‹</button>
-            <input type="text" id="trimStartFormatted" class="time-input" value="00:00" placeholder="00:00" title="Start Time (e.g. 01:25 or 85)" />
-            <button type="button" id="startPlusBtn" class="step-btn" data-tooltip="+1s (Shift: +5s)">›</button>
-            <button type="button" id="setStartCurrentBtn" class="time-now-btn" data-tooltip="Snap Start to current video time">📍</button>
+            <button type="button" id="startMinusBtn" class="step-btn" data-tooltip="-1s (Shift: -5s)" data-tooltip-pos="top">‹</button>
+            <input type="text" id="trimStartFormatted" class="time-input" value="00:00" placeholder="00:00" data-tooltip="Start Time (e.g. 01:25 or 85)" data-tooltip-pos="top" />
+            <button type="button" id="startPlusBtn" class="step-btn" data-tooltip="+1s (Shift: +5s)" data-tooltip-pos="top">›</button>
+            <button type="button" id="setStartCurrentBtn" class="time-now-btn" data-tooltip="Snap Start to current video time" data-tooltip-pos="top">📍</button>
             <input type="hidden" id="trimStartInput" value="0" />
           </div>
 
           <!-- Live Duration Badge in Center -->
-          <div class="trim-duration-badge-compact" data-tooltip="Clip Duration (Max 90s)">
+          <div class="trim-duration-badge-compact" data-tooltip="Clip Duration (Max 90s)" data-tooltip-pos="top">
             ⏱️ <span id="trimDurationLabel" class="time-duration-val">90s</span>
           </div>
 
           <!-- Stop Control Group -->
           <div class="trim-group">
             <span class="trim-tag stop-tag">STOP</span>
-            <button type="button" id="endMinusBtn" class="step-btn" data-tooltip="-1s (Shift: -5s)">‹</button>
-            <input type="text" id="trimEndFormatted" class="time-input" value="01:30" placeholder="01:30" title="Stop Time (e.g. 01:30 or 90)" />
-            <button type="button" id="endPlusBtn" class="step-btn" data-tooltip="+1s (Shift: +5s)">›</button>
-            <button type="button" id="setEndCurrentBtn" class="time-now-btn" data-tooltip="Snap Stop to current video time">📍</button>
+            <button type="button" id="endMinusBtn" class="step-btn" data-tooltip="-1s (Shift: -5s)" data-tooltip-pos="top">‹</button>
+            <input type="text" id="trimEndFormatted" class="time-input" value="01:30" placeholder="01:30" data-tooltip="Stop Time (e.g. 01:30 or 90)" data-tooltip-pos="top" />
+            <button type="button" id="endPlusBtn" class="step-btn" data-tooltip="+1s (Shift: +5s)" data-tooltip-pos="top">›</button>
+            <button type="button" id="setEndCurrentBtn" class="time-now-btn" data-tooltip="Snap Stop to current video time" data-tooltip-pos="top">📍</button>
             <input type="hidden" id="trimEndInput" value="90" />
           </div>
         </div>
 
         <!-- Action Row: Live Record & Range Grab -->
         <div class="trimmer-actions-bar" id="trimmerActionsBar">
-          <button type="button" id="recordNowBtn" class="record-now-action-btn" data-tooltip="Record live from current video position — click Stop anytime">
+          <button type="button" id="recordNowBtn" class="record-now-action-btn" data-tooltip="Record live from current video position — click Stop anytime" data-tooltip-pos="top">
             <span id="recordNowBtnIcon">🔴</span>
             <span id="recordNowBtnLabel">Record Now</span>
           </button>
@@ -278,3 +278,5 @@
   <script src="widget.js"></script>
 </body>
 </html>
+
+

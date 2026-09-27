@@ -1,7 +1,7 @@
 {
     "manifest_version":  3,
     "name":  "Annotated — Web Annotation Layer",
-    "version":  "2.2.15",
+    "version":  "2.2.16",
     "description":  "The public annotation layer for the internet. Highlight text, drop your thoughts, and turn the web into a multiplayer experience.",
     "permissions":  [
                         "storage",
@@ -69,4 +69,5 @@
                                      }
                                  ]
 }
+
 
