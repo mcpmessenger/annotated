@@ -1,5 +1,7 @@
+import 'react-native-url-polyfill/auto';
 import React, { useEffect, useState } from 'react';
 import { SafeAreaView, StatusBar, StyleSheet, Alert } from 'react-native';
+import { registerRootComponent } from 'expo';
 import * as Linking from 'expo-linking';
 import { Colors } from './src/theme/colors';
 import { FeedScreen } from './src/screens/FeedScreen';
@@ -116,3 +118,5 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.background,
   },
 });
+
+registerRootComponent(App);
