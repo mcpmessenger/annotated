@@ -8,6 +8,7 @@ import { Colors } from './src/theme/colors';
 import { FeedScreen } from './src/screens/FeedScreen';
 import { DetailScreen } from './src/screens/DetailScreen';
 import { ComposeModal } from './src/components/ComposeModal';
+import { FloatingBubble } from './src/components/FloatingBubble';
 import { parseDeepLink } from './src/services/deepLink';
 import { parseSharedContent, ParsedVideoSource } from './src/services/shareIntent';
 import { NoteItem } from './src/services/supabase';
@@ -16,7 +17,10 @@ export default function App() {
   const [activeSlug, setActiveSlug] = useState<string | null>(null);
   const [selectedNote, setSelectedNote] = useState<NoteItem | null>(null);
 
-  // Compose Modal State for Share Target
+  // Floating Bubble State
+  const [isBubbleVisible, setIsBubbleVisible] = useState(true);
+
+  // Compose Modal State for Share Target & Bubble Tap
   const [isComposeVisible, setIsComposeVisible] = useState(false);
   const [sharedSource, setSharedSource] = useState<ParsedVideoSource | null>(null);
 
@@ -56,7 +60,6 @@ export default function App() {
   }, []);
 
   const handleManualCompose = () => {
-    // Default manual compose
     setSharedSource({
       platform: 'youtube',
       rawUrl: 'https://youtube.com',
@@ -102,7 +105,13 @@ export default function App() {
         />
       )}
 
-      {/* Quick Compose Modal (Opened via Android Share Intent or '+' button) */}
+      {/* Floating Draggable Bubble (Can be dragged anywhere on screen) */}
+      <FloatingBubble
+        visible={isBubbleVisible}
+        onPress={handleManualCompose}
+      />
+
+      {/* Quick Compose Modal (Opened via Floating Bubble, Android Share, or '+' button) */}
       <ComposeModal
         visible={isComposeVisible}
         source={sharedSource}

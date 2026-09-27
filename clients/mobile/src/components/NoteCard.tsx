@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image, Linking } from 'react-native';
 import { Colors } from '../theme/colors';
 import { NoteItem } from '../services/supabase';
 import { ReactionBar } from './ReactionBar';
@@ -14,6 +14,14 @@ export const NoteCard: React.FC<NoteCardProps> = ({ note, onPress }) => {
   const hasQuote = Boolean(note.quoteText && note.quoteText.trim().length > 0);
   const hasComment = Boolean(note.commentary && note.commentary.trim().length > 0);
 
+  const handleOpenSource = () => {
+    if (note.sourceUrl) {
+      Linking.openURL(note.sourceUrl).catch((err) => {
+        console.warn('Failed to open link:', err);
+      });
+    }
+  };
+
   return (
     <TouchableOpacity
       activeOpacity={0.85}
@@ -25,19 +33,34 @@ export const NoteCard: React.FC<NoteCardProps> = ({ note, onPress }) => {
         <View style={styles.authorBadge}>
           <Text style={styles.authorText}>{note.author}</Text>
         </View>
-        <View style={styles.hostBadge}>
-          <Text style={styles.hostnameText}>{note.hostname || 'web'}</Text>
-        </View>
+
+        {note.sourceUrl ? (
+          <TouchableOpacity
+            style={styles.hostBadge}
+            onPress={handleOpenSource}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.hostnameText}>{note.hostname || 'web'} ↗</Text>
+          </TouchableOpacity>
+        ) : (
+          <View style={styles.hostBadge}>
+            <Text style={styles.hostnameText}>{note.hostname || 'web'}</Text>
+          </View>
+        )}
       </View>
 
-      {/* Video Thumbnail (for YouTube/video annotations) */}
+      {/* Video Thumbnail (Clickable to open YouTube/video directly) */}
       {note.thumbnailUrl && (
-        <View style={styles.thumbnailContainer}>
+        <TouchableOpacity
+          activeOpacity={0.9}
+          style={styles.thumbnailContainer}
+          onPress={handleOpenSource}
+        >
           <Image source={{ uri: note.thumbnailUrl }} style={styles.thumbnail} />
           <View style={styles.playBadge}>
-            <Text style={styles.playBadgeText}>▶ CLIP</Text>
+            <Text style={styles.playBadgeText}>▶ OPEN {note.hostname?.toUpperCase() || 'SOURCE'}</Text>
           </View>
-        </View>
+        </TouchableOpacity>
       )}
 
       {/* Quote / Primary Source */}
@@ -104,15 +127,17 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   hostBadge: {
-    backgroundColor: Colors.surfaceElevated,
+    backgroundColor: '#0F2840',
+    borderColor: Colors.borderHover,
+    borderWidth: 1,
     paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 4,
+    paddingVertical: 4,
+    borderRadius: 6,
   },
   hostnameText: {
-    color: Colors.textMuted,
+    color: Colors.cyan,
     fontSize: 11,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   thumbnailContainer: {
     position: 'relative',
@@ -132,12 +157,12 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 8,
     right: 8,
-    backgroundColor: 'rgba(0,0,0,0.8)',
+    backgroundColor: 'rgba(0,0,0,0.85)',
     borderColor: Colors.cyan,
     borderWidth: 1,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 6,
   },
   playBadgeText: {
     color: Colors.cyan,
@@ -150,7 +175,8 @@ const styles = StyleSheet.create({
     paddingLeft: 10,
     marginBottom: 10,
     backgroundColor: '#091322',
-    paddingVertical: 6,
+    paddingVertical: 8,
+    paddingRight: 8,
     borderRadius: 4,
   },
   quoteLabel: {
