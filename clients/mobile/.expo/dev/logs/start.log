@@ -14,3 +14,8 @@
 {"_e":"metro:config","_t":1790469678584,"serverRoot":"../..\\..","projectRoot":"../..\\..","exporting":false,"flags":{"autolinkingModuleResolution":false,"serverActions":false,"serverComponents":false,"reactCompiler":false,"optimizeGraph":false,"treeshaking":false,"logbox":false}}
 {"_e":"expo:dev-tools-plugin:load","_t":1790469678849,"plugins":[]}
 {"_e":"metro:instantiate","_t":1790469682716,"atlas":false,"workers":10,"host":"::","port":8081}
+{"_e":"metro:bundling:started","_t":1790469851746,"id":"3","platform":"android","environment":null,"entry":"App.tsx"}
+{"_e":"metro:bundling:done","_t":1790469859746,"id":"3","total":706,"ms":7999.819}
+{"_e":"metro:bundling:started","_t":1790470303193,"id":"5","platform":"android","environment":null,"entry":"node_modules\\expo\\AppEntry.js"}
+{"_e":"metro:bundling:done","_t":1790470303972,"id":"5","total":774,"ms":778.107}
+{"_e":"metro:client_log","_t":1790470305316,"level":"warn","data":["SafeAreaView has been deprecated and will be removed in a future release. Please use 'react-native-safe-area-context' instead. See https://github.com/AppAndFlow/react-native-safe-area-context"]}

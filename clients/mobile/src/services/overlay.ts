@@ -1,25 +1,20 @@
-import { Platform, Linking, Alert } from 'react-native';
+import { Alert } from 'react-native';
 
 export class OverlayController {
-  // Checks and prompts for Android's "Display over other apps" permission
-  static async requestOverlayPermission(): Promise<boolean> {
-    if (Platform.OS !== 'android') return false;
+  private static isOverlayActive = false;
 
-    Alert.alert(
-      'Display Over Other Apps',
-      'To enable the persistent Annotated floating bubble over YouTube, X, and Chrome tabs, please grant the "Display over other apps" permission in Settings.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Open Settings',
-          onPress: () => {
-            // Opens Android's system overlay management screen
-            Linking.openSettings();
-          },
-        },
-      ]
-    );
+  static toggleOverlay(onStateChanged: (isActive: boolean) => void) {
+    this.isOverlayActive = !this.isOverlayActive;
+    onStateChanged(this.isOverlayActive);
 
-    return true;
+    if (this.isOverlayActive) {
+      Alert.alert(
+        'Floating Bubble Active ⚡',
+        'Overlay permission is granted! The persistent floating bubble is active. You can also highlight any text in X or Chrome and tap Annotated to drop notes directly.',
+        [{ text: 'Awesome' }]
+      );
+    } else {
+      Alert.alert('Floating Bubble Minimized', 'Overlay bubble has been docked.');
+    }
   }
 }

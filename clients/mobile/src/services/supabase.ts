@@ -15,11 +15,15 @@ export interface NoteItem {
   id: string;
   slug?: string;
   author: string;
-  hostname?: string;
+  avatarUrl?: string;
+  hostname: string;
   sourceUrl?: string;
+  pageTitle?: string;
   quoteText?: string;
   commentary: string;
   emoji?: string;
+  mediaUrl?: string;
+  thumbnailUrl?: string;
   reactions?: Record<string, number>;
   fact_check?: {
     status?: string;
@@ -31,7 +35,25 @@ export interface NoteItem {
   createdAt?: string;
 }
 
-// Fetch recent video annotations
+// Helper to extract video ID and thumbnail
+function getThumbnail(url?: string): string | undefined {
+  if (!url) return undefined;
+  try {
+    if (url.includes('youtu.be/')) {
+      const id = url.split('youtu.be/')[1]?.split('?')[0];
+      if (id) return `https://img.youtube.com/vi/${id}/mqdefault.jpg`;
+    }
+    if (url.includes('youtube.com')) {
+      const match = url.match(/[?&]v=([^&]+)/);
+      if (match && match[1]) return `https://img.youtube.com/vi/${match[1]}/mqdefault.jpg`;
+      const shortsMatch = url.match(/\/shorts\/([^?&]+)/);
+      if (shortsMatch && shortsMatch[1]) return `https://img.youtube.com/vi/${shortsMatch[1]}/mqdefault.jpg`;
+    }
+  } catch (_) {}
+  return undefined;
+}
+
+// Fetch recent video annotations with proper column mapping and profiles
 export async function fetchAnnotationsFeed(): Promise<NoteItem[]> {
   const { data, error } = await supabase
     .from('annotations')
@@ -44,19 +66,45 @@ export async function fetchAnnotationsFeed(): Promise<NoteItem[]> {
     return [];
   }
 
-  return data.map((d: any) => ({
-    id: d.id,
-    slug: d.slug,
-    author: d.user_display_name || d.username || '@annotated',
-    hostname: d.source_domain || 'youtube.com',
-    sourceUrl: d.source_url,
-    quoteText: d.quote_text || d.title,
-    commentary: d.commentary || '',
-    emoji: d.intent || '💡',
-    reactions: d.reactions || { '🔥': 0, '🤔': 0, '💡': 0, '💯': 0, '👎': 0 },
-    fact_check: d.fact_check,
-    createdAt: d.created_at,
-  }));
+  // Fetch author profiles
+  const userIds = Array.from(new Set(data.map((a: any) => a.user_id).filter(Boolean)));
+  const profilesMap: Record<string, any> = {};
+  if (userIds.length > 0) {
+    try {
+      const { data: pData } = await supabase.from('profiles').select('*').in('id', userIds);
+      if (pData) {
+        pData.forEach((p: any) => {
+          profilesMap[p.id] = p;
+        });
+      }
+    } catch (_) {}
+  }
+
+  return data.map((d: any) => {
+    const prof = profilesMap[d.user_id] || {};
+    const author = prof.full_name || (prof.email ? `@${prof.email.split('@')[0]}` : d.user_display_name || '@annotated');
+    const quote = d.quote || d.page_title || '';
+    const comment = d.comment || '';
+    const hostname = d.hostname || (d.url ? (d.url.includes('youtube.com') || d.url.includes('youtu.be') ? 'youtube.com' : d.url.includes('x.com') ? 'x.com' : 'web') : 'web');
+
+    return {
+      id: d.id,
+      slug: d.slug,
+      author,
+      avatarUrl: prof.avatar_url,
+      hostname,
+      sourceUrl: d.url,
+      pageTitle: d.page_title,
+      quoteText: quote,
+      commentary: comment,
+      emoji: d.intent || '💡',
+      mediaUrl: d.media_url,
+      thumbnailUrl: getThumbnail(d.url),
+      reactions: d.reactions || { '🔥': 0, '🤔': 0, '💡': 0, '💯': 0, '👎': 0 },
+      fact_check: d.fact_check,
+      createdAt: d.created_at,
+    };
+  });
 }
 
 // Fetch single annotation by slug or id (for QR mobile pass)
@@ -73,12 +121,15 @@ export async function fetchAnnotationBySlug(slugOrId: string): Promise<NoteItem 
   return {
     id: data.id,
     slug: data.slug,
-    author: data.user_display_name || data.username || '@annotated',
-    hostname: data.source_domain || 'youtube.com',
-    sourceUrl: data.source_url,
-    quoteText: data.quote_text || data.title,
-    commentary: data.commentary || '',
+    author: data.user_display_name || '@annotated',
+    hostname: data.hostname || 'source',
+    sourceUrl: data.url,
+    pageTitle: data.page_title,
+    quoteText: data.quote || data.page_title,
+    commentary: data.comment || '',
     emoji: data.intent || '💡',
+    mediaUrl: data.media_url,
+    thumbnailUrl: getThumbnail(data.url),
     reactions: data.reactions || { '🔥': 0, '🤔': 0, '💡': 0, '💯': 0, '👎': 0 },
     fact_check: data.fact_check,
     createdAt: data.created_at,

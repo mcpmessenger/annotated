@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Colors } from '../theme/colors';
 import { OverlayController } from '../services/overlay';
@@ -9,6 +9,8 @@ interface HeaderProps {
 }
 
 export const Header: React.FC<HeaderProps> = ({ onScanPress, title = 'annotated' }) => {
+  const [bubbleActive, setBubbleActive] = useState(false);
+
   return (
     <View style={styles.container}>
       <View style={styles.brandRow}>
@@ -17,10 +19,12 @@ export const Header: React.FC<HeaderProps> = ({ onScanPress, title = 'annotated'
           <Text style={styles.dot}>.</Text>
         </Text>
         <TouchableOpacity
-          style={styles.floatingBubbleToggle}
-          onPress={() => OverlayController.requestOverlayPermission()}
+          style={[styles.floatingBubbleToggle, bubbleActive && styles.floatingBubbleActive]}
+          onPress={() => OverlayController.toggleOverlay((active) => setBubbleActive(active))}
         >
-          <Text style={styles.floatingBubbleText}>⚡ FLOAT BUBBLE</Text>
+          <Text style={[styles.floatingBubbleText, bubbleActive && styles.floatingBubbleTextActive]}>
+            {bubbleActive ? '● BUBBLE ON' : '⚡ FLOAT BUBBLE'}
+          </Text>
         </TouchableOpacity>
       </View>
 
@@ -66,11 +70,18 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: 6,
   },
+  floatingBubbleActive: {
+    backgroundColor: '#052e16',
+    borderColor: Colors.emerald,
+  },
   floatingBubbleText: {
     color: Colors.cyan,
     fontSize: 9,
     fontWeight: '800',
     letterSpacing: 0.5,
+  },
+  floatingBubbleTextActive: {
+    color: Colors.emerald,
   },
   scanButton: {
     backgroundColor: Colors.surfaceElevated,
