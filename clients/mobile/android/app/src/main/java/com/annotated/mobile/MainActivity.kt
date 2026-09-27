@@ -1,7 +1,9 @@
-package com.annotated.mobile
+﻿package com.annotated.mobile
 
 import android.os.Build
 import android.os.Bundle
+import android.content.Intent
+import android.net.Uri
 
 import com.facebook.react.ReactActivity
 import com.facebook.react.ReactActivityDelegate
@@ -15,8 +17,36 @@ class MainActivity : ReactActivity() {
     // Set the theme to AppTheme BEFORE onCreate to support
     // coloring the background, status bar, and navigation bar.
     // This is required for expo-splash-screen.
-    setTheme(R.style.AppTheme);
+    setTheme(R.style.AppTheme)
+    handleShareIntent(intent)
     super.onCreate(null)
+  }
+
+  override fun onNewIntent(intent: Intent?) {
+    handleShareIntent(intent)
+    super.onNewIntent(intent)
+    setIntent(intent)
+  }
+
+  private fun handleShareIntent(intent: Intent?) {
+    if (intent != null && intent.action == Intent.ACTION_SEND && "text/plain" == intent.type) {
+        val sharedText = intent.getStringExtra(Intent.EXTRA_TEXT)
+        if (sharedText != null) {
+            // Check if it's a URL
+            if (sharedText.startsWith("http://") || sharedText.startsWith("https://")) {
+                intent.action = Intent.ACTION_VIEW
+                intent.data = Uri.parse(sharedText)
+            } else {
+                // If it contains a URL in text (e.g. "Check this out https://youtube.com/...")
+                val urlRegex = "(https?://[^\\s]+)".toRegex()
+                val match = urlRegex.find(sharedText)
+                if (match != null) {
+                    intent.action = Intent.ACTION_VIEW
+                    intent.data = Uri.parse(match.value)
+                }
+            }
+        }
+    }
   }
 
   /**
@@ -40,22 +70,13 @@ class MainActivity : ReactActivity() {
           ){})
   }
 
-  /**
-    * Align the back button behavior with Android S
-    * where moving root activities to background instead of finishing activities.
-    * @see <a href="https://developer.android.com/reference/android/app/Activity#onBackPressed()">onBackPressed</a>
-    */
   override fun invokeDefaultOnBackPressed() {
       if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.R) {
           if (!moveTaskToBack(false)) {
-              // For non-root activities, use the default implementation to finish them.
               super.invokeDefaultOnBackPressed()
           }
           return
       }
-
-      // Use the default back button implementation on Android S
-      // because it's doing more than [Activity.moveTaskToBack] in fact.
       super.invokeDefaultOnBackPressed()
   }
 }
