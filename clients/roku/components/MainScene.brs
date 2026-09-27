@@ -244,6 +244,10 @@ sub playAnnotationVideo(index as Integer)
         videoUrl = resolvePlayableVideoUrl(item.media_url)
     end if
 
+    if videoUrl = ""
+        videoUrl = "http://192.168.4.22:8090/demo.mp4"
+    end if
+
     title = "Annotated Community Clip"
     if item.page_title <> invalid and item.page_title <> ""
         title = item.page_title

@@ -8,20 +8,34 @@ export interface ParsedVideoSource {
   timestampSeconds?: number;
   formattedTime?: string;
   displayTitle: string;
+  quoteText?: string;
 }
 
 export function parseSharedContent(rawText: string): ParsedVideoSource | null {
-  if (!rawText) return null;
+  if (!rawText || !rawText.trim()) return null;
 
-  // Extract first URL found in shared text (handles "Check this out: https://...")
-  const urlMatch = rawText.match(/https?:\/\/[^\s]+/i);
-  const targetUrl = urlMatch ? urlMatch[0] : rawText.trim();
+  const trimmed = rawText.trim();
+  const urlMatch = trimmed.match(/https?:\/\/[^\s]+/i);
+
+  // CASE 1: Pure Highlighted Text (e.g. selected text from X, article, or captions)
+  if (!urlMatch) {
+    return {
+      platform: 'web',
+      rawUrl: '',
+      quoteText: trimmed,
+      displayTitle: trimmed.length > 50 ? trimmed.slice(0, 50) + '...' : trimmed,
+      formattedTime: '00:00',
+    };
+  }
+
+  const targetUrl = urlMatch[0];
+  const surroundingQuote = trimmed.replace(targetUrl, '').trim();
 
   try {
     const urlObj = new URL(targetUrl);
     const host = urlObj.hostname.toLowerCase();
 
-    // 1. YouTube (youtube.com, youtu.be, m.youtube.com)
+    // CASE 2: YouTube Link
     if (host.includes('youtube.com') || host.includes('youtu.be')) {
       let videoId = '';
       if (host.includes('youtu.be')) {
@@ -32,7 +46,6 @@ export function parseSharedContent(rawText: string): ParsedVideoSource | null {
         videoId = urlObj.searchParams.get('v') || '';
       }
 
-      // Check for timestamp (e.g. ?t=45 or ?t=1m15s)
       let timeSec = 0;
       const tParam = urlObj.searchParams.get('t') || '';
       if (tParam) {
@@ -55,11 +68,12 @@ export function parseSharedContent(rawText: string): ParsedVideoSource | null {
         videoId,
         timestampSeconds: timeSec,
         formattedTime: formatted,
+        quoteText: surroundingQuote || undefined,
         displayTitle: `YouTube Video (${videoId ? videoId.slice(0, 8) : 'Clip'})`,
       };
     }
 
-    // 2. X / Twitter (x.com, twitter.com)
+    // CASE 3: X / Twitter Link
     if (host.includes('x.com') || host.includes('twitter.com')) {
       const parts = urlObj.pathname.split('/').filter(Boolean);
       const author = parts[0] ? `@${parts[0]}` : '@x';
@@ -67,18 +81,25 @@ export function parseSharedContent(rawText: string): ParsedVideoSource | null {
         platform: 'x',
         rawUrl: targetUrl,
         author,
+        quoteText: surroundingQuote || undefined,
         displayTitle: `Post by ${author} on X`,
       };
     }
 
-    // 3. Generic Web
+    // CASE 4: Generic Web Link
     return {
       platform: 'web',
       rawUrl: targetUrl,
+      quoteText: surroundingQuote || undefined,
       displayTitle: host.replace('www.', ''),
     };
   } catch (err) {
-    return null;
+    return {
+      platform: 'web',
+      rawUrl: '',
+      quoteText: trimmed,
+      displayTitle: trimmed.length > 50 ? trimmed.slice(0, 50) + '...' : trimmed,
+    };
   }
 }
 
@@ -108,7 +129,7 @@ export async function createAnnotation(params: {
 
   const row = {
     slug,
-    url: params.url,
+    url: params.url || 'https://x.com',
     hostname: params.sourceDomain,
     quote: params.quoteText || '',
     comment: params.commentary,
@@ -124,7 +145,6 @@ export async function createAnnotation(params: {
 
   if (error || !data) {
     console.warn('[ShareIntent] Error saving note to Supabase:', error?.message);
-    // Return optimistic local note
     return {
       id: slug,
       slug,

@@ -5,6 +5,8 @@ end sub
 sub loadAnnotations()
     ' 1. First try enriched feed from local media server (includes live reaction counts and AI fact checks)
     localTransfer = CreateObject("roUrlTransfer")
+    localTransfer.SetCertificatesFile("common:/certs/ca-bundle.crt")
+    localTransfer.InitClientCertificates()
     localTransfer.SetUrl("http://192.168.4.22:8090/api/feed")
     localRes = localTransfer.GetToString()
     if localRes <> invalid and localRes <> ""

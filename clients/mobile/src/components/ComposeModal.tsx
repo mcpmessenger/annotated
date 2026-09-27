@@ -37,7 +37,7 @@ export const ComposeModal: React.FC<ComposeModalProps> = ({
   onSuccess,
 }) => {
   const [commentary, setCommentary] = useState('');
-  const [quoteText, setQuoteText] = useState(source?.displayTitle || '');
+  const [quoteText, setQuoteText] = useState(source?.quoteText || source?.displayTitle || '');
   const [timestamp, setTimestamp] = useState(source?.formattedTime || '00:00');
   const [selectedEmoji, setSelectedEmoji] = useState('💡');
   const [factCheckClaim, setFactCheckClaim] = useState('');
@@ -45,10 +45,10 @@ export const ComposeModal: React.FC<ComposeModalProps> = ({
   const [showFactCheck, setShowFactCheck] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  // Sync quote title when source changes
+  // Sync state when incoming source changes
   React.useEffect(() => {
     if (source) {
-      setQuoteText(source.displayTitle || '');
+      setQuoteText(source.quoteText || source.displayTitle || '');
       setTimestamp(source.formattedTime || '00:00');
     }
   }, [source]);
@@ -62,9 +62,9 @@ export const ComposeModal: React.FC<ComposeModalProps> = ({
     setLoading(true);
     try {
       const newNote = await createAnnotation({
-        url: source?.rawUrl || 'https://youtube.com',
+        url: source?.rawUrl || 'https://x.com',
         sourceDomain: source?.platform === 'youtube' ? 'youtube.com' : source?.platform === 'x' ? 'x.com' : 'web',
-        quoteText: quoteText.trim() ? `[${timestamp}] ${quoteText}` : undefined,
+        quoteText: quoteText.trim() ? (timestamp !== '00:00' ? `[${timestamp}] ${quoteText}` : quoteText) : undefined,
         commentary: commentary.trim(),
         emoji: selectedEmoji,
         factCheckClaim: showFactCheck && factCheckClaim.trim() ? factCheckClaim.trim() : undefined,
@@ -108,33 +108,39 @@ export const ComposeModal: React.FC<ComposeModalProps> = ({
 
           <ScrollView style={styles.body} showsVerticalScrollIndicator={false}>
             {/* Target URL Pill */}
-            <View style={styles.urlBox}>
-              <Text style={styles.urlLabel}>SOURCE LINK</Text>
-              <Text style={styles.urlText} numberOfLines={1}>
-                {source?.rawUrl || 'No URL detected'}
-              </Text>
-            </View>
-
-            {/* Timestamp & Video Title */}
-            <View style={styles.inputRow}>
-              <View style={styles.timeInputContainer}>
-                <Text style={styles.fieldLabel}>TIME</Text>
-                <TextInput
-                  style={styles.timeInput}
-                  value={timestamp}
-                  onChangeText={setTimestamp}
-                  placeholder="00:00"
-                  placeholderTextColor={Colors.textMuted}
-                />
+            {source?.rawUrl ? (
+              <View style={styles.urlBox}>
+                <Text style={styles.urlLabel}>SOURCE LINK</Text>
+                <Text style={styles.urlText} numberOfLines={1}>
+                  {source.rawUrl}
+                </Text>
               </View>
+            ) : null}
+
+            {/* Timestamp & Video Title / Highlighted Quote */}
+            <View style={styles.inputRow}>
+              {source?.platform === 'youtube' && (
+                <View style={styles.timeInputContainer}>
+                  <Text style={styles.fieldLabel}>TIME</Text>
+                  <TextInput
+                    style={styles.timeInput}
+                    value={timestamp}
+                    onChangeText={setTimestamp}
+                    placeholder="00:00"
+                    placeholderTextColor={Colors.textMuted}
+                  />
+                </View>
+              )}
               <View style={styles.titleInputContainer}>
-                <Text style={styles.fieldLabel}>CLIP TITLE / QUOTE</Text>
+                <Text style={styles.fieldLabel}>HIGHLIGHTED QUOTE / CLAIM</Text>
                 <TextInput
                   style={styles.textInput}
                   value={quoteText}
                   onChangeText={setQuoteText}
-                  placeholder="Quote or video context..."
+                  placeholder="Selected quote or claim..."
                   placeholderTextColor={Colors.textMuted}
+                  multiline={true}
+                  numberOfLines={2}
                 />
               </View>
             </View>

@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Colors } from '../theme/colors';
+import { OverlayController } from '../services/overlay';
 
 interface HeaderProps {
   onScanPress?: () => void;
@@ -15,9 +16,12 @@ export const Header: React.FC<HeaderProps> = ({ onScanPress, title = 'annotated'
           {title}
           <Text style={styles.dot}>.</Text>
         </Text>
-        <View style={styles.badge}>
-          <Text style={styles.badgeText}>LIVE NETWORK</Text>
-        </View>
+        <TouchableOpacity
+          style={styles.floatingBubbleToggle}
+          onPress={() => OverlayController.requestOverlayPermission()}
+        >
+          <Text style={styles.floatingBubbleText}>⚡ FLOAT BUBBLE</Text>
+        </TouchableOpacity>
       </View>
 
       {onScanPress && (
@@ -34,7 +38,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     paddingVertical: 14,
     backgroundColor: Colors.background,
     borderBottomWidth: 1,
@@ -43,10 +47,10 @@ const styles = StyleSheet.create({
   brandRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 8,
   },
   logoText: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: '900',
     color: Colors.textPrimary,
     letterSpacing: 0.5,
@@ -54,31 +58,31 @@ const styles = StyleSheet.create({
   dot: {
     color: Colors.red,
   },
-  badge: {
-    backgroundColor: '#0F2338',
+  floatingBubbleToggle: {
+    backgroundColor: '#0F2840',
     borderColor: Colors.cyan,
     borderWidth: 1,
     paddingHorizontal: 8,
-    paddingVertical: 3,
+    paddingVertical: 4,
     borderRadius: 6,
   },
-  badgeText: {
+  floatingBubbleText: {
     color: Colors.cyan,
     fontSize: 9,
     fontWeight: '800',
-    letterSpacing: 1,
+    letterSpacing: 0.5,
   },
   scanButton: {
     backgroundColor: Colors.surfaceElevated,
     borderColor: Colors.borderHover,
     borderWidth: 1,
-    paddingHorizontal: 12,
+    paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 8,
   },
   scanButtonText: {
     color: Colors.textPrimary,
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '700',
   },
 });

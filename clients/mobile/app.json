@@ -46,7 +46,23 @@
               "mimeType": "text/plain"
             }
           ]
+        },
+        {
+          "action": "PROCESS_TEXT",
+          "category": [
+            "DEFAULT"
+          ],
+          "data": [
+            {
+              "mimeType": "text/plain"
+            }
+          ]
         }
+      ],
+      "permissions": [
+        "SYSTEM_ALERT_WINDOW",
+        "FOREGROUND_SERVICE",
+        "POST_NOTIFICATIONS"
       ]
     }
   }
