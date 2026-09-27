@@ -159,6 +159,7 @@
       mark.className = "annotated-highlight";
       mark.setAttribute("data-annotated-highlight", String(annotation.id || ""));
       range.surroundContents(mark);
+      mark.title = `${annotation.intent || '\uD83D\uDCA1'} - ${annotation.commentary || annotation.comment || 'Click to view note'}`;
       highlightMap.set(mark, annotation);
       return mark;
     } catch (_) {
@@ -167,6 +168,7 @@
         mark.className = "annotated-highlight";
         mark.setAttribute("data-annotated-highlight", String(annotation.id || ""));
         const contents = range.extractContents();
+        mark.title = `${annotation.intent || '\uD83D\uDCA1'} - ${annotation.commentary || annotation.comment || 'Click to view note'}`;
         mark.appendChild(contents);
         range.insertNode(mark);
         highlightMap.set(mark, annotation);
@@ -203,6 +205,7 @@
             mark.className = "annotated-highlight";
             mark.setAttribute("data-annotated-highlight", String(annotation.id || ""));
             mark.textContent = tweetTextEl.textContent;
+            mark.title = `${annotation.intent || '\uD83D\uDCA1'} - ${annotation.commentary || annotation.comment || 'Click to view note'}`;
             tweetTextEl.innerHTML = "";
             tweetTextEl.appendChild(mark);
             highlightMap.set(mark, annotation);
@@ -1671,3 +1674,6 @@
     init();
   }
 })();
+
+
+
