@@ -18,46 +18,6 @@ sub init()
     m.railHeaderBg = m.top.findNode("railHeaderBg")
     m.totalNotesCount = 0
 
-    ' Action Bar Dynamic Reaction Count Labels
-    m.lblFireCount = m.top.findNode("lblFireCount")
-    m.lblThinkCount = m.top.findNode("lblThinkCount")
-    m.lblIdeaCount = m.top.findNode("lblIdeaCount")
-    m.lblHundredCount = m.top.findNode("lblHundredCount")
-    m.lblDownCount = m.top.findNode("lblDownCount")
-    m.videoProgressBar = m.top.findNode("videoProgressBar")
-    m.playbackTimer = m.top.findNode("playbackTimer")
-    if m.playbackTimer <> invalid
-        m.playbackTimer.observeField("fire", "onPlaybackTimerTick")
-        m.playbackTimer.control = "start"
-    end if
-
-    ' Fact Check Dynamic Banner & Button Elements
-    m.fcBorder = m.top.findNode("fcBorder")
-    m.fcIcon = m.top.findNode("fcIcon")
-    m.fcHeadline = m.top.findNode("fcHeadline")
-    m.fcDetail = m.top.findNode("fcDetail")
-    m.btnFcIcon = m.top.findNode("btnFcIcon")
-    m.lblFactCheck = m.top.findNode("lblFactCheck")
-
-    ' Rail Card Dynamic Metrics & Fact Check Badges
-    m.card1EmojiPoster = m.top.findNode("card1EmojiPoster")
-    m.card1FireCount = m.top.findNode("card1FireCount")
-    m.card1IdeaCount = m.top.findNode("card1IdeaCount")
-    m.card1FcIcon = m.top.findNode("card1FcIcon")
-    m.card1FcLabel = m.top.findNode("card1FcLabel")
-
-    m.card2EmojiPoster = m.top.findNode("card2EmojiPoster")
-    m.card2HundredCount = m.top.findNode("card2HundredCount")
-    m.card2ThinkCount = m.top.findNode("card2ThinkCount")
-    m.card2FcIcon = m.top.findNode("card2FcIcon")
-    m.card2FcLabel = m.top.findNode("card2FcLabel")
-
-    m.card3EmojiPoster = m.top.findNode("card3EmojiPoster")
-    m.card3FireCount = m.top.findNode("card3FireCount")
-    m.card3IdeaCount = m.top.findNode("card3IdeaCount")
-    m.card3FcIcon = m.top.findNode("card3FcIcon")
-    m.card3FcLabel = m.top.findNode("card3FcLabel")
-
     m.card1 = m.top.findNode("card1")
     m.card1Outline = m.top.findNode("card1Outline")
     m.card1Accent = m.top.findNode("card1Accent")
@@ -71,7 +31,6 @@ sub init()
     m.card2Accent = m.top.findNode("card2Accent")
     m.card2Author = m.top.findNode("card2Author")
     m.card2Time = m.top.findNode("card2Time")
-    m.card2Quote = m.top.findNode("card2Quote")
     m.card2Note = m.top.findNode("card2Note")
 
     m.card3 = m.top.findNode("card3")
@@ -79,7 +38,6 @@ sub init()
     m.card3Accent = m.top.findNode("card3Accent")
     m.card3Author = m.top.findNode("card3Author")
     m.card3Time = m.top.findNode("card3Time")
-    m.card3Quote = m.top.findNode("card3Quote")
     m.card3Note = m.top.findNode("card3Note")
 
     m.buttons = [m.btnFactCheck, m.btnFire, m.btnThink, m.btnIdea, m.btnHundred, m.btnDown]
@@ -92,31 +50,9 @@ sub init()
     m.cardRawTimes = ["", "", ""]
     m.focusedCardIndex = 0
     m.currentPlayingCardIndex = -1
-    m.railStartIndex = 0
     m.cardTimestamps = [0, 45, 90]
     m.activeSyncIndex = -1
     m.annotations = invalid
-
-    ' Expanded Detail Modal Elements
-    m.detailModalGroup = m.top.findNode("detailModalGroup")
-    m.modalPlatformText = m.top.findNode("modalPlatformText")
-    m.modalAuthor = m.top.findNode("modalAuthor")
-    m.modalFullQuote = m.top.findNode("modalFullQuote")
-    m.modalFullComment = m.top.findNode("modalFullComment")
-    m.modalEmojiIcon = m.top.findNode("modalEmojiIcon")
-    m.modalFcBox = m.top.findNode("modalFcBox")
-    m.modalFcAccent = m.top.findNode("modalFcAccent")
-    m.modalFcIcon = m.top.findNode("modalFcIcon")
-    m.modalFcHeadline = m.top.findNode("modalFcHeadline")
-    m.modalFcDetail = m.top.findNode("modalFcDetail")
-    m.modalQrPoster = m.top.findNode("modalQrPoster")
-    m.modalUrlLabel = m.top.findNode("modalUrlLabel")
-    m.btnModalPlay = m.top.findNode("btnModalPlay")
-    m.btnModalClose = m.top.findNode("btnModalClose")
-    m.isModalOpen = false
-    m.modalItemIndex = -1
-    m.focusedModalButton = 0
-    m.isLaunchBeaconSent = false
 
     ' Interaction States: STATE_A (Passive Playback) or STATE_B (Active Browsing)
     m.uiState = "STATE_A"
@@ -143,74 +79,35 @@ sub init()
     m.mainVideo.observeField("position", "onVideoPositionChanged")
     m.mainVideo.observeField("state", "onVideoStateChanged")
 
-    ' Initial fallback video while fetching live annotations
-    videoContent = createObject("RoSGNode", "ContentNode")
-    videoContent.url = "http://192.168.4.22:8090/demo.mp4"
-    videoContent.title = ""
-    videoContent.streamformat = "mp4"
-    m.mainVideo.content = videoContent
-    m.mainVideo.control = "play"
+    ' Do NOT try to play anything until Supabase annotations arrive.
+    ' Trying to connect to the local media server before we have URLs
+    ' causes Roku's Video node to hang in a buffering state.
+    m.mainVideo.control = "stop"
 
     ' Spawn background Task to pull real live annotations from Supabase
     m.feedTask = CreateObject("roSGNode", "AnnotationFeedTask")
     m.feedTask.observeField("annotations", "onAnnotationsLoaded")
+    m.feedTask.observeField("error", "onAnnotationsFeedError")
     m.feedTask.control = "RUN"
+
+    ' Safety timeout: if nothing loads in 12s, show an error message
+    m.loadTimer = CreateObject("roSGNode", "Timer")
+    m.loadTimer.duration = 12
+    m.loadTimer.repeat = false
+    m.loadTimer.observeField("fire", "onLoadTimeout")
+    m.loadTimer.control = "start"
 
     m.top.setFocus(true)
     print "[Annotated] MainScene initialized. Ready in STATE_A (Passive Playback)."
 end sub
 
-function handleDeepLink(args as Object) as Boolean
-    if args = invalid then return false
-    contentId = ""
-    if args.contentId <> invalid then contentId = args.contentId
-    mediaType = ""
-    if args.mediaType <> invalid then mediaType = args.mediaType
-    print "[Annotated Deep Link] Handling deep link -> contentId: '"; contentId; "' mediaType: '"; mediaType; "'"
-
-    if contentId <> "" and m.annotations <> invalid and m.annotations.count() > 0
-        for i = 0 to m.annotations.count() - 1
-            item = m.annotations[i]
-            if item.id = contentId or (item.slug <> invalid and item.slug = contentId)
-                print "[Annotated Deep Link] Found matching annotation at index: "; i; " -> Playing clip!"
-                playAnnotationVideo(i)
-                m.top.signalBeacon("AppLaunchComplete")
-                return true
-            end if
-        end for
-
-        targetIdx = Val(contentId)
-        if targetIdx >= 0 and targetIdx < m.annotations.count()
-            print "[Annotated Deep Link] Found matching index: "; targetIdx; " -> Playing clip!"
-            playAnnotationVideo(targetIdx)
-            m.top.signalBeacon("AppLaunchComplete")
-            return true
-        end if
-    end if
-    return false
-end function
-
-sub onLaunchArgsChanged()
-    if m.top.launchArgs <> invalid
-        print "[Annotated Deep Link] Received launch args: "; m.top.launchArgs
-        handleDeepLink(m.top.launchArgs)
-    end if
-end sub
-
-sub onInputArgsChanged()
-    if m.top.inputArgs <> invalid
-        print "[Annotated Deep Link] Received roInput event args: "; m.top.inputArgs
-        handleDeepLink(m.top.inputArgs)
-    end if
-end sub
-
 function resolvePlayableVideoUrl(mediaUrl as Dynamic) as String
-    if mediaUrl = invalid then return ""
+    if mediaUrl = invalid then return "http://192.168.4.22:8090/demo.mp4"
     mUrl = ""
     if type(mediaUrl) = "String" or type(mediaUrl) = "roString"
         mUrl = mediaUrl.trim()
     end if
-    if mUrl = "" then return ""
+    if mUrl = "" then return "http://192.168.4.22:8090/demo.mp4"
 
     ext = LCase(Right(mUrl, 4))
     ext5 = LCase(Right(mUrl, 5))
@@ -228,7 +125,7 @@ function resolvePlayableVideoUrl(mediaUrl as Dynamic) as String
         end if
     end if
 
-    return mUrl
+    return "http://192.168.4.22:8090/demo.mp4"
 end function
 
 sub playAnnotationVideo(index as Integer)
@@ -237,16 +134,7 @@ sub playAnnotationVideo(index as Integer)
     end if
 
     item = m.annotations[index]
-    videoUrl = ""
-    if item.video_url <> invalid and item.video_url <> ""
-        videoUrl = item.video_url
-    else
-        videoUrl = resolvePlayableVideoUrl(item.media_url)
-    end if
-
-    if videoUrl = ""
-        videoUrl = "http://192.168.4.22:8090/demo.mp4"
-    end if
+    videoUrl = resolvePlayableVideoUrl(item.media_url)
 
     title = "Annotated Community Clip"
     if item.page_title <> invalid and item.page_title <> ""
@@ -258,181 +146,28 @@ sub playAnnotationVideo(index as Integer)
 
     videoContent = createObject("RoSGNode", "ContentNode")
     videoContent.url = videoUrl
-    videoContent.title = ""
+    videoContent.title = title
     videoContent.streamformat = "mp4"
 
     m.mainVideo.content = videoContent
     m.mainVideo.control = "play"
     m.currentPlayingCardIndex = index
-    m.initialVideoPos = invalid
-    m.clipStartTime = CreateObject("roDateTime").AsSeconds()
-    if m.videoProgressBar <> invalid then m.videoProgressBar.width = 0
 
-    ' Ensure right rail window centers and moves as videos play, keeping active on-screen note in view
-    if index < m.railStartIndex
-        m.railStartIndex = index
-    else if index > m.railStartIndex + 2
-        m.railStartIndex = index - 1
-        if m.railStartIndex + 3 > m.annotations.count() then m.railStartIndex = m.annotations.count() - 3
-        if m.railStartIndex < 0 then m.railStartIndex = 0
-    end if
-
-    slot = index - m.railStartIndex
-    if slot >= 0 and slot < 3
-        m.focusedCardIndex = slot
-    end if
-
-    renderRailCardsWindow()
-    updateCardFocus()
     updateCardPlayingIndicator()
-    updateStageMetrics(item)
-end sub
-
-sub updateStageMetrics(item as Object)
-    if item = invalid then return
-
-    ' 1. Real Emoji Reaction Counts from Supabase
-    fire = 0
-    think = 0
-    idea = 0
-    hundred = 0
-    down = 0
-
-    if item.reactions <> invalid
-        if item.reactions.fire <> invalid then fire = item.reactions.fire
-        if item.reactions.think <> invalid then think = item.reactions.think
-        if item.reactions.idea <> invalid then idea = item.reactions.idea
-        if item.reactions.hundred <> invalid then hundred = item.reactions.hundred
-        if item.reactions.down <> invalid then down = item.reactions.down
-    end if
-
-    if m.lblFireCount <> invalid then m.lblFireCount.text = Str(fire).trim()
-    if m.lblThinkCount <> invalid then m.lblThinkCount.text = Str(think).trim()
-    if m.lblIdeaCount <> invalid then m.lblIdeaCount.text = Str(idea).trim()
-    if m.lblHundredCount <> invalid then m.lblHundredCount.text = Str(hundred).trim()
-    if m.lblDownCount <> invalid then m.lblDownCount.text = Str(down).trim()
-
-    print "[Annotated Metrics] Card ["; m.currentPlayingCardIndex; "] Reactions -> Fire: "; fire; " Think: "; think; " Idea: "; idea; " 100: "; hundred; " Down: "; down
-
-    ' 2. Dynamic Fact Check Status & Banner (Nordic Minimalist: Symbols & TL;DR)
-    fc = item.fact_check
-    status = "note"
-    headline = "COMMUNITY NOTE"
-    detail = "Community commentary attached to video segment."
-    pillText = "Note"
-    badgeColor = "0x38BDF8FF"
-    bannerColor = "0x0C4A6EDD"
-    borderColor = "0x38BDF8FF"
-    iconUri = "pkg:/images/icon_idea.png"
-
-    if fc <> invalid
-        if fc.status <> invalid then status = LCase(fc.status)
-        if fc.verdict <> invalid
-            vUpper = UCase(fc.verdict)
-            if vUpper = "FALSE" then status = "false"
-            if vUpper = "MISLEADING" then status = "misleading"
-            if vUpper = "CONTEXT_NEEDED" then status = "context_needed"
-            if vUpper = "VERIFIED" then status = "verified"
-        end if
-
-        if status = "false" or status = "disputed"
-            status = "false"
-            headline = "FACT CHECK: FALSE CLAIM"
-            if fc.headline <> invalid and fc.headline <> "" then headline = fc.headline
-            detail = "Claims evaluated as false or AI-generated synthetic media."
-            if fc.detail <> invalid and fc.detail <> "" then detail = fc.detail
-            if fc.explanation <> invalid and fc.explanation <> "" then detail = fc.explanation
-            pillText = "False"
-            badgeColor = "0xEF4444FF"
-            bannerColor = "0x7F1D1DDD"
-            borderColor = "0xEF4444FF"
-            iconUri = "pkg:/images/icon_down.png"
-        else if status = "misleading"
-            headline = "FACT CHECK: MISLEADING"
-            if fc.headline <> invalid and fc.headline <> "" then headline = fc.headline
-            detail = "Content lacks essential context or presents disputed claims."
-            if fc.detail <> invalid and fc.detail <> "" then detail = fc.detail
-            if fc.explanation <> invalid and fc.explanation <> "" then detail = fc.explanation
-            pillText = "Misleading"
-            badgeColor = "0xF87171FF"
-            bannerColor = "0x7F1D1DDD"
-            borderColor = "0xF87171FF"
-            iconUri = "pkg:/images/icon_down.png"
-        else if status = "context_needed"
-            headline = "FACT CHECK: NEEDS CONTEXT"
-            if fc.headline <> invalid and fc.headline <> "" then headline = fc.headline
-            detail = "Missing primary source records or disputed context."
-            if fc.detail <> invalid and fc.detail <> "" then detail = fc.detail
-            if fc.explanation <> invalid and fc.explanation <> "" then detail = fc.explanation
-            pillText = "Needs Context"
-            badgeColor = "0xF59E0BFF"
-            bannerColor = "0x78350FDD"
-            borderColor = "0xF59E0BFF"
-            iconUri = "pkg:/images/icon_think.png"
-        else if status = "verified"
-            headline = "COMMUNITY FACT CHECK: VERIFIED ACCURATE"
-            if fc.headline <> invalid and fc.headline <> "" then headline = fc.headline
-            detail = "Primary sources cross-referenced and confirmed."
-            if fc.detail <> invalid and fc.detail <> "" then detail = fc.detail
-            pillText = "Verified"
-            badgeColor = "0x34D399FF"
-            bannerColor = "0x064E3BDD"
-            borderColor = "0x34D399FF"
-            iconUri = "pkg:/images/icon_bolt.png"
-        end if
-    else if item.is_disputed = true
-        status = "false"
-        headline = "DISPUTED CLAIM"
-        detail = "Community reviewers flagged statement as disputed."
-        pillText = "Disputed"
-        badgeColor = "0xEF4444FF"
-        bannerColor = "0x7F1D1DDD"
-        borderColor = "0xEF4444FF"
-        iconUri = "pkg:/images/icon_down.png"
-    end if
-
-    if m.factCheckBanner <> invalid then m.factCheckBanner.color = bannerColor
-    if m.fcBorder <> invalid then m.fcBorder.color = borderColor
-    if m.fcIcon <> invalid then m.fcIcon.uri = iconUri
-    if m.fcHeadline <> invalid
-        m.fcHeadline.text = headline
-        m.fcHeadline.color = badgeColor
-    end if
-    if m.fcDetail <> invalid then m.fcDetail.text = detail
-
-    if m.btnFactCheck <> invalid
-        if status = "verified"
-            m.btnFactCheck.color = "0x064E3BFF"
-        else if status = "context_needed"
-            m.btnFactCheck.color = "0x78350FFF"
-        else if status = "false" or status = "disputed" or status = "misleading"
-            m.btnFactCheck.color = "0x7F1D1DFF"
-        else
-            m.btnFactCheck.color = "0x1E293BFF"
-        end if
-    end if
-    if m.lblFactCheck <> invalid
-        m.lblFactCheck.text = pillText
-        m.lblFactCheck.color = badgeColor
-    end if
-    if m.btnFcIcon <> invalid then m.btnFcIcon.uri = iconUri
-
-    print "[Annotated FactCheck] Card ["; m.currentPlayingCardIndex; "] Status: "; status; " -> "; headline
 end sub
 
 sub updateCardPlayingIndicator()
     for i = 0 to m.cardTimes.count() - 1
         lbl = m.cardTimes[i]
         if lbl <> invalid
-            actualIdx = m.railStartIndex + i
-            if actualIdx = m.currentPlayingCardIndex
-                lbl.text = "PLAY"
+            if i = m.currentPlayingCardIndex
+                lbl.text = "PLAYING"
                 lbl.color = "0x34D399FF" ' Emerald green
             else
                 if m.cardRawTimes[i] <> invalid and m.cardRawTimes[i] <> ""
                     lbl.text = m.cardRawTimes[i]
                 else
-                    lbl.text = "NOTE"
+                    lbl.text = "Recent"
                 end if
                 lbl.color = "0x94A3B8FF" ' Muted slate
             end if
@@ -475,7 +210,7 @@ sub setUIState(newState as String)
         setVideoDucking(true)
         updateCardFocus()
         if m.remoteHint <> invalid
-            m.remoteHint.text = "[Back] Video   [^/v] Browse   [OK] Details   [Play] Watch"
+            m.remoteHint.text = "[Back] Video   [^/v] Select   [OK] Play Video"
         end if
         print "[Annotated UI] Entered STATE_B: Active Rail Browsing (Audio Ducked to 30%)."
     else
@@ -488,287 +223,35 @@ sub setUIState(newState as String)
             m.railCount.color = "0x38BDF8FF"
         end if
         setVideoDucking(false)
-        updateCardFocus()
+        for i = 0 to m.cardOutlines.count() - 1
+            if m.cardOutlines[i] <> invalid then m.cardOutlines[i].visible = false
+        end for
         updateButtonFocus()
         if m.remoteHint <> invalid
-            m.remoteHint.text = "[*] Notes   [>] Rail   [OK] Action   [Info] Details"
+            m.remoteHint.text = "[*] Notes   [>] Enter   [OK] Action"
         end if
         print "[Annotated UI] Returned to STATE_A: Passive Playback (100% Volume)."
     end if
 end sub
 
-sub updateModalButtonFocus()
-    if m.btnModalPlay <> invalid
-        if m.focusedModalButton = 0
-            m.btnModalPlay.color = "0x059669FF"
-        else
-            m.btnModalPlay.color = "0x064E3BFF"
-        end if
-    end if
-    if m.btnModalClose <> invalid
-        if m.focusedModalButton = 1
-            m.btnModalClose.color = "0x2563EBFF"
-        else
-            m.btnModalClose.color = "0x1F2937FF"
-        end if
-    end if
-end sub
-
-sub openDetailModal(index as Integer)
-    if m.annotations = invalid or index < 0 or index >= m.annotations.count() then return
-    item = m.annotations[index]
-    m.modalItemIndex = index
-    m.isModalOpen = true
-    m.focusedModalButton = 0
-    updateModalButtonFocus()
-    m.top.signalBeacon("AppDialogInitiate")
-
-    ' 1. Author and Platform
-    if m.modalAuthor <> invalid
-        if item.hostname <> invalid and item.hostname <> ""
-            if Left(item.hostname, 1) = "@"
-                m.modalAuthor.text = item.hostname
-            else
-                m.modalAuthor.text = "@" + item.hostname
-            end if
-        else
-            m.modalAuthor.text = "@annotated"
-        end if
-    end if
-
-    if m.modalPlatformText <> invalid
-        if item.url <> invalid and (Instr(1, item.url, "x.com") > 0 or Instr(1, item.url, "twitter.com") > 0)
-            m.modalPlatformText.text = "X / TWITTER ANNOTATION"
-        else if item.is_video = true
-            m.modalPlatformText.text = "VIDEO ANNOTATION"
-        else
-            m.modalPlatformText.text = "ANNOTATION"
-        end if
-    end if
-
-    ' 2. Full Quote (no cut-offs)
-    if m.modalFullQuote <> invalid
-        q = ""
-        if item.full_quote <> invalid and item.full_quote <> ""
-            q = cleanText(item.full_quote)
-        else if item.quote <> invalid and item.quote <> ""
-            q = cleanText(item.quote)
-        else if item.page_title <> invalid and item.page_title <> ""
-            q = cleanText(item.page_title)
-        end if
-        if Left(q, 12) = "Video Clip (" and Right(q, 1) = ")"
-            q = Mid(q, 13, Len(q) - 13)
-        end if
-        q = q.replace("- YouTube", "").trim()
-        m.modalFullQuote.text = """" + q + """"
-    end if
-
-    ' 3. Full Comment & Emoji Icon
-    if m.modalFullComment <> invalid
-        cText = ""
-        if item.full_comment <> invalid and item.full_comment <> ""
-            cText = cleanText(item.full_comment)
-        else if item.comment <> invalid and item.comment <> ""
-            cText = cleanText(item.comment)
-        end if
-        if cText = "" then cText = "Community Annotation"
-        m.modalFullComment.text = cText
-    end if
-
-    if m.modalEmojiIcon <> invalid
-        if item.emoji_icon <> invalid and item.emoji_icon <> ""
-            m.modalEmojiIcon.uri = item.emoji_icon
-        else
-            m.modalEmojiIcon.uri = "pkg:/images/icon_idea.png"
-        end if
-    end if
-
-    ' 4. Fact Check Status (Intuitive TL;DR symbols)
-    fc = item.fact_check
-    if fc <> invalid
-        fcStatus = ""
-        if fc.status <> invalid then fcStatus = LCase(fc.status)
-        if fc.verdict <> invalid
-            vUpper = UCase(fc.verdict)
-            if vUpper = "FALSE" then fcStatus = "false"
-            if vUpper = "MISLEADING" then fcStatus = "misleading"
-            if vUpper = "CONTEXT_NEEDED" then fcStatus = "context_needed"
-            if vUpper = "VERIFIED" then fcStatus = "verified"
-        end if
-
-        if fcStatus = "false"
-            if m.modalFcIcon <> invalid then m.modalFcIcon.uri = "pkg:/images/icon_down.png"
-            if m.modalFcHeadline <> invalid
-                hl = "FACT CHECK: FALSE CLAIM"
-                if fc.headline <> invalid and fc.headline <> "" then hl = fc.headline
-                m.modalFcHeadline.text = hl
-                m.modalFcHeadline.color = "0xEF4444FF"
-            end if
-            if m.modalFcAccent <> invalid then m.modalFcAccent.color = "0xEF4444FF"
-        else if fcStatus = "misleading"
-            if m.modalFcIcon <> invalid then m.modalFcIcon.uri = "pkg:/images/icon_down.png"
-            if m.modalFcHeadline <> invalid
-                hl = "FACT CHECK: MISLEADING"
-                if fc.headline <> invalid and fc.headline <> "" then hl = fc.headline
-                m.modalFcHeadline.text = hl
-                m.modalFcHeadline.color = "0xF87171FF"
-            end if
-            if m.modalFcAccent <> invalid then m.modalFcAccent.color = "0xF87171FF"
-        else if fcStatus = "context_needed"
-            if m.modalFcIcon <> invalid then m.modalFcIcon.uri = "pkg:/images/icon_think.png"
-            if m.modalFcHeadline <> invalid
-                hl = "FACT CHECK: NEEDS CONTEXT"
-                if fc.headline <> invalid and fc.headline <> "" then hl = fc.headline
-                m.modalFcHeadline.text = hl
-                m.modalFcHeadline.color = "0xF59E0BFF"
-            end if
-            if m.modalFcAccent <> invalid then m.modalFcAccent.color = "0xF59E0BFF"
-        else
-            if m.modalFcIcon <> invalid and fc.icon <> invalid then m.modalFcIcon.uri = fc.icon
-            if m.modalFcHeadline <> invalid
-                hl = "VERIFIED ACCURATE"
-                if fc.headline <> invalid and fc.headline <> "" then hl = fc.headline
-                m.modalFcHeadline.text = hl
-                if fc.badgeColor <> invalid then m.modalFcHeadline.color = fc.badgeColor else m.modalFcHeadline.color = "0x34D399FF"
-            end if
-            if m.modalFcAccent <> invalid then m.modalFcAccent.color = "0x34D399FF"
-        end if
-
-        detailText = "Consensus evaluated with primary sources."
-        if fc.detail <> invalid and fc.detail <> "" then detailText = fc.detail
-        if fc.explanation <> invalid and fc.explanation <> "" then detailText = fc.explanation
-        if m.modalFcDetail <> invalid then m.modalFcDetail.text = detailText
-    else
-        if m.modalFcIcon <> invalid then m.modalFcIcon.uri = "pkg:/images/icon_idea.png"
-        if m.modalFcHeadline <> invalid
-            m.modalFcHeadline.text = "COMMUNITY NOTE"
-            m.modalFcHeadline.color = "0x38BDF8FF"
-        end if
-        if m.modalFcAccent <> invalid then m.modalFcAccent.color = "0x38BDF8FF"
-        if m.modalFcDetail <> invalid then m.modalFcDetail.text = "Community annotation attached to source."
-    end if
-
-    ' 5. QR Code & Direct Web Link to the specific selected annotation
-    slugOrId = item.id
-    if item.slug <> invalid and item.slug <> "" then slugOrId = item.slug
-
-    ' Determine user handle or fallback to slug route
-    uName = ""
-    if item.username <> invalid and item.username <> ""
-        uName = item.username
-    else if item.author <> invalid and item.author <> ""
-        uName = item.author.replace("@", "").trim()
-    end if
-
-    if uName <> "" and item.slug <> invalid and item.slug <> ""
-        targetWebUrl = "https://annotated-repo.vercel.app/" + uName + "/" + item.slug
-        urlDisplay = "annotated-repo.vercel.app/" + uName + "/" + Left(item.slug, 8)
-    else
-        targetWebUrl = "https://annotated-repo.vercel.app/n/" + slugOrId
-        urlDisplay = "annotated-repo.vercel.app/n/" + Left(slugOrId, 10)
-    end if
-
-    if m.modalQrPoster <> invalid
-        ' Always encode the public web URL pointing directly to this specific annotation
-        m.modalQrPoster.uri = "https://api.qrserver.com/v1/create-qr-code/?size=300x300&margin=10&data=" + targetWebUrl
-    end if
-
-    if m.modalUrlLabel <> invalid
-        m.modalUrlLabel.text = urlDisplay
-    end if
-
-    ' Show modal and duck audio
-    if m.detailModalGroup <> invalid then m.detailModalGroup.visible = true
-    setVideoDucking(true)
-    print "[Annotated Modal] Opened Expanded Detail Modal for Note ["; index; "]: "; item.id
-end sub
-
-sub closeDetailModal()
-    if m.detailModalGroup <> invalid then m.detailModalGroup.visible = false
-    m.isModalOpen = false
-    if m.uiState = "STATE_A"
-        setVideoDucking(false)
-    end if
-    m.top.signalBeacon("AppDialogComplete")
-    print "[Annotated Modal] Closed Detail Modal."
-end sub
-
 sub onVideoPositionChanged()
-    onPlaybackTimerTick()
-end sub
+    vPos = 0
+    if m.mainVideo.position <> invalid then vPos = m.mainVideo.position
+    vDur = 41
+    if m.mainVideo.duration <> invalid and m.mainVideo.duration > 0 then vDur = m.mainVideo.duration
 
-sub onPlaybackTimerTick()
-    if m.annotations = invalid or m.annotations.count() = 0 then return
+    posSecTotal = 0
+    durSecTotal = 41
+    
+    posParts = Str(vPos).trim().split(".")
+    if posParts.count() > 0 then posSecTotal = Val(posParts[0])
 
-    activeItem = invalid
-    if m.currentPlayingCardIndex >= 0 and m.currentPlayingCardIndex < m.annotations.count()
-        activeItem = m.annotations[m.currentPlayingCardIndex]
-    end if
+    durParts = Str(vDur).trim().split(".")
+    if durParts.count() > 0 then durSecTotal = Val(durParts[0])
 
-    isVideoClip = false
-    if activeItem <> invalid
-        if activeItem.is_video = true
-            isVideoClip = true
-        else if activeItem.video_url <> invalid and activeItem.video_url <> ""
-            isVideoClip = true
-        else if activeItem.media_url <> invalid and Instr(1, activeItem.media_url, ".mp4") > 0
-            isVideoClip = true
-        end if
-    end if
-
-    nowTick = CreateObject("roDateTime").AsSeconds()
-    elapsed = 0.0
-    if m.clipStartTime <> invalid then elapsed = CDbl(nowTick - m.clipStartTime)
-
-    currentPos = 0.0
-    totalDur = 15.0
-
-    if isVideoClip
-        vPos = 0.0
-        if m.mainVideo <> invalid and m.mainVideo.position <> invalid then vPos = CDbl(m.mainVideo.position)
-        vDur = 0.0
-        if m.mainVideo <> invalid and m.mainVideo.duration <> invalid and m.mainVideo.duration > 0
-            vDur = CDbl(m.mainVideo.duration)
-        end if
-
-        if vPos > 0.0
-            currentPos = vPos
-        else
-            currentPos = elapsed
-        end if
-
-        if vDur > 0.0 and vDur <= 90.0
-            totalDur = vDur
-        else
-            totalDur = 90.0
-        end if
-    else
-        ' 15-second internet annotation showcase
-        totalDur = 15.0
-        currentPos = elapsed
-    end if
-
-    ' Progress ratio clamped [0.0, 1.0]
-    progressRatio = 0.0
-    if totalDur > 0.0
-        progressRatio = currentPos / totalDur
-    end if
-    if progressRatio > 1.0 then progressRatio = 1.0
-    if progressRatio < 0.0 then progressRatio = 0.0
-
-    ' Update progress bar width (max 1200px)
-    barWidth = Fix(progressRatio * 1200.0)
-    if barWidth < 4 and progressRatio > 0.01 then barWidth = 4
-    if m.videoProgressBar <> invalid
-        m.videoProgressBar.width = barWidth
-    end if
-
-    ' Format timestamps MM:SS / MM:SS
-    posSecTotal = Fix(currentPos)
-    durSecTotal = Fix(totalDur)
-    posMin = Int(posSecTotal / 60)
+    posMin = posSecTotal \ 60
     posSec = posSecTotal - (posMin * 60)
-    durMin = Int(durSecTotal / 60)
+    durMin = durSecTotal \ 60
     durSec = durSecTotal - (durMin * 60)
 
     posMStr = Str(posMin).trim()
@@ -781,15 +264,13 @@ sub onPlaybackTimerTick()
     if durMin < 10 then durMStr = "0" + durMStr
     if durSec < 10 then durSStr = "0" + durSStr
 
-    if m.timestampBadge <> invalid
-        m.timestampBadge.text = posMStr + ":" + posSStr + " / " + durMStr + ":" + durSStr
-    end if
+    m.timestampBadge.text = posMStr + ":" + posSStr + " / " + durMStr + ":" + durSStr
 
     ' --- Auto-Scroll Timeline Sync for State A ---
     activeIdx = 0
-    if m.cardTimestamps <> invalid and m.cardTimestamps.count() >= 3 and posSecTotal >= m.cardTimestamps[2] and m.cardTimestamps[2] > 0
+    if m.cardTimestamps.count() >= 3 and posSecTotal >= m.cardTimestamps[2] and m.cardTimestamps[2] > 0
         activeIdx = 2
-    else if m.cardTimestamps <> invalid and m.cardTimestamps.count() >= 2 and posSecTotal >= m.cardTimestamps[1] and m.cardTimestamps[1] > 0
+    else if m.cardTimestamps.count() >= 2 and posSecTotal >= m.cardTimestamps[1] and m.cardTimestamps[1] > 0
         activeIdx = 1
     else
         activeIdx = 0
@@ -797,37 +278,18 @@ sub onPlaybackTimerTick()
 
     if activeIdx <> m.activeSyncIndex
         m.activeSyncIndex = activeIdx
-        if m.uiState = "STATE_A" and m.cardAccents <> invalid
+        ' In State A, update the accent bar of the currently active annotation
+        if m.uiState = "STATE_A"
             for i = 0 to m.cardAccents.count() - 1
                 accent = m.cardAccents[i]
                 if accent <> invalid
                     if i = m.activeSyncIndex
-                        accent.color = "0x38BDF8FF"
+                        accent.color = "0x38BDF8FF" ' Cyan active highlight
                     else
-                        accent.color = "0x1E293BFF"
+                        accent.color = "0x1E293BFF" ' Muted slate
                     end if
                 end if
             end for
-        end if
-    end if
-
-    ' Segment auto-advance watchdog
-    advanceNow = false
-    if isVideoClip
-        if (durSecTotal > 0 and posSecTotal >= durSecTotal) or posSecTotal >= 90 or elapsed >= 90.0
-            advanceNow = true
-        end if
-    else
-        if elapsed >= 15.0
-            advanceNow = true
-        end if
-    end if
-
-    if advanceNow
-        if m.lastAutoPlayTime = invalid or (nowTick - m.lastAutoPlayTime > 2)
-            m.lastAutoPlayTime = nowTick
-            print "[Annotated Engine] Segment completed (" + Str(posSecTotal).trim() + "s / " + Str(durSecTotal).trim() + "s). Advancing..."
-            playNextVideo()
         end if
     end if
 end sub
@@ -836,50 +298,6 @@ sub onVideoStateChanged()
     print "[Annotated] Video Player state changed: "; m.mainVideo.state
     if m.mainVideo.state = "error"
         print "[Annotated] Video Player error: "; m.mainVideo.errorStr; " code: "; m.mainVideo.errorCode
-        nowTick = CreateObject("roDateTime").AsSeconds()
-        if m.lastAutoPlayTime = invalid or (nowTick - m.lastAutoPlayTime > 3)
-            m.lastAutoPlayTime = nowTick
-            print "[Annotated] Recovering from player error. Advancing to next clip..."
-            playNextVideo()
-        end if
-    else if m.mainVideo.state = "finished"
-        nowTick = CreateObject("roDateTime").AsSeconds()
-        if m.lastAutoPlayTime = invalid or (nowTick - m.lastAutoPlayTime > 3)
-            m.lastAutoPlayTime = nowTick
-            print "[Annotated Playlist] Video playback finished event received. Autoplaying next clip!"
-            playNextVideo()
-        end if
-    end if
-end sub
-
-sub playNextVideo()
-    if m.annotations = invalid or m.annotations.count() = 0 then return
-
-    nextIndex = m.currentPlayingCardIndex + 1
-    if nextIndex >= m.annotations.count()
-        nextIndex = 0 ' Loop back to start of playlist
-    end if
-
-    print "[Annotated Playlist] Autoplay advancing to clip ["; nextIndex; " / "; m.annotations.count(); "]"
-
-    ' Automatically advance rail scroll window so the active playing card is always visible in the right rail
-    if nextIndex < m.railStartIndex
-        m.railStartIndex = nextIndex
-    else if nextIndex > m.railStartIndex + 2
-        m.railStartIndex = nextIndex - 2
-    else if nextIndex = m.railStartIndex + 2 and m.railStartIndex + 3 < m.annotations.count()
-        m.railStartIndex = m.railStartIndex + 1
-    end if
-
-    renderRailCardsWindow()
-    playAnnotationVideo(nextIndex)
-end sub
-
-sub signalAppLaunchComplete()
-    if m.isLaunchBeaconSent <> true
-        m.isLaunchBeaconSent = true
-        m.top.signalBeacon("AppLaunchComplete")
-        print "[Annotated Beacon] Successfully signaled AppLaunchComplete beacon!"
     end if
 end sub
 
@@ -887,7 +305,6 @@ sub onIntroAnimState()
     if m.introAnim.state = "stopped"
         m.introOverlay.visible = false
         print "[Annotated] Cinematic intro completed. Revealing live dashboard."
-        signalAppLaunchComplete()
     end if
 end sub
 
@@ -899,12 +316,11 @@ function cleanText(raw as Dynamic) as String
     clean = clean.replace("🎬", "")
     clean = clean.replace("⏱️", "")
     clean = clean.replace("⏱", "")
-    clean = clean.replace("💡", "[Idea] ")
-    clean = clean.replace("🔥", "[Fire] ")
-    clean = clean.replace("💯", "[100] ")
-    clean = clean.replace("🤔", "[Think] ")
-    clean = clean.replace("⚡", "[FactCheck] ")
-    clean = clean.replace("👎", "[Disagree] ")
+    clean = clean.replace("💡", "")
+    clean = clean.replace("🔥", "")
+    clean = clean.replace("💯", "")
+    clean = clean.replace("🤔", "")
+    clean = clean.replace("⚡", "")
     return clean.trim()
 end function
 
@@ -934,122 +350,11 @@ function parseTimestampToSeconds(raw as Dynamic) as Integer
     return -1
 end function
 
-sub renderRailCardsWindow()
-    if m.annotations = invalid or m.annotations.count() = 0 then return
-
-    totalCount = m.annotations.count()
-    if m.railStartIndex < 0 then m.railStartIndex = 0
-    if m.railStartIndex > totalCount - 3 then m.railStartIndex = totalCount - 3
-    if m.railStartIndex < 0 then m.railStartIndex = 0
-
-    cardNodes = [
-        { card: m.card1, author: m.card1Author, quote: m.card1Quote, note: m.card1Note, emojiPoster: m.card1EmojiPoster, fcLabel: m.card1FcLabel, fcIcon: m.card1FcIcon, fireCount: m.card1FireCount, ideaCount: m.card1IdeaCount },
-        { card: m.card2, author: m.card2Author, quote: m.card2Quote, note: m.card2Note, emojiPoster: m.card2EmojiPoster, fcLabel: m.card2FcLabel, fcIcon: m.card2FcIcon, hundredCount: m.card2HundredCount, thinkCount: m.card2ThinkCount },
-        { card: m.card3, author: m.card3Author, quote: m.card3Quote, note: m.card3Note, emojiPoster: m.card3EmojiPoster, fcLabel: m.card3FcLabel, fcIcon: m.card3FcIcon, fireCount: m.card3FireCount, ideaCount: m.card3IdeaCount }
-    ]
-
-    for slot = 0 to 2
-        dataIdx = m.railStartIndex + slot
-        cn = cardNodes[slot]
-        if dataIdx < totalCount
-            item = m.annotations[dataIdx]
-
-            ' Author
-            if cn.author <> invalid
-                if item.hostname <> invalid and item.hostname <> ""
-                    if Left(item.hostname, 1) = "@"
-                        cn.author.text = item.hostname
-                    else
-                        cn.author.text = "@" + item.hostname
-                    end if
-                else
-                    cn.author.text = "@annotated"
-                end if
-            end if
-
-            ' Emoji intent badge icon
-            if cn.emojiPoster <> invalid
-                if item.emoji_icon <> invalid and item.emoji_icon <> ""
-                    cn.emojiPoster.uri = item.emoji_icon
-                else
-                    cn.emojiPoster.uri = "pkg:/images/icon_idea.png"
-                end if
-            end if
-
-            ' Timestamp
-            if item.media_timestamp <> invalid and item.media_timestamp <> ""
-                m.cardRawTimes[slot] = item.media_timestamp
-                ts = parseTimestampToSeconds(item.media_timestamp)
-                if ts >= 0 then m.cardTimestamps[slot] = ts
-            else if item.is_video = true and item.video_duration <> invalid and item.video_duration <> ""
-                m.cardRawTimes[slot] = item.video_duration
-                m.cardTimestamps[slot] = 0
-            else if item.is_video = true
-                m.cardRawTimes[slot] = "CLIP"
-                m.cardTimestamps[slot] = 0
-            else
-                m.cardRawTimes[slot] = "NOTE"
-                m.cardTimestamps[slot] = 0
-            end if
-
-            ' Quote / Context
-            if cn.quote <> invalid
-                q = ""
-                if item.quote <> invalid and item.quote <> ""
-                    q = cleanText(item.quote)
-                    if Left(q, 12) = "Video Clip (" and Right(q, 1) = ")"
-                        q = Mid(q, 13, Len(q) - 13)
-                    end if
-                else if item.page_title <> invalid and item.page_title <> ""
-                    q = cleanText(item.page_title)
-                else
-                    q = "Annotated Community Note"
-                end if
-                q = q.replace("- YouTube", "").trim()
-                cn.quote.text = """" + Left(q, 52) + "..."""
-            end if
-
-            ' Comment
-            if cn.note <> invalid
-                cText = cleanText(item.comment)
-                if cText = ""
-                    if item.page_title <> invalid then cText = cleanText(item.page_title) else cText = "Community annotation"
-                end if
-                cn.note.text = cText
-            end if
-
-            ' Reaction metrics
-            if item.reactions <> invalid
-                if cn.fireCount <> invalid and item.reactions.fire <> invalid then cn.fireCount.text = Str(item.reactions.fire).trim()
-                if cn.ideaCount <> invalid and item.reactions.idea <> invalid then cn.ideaCount.text = Str(item.reactions.idea).trim()
-                if cn.hundredCount <> invalid and item.reactions.hundred <> invalid then cn.hundredCount.text = Str(item.reactions.hundred).trim()
-                if cn.thinkCount <> invalid and item.reactions.think <> invalid then cn.thinkCount.text = Str(item.reactions.think).trim()
-            end if
-
-            ' Fact Check pill & icon
-            if item.fact_check <> invalid and cn.fcLabel <> invalid
-                if item.fact_check.pillText <> invalid then cn.fcLabel.text = item.fact_check.pillText
-                if item.fact_check.badgeColor <> invalid then cn.fcLabel.color = item.fact_check.badgeColor
-                if cn.fcIcon <> invalid and item.fact_check.icon <> invalid then cn.fcIcon.uri = item.fact_check.icon
-            end if
-        end if
-    end for
-
-    updateCardPlayingIndicator()
-    updateCardFocus()
-
-    if m.uiState = "STATE_B"
-        currentPos = m.railStartIndex + m.focusedCardIndex + 1
-        if m.railCount <> invalid then m.railCount.text = Str(currentPos).trim() + " / " + Str(totalCount).trim()
-    end if
-end sub
-
 sub onAnnotationsLoaded()
     annotations = m.feedTask.annotations
     if annotations = invalid or annotations.count() = 0
         print "[Annotated] No annotations returned from feed task."
-        if m.railCount <> invalid then m.railCount.text = "0 Notes"
-        signalAppLaunchComplete()
+        m.railCount.text = "0 Notes"
         return
     end if
 
@@ -1057,24 +362,115 @@ sub onAnnotationsLoaded()
     m.totalNotesCount = annotations.count()
     print "[Annotated] Binding "; m.totalNotesCount; " live annotations to UI!"
     if m.uiState = "STATE_A"
-        if m.railCount <> invalid then m.railCount.text = Str(m.totalNotesCount).trim() + " Notes"
+        m.railCount.text = Str(m.totalNotesCount).trim() + " Notes"
     end if
 
-    renderRailCardsWindow()
+    ' 1. Card 1 (Top Annotation)
+    if annotations.count() > 0
+        a1 = annotations[0]
 
-    handledDeepLink = false
-    if m.top.launchArgs <> invalid and m.top.launchArgs.contentId <> invalid
-        handledDeepLink = handleDeepLink(m.top.launchArgs)
+        m.card1Author.text = "@annotated"
+        if a1.hostname <> invalid and a1.hostname <> ""
+            m.card1Author.text = "@" + a1.hostname
+        end if
+
+        if a1.media_timestamp <> invalid and a1.media_timestamp <> ""
+            m.cardRawTimes[0] = a1.media_timestamp
+            ts1 = parseTimestampToSeconds(a1.media_timestamp)
+            if ts1 >= 0 then m.cardTimestamps[0] = ts1
+        else
+            m.cardRawTimes[0] = "00:00"
+            m.cardTimestamps[0] = 0
+        end if
+
+        if a1.quote <> invalid and a1.quote <> ""
+            m.card1Quote.text = """" + Left(cleanText(a1.quote), 60) + "..."""
+        else
+            m.card1Quote.text = """Annotated Web Commentary"""
+        end if
+
+        if a1.comment <> invalid and a1.comment <> ""
+            m.card1Note.text = cleanText(a1.comment)
+        end if
     end if
 
-    if not handledDeepLink
-        ' Automatically play the genuine video belonging to the first community annotation!
-        playAnnotationVideo(0)
-        print "[Annotated] Initial community video clip loaded and playing!"
+    ' 2. Card 2
+    if annotations.count() > 1
+        a2 = annotations[1]
+        if a2.hostname <> invalid and a2.hostname <> ""
+            m.card2Author.text = "@" + a2.hostname
+        end if
+
+        if a2.media_timestamp <> invalid and a2.media_timestamp <> ""
+            m.cardRawTimes[1] = a2.media_timestamp
+            ts2 = parseTimestampToSeconds(a2.media_timestamp)
+            if ts2 >= 0 then m.cardTimestamps[1] = ts2
+        else
+            m.cardRawTimes[1] = "00:15"
+            m.cardTimestamps[1] = 15
+        end if
+
+        if a2.comment <> invalid and a2.comment <> ""
+            m.card2Note.text = cleanText(a2.comment)
+        end if
     end if
 
-    signalAppLaunchComplete()
+    ' 3. Card 3
+    if annotations.count() > 2
+        a3 = annotations[2]
+        if a3.hostname <> invalid and a3.hostname <> ""
+            m.card3Author.text = "@" + a3.hostname
+        end if
+
+        if a3.media_timestamp <> invalid and a3.media_timestamp <> ""
+            m.cardRawTimes[2] = a3.media_timestamp
+            ts3 = parseTimestampToSeconds(a3.media_timestamp)
+            if ts3 >= 0 then m.cardTimestamps[2] = ts3
+        else
+            m.cardRawTimes[2] = "00:30"
+            m.cardTimestamps[2] = 30
+        end if
+
+        if a3.comment <> invalid and a3.comment <> ""
+            m.card3Note.text = cleanText(a3.comment)
+        end if
+    end if
+
+    ' Automatically play the genuine video belonging to the first community annotation!
+    playAnnotationVideo(0)
+    if m.loadTimer <> invalid then m.loadTimer.control = "stop"
+    print "[Annotated] Initial community video clip loaded and playing!"
 end sub
+
+sub onAnnotationsFeedError()
+    errMsg = ""
+    if m.feedTask <> invalid and m.feedTask.error <> invalid
+        errMsg = m.feedTask.error
+    end if
+    print "[Annotated] Feed task returned an error: "; errMsg
+    if m.railCount <> invalid
+        m.railCount.text = "Offline"
+        m.railCount.color = "0xEF4444FF"
+    end if
+    if m.videoTitle <> invalid
+        m.videoTitle.text = "Could not load live annotations - check network"
+    end if
+    if m.loadTimer <> invalid then m.loadTimer.control = "stop"
+end sub
+
+sub onLoadTimeout()
+    print "[Annotated] Feed task timed out after 12 seconds."
+    if m.annotations = invalid
+        if m.railCount <> invalid
+            m.railCount.text = "Timed Out"
+            m.railCount.color = "0xEF4444FF"
+        end if
+        if m.videoTitle <> invalid
+            m.videoTitle.text = "Network timeout - check Roku connection"
+        end if
+    end if
+end sub
+
 
 sub updateButtonFocus()
     for i = 0 to m.buttons.count() - 1
@@ -1100,25 +496,10 @@ sub updateCardFocus()
         card = m.cards[i]
         outline = m.cardOutlines[i]
         accent = m.cardAccents[i]
-        actualIdx = m.railStartIndex + i
-
-        isPlaying = (actualIdx = m.currentPlayingCardIndex)
-        isBrowsingFocused = (m.uiState = "STATE_B" and i = m.focusedCardIndex)
-
-        if isBrowsingFocused
-            if outline <> invalid
-                outline.visible = true
-                outline.color = "0x38BDF8FF" ' Cyan focus border in active rail browsing
-            end if
-            if card <> invalid then card.color = "0x1E293BFF"
+        if i = m.focusedCardIndex
+            if outline <> invalid then outline.visible = true
+            if card <> invalid then card.color = "0x1E293BFF" ' Highlighted card surface
             if accent <> invalid then accent.color = "0x38BDF8FF"
-        else if isPlaying
-            if outline <> invalid
-                outline.visible = true
-                outline.color = "0x059669FF" ' Sleek emerald selector outline on playing card!
-            end if
-            if card <> invalid then card.color = "0x0B2E24FF" ' Subtle emerald glowing surface
-            if accent <> invalid then accent.color = "0x34D399FF"
         else
             if outline <> invalid then outline.visible = false
             if card <> invalid
@@ -1133,68 +514,11 @@ sub updateCardFocus()
     end for
 end sub
 
-sub postReaction(emoji as String)
-    if m.annotations = invalid or m.currentPlayingCardIndex < 0 or m.currentPlayingCardIndex >= m.annotations.count()
-        return
-    end if
-
-    activeItem = m.annotations[m.currentPlayingCardIndex]
-    annId = activeItem.id
-
-    print "[Annotated Emote] Posting reaction: "; emoji; " for Annotation: "; annId
-
-    ' 1. Optimistic instant local UI increment
-    if activeItem.reactions = invalid
-        activeItem.reactions = { fire: 0, think: 0, idea: 0, hundred: 0, down: 0 }
-    end if
-
-    if emoji = "🔥"
-        activeItem.reactions.fire = activeItem.reactions.fire + 1
-        if m.lblFireCount <> invalid then m.lblFireCount.text = Str(activeItem.reactions.fire).trim()
-    else if emoji = "🤔"
-        activeItem.reactions.think = activeItem.reactions.think + 1
-        if m.lblThinkCount <> invalid then m.lblThinkCount.text = Str(activeItem.reactions.think).trim()
-    else if emoji = "💡"
-        activeItem.reactions.idea = activeItem.reactions.idea + 1
-        if m.lblIdeaCount <> invalid then m.lblIdeaCount.text = Str(activeItem.reactions.idea).trim()
-    else if emoji = "💯"
-        activeItem.reactions.hundred = activeItem.reactions.hundred + 1
-        if m.lblHundredCount <> invalid then m.lblHundredCount.text = Str(activeItem.reactions.hundred).trim()
-    else if emoji = "👎"
-        activeItem.reactions.down = activeItem.reactions.down + 1
-        if m.lblDownCount <> invalid then m.lblDownCount.text = Str(activeItem.reactions.down).trim()
-    end if
-
-    ' Also update rail cards if current video is displayed in visible window
-    renderRailCardsWindow()
-
-    ' 2. Async HTTP POST via background ReactionTask
-    reactionTask = createObject("RoSGNode", "ReactionTask")
-    reactionTask.annotationId = annId
-    reactionTask.emoji = emoji
-    reactionTask.control = "RUN"
-    print "[Annotated Emote] Dispatched ReactionTask for: "; annId; " with emoji: "; emoji
-end sub
-
 function onKeyEvent(key as String, press as Boolean) as Boolean
     handled = false
 
     if press
-        print "[Annotated] Remote key: '"; key; "' in State: "; m.uiState; " ModalOpen: "; m.isModalOpen
-
-        ' 1. Modal Navigation overrides other controls when open
-        if m.isModalOpen = true
-            if key = "back" or key = "options" or key = "info" or key = "down" or key = "up"
-                closeDetailModal()
-                handled = true
-            else if key = "OK" or key = "play"
-                targetIdx = m.modalItemIndex
-                closeDetailModal()
-                if targetIdx >= 0 then playAnnotationVideo(targetIdx)
-                handled = true
-            end if
-            return handled
-        end if
+        print "[Annotated] Remote key: '"; key; "' in State: "; m.uiState
 
         if m.uiState = "STATE_A"
             ' --- State A: Passive Playback / Action Pills ---
@@ -1214,63 +538,33 @@ function onKeyEvent(key as String, press as Boolean) as Boolean
                     updateButtonFocus()
                     handled = true
                 end if
-            else if key = "up"
-                ' Pressing Up from bottom actions directly enters State B (Rail)
-                setUIState("STATE_B")
-                handled = true
             else if key = "options" ' [*] Star Key
                 ' Star key toggles active rail browsing mode
                 setUIState("STATE_B")
                 handled = true
-            else if key = "info"
-                ' Info key opens expanded detail modal for currently playing video
-                openDetailModal(m.currentPlayingCardIndex)
-                handled = true
             else if key = "OK"
                 if m.focusedButtonIndex = 0
-                    ' Open detail modal for the current playing clip
-                    openDetailModal(m.currentPlayingCardIndex)
-                    print "[Annotated] Fact-Check / Details modal opened for Card: "; m.currentPlayingCardIndex
-                else if m.focusedButtonIndex = 1
-                    postReaction("🔥")
-                else if m.focusedButtonIndex = 2
-                    postReaction("🤔")
-                else if m.focusedButtonIndex = 3
-                    postReaction("💡")
-                else if m.focusedButtonIndex = 4
-                    postReaction("💯")
-                else if m.focusedButtonIndex = 5
-                    postReaction("👎")
+                    ' Toggle fact-check banner
+                    m.factCheckBanner.visible = not m.factCheckBanner.visible
+                    print "[Annotated] Fact-Check banner toggled: "; m.factCheckBanner.visible
+                else
+                    print "[Annotated] Reaction button clicked index: "; m.focusedButtonIndex
                 end if
                 handled = true
             end if
 
         else if m.uiState = "STATE_B"
-            ' --- State B: Active Rail Browsing & Smooth Windowed Scrolling ---
+            ' --- State B: Active Rail Browsing ---
             if key = "up"
                 if m.focusedCardIndex > 0
                     m.focusedCardIndex = m.focusedCardIndex - 1
                     updateCardFocus()
-                    currentPos = m.railStartIndex + m.focusedCardIndex + 1
-                    if m.railCount <> invalid then m.railCount.text = Str(currentPos).trim() + " / " + Str(m.totalNotesCount).trim()
-                    handled = true
-                else if m.railStartIndex > 0
-                    ' Scroll window up!
-                    m.railStartIndex = m.railStartIndex - 1
-                    renderRailCardsWindow()
                     handled = true
                 end if
             else if key = "down"
-                if m.focusedCardIndex < 2
+                if m.focusedCardIndex < m.cards.count() - 1
                     m.focusedCardIndex = m.focusedCardIndex + 1
                     updateCardFocus()
-                    currentPos = m.railStartIndex + m.focusedCardIndex + 1
-                    if m.railCount <> invalid then m.railCount.text = Str(currentPos).trim() + " / " + Str(m.totalNotesCount).trim()
-                    handled = true
-                else if m.annotations <> invalid and m.railStartIndex + 3 < m.annotations.count()
-                    ' Scroll window down!
-                    m.railStartIndex = m.railStartIndex + 1
-                    renderRailCardsWindow()
                     handled = true
                 end if
             else if key = "left" or key = "back"
@@ -1282,16 +576,9 @@ function onKeyEvent(key as String, press as Boolean) as Boolean
                 setUIState("STATE_A")
                 handled = true
             else if key = "OK"
-                ' Pressing OK expands the selected note into the Full Detail Modal + Scannable QR Pass!
-                targetIdx = m.railStartIndex + m.focusedCardIndex
-                print "[Annotated] Remote OK pressed on Window Slot "; m.focusedCardIndex; " (Annotation Index "; targetIdx; ") -> Opening Detail Modal!"
-                openDetailModal(targetIdx)
-                handled = true
-            else if key = "play"
-                ' Pressing Play directly plays the selected note's video!
-                targetIdx = m.railStartIndex + m.focusedCardIndex
-                print "[Annotated] Remote Play pressed on Window Slot "; m.focusedCardIndex; " (Annotation Index "; targetIdx; ") -> Switching to selected video!"
-                playAnnotationVideo(targetIdx)
+                ' Pressing OK plays the genuine video of the currently selected card!
+                print "[Annotated] Remote OK pressed on Card "; m.focusedCardIndex; " -> Switching to selected video!"
+                playAnnotationVideo(m.focusedCardIndex)
                 handled = true
             end if
         end if
