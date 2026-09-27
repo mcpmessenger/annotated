@@ -1,4 +1,4 @@
-package com.annotated.mobile
+﻿package com.annotated.mobile
 
 import android.app.Notification
 import android.app.NotificationChannel
@@ -7,9 +7,11 @@ import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.Paint
 import android.graphics.PixelFormat
-import android.graphics.drawable.GradientDrawable
+import android.graphics.Typeface
 import android.os.Build
 import android.os.IBinder
 import android.util.TypedValue
@@ -17,8 +19,6 @@ import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
-import android.widget.FrameLayout
-import android.widget.TextView
 
 class FloatingOverlayService : Service() {
     private var windowManager: WindowManager? = null
@@ -31,27 +31,23 @@ class FloatingOverlayService : Service() {
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int = START_STICKY
 
     override fun onCreate() {
         super.onCreate()
         createNotificationChannel()
         startForeground(NOTIFICATION_ID, buildNotification())
-
         windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
         createFloatingBubble()
     }
 
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
-                CHANNEL_ID,
-                "Annotated Floating Bubble",
-                NotificationManager.IMPORTANCE_LOW
-            ).apply {
-                description = "Keeps the Annotated floating pencil active over other apps"
+            val channel = NotificationChannel(CHANNEL_ID, "Annotated Floating Bubble", NotificationManager.IMPORTANCE_LOW).apply {
+                description = "Annotated widget over YouTube, X and Chrome"
+                setShowBadge(false)
             }
-            val manager = getSystemService(NotificationManager::class.java)
-            manager.createNotificationChannel(channel)
+            getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
         }
     }
 
@@ -60,110 +56,93 @@ class FloatingOverlayService : Service() {
             action = Intent.ACTION_MAIN
             flags = Intent.FLAG_ACTIVITY_SINGLE_TOP
         }
-        val pendingIntent = PendingIntent.getActivity(
-            this, 0, launchIntent,
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0
-        )
-
+        val pendingIntent = PendingIntent.getActivity(this, 0, launchIntent,
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0)
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             Notification.Builder(this, CHANNEL_ID)
-                .setContentTitle("Annotated Floating Bubble Active")
-                .setContentText("Tap the floating pencil over YouTube/X to annotate")
+                .setContentTitle("Annotated is active")
+                .setContentText("Widget is floating over YouTube, X & Chrome")
                 .setSmallIcon(android.R.drawable.ic_menu_edit)
                 .setContentIntent(pendingIntent)
-                .build()
+                .setOngoing(true).build()
         } else {
             @Suppress("DEPRECATION")
             Notification.Builder(this)
-                .setContentTitle("Annotated Floating Bubble Active")
-                .setContentText("Tap the floating pencil over YouTube/X to annotate")
+                .setContentTitle("Annotated is active")
+                .setContentText("Widget is floating over YouTube, X & Chrome")
                 .setSmallIcon(android.R.drawable.ic_menu_edit)
                 .setContentIntent(pendingIntent)
-                .build()
+                .setOngoing(true).build()
         }
     }
 
+    private fun dp(v: Float) = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, v, resources.displayMetrics).toInt()
+
     private fun createFloatingBubble() {
-        val sizeDp = 58
-        val sizePx = TypedValue.applyDimension(
-            TypedValue.COMPLEX_UNIT_DIP, sizeDp.toFloat(), resources.displayMetrics
-        ).toInt()
-
-        val layoutFlag = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        val sizePx = dp(62f)
+        val screenW = resources.displayMetrics.widthPixels
+        val layoutFlag = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
-        } else {
-            @Suppress("DEPRECATION")
-            WindowManager.LayoutParams.TYPE_PHONE
-        }
+        else @Suppress("DEPRECATION") WindowManager.LayoutParams.TYPE_PHONE
 
-        params = WindowManager.LayoutParams(
-            sizePx,
-            sizePx,
-            layoutFlag,
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
-            PixelFormat.TRANSLUCENT
-        ).apply {
+        params = WindowManager.LayoutParams(sizePx, sizePx, layoutFlag,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+            PixelFormat.TRANSLUCENT).apply {
             gravity = Gravity.TOP or Gravity.START
-            x = resources.displayMetrics.widthPixels - sizePx - 20
+            x = screenW - sizePx - dp(14f)
             y = resources.displayMetrics.heightPixels / 3
         }
 
-        val frame = FrameLayout(this).apply {
-            val bg = GradientDrawable().apply {
-                shape = GradientDrawable.OVAL
-                setColor(Color.parseColor("#0F172A"))
-                setStroke(6, Color.parseColor("#38BDF8"))
+        val bubble = object : View(this) {
+            private val bgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.parseColor("#0F172A") }
+            private val ringPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = Color.parseColor("#38BDF8"); style = Paint.Style.STROKE; strokeWidth = dp(3f).toFloat()
             }
-            background = bg
+            private val glowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = Color.parseColor("#2038BDF8"); style = Paint.Style.STROKE; strokeWidth = dp(7f).toFloat()
+            }
+            private val logoPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = Color.parseColor("#38BDF8"); textAlign = Paint.Align.CENTER
+                typeface = Typeface.create(Typeface.DEFAULT_BOLD, Typeface.BOLD)
+            }
+            private val dotPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.parseColor("#38BDF8") }
 
-            val textView = TextView(context).apply {
-                text = "✏️"
-                textSize = 22f
-                gravity = Gravity.CENTER
+            override fun onDraw(canvas: Canvas) {
+                val cx = width / 2f; val cy = height / 2f
+                val r = minOf(cx, cy) - dp(3f)
+                canvas.drawCircle(cx, cy, r, glowPaint)
+                canvas.drawCircle(cx, cy, r, bgPaint)
+                canvas.drawCircle(cx, cy, r, ringPaint)
+                val fs = height * 0.40f
+                logoPaint.textSize = fs
+                canvas.drawText("A", cx, cy + fs * 0.33f - dp(2f), logoPaint)
+                canvas.drawCircle(cx, cy + fs * 0.5f + dp(1f), dp(2.5f).toFloat(), dotPaint)
             }
-            addView(textView, FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.MATCH_PARENT,
-                FrameLayout.LayoutParams.MATCH_PARENT
-            ))
         }
 
-        var initialX = 0
-        var initialY = 0
-        var initialTouchX = 0f
-        var initialTouchY = 0f
-        var isMove = false
-
-        frame.setOnTouchListener { _, event ->
-            when (event.action) {
-                MotionEvent.ACTION_DOWN -> {
-                    initialX = params?.x ?: 0
-                    initialY = params?.y ?: 0
-                    initialTouchX = event.rawX
-                    initialTouchY = event.rawY
-                    isMove = false
-                    true
-                }
+        var ix = 0; var iy = 0; var itx = 0f; var ity = 0f; var dragging = false
+        bubble.setOnTouchListener { v, e ->
+            when (e.action) {
+                MotionEvent.ACTION_DOWN -> { ix = params!!.x; iy = params!!.y; itx = e.rawX; ity = e.rawY; dragging = false; true }
                 MotionEvent.ACTION_MOVE -> {
-                    val dx = (event.rawX - initialTouchX).toInt()
-                    val dy = (event.rawY - initialTouchY).toInt()
-                    if (Math.abs(dx) > 10 || Math.abs(dy) > 10) {
-                        isMove = true
-                        params?.x = initialX + dx
-                        params?.y = initialY + dy
-                        windowManager?.updateViewLayout(frame, params)
+                    val dx = (e.rawX - itx).toInt(); val dy = (e.rawY - ity).toInt()
+                    if (!dragging && (Math.abs(dx) > 8 || Math.abs(dy) > 8)) dragging = true
+                    if (dragging) {
+                        params!!.x = ix + dx
+                        params!!.y = (iy + dy).coerceIn(0, resources.displayMetrics.heightPixels - sizePx)
+                        windowManager?.updateViewLayout(v, params)
                     }
                     true
                 }
                 MotionEvent.ACTION_UP -> {
-                    if (!isMove) {
-                        // Tapped! Open Annotated app
-                        val launchIntent = packageManager.getLaunchIntentForPackage(packageName)?.apply {
+                    if (dragging) {
+                        params!!.x = if (params!!.x + sizePx / 2 < screenW / 2) dp(14f) else screenW - sizePx - dp(14f)
+                        windowManager?.updateViewLayout(v, params)
+                    } else {
+                        packageManager.getLaunchIntentForPackage(packageName)?.apply {
                             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
                             putExtra("open_compose", true)
-                        }
-                        if (launchIntent != null) {
-                            startActivity(launchIntent)
-                        }
+                        }?.let { startActivity(it) }
                     }
                     true
                 }
@@ -171,15 +150,12 @@ class FloatingOverlayService : Service() {
             }
         }
 
-        floatingView = frame
+        floatingView = bubble
         windowManager?.addView(floatingView, params)
     }
 
     override fun onDestroy() {
         super.onDestroy()
-        if (floatingView != null) {
-            windowManager?.removeView(floatingView)
-            floatingView = null
-        }
+        floatingView?.let { windowManager?.removeView(it); floatingView = null }
     }
 }

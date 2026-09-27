@@ -38,6 +38,12 @@ class OverlayModule(private val reactContext: ReactApplicationContext) : ReactCo
 
     @ReactMethod
     fun startBubble() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            if (!Settings.canDrawOverlays(reactContext)) {
+                requestPermission()
+                return
+            }
+        }
         val serviceIntent = Intent(reactContext, FloatingOverlayService::class.java)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             reactContext.startForegroundService(serviceIntent)
