@@ -21,10 +21,14 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 
 // Resolve the best playable video URL for a given annotation row.
 // Roku and Apple TV need mp4/m3u8. WebM files cannot be decoded by Roku hardware,
-// so for TV clients we safely fall back to demo.mp4 to prevent indefinite buffering hangs.
 function resolvePlayableUrl(row: any, baseUrl: string, client?: string | null): string | null {
   const raw: string = (row.media_url || "").trim();
-  if (!raw) return null;
+  if (!raw) {
+    if (client === "roku" || client === "appletv") {
+      return `${baseUrl}/demo.mp4`;
+    }
+    return null;
+  }
 
   const ext = raw.split("?")[0].toLowerCase();
 
@@ -53,19 +57,19 @@ export async function OPTIONS() {
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
-    const limit = Math.min(parseInt(searchParams.get("limit") || "20"), 50);
+    const limit = Math.min(parseInt(searchParams.get("limit") || "25"), 50);
     const offset = parseInt(searchParams.get("offset") || "0");
-    const videoOnly = searchParams.get("video_only") !== "false"; // default true
+    const videoOnly = searchParams.get("video_only") === "true";
     const client = searchParams.get("client") || "web"; // "web" | "roku" | "appletv" | "mobile"
 
-    // Build the query. For TV clients, only return annotations with video clips.
+    // Build the query.
     let query = supabase
       .from("annotations")
       .select("*")
       .order("created_at", { ascending: false })
       .range(offset, offset + limit - 1);
 
-    if (videoOnly || client === "roku" || client === "appletv") {
+    if (videoOnly) {
       query = query.eq("media_type", "video").not("media_url", "is", null);
     }
 
@@ -78,15 +82,31 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // Enrich with profiles in a single batch query.
+    // Enrich with profiles and real organic reactions in single batch queries.
     const userIds = [...new Set(rows.map((r: any) => r.user_id).filter(Boolean))];
-    const { data: profiles } = await supabase
-      .from("profiles")
-      .select("id, email, full_name, avatar_url")
-      .in("id", userIds);
+    const annotationIds = rows.map((r: any) => r.id).filter(Boolean);
+
+    const [{ data: profiles }, { data: reactionsData }] = await Promise.all([
+      supabase
+        .from("profiles")
+        .select("id, email, full_name, avatar_url")
+        .in("id", userIds),
+      supabase
+        .from("annotation_reactions")
+        .select("annotation_id, emoji")
+        .in("annotation_id", annotationIds),
+    ]);
 
     const profileMap: Record<string, any> = {};
     if (profiles) profiles.forEach((p: any) => (profileMap[p.id] = p));
+
+    const reactionsMap: Record<string, Record<string, number>> = {};
+    if (reactionsData) {
+      for (const r of reactionsData) {
+        if (!reactionsMap[r.annotation_id]) reactionsMap[r.annotation_id] = {};
+        reactionsMap[r.annotation_id][r.emoji] = (reactionsMap[r.annotation_id][r.emoji] || 0) + 1;
+      }
+    }
 
     const baseUrl = req.nextUrl.origin;
 
@@ -131,6 +151,7 @@ export async function GET(req: NextRequest) {
         },
         // Metadata
         is_disputed: row.is_disputed || false,
+        reactions: reactionsMap[row.id] || {},
         created_at: row.created_at,
       };
     });
