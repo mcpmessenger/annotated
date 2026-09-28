@@ -117,9 +117,15 @@ export async function GET(req: NextRequest) {
       const tsMatch = (row.comment || "").match(/\[.*?(\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})\]/);
       if (tsMatch) mediaTimestamp = `${tsMatch[1]}-${tsMatch[2]}`;
 
+      const noteSlug = row.slug || row.id;
+      const passUrl = `https://annotated-repo.vercel.app/n/${noteSlug}`;
+      const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=340x340&margin=8&data=${encodeURIComponent(passUrl)}`;
+
       return {
         id: row.id,
-        slug: row.slug || row.id,
+        slug: noteSlug,
+        pass_url: passUrl,
+        qr_url: qrUrl,
         // Author
         author: {
           username,
