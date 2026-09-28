@@ -109,6 +109,8 @@ export default function AnnotationPage() {
           if (
             parsed.geminiConfigured === false ||
             parsed.headline?.includes("Context analysis for:") ||
+            parsed.headline?.includes("Fact check for ") ||
+            parsed.explanation?.includes("Evaluating the accuracy") ||
             parsed.communityNote?.includes("requires checking primary records")
           ) {
             localStorage.removeItem(`annotated_factcheck_${annotation.id}`);
@@ -264,28 +266,59 @@ export default function AnnotationPage() {
                     <FollowButton targetUserId={annotation.userId} size="sm" />
                   )}
                 </div>
-                {createdDate && (
-                  <p className="text-xs text-[hsl(var(--text-subtle))] mt-1">
-                    {createdDate.toLocaleDateString("en-US", {
-                      year: "numeric",
-                      month: "long",
-                      day: "numeric",
-                    })}
-                  </p>
-                )}
+                <div className="flex flex-wrap items-center gap-3 mt-1">
+                  {createdDate && (
+                    <p className="text-xs text-[hsl(var(--text-subtle))]">
+                      {createdDate.toLocaleDateString("en-US", {
+                        year: "numeric",
+                        month: "long",
+                        day: "numeric",
+                      })}
+                    </p>
+                  )}
+                  {annotation.intent && (() => {
+                    const tagColors: Record<string, { color: string; icon: string }> = {
+                      "hot take":   { color: "#ef4444", icon: "🔥" },
+                      "fact check": { color: "#22c55e", icon: "✅" },
+                      "steelman":   { color: "#3b82f6", icon: "🛡️" },
+                      "receipts":   { color: "#f97316", icon: "🧾" },
+                      "explainer":  { color: "#a855f7", icon: "💬" },
+                    };
+                    const c = tagColors[annotation.intent] || { color: "hsl(var(--accent))", icon: "📝" };
+                    return (
+                      <span style={{ color: c.color, fontSize: "11px", fontWeight: 700, letterSpacing: "0.04em", display: "inline-flex", alignItems: "center", gap: "4px", textTransform: "uppercase" }}>
+                        {c.icon} {annotation.intent}
+                      </span>
+                    );
+                  })()}
+                </div>
               </div>
-              {annotation.intent && (
-                <span className="text-2xl bg-[hsl(var(--border))] rounded-full w-10 h-10 flex items-center justify-center shadow-sm">
-                  {annotation.intent}
-                </span>
-              )}
             </div>
           </header>
 
-          {/* Source Context */}
+          {/* The Take (commentary) — ON TOP */}
+          <section className="mb-8">
+            <p className="text-xs text-[hsl(var(--text-subtle))] uppercase tracking-wide mb-3 font-bold">
+              The Take
+            </p>
+            <div className="text-base leading-relaxed text-[hsl(var(--foreground))] whitespace-pre-wrap">
+              <p>{annotation.commentary}</p>
+            </div>
+
+            {annotation.audio_url && (
+              <div className="mt-4 p-4 rounded bg-[hsl(var(--border))] border border-[hsl(var(--border))]">
+                <p className="text-xs font-bold uppercase tracking-wider text-[hsl(var(--text-subtle))] mb-2 flex items-center gap-1.5">
+                  🎙️ Audio Commentary
+                </p>
+                <audio controls src={annotation.audio_url} className="w-full" />
+              </div>
+            )}
+          </section>
+
+          {/* Source Context — BELOW the take */}
           <section className="mb-8 p-6 bg-[hsl(var(--border))] rounded border-l-4 border-[hsl(var(--accent))]">
             <p className="text-xs text-[hsl(var(--text-subtle))] uppercase tracking-wide mb-2 font-bold">
-              Annotating
+              Source
             </p>
             <h3 className="font-bold text-lg mb-2">{annotation.sourceTitle}</h3>
             <p className="text-sm text-[hsl(var(--text-muted))]">
@@ -304,7 +337,7 @@ export default function AnnotationPage() {
             </p>
           </section>
 
-          {/* Quote */}
+          {/* Quoted text */}
           <section className="mb-8">
             <p className="text-xs text-[hsl(var(--text-subtle))] uppercase tracking-wide mb-3 font-bold">
               Quoted text
@@ -326,25 +359,6 @@ export default function AnnotationPage() {
               </div>
             </section>
           )}
-
-          {/* Commentary */}
-          <section className="mb-8">
-            <p className="text-xs text-[hsl(var(--text-subtle))] uppercase tracking-wide mb-3 font-bold">
-              Commentary
-            </p>
-            <div className="text-base leading-relaxed text-[hsl(var(--foreground))] whitespace-pre-wrap">
-              <p>{annotation.commentary}</p>
-            </div>
-
-            {annotation.audio_url && (
-              <div className="mt-4 p-4 rounded bg-[hsl(var(--border))] border border-[hsl(var(--border))]">
-                <p className="text-xs font-bold uppercase tracking-wider text-[hsl(var(--text-subtle))] mb-2 flex items-center gap-1.5">
-                  🎙️ Audio Commentary
-                </p>
-                <audio controls src={annotation.audio_url} className="w-full" />
-              </div>
-            )}
-          </section>
 
           {/* Reactions and Quick Fact Check Trigger */}
           <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
