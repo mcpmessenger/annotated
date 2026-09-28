@@ -24,9 +24,6 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 function resolvePlayableUrl(row: any, baseUrl: string, client?: string | null): string | null {
   const raw: string = (row.media_url || "").trim();
   if (!raw) {
-    if (client === "roku" || client === "appletv") {
-      return `${baseUrl}/demo.mp4`;
-    }
     return null;
   }
 
@@ -37,17 +34,17 @@ function resolvePlayableUrl(row: any, baseUrl: string, client?: string | null): 
     return raw;
   }
 
-  // Roku hardware cannot decode WebM VP8/VP9. Fall back to demo.mp4 so the player never hangs.
+  // WebM in Supabase Storage — use the native H.264 MP4 companion
+  if (raw.includes("annotation-media/")) {
+    return raw.replace(/\.webm(\?.*)?$/, ".mp4");
+  }
+
+  // Fallback for non-transcoded external WebM streams on TV
   if (client === "roku" || client === "appletv") {
     return `${baseUrl}/demo.mp4`;
   }
 
-  // WebM stored in Supabase Storage — route through the transcoding proxy for web clients.
-  if (raw.includes("annotation-media/")) {
-    return `${baseUrl}/api/media/clip/${encodeURIComponent(row.id)}`;
-  }
-
-  return null;
+  return `${baseUrl}/api/media/clip/${encodeURIComponent(row.id)}`;
 }
 
 export async function OPTIONS() {
@@ -57,7 +54,7 @@ export async function OPTIONS() {
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
-    const limit = Math.min(parseInt(searchParams.get("limit") || "25"), 50);
+    const limit = Math.min(parseInt(searchParams.get("limit") || "50"), 100);
     const offset = parseInt(searchParams.get("offset") || "0");
     const videoOnly = searchParams.get("video_only") === "true";
     const client = searchParams.get("client") || "web"; // "web" | "roku" | "appletv" | "mobile"
@@ -141,7 +138,7 @@ export async function GET(req: NextRequest) {
         intent: row.intent || null,
         // Media
         media: {
-          type: row.media_type || null,
+          type: row.media_type || (row.media_url ? "video" : "text"),
           // raw_url is the original WebM stored in Supabase
           raw_url: row.media_url || null,
           // playable_url is the mp4-compatible URL safe for TV/mobile playback
