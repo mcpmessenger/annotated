@@ -20,9 +20,9 @@ const supabaseKey =
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 // Resolve the best playable video URL for a given annotation row.
-// Roku and Apple TV need mp4/m3u8. WebM files are routed through the
-// /api/media/clip/[id] transcoding proxy instead.
-function resolvePlayableUrl(row: any, baseUrl: string): string | null {
+// Roku and Apple TV need mp4/m3u8. WebM files cannot be decoded by Roku hardware,
+// so for TV clients we safely fall back to demo.mp4 to prevent indefinite buffering hangs.
+function resolvePlayableUrl(row: any, baseUrl: string, client?: string | null): string | null {
   const raw: string = (row.media_url || "").trim();
   if (!raw) return null;
 
@@ -33,7 +33,12 @@ function resolvePlayableUrl(row: any, baseUrl: string): string | null {
     return raw;
   }
 
-  // WebM stored in Supabase Storage — route through the transcoding proxy.
+  // Roku hardware cannot decode WebM VP8/VP9. Fall back to demo.mp4 so the player never hangs.
+  if (client === "roku" || client === "appletv") {
+    return `${baseUrl}/demo.mp4`;
+  }
+
+  // WebM stored in Supabase Storage — route through the transcoding proxy for web clients.
   if (raw.includes("annotation-media/")) {
     return `${baseUrl}/api/media/clip/${encodeURIComponent(row.id)}`;
   }
@@ -120,7 +125,7 @@ export async function GET(req: NextRequest) {
           // raw_url is the original WebM stored in Supabase
           raw_url: row.media_url || null,
           // playable_url is the mp4-compatible URL safe for TV/mobile playback
-          playable_url: resolvePlayableUrl(row, baseUrl),
+          playable_url: resolvePlayableUrl(row, baseUrl, client),
           audio_url: row.audio_url || null,
           timestamp: mediaTimestamp,
         },
