@@ -48,13 +48,16 @@ export async function publishAnnotation(
   // 2. Upload video clip if present
   if (payload.videoClipBlob) {
     try {
-      const fileName = `video_${Date.now()}.webm`;
+      const isMp4 = payload.videoClipBlob.type.includes('mp4');
+      const ext = isMp4 ? 'mp4' : 'webm';
+      const contentType = isMp4 ? 'video/mp4' : 'video/webm';
+      const fileName = `video_${Date.now()}.${ext}`;
       const uploadRes = await fetch(`${SUPABASE_CONFIG.url}/storage/v1/object/annotation-media/${fileName}`, {
         method: 'POST',
         headers: {
           apikey: SUPABASE_CONFIG.anonKey,
           Authorization: `Bearer ${supabase.token || SUPABASE_CONFIG.anonKey}`,
-          'Content-Type': 'video/webm',
+          'Content-Type': contentType,
         },
         body: payload.videoClipBlob,
       });

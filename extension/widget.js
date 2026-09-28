@@ -28,8 +28,9 @@
       };
     }
     async getAuthHeaders(extra = {}) {
-      // Always re-validate the session — token may be in memory but expired.
-      await this.restoreSession();
+      if (!this.token) {
+        await this.restoreSession();
+      }
       return this.headers(extra);
     }
     from(table) {
@@ -37,47 +38,47 @@
       return {
         select: (cols = "*") => ({
           eq: (col, val) => ({
-            order: async (ord, opts = {}) => fetch(
+            order: (ord, opts = {}) => fetch(
               `${base}?select=${cols}&${col}=eq.${encodeURIComponent(val)}&order=${ord}${opts.ascending === false ? ".desc" : ""}`,
-              { headers: await this.getAuthHeaders({ Prefer: "return=representation" }) }
+              { headers: this.headers({ Prefer: "return=representation" }) }
             ).then((r) => r.json()),
-            execute: async () => fetch(`${base}?select=${cols}&${col}=eq.${encodeURIComponent(val)}`, {
-              headers: await this.getAuthHeaders()
+            execute: () => fetch(`${base}?select=${cols}&${col}=eq.${encodeURIComponent(val)}`, {
+              headers: this.headers()
             }).then((r) => r.json())
           }),
           ilike: (col, pattern) => ({
-            execute: async () => fetch(`${base}?select=${cols}&${col}=ilike.${encodeURIComponent(pattern)}`, {
-              headers: await this.getAuthHeaders()
+            execute: () => fetch(`${base}?select=${cols}&${col}=ilike.${encodeURIComponent(pattern)}`, {
+              headers: this.headers()
             }).then((r) => r.json())
           }),
           order: (ord, opts = {}) => ({
             limit: (n) => ({
-              execute: async () => fetch(`${base}?select=${cols}&order=${ord}${opts.ascending === false ? ".desc" : ""}&limit=${n}`, {
-                headers: await this.getAuthHeaders()
+              execute: () => fetch(`${base}?select=${cols}&order=${ord}${opts.ascending === false ? ".desc" : ""}&limit=${n}`, {
+                headers: this.headers()
               }).then((r) => r.json())
             })
           }),
-          execute: async () => fetch(`${base}?select=${cols}`, { headers: await this.getAuthHeaders() }).then((r) => r.json())
+          execute: () => fetch(`${base}?select=${cols}`, { headers: this.headers() }).then((r) => r.json())
         }),
-        insert: async (data) => fetch(base, {
+        insert: (data) => fetch(base, {
           method: "POST",
-          headers: await this.getAuthHeaders({ Prefer: "return=representation" }),
+          headers: this.headers({ Prefer: "return=representation" }),
           body: JSON.stringify(data)
         }).then((r) => r.json()),
         delete: () => ({
           eq: (col, val) => ({
-            execute: async () => fetch(`${base}?${col}=eq.${encodeURIComponent(val)}`, {
+            execute: () => fetch(`${base}?${col}=eq.${encodeURIComponent(val)}`, {
               method: "DELETE",
-              headers: await this.getAuthHeaders()
+              headers: this.headers()
             }).then((r) => r.json())
           })
         }),
         update: (data) => ({
           eq: (col, val) => ({
             eq: (col2, val2) => ({
-              execute: async () => fetch(`${base}?${col}=eq.${encodeURIComponent(val)}&${col2}=eq.${encodeURIComponent(String(val2))}`, {
+              execute: () => fetch(`${base}?${col}=eq.${encodeURIComponent(val)}&${col2}=eq.${encodeURIComponent(String(val2))}`, {
                 method: "PATCH",
-                headers: await this.getAuthHeaders({ Prefer: "return=representation" }),
+                headers: this.headers({ Prefer: "return=representation" }),
                 body: JSON.stringify(data)
               }).then((r) => r.json())
             })
@@ -86,7 +87,6 @@
       };
     }
     async uploadMedia(dataUrl, fileName) {
-      await this.restoreSession(); // ensure fresh token before storage upload
       if (!this.token) throw new Error("Not authenticated");
       const [header, base64] = dataUrl.split(",");
       const mimeMatch = header.match(/:(.*?);/);
@@ -158,7 +158,7 @@
       if (this.token) {
         await fetch(`${this.url}/auth/v1/logout`, {
           method: "POST",
-          headers: await this.getAuthHeaders()
+          headers: this.headers()
         }).catch(() => {
         });
       }
@@ -354,19 +354,22 @@
     }
     if (payload.videoClipBlob) {
       try {
-        const fileName = `video_${Date.now()}.webm`;
-        const videoUploadHeaders = await supabase.getAuthHeaders({ "Content-Type": "video/webm" });
+        const isMp4 = payload.videoClipBlob.type.includes("mp4");
+        const ext = isMp4 ? "mp4" : "webm";
+        const contentType = isMp4 ? "video/mp4" : "video/webm";
+        const fileName = `video_${Date.now()}.${ext}`;
         const uploadRes = await fetch(`${SUPABASE_CONFIG.url}/storage/v1/object/annotation-media/${fileName}`, {
           method: "POST",
-          headers: videoUploadHeaders,
+          headers: {
+            apikey: SUPABASE_CONFIG.anonKey,
+            Authorization: `Bearer ${supabase.token || SUPABASE_CONFIG.anonKey}`,
+            "Content-Type": contentType
+          },
           body: payload.videoClipBlob
         });
         if (uploadRes.ok) {
           media_url = `${SUPABASE_CONFIG.url}/storage/v1/object/public/annotation-media/${fileName}`;
           media_type = "video";
-        } else {
-          const errBody = await uploadRes.json().catch(() => ({}));
-          console.error("[VideoUpload] Failed:", uploadRes.status, errBody.message || errBody);
         }
       } catch (err) {
         console.error("[VideoUpload] Error:", err);
@@ -376,17 +379,17 @@
     if (payload.recordedAudioBlob) {
       try {
         const fileName = `audio_${Date.now()}.webm`;
-        const audioUploadHeaders = await supabase.getAuthHeaders({ "Content-Type": "audio/webm" });
         const uploadRes = await fetch(`${SUPABASE_CONFIG.url}/storage/v1/object/annotation-media/${fileName}`, {
           method: "POST",
-          headers: audioUploadHeaders,
+          headers: {
+            apikey: SUPABASE_CONFIG.anonKey,
+            Authorization: `Bearer ${supabase.token || SUPABASE_CONFIG.anonKey}`,
+            "Content-Type": "audio/webm"
+          },
           body: payload.recordedAudioBlob
         });
         if (uploadRes.ok) {
           audio_url = `${SUPABASE_CONFIG.url}/storage/v1/object/public/annotation-media/${fileName}`;
-        } else {
-          const errBody = await uploadRes.json().catch(() => ({}));
-          console.error("[AudioUpload] Failed:", uploadRes.status, errBody.message || errBody);
         }
       } catch (err) {
         console.error("[AudioUpload] Error:", err);
@@ -2810,5 +2813,3 @@
     boot();
   }
 })();
-
-

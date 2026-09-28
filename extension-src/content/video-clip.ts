@@ -176,9 +176,36 @@ export async function capture240pVideoClip(
   const chunks: Blob[] = [];
 
   try {
-    const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp8,opus')
-      ? 'video/webm;codecs=vp8,opus'
-      : 'video/webm';
+    // Prefer video/mp4 with H.264/AAC for universal cross-platform playback (Roku, iOS, Safari, Web)
+    const mp4Mimes = [
+      'video/mp4;codecs=avc1.42E01E,mp4a.40.2',
+      'video/mp4;codecs=avc1',
+      'video/mp4',
+    ];
+    const webmMimes = [
+      'video/webm;codecs=vp9,opus',
+      'video/webm;codecs=vp8,opus',
+      'video/webm',
+    ];
+
+    let selectedMime = '';
+    for (const m of mp4Mimes) {
+      if (typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported(m)) {
+        selectedMime = m;
+        break;
+      }
+    }
+    if (!selectedMime) {
+      for (const m of webmMimes) {
+        if (typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported(m)) {
+          selectedMime = m;
+          break;
+        }
+      }
+    }
+
+    const mimeType = selectedMime || 'video/webm';
+    const isMp4 = mimeType.startsWith('video/mp4');
 
     activeVideoRecorder = new MediaRecorder(finalStream, {
       mimeType,
@@ -201,7 +228,8 @@ export async function capture240pVideoClip(
       if (audioContext) audioContext.close().catch(() => {});
 
       const endTs = endTsParam != null && !isLiveRecord ? endTsParam : Math.max(startTs + 1, Math.floor(videoEl.currentTime || startTs + 1));
-      const rawBlob = new Blob(chunks, { type: 'video/webm' });
+      const outputMime = isMp4 ? 'video/mp4' : 'video/webm';
+      const rawBlob = new Blob(chunks, { type: outputMime });
       const durationMs = Math.max(1000, (endTs - startTs) * 1000);
 
       const finishWithBlob = (blob: Blob) => {
@@ -213,6 +241,7 @@ export async function capture240pVideoClip(
               duration: Math.max(1, endTs - startTs),
               startTs,
               endTs,
+              mimeType: blob.type || outputMime,
             });
             pendingSendResponse = null;
           }
@@ -220,7 +249,8 @@ export async function capture240pVideoClip(
         reader.readAsDataURL(blob);
       };
 
-      if (window.ysFixWebmDuration) {
+      // Only fix WebM duration header if it's WebM (ysFixWebmDuration would corrupt MP4 moov atoms)
+      if (!isMp4 && window.ysFixWebmDuration) {
         window.ysFixWebmDuration(rawBlob, durationMs, (fixedBlob) => {
           finishWithBlob(fixedBlob);
         });
