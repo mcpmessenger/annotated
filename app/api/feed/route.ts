@@ -50,7 +50,7 @@ function resolvePlayableUrl(row: any, baseUrl: string, client?: string | null): 
 
   // WebM in Supabase Storage — use the native H.264 MP4 companion
   if (raw.includes("annotation-media/") && ext.endsWith(".webm")) {
-    return raw.replace(/\.webm(\?.*)?$/, ".mp4");
+    return null;
   }
 
   // If client cannot play the raw stream and there is no transcoded MP4, return null (never placeholder)
