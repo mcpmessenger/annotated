@@ -117,12 +117,17 @@ export async function GET(req: NextRequest) {
 
     const baseUrl = req.nextUrl.origin;
 
+    const sanitizeRoku = (str: string | null) => {
+      if (!str || client !== "roku") return str;
+      return str.replace(/[^\x00-\x7F]/g, " ");
+    };
+
     const items = rows.map((row: any) => {
       const profile = profileMap[row.user_id] || {};
       const email: string = profile.email || "";
       const username = email.split("@")[0] || "annotated";
 
-      // Parse timestamp from comment if present e.g. "[⏱ 00:26 - 01:03]"
+      // Parse timestamp from comment if present e.g. "[? 00:26 - 01:03]"
       let mediaTimestamp: string | null = null;
       const tsMatch = (row.comment || "").match(/\[.*?(\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})\]/);
       if (tsMatch) mediaTimestamp = `${tsMatch[1]}-${tsMatch[2]}`;
@@ -138,20 +143,20 @@ export async function GET(req: NextRequest) {
         qr_url: qrUrl,
         // Author
         author: {
-          username,
-          display_name: profile.full_name || username,
+          username: sanitizeRoku(username),
+          display_name: sanitizeRoku(profile.full_name || username),
           avatar_url: profile.avatar_url || null,
         },
         // Source content
         source: {
           url: row.url,
-          title: row.page_title || row.hostname || "Webpage",
+          title: sanitizeRoku(row.page_title || row.hostname || "Webpage"),
           domain: row.hostname || "",
         },
         // Annotation body
-        quote: row.quote || null,
-        comment: row.comment || null,
-        intent: row.intent || null,
+        quote: sanitizeRoku(row.quote) || null,
+        comment: sanitizeRoku(row.comment) || null,
+        intent: sanitizeRoku(row.intent) || null,
         // Media
         media: (() => {
           const rawUrl = (row.media_url || "").trim();
