@@ -149,12 +149,19 @@ export function AnnotationCard({
 
     setIsDeleting(true);
     try {
-      const { error } = await supabase
-        .from("annotations")
-        .delete()
-        .eq("id", annotation.id);
-
-      if (error) throw error;
+      // First call the server-side delete endpoint to ensure RLS bypass and cascade
+      const res = await fetch(`/api/annotations/delete?id=${encodeURIComponent(annotation.id)}`, {
+        method: "POST",
+      });
+      
+      if (!res.ok) {
+        // Fallback to client-side supabase delete
+        const { error } = await supabase
+          .from("annotations")
+          .delete()
+          .eq("id", annotation.id);
+        if (error) throw error;
+      }
 
       setIsDeleted(true);
       if (onDelete) onDelete(annotation.id);
@@ -223,11 +230,21 @@ export function AnnotationCard({
                   {annotation.title}
                 </a>
               </h3>
-              {annotation.intent && (
-                <span className="text-xl bg-[hsl(var(--border))] rounded-full w-8 h-8 flex items-center justify-center shadow-sm">
-                  {annotation.intent}
-                </span>
-              )}
+              {annotation.intent && (() => {
+                const tagColors: Record<string, { color: string; icon: string }> = {
+                  "hot take":   { color: "#ef4444", icon: "🔥" },
+                  "fact check": { color: "#22c55e", icon: "✅" },
+                  "steelman":   { color: "#3b82f6", icon: "🛡️" },
+                  "receipts":   { color: "#f97316", icon: "🧾" },
+                  "explainer":  { color: "#a855f7", icon: "💬" },
+                };
+                const c = tagColors[annotation.intent] || { color: "hsl(var(--accent))", icon: "📝" };
+                return (
+                  <span className="flex-shrink-0 relative z-20" style={{ color: c.color, fontSize: "11px", fontWeight: 700, letterSpacing: "0.04em", display: "inline-flex", alignItems: "center", gap: "4px", textTransform: "uppercase" }}>
+                    {c.icon} {annotation.intent}
+                  </span>
+                );
+              })()}
             </div>
             <div className="flex items-center gap-2 mt-1 flex-wrap">
               <p className="text-sm text-[hsl(var(--text-subtle))]">

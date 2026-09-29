@@ -7,7 +7,9 @@ const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type, Authorization",
-  "Cache-Control": "public, s-maxage=30, stale-while-revalidate=60",
+  "Cache-Control": "no-cache, no-store, max-age=0, must-revalidate",
+  "Pragma": "no-cache",
+  "Expires": "0",
 };
 
 const supabaseUrl =
@@ -20,14 +22,26 @@ const supabaseKey =
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 // Resolve the best playable video URL for a given annotation row.
-// Roku and Apple TV need mp4/m3u8. WebM files cannot be decoded by Roku hardware,
+// Roku and Apple TV need mp4/m3u8. WebM files cannot be decoded by Roku hardware.
 function resolvePlayableUrl(row: any, baseUrl: string, client?: string | null): string | null {
   const raw: string = (row.media_url || "").trim();
   if (!raw) {
     return null;
   }
 
+  // Reject images explicitly
   const ext = raw.split("?")[0].toLowerCase();
+  if (
+    row.media_type === "image" ||
+    row.media_type === "text" ||
+    ext.endsWith(".png") ||
+    ext.endsWith(".jpg") ||
+    ext.endsWith(".jpeg") ||
+    ext.endsWith(".webp") ||
+    ext.endsWith(".gif")
+  ) {
+    return null;
+  }
 
   // Already a natively playable format — return directly.
   if (ext.endsWith(".mp4") || ext.endsWith(".m4v") || ext.endsWith(".m3u8")) {
@@ -35,16 +49,12 @@ function resolvePlayableUrl(row: any, baseUrl: string, client?: string | null): 
   }
 
   // WebM in Supabase Storage — use the native H.264 MP4 companion
-  if (raw.includes("annotation-media/")) {
+  if (raw.includes("annotation-media/") && ext.endsWith(".webm")) {
     return raw.replace(/\.webm(\?.*)?$/, ".mp4");
   }
 
-  // Fallback for non-transcoded external WebM streams on TV
-  if (client === "roku" || client === "appletv") {
-    return `${baseUrl}/demo.mp4`;
-  }
-
-  return `${baseUrl}/api/media/clip/${encodeURIComponent(row.id)}`;
+  // If client cannot play the raw stream and there is no transcoded MP4, return null (never placeholder)
+  return null;
 }
 
 export async function OPTIONS() {
@@ -143,15 +153,30 @@ export async function GET(req: NextRequest) {
         comment: row.comment || null,
         intent: row.intent || null,
         // Media
-        media: {
-          type: row.media_type || (row.media_url ? "video" : "text"),
-          // raw_url is the original WebM stored in Supabase
-          raw_url: row.media_url || null,
-          // playable_url is the mp4-compatible URL safe for TV/mobile playback
-          playable_url: resolvePlayableUrl(row, baseUrl, client),
-          audio_url: row.audio_url || null,
-          timestamp: mediaTimestamp,
-        },
+        media: (() => {
+          const rawUrl = (row.media_url || "").trim();
+          const ext = rawUrl.split("?")[0].toLowerCase();
+          const isImage =
+            row.media_type === "image" ||
+            ext.endsWith(".png") ||
+            ext.endsWith(".jpg") ||
+            ext.endsWith(".jpeg") ||
+            ext.endsWith(".webp") ||
+            ext.endsWith(".gif");
+          const isVideo =
+            row.media_type === "video" ||
+            (!isImage && (ext.endsWith(".mp4") || ext.endsWith(".webm") || ext.endsWith(".m4v") || ext.endsWith(".m3u8")));
+          const detectedType = isImage ? "image" : isVideo ? "video" : (row.media_type || "text");
+
+          return {
+            type: detectedType,
+            raw_url: rawUrl || null,
+            image_url: isImage ? rawUrl : null,
+            playable_url: isVideo ? resolvePlayableUrl(row, baseUrl, client) : null,
+            audio_url: row.audio_url || null,
+            timestamp: mediaTimestamp,
+          };
+        })(),
         // Metadata
         is_disputed: row.is_disputed || false,
         reactions: reactionsMap[row.id] || {},

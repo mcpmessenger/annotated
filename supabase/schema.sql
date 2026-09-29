@@ -10,7 +10,7 @@ create table if not exists public.annotations (
   page_title  text,
   quote       text        not null,
   comment     text        not null,
-  intent      text        not null check (intent in ('Hot Take','Fact Check','Steelmanning','Receipts','Explainer')),
+  intent      text        check (intent is null or intent in ('hot take','fact check','steelman','receipts','explainer')),
   clip        boolean     default false,
   slug        text        generated always as (
                 lower(regexp_replace(

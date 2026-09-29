@@ -5,7 +5,7 @@
   var $$ = (sel, root = document) => root.querySelectorAll(sel);
 
   // extension-src/shared/config.ts
-  var SUPABASE_CONFIG = {
+  var SUPABASE_CONFIG2 = {
     url: "https://dajadbvlldrmgzztdksn.supabase.co",
     anonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRhamFkYnZsbGRybWd6enRka3NuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk1ODYwMTcsImV4cCI6MjEwNTE2MjAxN30.ZGteNtShkBErPckuMGX4tWMn0AtgU_THFSI37Wgd-eU"
   };
@@ -14,7 +14,7 @@
 
   // extension-src/shared/supabase.ts
   var SupabaseClient = class {
-    constructor(url = SUPABASE_CONFIG.url, key = SUPABASE_CONFIG.anonKey) {
+    constructor(url = SUPABASE_CONFIG2.url, key = SUPABASE_CONFIG2.anonKey) {
       this.token = null;
       this.url = url;
       this.key = key;
@@ -354,21 +354,55 @@
     }
     if (payload.videoClipBlob) {
       try {
-        const isMp4 = payload.videoClipBlob.type.includes("mp4");
+        let finalBlob = payload.videoClipBlob;
+        const isMp4 = finalBlob.type.includes("mp4");
         const ext = isMp4 ? "mp4" : "webm";
         const contentType = isMp4 ? "video/mp4" : "video/webm";
+
+        if (isMp4) {
+          onProgress("Optimizing MP4 for Roku...", 10);
+          try {
+            if (!window.ffmpegInstance) {
+              const { FFmpegWASM } = window;
+              const ffmpeg = new FFmpegWASM.FFmpeg();
+              await ffmpeg.load({
+                coreURL: chrome.runtime.getURL("ffmpeg-core.js"),
+                wasmURL: chrome.runtime.getURL("ffmpeg-core.wasm"),
+              });
+              window.ffmpegInstance = ffmpeg;
+            }
+            const ffmpeg = window.ffmpegInstance;
+            const inputName = `input_${Date.now()}.mp4`;
+            const outputName = `output_${Date.now()}.mp4`;
+            
+            const arrayBuffer = await finalBlob.arrayBuffer();
+            await ffmpeg.writeFile(inputName, new Uint8Array(arrayBuffer));
+            
+            await ffmpeg.exec(["-i", inputName, "-c", "copy", "-movflags", "+faststart", outputName]);
+            
+            const data = await ffmpeg.readFile(outputName);
+            finalBlob = new Blob([data.buffer], { type: "video/mp4" });
+            
+            ffmpeg.deleteFile(inputName);
+            ffmpeg.deleteFile(outputName);
+          } catch (ffmpegErr) {
+            console.error("[FFmpeg] MP4 Remux failed, falling back to original blob:", ffmpegErr);
+          }
+        }
+
+        onProgress("Uploading video...", 20);
         const fileName = `video_${Date.now()}.${ext}`;
-        const uploadRes = await fetch(`${SUPABASE_CONFIG.url}/storage/v1/object/annotation-media/${fileName}`, {
+        const uploadRes = await fetch(`${SUPABASE_CONFIG2.url}/storage/v1/object/annotation-media/${fileName}`, {
           method: "POST",
           headers: {
-            apikey: SUPABASE_CONFIG.anonKey,
-            Authorization: `Bearer ${supabase.token || SUPABASE_CONFIG.anonKey}`,
+            apikey: SUPABASE_CONFIG2.anonKey,
+            Authorization: `Bearer ${supabase.token || SUPABASE_CONFIG2.anonKey}`,
             "Content-Type": contentType
           },
-          body: payload.videoClipBlob
+          body: finalBlob
         });
         if (uploadRes.ok) {
-          media_url = `${SUPABASE_CONFIG.url}/storage/v1/object/public/annotation-media/${fileName}`;
+          media_url = `${SUPABASE_CONFIG2.url}/storage/v1/object/public/annotation-media/${fileName}`;
           media_type = "video";
         }
       } catch (err) {
@@ -379,25 +413,25 @@
     if (payload.recordedAudioBlob) {
       try {
         const fileName = `audio_${Date.now()}.webm`;
-        const uploadRes = await fetch(`${SUPABASE_CONFIG.url}/storage/v1/object/annotation-media/${fileName}`, {
+        const uploadRes = await fetch(`${SUPABASE_CONFIG2.url}/storage/v1/object/annotation-media/${fileName}`, {
           method: "POST",
           headers: {
-            apikey: SUPABASE_CONFIG.anonKey,
-            Authorization: `Bearer ${supabase.token || SUPABASE_CONFIG.anonKey}`,
+            apikey: SUPABASE_CONFIG2.anonKey,
+            Authorization: `Bearer ${supabase.token || SUPABASE_CONFIG2.anonKey}`,
             "Content-Type": "audio/webm"
           },
           body: payload.recordedAudioBlob
         });
         if (uploadRes.ok) {
-          audio_url = `${SUPABASE_CONFIG.url}/storage/v1/object/public/annotation-media/${fileName}`;
+          audio_url = `${SUPABASE_CONFIG2.url}/storage/v1/object/public/annotation-media/${fileName}`;
         }
       } catch (err) {
         console.error("[AudioUpload] Error:", err);
       }
     }
     const safeQuote = payload.quote && payload.quote.trim() || (payload.videoClipBlob ? `\u{1F3AC} Video Clip (${payload.page.title || "Video"})` : media_url ? `Attachment: ${payload.page.title || "Media"}` : payload.page.title || "Page Annotation");
-    const allowedIntents = ["\u{1F525}", "\u{1F914}", "\u{1F4A1}", "\u{1F4AF}", "\u{1F44E}"];
-    const safeIntent = payload.intent && allowedIntents.includes(payload.intent) ? payload.intent : "\u{1F4A1}";
+    const allowedIntents = ["hot take", "fact check", "steelman", "receipts", "explainer"];
+    const safeIntent = payload.intent && allowedIntents.includes(payload.intent) ? payload.intent : "hot take";
     let safeComment = payload.comment.trim() || (payload.videoClipBlob ? "Shared a video clip" : "Annotation");
     if (payload.videoStartTs != null && payload.videoEndTs != null) {
       const fmt = (ts) => {
@@ -513,18 +547,18 @@
   }
   function wireFactCheck(ann, pageTitle, pageUrl, onResize) {
     const factBox = $("#detailFactCheckBox");
-    const factBtn = $("#detailFactCheckBtn");
+    // factBtn is now the tag pill badge itself
+    const factBtn = $("#detailIntentBadge");
     const fb = $("#detailFactCheckBox");
     const ft = $("#detailFactCheckText");
     const fbadge = $("#detailFactCheckBadge");
     const closeBtn = $("#detailFactCheckCloseBtn");
     const hasMedia = !!(ann.media_url || ann.audio_url);
+    const isFactCheckTag = (ann.intent || "") === "fact check";
     const updateBtnState = (isOpen) => {
       if (factBtn) {
-        factBtn.innerHTML = "&#9889;";
-        factBtn.setAttribute("data-tooltip", isOpen ? "Hide Fact Check" : "Show Fact Check");
-        factBtn.style.background = isOpen ? "var(--soft)" : "var(--surface)";
-        factBtn.style.borderColor = isOpen ? "var(--yellow)" : "var(--line)";
+        factBtn.setAttribute("data-tooltip", isOpen ? "Click to hide Fact Check" : "Click to run Fact Check");
+        factBtn.style.boxShadow = isOpen ? "0 0 0 2px #22c55e66" : "";
       }
       if (onResize) {
         onResize(isOpen ? hasMedia ? 740 : 660 : hasMedia ? 630 : 550);
@@ -541,6 +575,11 @@
     };
     if (factBox) factBox.style.display = "none";
     updateBtnState(false);
+    // Make the tag pill always look clickable
+    if (factBtn) {
+      factBtn.style.cursor = "pointer";
+      factBtn.title = "Click to run Fact Check";
+    }
     const cacheKey = `annotated_fc_${ann.id || ann.slug || ""}`;
     let cachedData = null;
     if (typeof window !== "undefined" && (ann.id || ann.slug)) {
@@ -590,6 +629,7 @@
         }
       }
     };
+    // Tag pill click toggles fact check box
     if (factBtn) {
       factBtn.onclick = (e) => {
         e.stopPropagation();
@@ -604,6 +644,12 @@
           runFactCheck();
         }
       };
+    }
+    // Auto-open fact check when tag is "fact check"
+    if (isFactCheckTag && fb) {
+      fb.style.display = "block";
+      updateBtnState(true);
+      runFactCheck();
     }
     if (closeBtn) {
       closeBtn.onclick = (e) => {
@@ -1117,8 +1163,11 @@
         $("#videoTrimmerBox")?.classList.remove("hidden");
         onResize(getComposerHeight());
         updatePublishButton();
+        
+        // Auto-trigger fact check for video captures
         const fb = $("#composerFactCheckBox");
-        if (fb && fb.style.display !== "none" && moduleGetPage) {
+        if (fb && moduleGetPage) {
+          fb.style.display = "block";
           triggerComposerFactCheck(moduleGetPage, onResize);
         }
       });
@@ -1198,13 +1247,30 @@
           b.style.background = "";
           b.style.borderRadius = "";
         });
+        const fcBox = $("#composerFactCheckBox");
         if (isAlreadyActive) {
           composerState.intent = null;
+          // Hide fact check box when deselecting
+          if (fcBox) fcBox.style.display = "none";
         } else {
           btn.classList.add("active");
           btn.style.background = "var(--yellow)";
           btn.style.borderRadius = "6px";
           composerState.intent = emoji || null;
+          // Show/hide fact check box based on tag selection
+          if (fcBox) {
+            if (emoji === "fact check") {
+              fcBox.style.display = "block";
+              // Trigger analysis if there's a quote or comment
+              const quote = $("#comment")?.value?.trim() || "";
+              if (quote) {
+                const fcText = $("#composerFactCheckText");
+                if (fcText) fcText.textContent = "Select 'fact check' then Publish — Gemini will analyze on save.";
+              }
+            } else {
+              fcBox.style.display = "none";
+            }
+          }
         }
         updatePublishButton();
       });
@@ -1784,7 +1850,20 @@
         e.stopPropagation();
         if (!confirm("Are you sure you want to delete this annotation?")) return;
         try {
-          await supabase.from("annotations").delete().eq("id", ann.id || "").execute();
+          if (ann.id) {
+            await fetch(`https://annotated-repo.vercel.app/api/annotations/delete?id=${encodeURIComponent(ann.id)}`, {
+              method: "POST"
+            }).catch(() => {
+            });
+            try {
+              const authHeaders = await supabase.getAuthHeaders();
+              await fetch(`${SUPABASE_CONFIG.url}/rest/v1/annotations?id=eq.${encodeURIComponent(ann.id)}`, {
+                method: "DELETE",
+                headers: authHeaders
+              });
+            } catch (_) {
+            }
+          }
         } catch (err) {
           console.warn("[Annotated Delete] Error:", err);
         }
@@ -1859,13 +1938,13 @@
     if (countEl) countEl.textContent = "\u2026";
     try {
       const res = await fetch(
-        `${SUPABASE_CONFIG.url}/rest/v1/comments?annotation_id=eq.${encodeURIComponent(
+        `${SUPABASE_CONFIG2.url}/rest/v1/comments?annotation_id=eq.${encodeURIComponent(
           annotationId
         )}&order=created_at.asc`,
         {
           headers: {
-            apikey: SUPABASE_CONFIG.anonKey,
-            Authorization: `Bearer ${SUPABASE_CONFIG.anonKey}`
+            apikey: SUPABASE_CONFIG2.anonKey,
+            Authorization: `Bearer ${SUPABASE_CONFIG2.anonKey}`
           }
         }
       );
@@ -1881,11 +1960,11 @@
       if (userIds.length > 0) {
         try {
           const profRes = await fetch(
-            `${SUPABASE_CONFIG.url}/rest/v1/profiles?id=in.(${userIds.join(",")})`,
+            `${SUPABASE_CONFIG2.url}/rest/v1/profiles?id=in.(${userIds.join(",")})`,
             {
               headers: {
-                apikey: SUPABASE_CONFIG.anonKey,
-                Authorization: `Bearer ${SUPABASE_CONFIG.anonKey}`
+                apikey: SUPABASE_CONFIG2.anonKey,
+                Authorization: `Bearer ${SUPABASE_CONFIG2.anonKey}`
               }
             }
           );
@@ -1906,12 +1985,12 @@
       if (commentIds.length > 0) {
         try {
           const reactRes = await fetch(
-            `${SUPABASE_CONFIG.url}/rest/v1/comment_reactions?comment_id=in.(${commentIds.join(
+            `${SUPABASE_CONFIG2.url}/rest/v1/comment_reactions?comment_id=in.(${commentIds.join(
               ","
             )})&select=comment_id,emoji,user_id`,
             {
               headers: {
-                apikey: SUPABASE_CONFIG.anonKey
+                apikey: SUPABASE_CONFIG2.anonKey
               }
             }
           );
@@ -2037,7 +2116,7 @@
             try {
               const headers = await supabase.getAuthHeaders();
               await fetch(
-                `${SUPABASE_CONFIG.url}/rest/v1/comment_reactions?comment_id=eq.${encodeURIComponent(
+                `${SUPABASE_CONFIG2.url}/rest/v1/comment_reactions?comment_id=eq.${encodeURIComponent(
                   commentId
                 )}&user_id=eq.${encodeURIComponent(reactUser.id)}&emoji=eq.${encodeURIComponent(emoji)}`,
                 {
@@ -2059,7 +2138,7 @@
             }
             try {
               const headers = await supabase.getAuthHeaders({ Prefer: "resolution=merge-duplicates" });
-              await fetch(`${SUPABASE_CONFIG.url}/rest/v1/comment_reactions`, {
+              await fetch(`${SUPABASE_CONFIG2.url}/rest/v1/comment_reactions`, {
                 method: "POST",
                 headers,
                 body: JSON.stringify({
@@ -2084,7 +2163,7 @@
           try {
             const headers = await supabase.getAuthHeaders();
             const delRes = await fetch(
-              `${SUPABASE_CONFIG.url}/rest/v1/comments?id=eq.${encodeURIComponent(commentId)}`,
+              `${SUPABASE_CONFIG2.url}/rest/v1/comments?id=eq.${encodeURIComponent(commentId)}`,
               {
                 method: "DELETE",
                 headers
@@ -2123,7 +2202,11 @@
           } catch (_) {
           }
         }
-        if (!currentUser2 || !currentDetailAnnotationId || !input) return;
+        if (!currentUser2) {
+          showAuth("Sign in with Google to post your comment.");
+          return;
+        }
+        if (!currentDetailAnnotationId || !input) return;
         const content = input.value.trim();
         if (!content) return;
         if (submitBtn) submitBtn.disabled = true;
@@ -2133,7 +2216,7 @@
         }
         try {
           const headers = await supabase.getAuthHeaders({ Prefer: "return=representation" });
-          const res = await fetch(`${SUPABASE_CONFIG.url}/rest/v1/comments`, {
+          const res = await fetch(`${SUPABASE_CONFIG2.url}/rest/v1/comments`, {
             method: "POST",
             headers,
             body: JSON.stringify({
@@ -2215,7 +2298,18 @@
           deleteBtn.disabled = true;
           try {
             if (ann.id) {
-              await supabase.from("annotations").delete().eq("id", ann.id).execute();
+              await fetch(`https://annotated-repo.vercel.app/api/annotations/delete?id=${encodeURIComponent(ann.id)}`, {
+                method: "POST"
+              }).catch(() => {
+              });
+              try {
+                const authHeaders = await supabase.getAuthHeaders();
+                await fetch(`${SUPABASE_CONFIG2.url}/rest/v1/annotations?id=eq.${encodeURIComponent(ann.id)}`, {
+                  method: "DELETE",
+                  headers: authHeaders
+                });
+              } catch (_) {
+              }
             }
           } catch (err) {
             console.warn("[Annotated Delete] Error:", err);
@@ -2248,7 +2342,19 @@
     const qEl = $("#detailQuote");
     if (qEl) qEl.textContent = ann.quote || ann.quote_text || "Annotation";
     const intentEl = $("#detailIntentBadge");
-    if (intentEl) intentEl.textContent = ann.intent || "\u{1F4A1}";
+    if (intentEl) {
+      const tag = ann.intent || "hot take";
+      const tagColors = {
+        "hot take":   { bg: "#7f1d1d22", border: "#ef4444", color: "#ef4444", icon: "🔥" },
+        "fact check": { bg: "#14532d22", border: "#22c55e", color: "#22c55e", icon: "✅" },
+        "steelman":   { bg: "#1e3a5f22", border: "#3b82f6", color: "#3b82f6", icon: "🛡️" },
+        "receipts":   { bg: "#451a0322", border: "#f97316", color: "#f97316", icon: "🧾" },
+        "explainer":  { bg: "#2e1065aa", border: "#a855f7", color: "#a855f7", icon: "💬" },
+      };
+      const c = tagColors[tag] || tagColors["hot take"];
+      intentEl.textContent = `${c.icon} ${tag}`;
+      intentEl.style.cssText += `; background:${c.bg}; border-color:${c.border}; color:${c.color};`;
+    }
     const slug = ann.slug || ann.id;
     const targetUser = ann.username || (ann.author_profile?.email ? ann.author_profile.email.split("@")[0] : currentUser2?.email ? currentUser2.email.split("@")[0] : "user");
     const detailUrl = slug ? `${SITE_URL}/${encodeURIComponent(targetUser)}/${encodeURIComponent(slug)}` : SITE_URL;
@@ -2362,10 +2468,10 @@
     const loadReactions = async () => {
       try {
         const res = await fetch(
-          `${SUPABASE_CONFIG.url}/rest/v1/annotation_reactions?annotation_id=eq.${encodeURIComponent(
+          `${SUPABASE_CONFIG2.url}/rest/v1/annotation_reactions?annotation_id=eq.${encodeURIComponent(
             annotationId
           )}&select=emoji,user_id`,
-          { headers: { apikey: SUPABASE_CONFIG.anonKey } }
+          { headers: { apikey: SUPABASE_CONFIG2.anonKey } }
         );
         const rows = await res.json();
         if (!Array.isArray(rows)) return;
@@ -2441,7 +2547,7 @@
           const headers = await supabase.getAuthHeaders();
           if (isActive) {
             await fetch(
-              `${SUPABASE_CONFIG.url}/rest/v1/annotation_reactions?annotation_id=eq.${encodeURIComponent(
+              `${SUPABASE_CONFIG2.url}/rest/v1/annotation_reactions?annotation_id=eq.${encodeURIComponent(
                 annotationId
               )}&user_id=eq.${encodeURIComponent(reactUser.id)}&emoji=eq.${encodeURIComponent(emoji)}`,
               {
@@ -2450,7 +2556,7 @@
               }
             );
           } else {
-            await fetch(`${SUPABASE_CONFIG.url}/rest/v1/annotation_reactions`, {
+            await fetch(`${SUPABASE_CONFIG2.url}/rest/v1/annotation_reactions`, {
               method: "POST",
               headers: {
                 ...headers,

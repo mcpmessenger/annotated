@@ -4,6 +4,7 @@ import { $ } from '../shared/dom';
 import { SUPABASE_CONFIG, SITE_URL } from '../shared/config';
 import { supabase } from '../shared/supabase';
 import { escapeHtml, initials, openExternalUrl } from '../shared/utils';
+import { showAuth } from './auth';
 import type { Comment, CurrentUser, UserProfile } from '../types/annotation';
 
 export let currentDetailAnnotationId: string | null = null;
@@ -340,7 +341,11 @@ export function initCommentForm(
           currentUser = supabase.userFromSession(session);
         } catch (_) {}
       }
-      if (!currentUser || !currentDetailAnnotationId || !input) return;
+      if (!currentUser) {
+        showAuth('Sign in with Google to post your comment.');
+        return;
+      }
+      if (!currentDetailAnnotationId || !input) return;
 
       const content = input.value.trim();
       if (!content) return;

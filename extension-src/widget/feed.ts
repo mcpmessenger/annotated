@@ -122,7 +122,18 @@ export function renderFeed(
       if (!confirm('Are you sure you want to delete this annotation?')) return;
 
       try {
-        await supabase.from('annotations').delete().eq('id', ann.id || '').execute();
+        if (ann.id) {
+          await fetch(`https://annotated-repo.vercel.app/api/annotations/delete?id=${encodeURIComponent(ann.id)}`, {
+            method: 'POST',
+          }).catch(() => {});
+          try {
+            const authHeaders = await supabase.getAuthHeaders();
+            await fetch(`${SUPABASE_CONFIG.url}/rest/v1/annotations?id=eq.${encodeURIComponent(ann.id)}`, {
+              method: 'DELETE',
+              headers: authHeaders,
+            });
+          } catch (_) {}
+        }
       } catch (err) {
         console.warn('[Annotated Delete] Error:', err);
       }

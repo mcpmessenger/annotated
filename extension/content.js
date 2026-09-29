@@ -1698,4 +1698,133 @@
   } else {
     init();
   }
+
+  let activeTextTooltip = null;
+  let textTooltipTimer = null;
+
+  document.addEventListener("mouseover", (e) => {
+    const target = e.target?.closest(".annotated-highlight");
+    if (target) {
+      if (textTooltipTimer) clearTimeout(textTooltipTimer);
+      if (activeTextTooltip && activeTextTooltip.target === target) return;
+      if (activeTextTooltip) {
+        activeTextTooltip.el.remove();
+        activeTextTooltip = null;
+      }
+      
+      const ann = highlightMap.get(target);
+      if (!ann) return;
+
+      const prof = ann.user_id && typeof state !== 'undefined' && state.profiles ? state.profiles[ann.user_id] : void 0;
+      const authorName = prof?.full_name || (prof?.email ? `@${prof.email.split("@")[0]}` : ann.user_name || "Annotator");
+      const avatarUrl = prof?.avatar_url;
+      const avatarHtml = avatarUrl 
+        ? `<img src="${escapeHtml(avatarUrl)}" style="width: 18px; height: 18px; border-radius: 50%; object-fit: cover; flex-shrink: 0;">` 
+        : `<div style="width: 18px; height: 18px; border-radius: 50%; background: #ffd21a; color: #000; font-size: 9px; font-weight: 800; display: grid; place-items: center; flex-shrink: 0;">${escapeHtml((authorName || "A")[0].toUpperCase())}</div>`;
+      
+      const cleanComment = (ann.comment || ann.commentary || "Click to view note").trim();
+
+      // Determine tag colors for Jason's tags
+      const tag = ann.intent || "hot take";
+      const tagColors = {
+        "hot take":   { bg: "rgba(239,68,68,0.15)", border: "#ef4444", color: "#ef4444", icon: "🔥" },
+        "fact check": { bg: "rgba(34,197,94,0.15)", border: "#22c55e", color: "#22c55e", icon: "✅" },
+        "steelman":   { bg: "rgba(59,130,246,0.15)", border: "#3b82f6", color: "#3b82f6", icon: "🛡️" },
+        "receipts":   { bg: "rgba(249,115,22,0.15)", border: "#f97316", color: "#f97316", icon: "🧾" },
+        "explainer":  { bg: "rgba(168,85,247,0.15)", border: "#a855f7", color: "#a855f7", icon: "💬" },
+      };
+      // Fallback for legacy emoji
+      const c = tagColors[tag] || tagColors["hot take"];
+      let intentHtml = "";
+      if (ann.intent) {
+        // If it's a known tag, render it nicely, else just render the raw string (for legacy emojis)
+        if (tagColors[tag]) {
+            intentHtml = `<span style="font-size: 10px; font-weight: 700; background: ${c.bg}; border: 1px solid ${c.border}; color: ${c.color}; padding: 2px 6px; border-radius: 99px; flex-shrink: 0; letter-spacing: 0.02em;">${c.icon} ${tag}</span>`;
+        } else {
+            intentHtml = `<span style="font-size: 12px; flex-shrink: 0;">${escapeHtml(ann.intent)}</span>`;
+        }
+      }
+
+      const el = document.createElement("div");
+      el.className = "annotated-text-hover-tooltip";
+      el.style.cssText = `
+        position: absolute;
+        z-index: 2147483647;
+        background: #17242c;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 8px;
+        padding: 8px 10px;
+        width: 240px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        font-family: system-ui, -apple-system, sans-serif;
+        cursor: pointer;
+        opacity: 0;
+        transition: opacity 0.15s ease;
+      `;
+
+      el.innerHTML = `
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: 6px;">
+          <div style="display: flex; align-items: center; gap: 6px; overflow: hidden;">
+            ${avatarHtml}
+            <strong style="font-size: 11px; color: #ffd21a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(authorName)}</strong>
+          </div>
+          ${intentHtml}
+        </div>
+        <div style="font-size: 11.5px; color: #e2e8f0; line-height: 1.35; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; margin-top: 2px;">
+          ${escapeHtml(cleanComment)}
+        </div>
+      `;
+
+      el.addEventListener("mouseenter", () => {
+        if (textTooltipTimer) clearTimeout(textTooltipTimer);
+      });
+      el.addEventListener("mouseleave", () => {
+        if (activeTextTooltip && activeTextTooltip.el === el) {
+          activeTextTooltip.el.remove();
+          activeTextTooltip = null;
+        }
+      });
+      el.addEventListener("click", (evt) => {
+        evt.preventDefault();
+        evt.stopPropagation();
+        if (typeof openAnnotationInWidget === 'function') {
+          openAnnotationInWidget(ann);
+        }
+      });
+
+      document.body.appendChild(el);
+      
+      const rect = target.getBoundingClientRect();
+      let top = rect.bottom + window.scrollY + 6;
+      let left = rect.left + window.scrollX;
+      
+      if (left + 240 > window.innerWidth + window.scrollX) {
+        left = (window.innerWidth + window.scrollX) - 250;
+      }
+      
+      el.style.top = top + "px";
+      el.style.left = left + "px";
+      
+      requestAnimationFrame(() => {
+        el.style.opacity = "1";
+      });
+      
+      activeTextTooltip = { el, target };
+    }
+  });
+
+  document.addEventListener("mouseout", (e) => {
+    const target = e.target?.closest(".annotated-highlight");
+    if (target && activeTextTooltip && activeTextTooltip.target === target) {
+      textTooltipTimer = setTimeout(() => {
+        if (activeTextTooltip) {
+          activeTextTooltip.el.remove();
+          activeTextTooltip = null;
+        }
+      }, 150);
+    }
+  });
 })();

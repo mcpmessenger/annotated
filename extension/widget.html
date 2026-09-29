@@ -150,13 +150,13 @@
           <video id="previewVideo" class="hidden" controls style="max-height: 110px; max-width: 100%; border-radius: 4px;" playsinline></video>
         </div>
       </div>
-      <div class="emoji-bar">
-        <span class="emoji-label">Quick React:</span>
-        <button class="emoji-btn" data-emoji="&#128293;">&#128293;</button>
-        <button class="emoji-btn" data-emoji="&#129300;">&#129300;</button>
-        <button class="emoji-btn" data-emoji="&#128161;">&#128161;</button>
-        <button class="emoji-btn" data-emoji="&#128175;">&#128175;</button>
-        <button class="emoji-btn" data-emoji="&#128078;">&#128078;</button>
+      <div class="emoji-bar" style="flex-wrap: wrap; gap: 4px;">
+        <span class="emoji-label">Tag:</span>
+        <button class="emoji-btn" data-emoji="hot take" data-intent="hot take" style="font-size:10px; padding: 3px 9px; border-radius: 99px; font-weight: 700; letter-spacing: 0.02em;">🔥 hot take</button>
+        <button class="emoji-btn" data-emoji="fact check" data-intent="fact check" style="font-size:10px; padding: 3px 9px; border-radius: 99px; font-weight: 700; letter-spacing: 0.02em;">✅ fact check</button>
+        <button class="emoji-btn" data-emoji="steelman" data-intent="steelman" style="font-size:10px; padding: 3px 9px; border-radius: 99px; font-weight: 700; letter-spacing: 0.02em;">🛡️ steelman</button>
+        <button class="emoji-btn" data-emoji="receipts" data-intent="receipts" style="font-size:10px; padding: 3px 9px; border-radius: 99px; font-weight: 700; letter-spacing: 0.02em;">🧾 receipts</button>
+        <button class="emoji-btn" data-emoji="explainer" data-intent="explainer" style="font-size:10px; padding: 3px 9px; border-radius: 99px; font-weight: 700; letter-spacing: 0.02em;">💬 explainer</button>
       </div>
       <textarea id="comment" maxlength="1000" placeholder="What do you want people to notice?"></textarea>
 
@@ -176,7 +176,7 @@
         <button id="dictateBtn" class="dictate-btn-main" data-tooltip="Speech to Text" data-tooltip-pos="top" style="width: 36px; min-width: 36px; height: 36px; padding: 0; font-size: 16px; flex: 0 0 36px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center;">🎤</button>
         <button id="clipVideoBtn" class="dictate-btn-main" data-tooltip="Clip Video" data-tooltip-pos="top" style="width: 36px; min-width: 36px; height: 36px; padding: 0; font-size: 16px; flex: 0 0 36px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center;">🎥</button>
         <button id="screenshotBtn" class="dictate-btn-main" data-tooltip="Capture Screenshot" data-tooltip-pos="top" style="width: 36px; min-width: 36px; height: 36px; padding: 0; font-size: 16px; flex: 0 0 36px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center;">📸</button>
-        <button id="composerFactCheckBtn" class="dictate-btn-main" data-tooltip="Fact Check with Gemini" data-tooltip-pos="top" style="width: 36px; min-width: 36px; height: 36px; padding: 0; font-size: 15px; flex: 0 0 36px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.15s ease;">⚡</button>
+
         <button id="publishBtn" class="publish-btn" disabled style="flex: 1; min-width: 80px; margin: 0; padding: 0 14px; height: 36px; white-space: nowrap; font-weight: 700; border-radius: 8px;">Publish</button>
       </div>
       <div id="status" class="status"></div>
@@ -187,20 +187,13 @@
       <div class="detail-header">
         <button id="detailBackBtn" class="detail-back-btn" data-tooltip="Back to note composer">← <span style="font-weight:600;">Compose</span></button>
         <div class="detail-tags" style="display: flex; align-items: center; gap: 8px;">
-          <span id="detailIntentBadge" class="detail-intent-badge" data-tooltip="Intent">💡</span>
+          <span id="detailIntentBadge" class="detail-intent-badge" data-tooltip="Tag" style="font-size:10px; font-weight:700; padding: 2px 8px; border-radius: 99px; background: var(--soft); border: 1px solid var(--line); color: var(--ink); letter-spacing: 0.03em;">hot take</span>
           <button id="detailDeleteBtn" class="detail-delete-btn hidden" data-tooltip="Delete note" style="background: none; border: 1px solid var(--line); border-radius: 6px; color: var(--muted); cursor: pointer; padding: 4px 7px; font-size: 12px; display: inline-flex; align-items: center; justify-content: center; transition: all 0.15s ease;">🗑️</button>
         </div>
       </div>
 
-      <div class="quote-box" style="margin-top: 10px;">
-        <div class="quote-mark">"</div>
-        <div id="detailQuote" class="quote"></div>
-      </div>
-
-      <div id="detailMediaBox" class="detail-media-box hidden" style="margin-top: 10px; border-radius: 8px; overflow: hidden; background: #000;"></div>
-
-      <!-- Annotation body: avatar left, text + meta right -->
-      <div class="detail-comment-wrap" style="margin-top: 12px; padding: 10px 12px; background: var(--soft); border: 1px solid var(--line); border-radius: 7px; display: flex; gap: 10px; align-items: flex-start;">
+      <!-- TAKE (commentary) always on top -->
+      <div class="detail-comment-wrap" style="margin-top: 10px; padding: 10px 12px; background: var(--soft); border: 1px solid var(--line); border-radius: 7px; display: flex; gap: 10px; align-items: flex-start;">
         <div class="avatar top-avatar" id="detailAvatar" style="width: 28px; height: 28px; font-size: 11px; flex-shrink: 0; margin-top: 1px;">?</div>
         <div style="flex: 1; min-width: 0;">
           <div id="detailComment" class="detail-comment-text" style="font-size: 13px; line-height: 1.5; color: var(--ink); white-space: pre-wrap; font-weight: 500;"></div>
@@ -212,6 +205,14 @@
       </div>
       <!-- Hidden element so JS can set author name for profile click -->
       <strong id="detailAuthorName" style="display: none;">Annotator</strong>
+
+      <!-- SOURCE (quoted text + media) below the take -->
+      <div class="quote-box" style="margin-top: 10px;">
+        <div class="quote-mark">"</div>
+        <div id="detailQuote" class="quote"></div>
+      </div>
+
+      <div id="detailMediaBox" class="detail-media-box hidden" style="margin-top: 10px; border-radius: 8px; overflow: hidden; background: #000;"></div>
 
       <!-- Gemini Fact Check Box (prominent directly below comment) -->
       <div id="detailFactCheckBox" style="display:none; margin-top: 10px; padding: 10px; background: var(--soft); border: 1px solid var(--line); border-radius: 8px; font-size: 11px;">
@@ -250,7 +251,6 @@
       </div>
 
       <div class="detail-actions" style="margin-top: 14px; display: flex; gap: 8px; align-items: center;">
-        <button id="detailFactCheckBtn" type="button" data-tooltip="Show Fact Check" data-tooltip-pos="top" style="width: 36px; min-width: 36px; height: 36px; padding: 0; border: 1px solid var(--line); cursor: pointer; background: var(--surface); color: var(--ink); font-size: 16px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; flex: 0 0 36px; transition: all 0.15s ease;">&#9889;</button>
         <button id="detailCopyLinkBtn" type="button" data-tooltip="Copy annotation link" data-tooltip-pos="top" style="width: 36px; min-width: 36px; height: 36px; padding: 0; border: 1px solid var(--line); cursor: pointer; background: var(--surface); color: var(--ink); font-size: 15px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; flex: 0 0 36px; transition: all 0.15s ease;">&#128279;</button>
         <a id="detailOpenWebBtn" href="https://annotated-repo.vercel.app" target="_blank" rel="noopener noreferrer" class="detail-web-btn" data-tooltip="Open on Annotated" data-tooltip-pos="top" style="flex: 1; text-align: center; border: none; cursor: pointer; padding: 0 14px; height: 36px; background: #000; color: #fff; font-weight: 700; font-size: 12px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; text-decoration: none;">
           <span>Open on Annotated</span><span>&#8599;</span>
@@ -274,6 +274,7 @@
   </div>
 
   <script src="fix-webm-duration.js"></script>
+  <script src="ffmpeg.js"></script>
   <script src="supabase-client.js"></script>
   <script src="widget.js"></script>
 </body>
