@@ -184,7 +184,7 @@ export async function GET(req: NextRequest) {
         })(),
         // Metadata
         is_disputed: row.is_disputed || false,
-        reactions: reactionsMap[row.id] || {},
+        reactions: client === "roku" ? {} : (reactionsMap[row.id] || {}),
         created_at: row.created_at,
       };
     });
