@@ -1,11 +1,4 @@
 sub init()
-    m.STATE_PLAYBACK = "PLAYBACK"
-    m.STATE_BUBBLE_OPEN = "BUBBLE_OPEN"
-    m.STATE_DETAIL_OPEN = "DETAIL_OPEN"
-    m.STATE_QR_OPEN = "QR_OPEN"
-    m.STATE_LOADING = "LOADING"
-    m.STATE_ERROR_HIDDEN = "ERROR_HIDDEN"
-
     m.bgRect = m.top.findNode("bgRect")
     m.mainVideo = m.top.findNode("mainVideo")
     m.videoTitle = m.top.findNode("videoTitle")
@@ -29,13 +22,10 @@ sub init()
     m.totalNotesCount = 0
     m.topAnnotationIndex = 0
 
-        m.annotationBubble = m.top.findNode("annotationBubble")
-    m.annotationBubble.bubbleState = "CLOSED"
     m.tweetBillboardGroup = m.top.findNode("tweetBillboardGroup")
     m.bbPlatform = m.top.findNode("bbPlatform")
     m.bbDomain = m.top.findNode("bbDomain")
     m.bbAuthor = m.top.findNode("bbAuthor")
-    m.bbAnnotatorAvatar = m.top.findNode("bbAnnotatorAvatar")
     m.bbQuote = m.top.findNode("bbQuote")
     m.bbComment = m.top.findNode("bbComment")
     m.bbImageFrame = m.top.findNode("bbImageFrame")
@@ -44,9 +34,6 @@ sub init()
     m.bbIntentPill = m.top.findNode("bbIntentPill")
     m.bbQrBg = m.top.findNode("bbQrBg")
     m.bbQrCode = m.top.findNode("bbQrCode")
-
-    m.globalQrBg = m.top.findNode("globalQrBg")
-    m.globalQrCode = m.top.findNode("globalQrCode")
 
     m.detailModalGroup = m.top.findNode("detailModalGroup")
     m.modalPlatform = m.top.findNode("modalPlatform")
@@ -88,9 +75,8 @@ sub init()
     m.lblHundred = m.top.findNode("lblHundred")
     m.lblDown = m.top.findNode("lblDown")
 
-    ' m.buttons array removed
+    m.buttons = [m.btnFactCheck, m.btnFire, m.btnThink, m.btnIdea, m.btnHundred, m.btnDown]
     m.focusedButtonIndex = 0
-    m.focusedEmojiIndex = -1
 
     m.cards = [m.card1, m.card2, m.card3]
     m.cardOutlines = [m.card1Outline, m.card2Outline, m.card3Outline]
@@ -105,17 +91,6 @@ sub init()
 
     ' Progress bar references
     m.progressFill = m.top.findNode("progressFill")
-    m.bgFire = m.top.findNode("bgFire")
-    m.bgThink = m.top.findNode("bgThink")
-    m.bgIdea = m.top.findNode("bgIdea")
-    m.bgHundred = m.top.findNode("bgHundred")
-    m.bgDown = m.top.findNode("bgDown")
-    m.lblFire = m.top.findNode("lblFire")
-    m.lblThink = m.top.findNode("lblThink")
-    m.lblIdea = m.top.findNode("lblIdea")
-    m.lblHundred = m.top.findNode("lblHundred")
-    m.lblDown = m.top.findNode("lblDown")
-
     m.autoAdvanceDuration = 15  ' seconds to hold text/billboard posts
     m.videoDuration = 90        ' max seconds for video posts
     m.progressTick = 0          ' current elapsed tick
@@ -123,7 +98,7 @@ sub init()
     m.isVideoPlaying = false
 
     ' Interaction States: STATE_A (Passive Playback) or STATE_B (Active Browsing)
-    m.uiState = m.STATE_PLAYBACK
+    m.uiState = "STATE_A"
     updateButtonFocus()
 
     ' Cinematic Intro Elements
@@ -181,9 +156,7 @@ end sub
 function resolvePlayableVideoUrl(item as Dynamic) as String
     if item = invalid then return ""
 
-    playUrl = ""
-    rawUrl = ""
-    
+    ' If item is explicitly marked text or image, it NEVER has a video to play
     if item.media <> invalid
         if item.media.type = "image" or item.media.type = "text"
             return ""
@@ -191,51 +164,36 @@ function resolvePlayableVideoUrl(item as Dynamic) as String
 
         if item.media.playable_url <> invalid and item.media.playable_url <> ""
             playUrl = item.media.playable_url
-        end if
-        
-        if item.media.raw_url <> invalid and item.media.raw_url <> ""
-            rawUrl = item.media.raw_url
+            lowerUrl = LCase(playUrl)
+            if Instr(1, lowerUrl, ".png") > 0 or Instr(1, lowerUrl, ".jpg") > 0 or Instr(1, lowerUrl, ".jpeg") > 0 or Instr(1, lowerUrl, ".webp") > 0 or Instr(1, lowerUrl, ".gif") > 0
+                return ""
+            end if
+            if Instr(1, lowerUrl, ".webm") = 0 and Instr(1, lowerUrl, "demo.mp4") = 0
+                return playUrl
+            end if
         end if
     end if
 
-    if rawUrl = "" and item.media_url <> invalid and type(item.media_url) = "roString"
+    rawUrl = ""
+    if item.media_url <> invalid and type(item.media_url) = "roString"
         rawUrl = item.media_url.trim()
     end if
 
-    ' First, if playUrl is already good and not webm
-    if playUrl <> ""
-        lowerPlay = LCase(playUrl)
-        if Instr(1, lowerPlay, ".webm") = 0
-            return playUrl
-        end if
-    end if
-
     if rawUrl = "" then return ""
-    lowerRaw = LCase(rawUrl)
 
+    lowerRaw = LCase(rawUrl)
     if Instr(1, lowerRaw, ".png") > 0 or Instr(1, lowerRaw, ".jpg") > 0 or Instr(1, lowerRaw, ".jpeg") > 0 or Instr(1, lowerRaw, ".webp") > 0 or Instr(1, lowerRaw, ".gif") > 0
         return ""
     end if
 
-    ' Dynamic WebM to MP4 fallback for Roku
+    ext = LCase(Right(rawUrl, 4))
+    ext5 = LCase(Right(rawUrl, 5))
+    if ext = ".mp4" or ext = ".m4v" or ext5 = ".m3u8"
+        return rawUrl
+    end if
+
     if Instr(1, rawUrl, "annotation-media/") > 0 and Instr(1, lowerRaw, ".webm") > 0
-        if item.id <> invalid
-            return "https://annotated-processed-videos.s3.us-east-1.amazonaws.com/processed/legacy_" + item.id + ".mp4"
-        end if
-    end if
-
-    cleanUrl = lowerRaw
-    queryIdx = Instr(1, cleanUrl, "?")
-    if queryIdx > 0
-        cleanUrl = Left(cleanUrl, queryIdx - 1)
-    end if
-
-    if Instr(1, cleanUrl, ".mp4") > 0 or Instr(1, cleanUrl, ".m4v") > 0 or Instr(1, cleanUrl, ".m3u8") > 0
-        return rawUrl
-    end if
-
-    if Instr(1, lowerRaw, "amazonaws.com/processed") > 0
-        return rawUrl
+        return rawUrl.replace(".webm", ".mp4")
     end if
 
     return ""
@@ -248,7 +206,7 @@ sub renderBillboard(item as Object)
         m.mainVideo.control = "stop"
         m.mainVideo.visible = false
     end if
-    if m.videoOverlayTop <> invalid then if m.videoOverlayTop <> invalid then m.videoOverlayTop.visible = false
+    if m.videoOverlayTop <> invalid then m.videoOverlayTop.visible = false
     if m.tweetBillboardGroup <> invalid then m.tweetBillboardGroup.visible = true
 
     ' Check if there is an attached screenshot/image to render on billboard
@@ -282,12 +240,7 @@ sub renderBillboard(item as Object)
         domain = item.hostname
     end if
 
-    sourceLabel = domain
-    if item.source <> invalid and item.source.author <> invalid and item.source.author <> ""
-        sourceLabel = "Source: " + item.source.author + " | " + domain
-    end if
-    if m.bbDomain <> invalid then m.bbDomain.text = sourceLabel
-    
+    if m.bbDomain <> invalid then m.bbDomain.text = domain
     if m.bbPlatform <> invalid
         if Instr(1, LCase(domain), "x.com") > 0 or Instr(1, LCase(domain), "twitter") > 0
             m.bbPlatform.text = "X / Twitter"
@@ -300,23 +253,13 @@ sub renderBillboard(item as Object)
         end if
     end if
 
-if item.author <> invalid
-        if item.author.username <> invalid
-            m.bbAuthor.text = "@" + item.author.username
-        else if item.author.display_name <> invalid
-            m.bbAuthor.text = item.author.display_name
-        end if
-        
-        if item.author.avatar_url <> invalid and item.author.avatar_url <> ""
-            m.bbAnnotatorAvatar.uri = item.author.avatar_url
-            m.bbAnnotatorAvatar.visible = true
-        else
-            m.bbAnnotatorAvatar.visible = false
-        end if
-    else
-        m.bbAuthor.text = "@community"
-        m.bbAnnotatorAvatar.visible = false
+    authorName = "@community"
+    if item.author <> invalid and item.author.username <> invalid and item.author.username <> ""
+        authorName = "@" + item.author.username
+    else if domain <> ""
+        authorName = "@" + domain
     end if
+    if m.bbAuthor <> invalid then m.bbAuthor.text = authorName
 
     quoteText = "Public annotation from community web layer"
     if item.quote <> invalid and item.quote <> ""
@@ -331,7 +274,7 @@ if item.author <> invalid
     if m.bbComment <> invalid then m.bbComment.text = commText
 
     if m.bbIntent <> invalid then m.bbIntent.text = formatEmotes(item)
-    if m.timestampBadge <> invalid then if m.timestampBadge <> invalid then m.timestampBadge.text = "Text Note"
+    if m.timestampBadge <> invalid then m.timestampBadge.text = "Text Note"
 
     slug = ""
     if item.slug <> invalid and item.slug <> ""
@@ -365,7 +308,7 @@ sub playAnnotationVideo(index as Integer)
         title = item.page_title
     end if
 
-    if m.videoTitle <> invalid then m.videoTitle.text = title
+    m.videoTitle.text = title
     m.currentPlayingCardIndex = index
 
     isTextNote = (videoUrl = "" or item.media = invalid or item.media.type = "text" or item.media.type = "image")
@@ -381,7 +324,7 @@ sub playAnnotationVideo(index as Integer)
     else
         ' Real native video clip!
         if m.tweetBillboardGroup <> invalid then m.tweetBillboardGroup.visible = false
-        if m.videoOverlayTop <> invalid then if m.videoOverlayTop <> invalid then m.videoOverlayTop.visible = true
+        if m.videoOverlayTop <> invalid then m.videoOverlayTop.visible = true
         if m.mainVideo <> invalid
             m.mainVideo.control = "stop"
             m.mainVideo.visible = true
@@ -403,7 +346,13 @@ sub playAnnotationVideo(index as Integer)
     ideaCount = 0
     hundredCount = 0
     downCount = 0
-    ' Reactions removed due to unicode parsing issues
+    if item.reactions <> invalid
+        if item.reactions["🔥"] <> invalid then fireCount = item.reactions["🔥"]
+        if item.reactions["🤔"] <> invalid then thinkCount = item.reactions["🤔"]
+        if item.reactions["💡"] <> invalid then ideaCount = item.reactions["💡"]
+        if item.reactions["💯"] <> invalid then hundredCount = item.reactions["💯"]
+        if item.reactions["👎"] <> invalid then downCount = item.reactions["👎"]
+    end if
     if m.lblFire <> invalid then m.lblFire.text = Str(fireCount).trim()
     if m.lblThink <> invalid then m.lblThink.text = Str(thinkCount).trim()
     if m.lblIdea <> invalid then m.lblIdea.text = Str(ideaCount).trim()
@@ -467,52 +416,6 @@ sub playAnnotationVideo(index as Integer)
     if m.bbQrCode <> invalid then m.bbQrCode.uri = qrUrl
 
     updateCardPlayingIndicator()
-    ' Phase 2 & 4: Update Floating Bubble and Global QR
-    if m.annotationBubble <> invalid
-        m.annotationBubble.annotationData = item
-
-    fireCount = 0
-    thinkCount = 0
-    ideaCount = 0
-    hundredCount = 0
-    downCount = 0
-    if item.reactions <> invalid
-    ' bad syntax removed
-    ' bad syntax removed
-    ' bad syntax removed
-    ' bad syntax removed
-    ' bad syntax removed
-    end if
-    if m.lblFire <> invalid then m.lblFire.text = Str(fireCount).trim()
-    if m.lblThink <> invalid then m.lblThink.text = Str(thinkCount).trim()
-    if m.lblIdea <> invalid then m.lblIdea.text = Str(ideaCount).trim()
-    if m.lblHundred <> invalid then m.lblHundred.text = Str(hundredCount).trim()
-    if m.lblDown <> invalid then m.lblDown.text = Str(downCount).trim()
-
-        if m.uiState = m.STATE_BUBBLE_OPEN
-            m.annotationBubble.bubbleState = "OPEN"
-        end if
-    end if
-
-    slug = ""
-    if item.slug <> invalid and item.slug <> ""
-        slug = item.slug
-    else if item.id <> invalid
-        slug = item.id
-    end if
-    qrUrl = "https://api.qrserver.com/v1/create-qr-code/?size=340x340&margin=8&data=https%3A%2F%2Fannotated-repo.vercel.app%2Fn%2F" + slug
-
-    if item.qr_url <> invalid and item.qr_url <> ""
-        qrUrl = item.qr_url
-    end if
-
-    if m.globalQrCode <> invalid
-        m.globalQrCode.uri = qrUrl
-    end if
-    if m.globalQrBg <> invalid
-        m.globalQrBg.visible = true
-    end if
-
 end sub
 
 sub showDetailModal(show as Boolean)
@@ -523,7 +426,7 @@ sub showDetailModal(show as Boolean)
         setVideoDucking(true)
 
         index = m.currentPlayingCardIndex
-        if m.uiState = m.STATE_BUBBLE_OPEN
+        if m.uiState = "STATE_B"
             index = m.topAnnotationIndex + m.focusedCardIndex
         end if
 
@@ -602,7 +505,7 @@ sub showDetailModal(show as Boolean)
             print "[Annotated Detail Modal] Opened Mobile Pass QR for: "; passUrl
         end if
     else
-        if m.uiState = m.STATE_PLAYBACK
+        if m.uiState = "STATE_A"
             setVideoDucking(false)
         end if
     end if
@@ -652,19 +555,45 @@ end sub
 
 sub setUIState(newState as String)
     m.uiState = newState
-    if m.uiState = m.STATE_BUBBLE_OPEN
-        m.annotationBubble.bubbleState = "OPEN"
-        if m.remoteHint <> invalid
-            m.remoteHint.text = "[Back] Close   [< >] Browse   [OK] Detail [QR]"
+    if m.uiState = "STATE_B"
+        ' Transition to Active Browsing
+        if m.railBackdropGroup <> invalid then m.railBackdropGroup.visible = true
+        if m.railHeaderBg <> invalid then m.railHeaderBg.color = "0x0C4A6EFF"
+        if m.railCount <> invalid
+            m.railCount.text = "BROWSING"
+            m.railCount.color = "0x38BDF8FF"
         end if
-    else if m.uiState = m.STATE_PLAYBACK
-        m.annotationBubble.bubbleState = "CLOSED"
-        if m.remoteHint <> invalid
-            m.remoteHint.text = "[*] Bubble   [< >] Prev/Next"
+        setVideoDucking(true)
+        if m.currentPlayingCardIndex >= m.topAnnotationIndex and m.currentPlayingCardIndex < m.topAnnotationIndex + 3
+            m.focusedCardIndex = m.currentPlayingCardIndex - m.topAnnotationIndex
+        else
+            m.focusedCardIndex = 0
         end if
+        updateCardFocus()
+        if m.remoteHint <> invalid
+            m.remoteHint.text = "[Back] Stage   [^/v] Browse   [OK] Detail [QR]"
+        end if
+        print "[Annotated UI] Entered STATE_B: Active Rail Browsing (Audio Ducked to 30%)."
+    else
+        ' Return to Passive Playback
+        m.uiState = "STATE_A"
+        if m.railBackdropGroup <> invalid then m.railBackdropGroup.visible = false
+        if m.railHeaderBg <> invalid then m.railHeaderBg.color = "0x1E293BFF"
+        if m.railCount <> invalid
+            m.railCount.text = Str(m.totalNotesCount).trim() + " Notes"
+            m.railCount.color = "0x38BDF8FF"
+        end if
+        setVideoDucking(false)
+        for i = 0 to m.cardOutlines.count() - 1
+            if m.cardOutlines[i] <> invalid then m.cardOutlines[i].visible = false
+        end for
+        updateButtonFocus()
+        if m.remoteHint <> invalid
+            m.remoteHint.text = "[^/v] Next/Prev   [>] Rail   [OK] Detail [QR]"
+        end if
+        print "[Annotated UI] Returned to STATE_A: Passive Playback (100% Volume)."
     end if
 end sub
-
 
 sub onVideoPositionChanged()
     vPos = 0
@@ -674,7 +603,9 @@ sub onVideoPositionChanged()
 
     ' Update progress bar using real video position
     if m.isVideoPlaying and vDur > 0 and m.progressFill <> invalid
-        m.progressFill.width = Int((vPos / vDur) * 1920)
+        fillWidth = Int((vPos / vDur) * 1140)
+        if fillWidth > 1140 then fillWidth = 1140
+        m.progressFill.width = fillWidth
     end if
 
     if vDur = 0 then vDur = 90
@@ -703,7 +634,7 @@ sub onVideoPositionChanged()
     if durMin < 10 then durMStr = "0" + durMStr
     if durSec < 10 then durSStr = "0" + durSStr
 
-    if m.timestampBadge <> invalid then m.timestampBadge.text = posMStr + ":" + posSStr + " / " + durMStr + ":" + durSStr
+    m.timestampBadge.text = posMStr + ":" + posSStr + " / " + durMStr + ":" + durSStr
 
     ' --- Auto-Scroll Timeline Sync for State A ---
     activeIdx = 0
@@ -718,7 +649,7 @@ sub onVideoPositionChanged()
     if activeIdx <> m.activeSyncIndex
         m.activeSyncIndex = activeIdx
         ' In State A, update the accent bar of the currently active annotation
-        if m.uiState = m.STATE_PLAYBACK
+        if m.uiState = "STATE_A"
             for i = 0 to m.cardAccents.count() - 1
                 accent = m.cardAccents[i]
                 if accent <> invalid
@@ -755,7 +686,7 @@ sub onVideoStateChanged()
                 m.mainVideo.control = "stop"
                 m.mainVideo.visible = false
             end if
-            if m.videoOverlayTop <> invalid then if m.videoOverlayTop <> invalid then m.videoOverlayTop.visible = false
+            if m.videoOverlayTop <> invalid then m.videoOverlayTop.visible = false
             if m.tweetBillboardGroup <> invalid then m.tweetBillboardGroup.visible = true
         end if
         ' Start billboard hold timer after error
@@ -838,10 +769,43 @@ end sub
 
 function formatEmotes(item as Object) as String
     if item = invalid then return ""
+    res = ""
+    ' Fall through to intent-based tag label
     if item.intent <> invalid
-        return UCase(item.intent.trim())
+        intentStr = item.intent.trim()
+        ' New text-based tags (Jason's vocabulary)
+        if intentStr = "hot take"
+            res = "🔥 HOT TAKE"
+        else if intentStr = "fact check"
+            res = "✅ FACT CHECK"
+        else if intentStr = "steelman"
+            res = "🛡 STEELMAN"
+        else if intentStr = "receipts"
+            res = "🧾 RECEIPTS"
+        else if intentStr = "explainer"
+            res = "💬 EXPLAINER"
+        ' Legacy emoji mappings
+        else if intentStr = "🔥"
+            res = "🔥 HOT TAKE"
+        else if intentStr = "💡"
+            res = "💬 EXPLAINER"
+        else if intentStr = "🤔"
+            res = "🛡 STEELMAN"
+        else if intentStr = "💯"
+            res = "✅ FACT CHECK"
+        else if intentStr = "⚡" or intentStr = "fact_check"
+            res = "✅ FACT CHECK"
+        else if intentStr = "👎"
+            res = "🧾 RECEIPTS"
+        else if cleanText(intentStr) <> ""
+            res = UCase(cleanText(intentStr))
+        else
+            res = "💬 NOTE"
+        end if
+    else
+        res = "💬 NOTE"
     end if
-    return ""
+    return res.trim()
 end function
 
 function cleanText(raw as Dynamic) as String
@@ -957,7 +921,7 @@ sub onAnnotationsLoaded()
     m.totalNotesCount = annotations.count()
     m.topAnnotationIndex = 0
     print "[Annotated] Binding "; m.totalNotesCount; " live annotations to UI!"
-    if m.uiState = m.STATE_PLAYBACK
+    if m.uiState = "STATE_A"
         if m.railCount <> invalid then m.railCount.text = Str(m.totalNotesCount).trim() + " Notes"
     end if
 
@@ -999,7 +963,7 @@ sub onAnnotationsPolled()
 
     m.annotations = newAnnotations
     m.totalNotesCount = newAnnotations.count()
-    if m.uiState = m.STATE_PLAYBACK
+    if m.uiState = "STATE_A"
         if m.railCount <> invalid then m.railCount.text = Str(m.totalNotesCount).trim() + " Notes"
     end if
     renderRailCards()
@@ -1033,7 +997,7 @@ sub onAnnotationsFeedError()
         m.railCount.color = "0xEF4444FF"
     end if
     if m.videoTitle <> invalid
-        if m.videoTitle <> invalid then m.videoTitle.text = "Could not load live annotations - check network"
+        m.videoTitle.text = "Could not load live annotations - check network"
     end if
     if m.loadTimer <> invalid then m.loadTimer.control = "stop"
 end sub
@@ -1046,14 +1010,29 @@ sub onLoadTimeout()
             m.railCount.color = "0xEF4444FF"
         end if
         if m.videoTitle <> invalid
-            if m.videoTitle <> invalid then m.videoTitle.text = "Network timeout - check Roku connection"
+            m.videoTitle.text = "Network timeout - check Roku connection"
         end if
     end if
 end sub
 
 
 sub updateButtonFocus()
-    ' Legacy action bar removed in Phase 1
+    for i = 0 to m.buttons.count() - 1
+        btn = m.buttons[i]
+        if i = m.focusedButtonIndex
+            if i = 0
+                btn.color = "0x059669FF" ' Brighter Emerald for Fact-Check focus
+            else
+                btn.color = "0x2563EBFF" ' Blue focus for reactions
+            end if
+        else
+            if i = 0
+                btn.color = "0x064E3BFF" ' Default muted emerald
+            else
+                btn.color = "0x1F2937FF" ' Default secondary card color
+            end if
+        end if
+    end for
 end sub
 
 sub updateCardFocus()
@@ -1083,91 +1062,113 @@ function onKeyEvent(key as String, press as Boolean) as Boolean
     handled = false
 
     if press
-        print "[Annotated] Remote key: '"; key; "'"
+        print "[Annotated] Remote key: '"; key; "' in State: "; m.uiState
 
+        ' If Detail View Modal is currently active, Back or OK closes it
         if m.detailModalGroup <> invalid and m.detailModalGroup.visible = true
-            if key = "back" or key = "replay" or key = "OK" or key = "Select" or key = "options"
+            if key = "back" or key = "replay" or key = "OK" or key = "Select"
                 showDetailModal(false)
-                return true
+                handled = true
+                return handled
             end if
             return true
         end if
 
-        if key = "play"
-            if m.mainVideo <> invalid
-                if m.mainVideo.state = "playing"
-                    m.mainVideo.control = "pause"
-                else
-                    m.mainVideo.control = "resume"
+        if m.uiState = "STATE_A"
+            ' --- State A: Passive Playback / Stage Focus ---
+            if key = "down"
+                if m.annotations <> invalid and m.annotations.count() > 0
+                    if m.currentPlayingCardIndex < m.annotations.count() - 1
+                        nextIdx = m.currentPlayingCardIndex + 1
+                        if nextIdx >= m.topAnnotationIndex + 3
+                            m.topAnnotationIndex = nextIdx - 2
+                            renderRailCards()
+                        end if
+                        playAnnotationVideo(nextIdx)
+                        handled = true
+                    end if
                 end if
-            end if
-            handled = true
-        else if key = "rev" or key = "up"
-            if m.annotations <> invalid and m.currentPlayingCardIndex > 0
-                playAnnotationVideo(m.currentPlayingCardIndex - 1)
-            end if
-            handled = true
-        else if key = "fwd" or key = "down"
-            if m.annotations <> invalid and m.currentPlayingCardIndex < m.annotations.count() - 1
-                playAnnotationVideo(m.currentPlayingCardIndex + 1)
-            end if
-            handled = true
-        else if key = "left"
-            if m.focusedEmojiIndex = -1 then m.focusedEmojiIndex = 0
-            if m.focusedEmojiIndex > 0 then m.focusedEmojiIndex = m.focusedEmojiIndex - 1
-            setFocusedEmoji(m.focusedEmojiIndex)
-            handled = true
-        else if key = "right"
-            if m.focusedEmojiIndex = -1 then m.focusedEmojiIndex = 0
-            if m.focusedEmojiIndex < 4 then m.focusedEmojiIndex = m.focusedEmojiIndex + 1
-            setFocusedEmoji(m.focusedEmojiIndex)
-            handled = true
-        else if key = "OK" or key = "Select"
-            if m.focusedEmojiIndex >= 0 and m.focusedEmojiIndex <= 4
-                print "Casted emoji reaction: "; m.focusedEmojiIndex
-                ' Optionally flash it or reset
-            else
-                ' Default OK action if no emoji focused -> maybe toggle bubble or detail modal
-                if m.uiState = m.STATE_PLAYBACK
-                    setUIState(m.STATE_BUBBLE_OPEN)
-                else
-                    setUIState(m.STATE_PLAYBACK)
+            else if key = "up"
+                if m.annotations <> invalid and m.annotations.count() > 0
+                    if m.currentPlayingCardIndex > 0
+                        prevIdx = m.currentPlayingCardIndex - 1
+                        if prevIdx < m.topAnnotationIndex
+                            m.topAnnotationIndex = prevIdx
+                            renderRailCards()
+                        end if
+                        playAnnotationVideo(prevIdx)
+                        handled = true
+                    end if
                 end if
-            end if
-            handled = true
-        else if key = "options"
-            if m.uiState = m.STATE_PLAYBACK
-                setUIState(m.STATE_BUBBLE_OPEN)
-            else
-                setUIState(m.STATE_PLAYBACK)
-            end if
-            handled = true
-        else if key = "back"
-            if m.focusedEmojiIndex <> -1
-                m.focusedEmojiIndex = -1
-                setFocusedEmoji(-1)
+            else if key = "right"
+                ' Right arrow enters the rail immediately!
+                setUIState("STATE_B")
                 handled = true
-            else if m.uiState = m.STATE_BUBBLE_OPEN
-                setUIState(m.STATE_PLAYBACK)
+            else if key = "left"
+                if m.focusedButtonIndex > 0
+                    m.focusedButtonIndex = m.focusedButtonIndex - 1
+                    updateButtonFocus()
+                    handled = true
+                end if
+            else if key = "options" ' [*] Star Key
+                ' Star key toggles active rail browsing mode
+                setUIState("STATE_B")
+                handled = true
+            else if key = "OK" or key = "Select"
+                ' Opens the Full-Screen Detail View Modal with dynamic QR code for active item!
+                showDetailModal(true)
                 handled = true
             end if
-            ' If not handled, let system exit
+
+        else if m.uiState = "STATE_B"
+            ' --- State B: Active Rail Browsing ---
+            if key = "up"
+                if m.focusedCardIndex > 0
+                    m.focusedCardIndex = m.focusedCardIndex - 1
+                    updateCardFocus()
+                    activeIdx = m.topAnnotationIndex + m.focusedCardIndex
+                    playAnnotationVideo(activeIdx)
+                    handled = true
+                else if m.topAnnotationIndex > 0
+                    m.topAnnotationIndex = m.topAnnotationIndex - 1
+                    renderRailCards()
+                    updateCardFocus()
+                    activeIdx = m.topAnnotationIndex + m.focusedCardIndex
+                    playAnnotationVideo(activeIdx)
+                    handled = true
+                end if
+            else if key = "down"
+                if m.focusedCardIndex < m.cards.count() - 1
+                    m.focusedCardIndex = m.focusedCardIndex + 1
+                    updateCardFocus()
+                    activeIdx = m.topAnnotationIndex + m.focusedCardIndex
+                    playAnnotationVideo(activeIdx)
+                    handled = true
+                else if m.annotations <> invalid and m.topAnnotationIndex + 3 < m.annotations.count()
+                    m.topAnnotationIndex = m.topAnnotationIndex + 1
+                    renderRailCards()
+                    updateCardFocus()
+                    activeIdx = m.topAnnotationIndex + m.focusedCardIndex
+                    playAnnotationVideo(activeIdx)
+                    handled = true
+                end if
+            else if key = "left" or key = "back"
+                ' Left or Back returns to State A (Passive Playback)
+                setUIState("STATE_A")
+                handled = true
+            else if key = "options"
+                ' Star key toggles back to State A
+                setUIState("STATE_A")
+                handled = true
+            else if key = "OK" or key = "Select"
+                activeIdx = m.topAnnotationIndex + m.focusedCardIndex
+                print "[Annotated] Remote OK pressed on Item "; activeIdx; " -> Presenting Detail Modal!"
+                playAnnotationVideo(activeIdx)
+                showDetailModal(true)
+                handled = true
+            end if
         end if
     end if
 
     return handled
 end function
-
-
-sub setFocusedEmoji(index as Integer)
-    bgs = [m.bgFire, m.bgThink, m.bgIdea, m.bgHundred, m.bgDown]
-    for i = 0 to 4
-        if bgs[i] <> invalid
-            if i = index
-                bgs[i].color = "0x059669FF" ' Emerald highlight
-            else
-                bgs[i].color = "0x334155AA" ' Normal slate
-            end if
-        end if
-    end for
-end sub

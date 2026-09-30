@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<component name="FloatingAnnotationBubble" extends="Group">
+  <script type="text/brightscript" uri="pkg:/components/FloatingAnnotationBubble.brs" />
+
+  <interface>
+    <field id="annotationData" type="assocarray" onChange="onDataChange" />
+    <field id="bubbleState" type="string" value="CLOSED" onChange="onStateChange" />
+    <function name="setFocusedEmoji" />
+  </interface>
+
+  <children>
+    <Animation id="fadeAnim" duration="0.2" repeat="false" easeFunction="linear">
+      <FloatFieldInterpolator id="opacityInterp" key="[0.0, 1.0]" keyValue="[0.0, 1.0]" fieldToInterp="bubbleGroup.opacity" />
+      <Vector2DFieldInterpolator id="slideInterp" key="[0.0, 1.0]" keyValue="[[1250, 470], [1250, 420]]" fieldToInterp="bubbleGroup.translation" />
+    </Animation>
+
+    <Group id="bubbleGroup" translation="[1250, 470]" opacity="0.0">
+      <Rectangle width="600" height="320" color="0x00000066" translation="[4, 4]" />
+      
+      <Rectangle id="bubbleBg" width="600" height="320" color="0x1A243BE6">
+        <Rectangle id="focusRing" width="600" height="320" color="0x00000000" />
+        <Rectangle id="topAccent" width="600" height="4" color="0x38BDF8FF" />
+
+        <Label id="sourceAuthorLabel" text="Original Source" font="font:SmallBoldSystemFont" color="0x94A3B8FF" translation="[20, 16]" />
+        <Label id="timestampLabel" text="0:00" font="font:SmallBoldSystemFont" color="0x64748BFF" translation="[500, 16]" />
+        
+        <Label id="quoteLabel" text="Original Quote" font="font:SmallSystemFont" color="0xCBD5E1FF" width="560" wrap="true" maxLines="2" translation="[20, 46]" />
+        
+        <!-- Annotator Row -->
+        <Poster id="annotatorAvatar" width="32" height="32" loadDisplayMode="scaleToFill" translation="[20, 100]">
+            <!-- Fallback mask or rounding if needed, Roku supports basic poster rounding if using mask but we'll keep it simple -->
+        </Poster>
+        <Label id="authorLabel" text="@annotator" font="font:MediumBoldSystemFont" color="0x38BDF8FF" translation="[60, 104]" />
+        
+        <!-- Annotation Comment -->
+        <Label id="commentLabel" text="Community Commentary" font="font:MediumSystemFont" color="0xF8FAFCFF" width="560" wrap="true" maxLines="3" translation="[20, 140]" />
+        
+        <Group id="reactionGroup" translation="[20, 210]">
+          <!-- Fire -->
+          <Rectangle id="bgFire" width="80" height="40" color="0x334155AA" translation="[0, 0]">
+            <Poster uri="pkg:/images/icon_fire.png" width="24" height="24" translation="[8, 8]" />
+            <Label id="lblFire" text="0" font="font:SmallBoldSystemFont" color="0xCBD5E1FF" translation="[36, 12]" />
+          </Rectangle>
+          <!-- Think -->
+          <Rectangle id="bgThink" width="80" height="40" color="0x334155AA" translation="[90, 0]">
+            <Poster uri="pkg:/images/icon_think.png" width="24" height="24" translation="[8, 8]" />
+            <Label id="lblThink" text="0" font="font:SmallBoldSystemFont" color="0xCBD5E1FF" translation="[36, 12]" />
+          </Rectangle>
+          <!-- Idea -->
+          <Rectangle id="bgIdea" width="80" height="40" color="0x334155AA" translation="[180, 0]">
+            <Poster uri="pkg:/images/icon_idea.png" width="24" height="24" translation="[8, 8]" />
+            <Label id="lblIdea" text="0" font="font:SmallBoldSystemFont" color="0xCBD5E1FF" translation="[36, 12]" />
+          </Rectangle>
+          <!-- 100 -->
+          <Rectangle id="bgHundred" width="80" height="40" color="0x334155AA" translation="[270, 0]">
+            <Poster uri="pkg:/images/icon_100.png" width="24" height="24" translation="[8, 8]" />
+            <Label id="lblHundred" text="0" font="font:SmallBoldSystemFont" color="0xCBD5E1FF" translation="[36, 12]" />
+          </Rectangle>
+          <!-- Down -->
+          <Rectangle id="bgDown" width="80" height="40" color="0x334155AA" translation="[360, 0]">
+            <Poster uri="pkg:/images/icon_down.png" width="24" height="24" translation="[8, 8]" />
+            <Label id="lblDown" text="0" font="font:SmallBoldSystemFont" color="0xCBD5E1FF" translation="[36, 12]" />
+          </Rectangle>
+        </Group>
+        
+        <Label id="actionHint" text="[OK] Read more" font="font:SmallBoldSystemFont" color="0x38BDF8FF" translation="[20, 276]" />
+      </Rectangle>
+    </Group>
+  </children>
+</component>

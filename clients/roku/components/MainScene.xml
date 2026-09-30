@@ -1,22 +1,17 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <component name="MainScene" extends="Scene">
-  <field id="launchArgs" type="assocarray" onChange="onLaunchArgsChanged" />
-  <field id="inputArgs" type="assocarray" onChange="onInputArgsChanged" />
   <script type="text/brightscript" uri="pkg:/components/MainScene.brs" />
 
   <children>
     <!-- Background Canvas (Dark Theme #090D16) -->
-    <!-- Roku Plane Architecture: Hardware video plane renders BEHIND graphics plane.
-         Framing rectangles surround the video viewport [80, 110] to [1220, 750] so video plane is unblocked -->
-    <Group id="bgRect" visible="false" />
-    <!-- Framing rectangles surround the video viewport [50, 100] to [1250, 775] so video plane is unblocked -->
-    <Rectangle id="bgHeader" width="1920" height="100" color="0x000000FF" translation="[0, 0]" />
-    <Rectangle id="bgLeft" width="50" height="675" color="0x000000FF" translation="[0, 100]" />
-    <Rectangle id="bgBottom" width="1250" height="305" color="0x000000FF" translation="[0, 775]" />
-    <Rectangle id="bgRight" width="670" height="980" color="0x000000FF" translation="[1250, 100]" />
+    <Rectangle
+      id="bgRect"
+      width="1920"
+      height="1080"
+      color="0x090D16FF" />
 
     <!-- Top Navigation Header -->
-    <Group id="headerGroup" translation="[50, 32]">
+    <Group id="headerGroup" translation="[80, 40]" visible="false">
       <!-- Official App Logo -->
       <Poster
         id="appLogo"
@@ -52,506 +47,246 @@
       <!-- Right Indicator / Remote Hint -->
       <Label
         id="remoteHint"
-        text="[*] Browse Notes   [>] Enter Rail   [OK] Action"
+        text="[^/v] Next/Prev   [>] Rail   [OK] Detail [QR]"
         font="font:SmallBoldSystemFont"
         color="0x64748BFF"
         horizAlign="right"
-        width="800"
-        translation="[1040, 10]" />
+        width="760"
+        translation="[1000, 10]" />
     </Group>
 
-    <!-- Main Video Stage (Expanded to 1200x675 True 16:9) -->
-    <Group id="stageGroup" translation="[50, 100]">
-      <!-- Transparent Video Container -->
-      <Group id="videoFrame">
+    <!-- Main Video Stage (Fullscreen 1920x1080) -->
+    <Group id="stageGroup" translation="[0, 0]">
+      <Rectangle
+        id="videoFrame"
+        width="1920"
+        height="1080"
+        color="0x000000FF">
+
+        <!-- Embedded Video Player Node (Continuous Loop) -->
         <Video
           id="mainVideo"
-          width="1200"
-          height="675"
-          loop="false"
+          width="1920"
+          height="1080"
+          translation="[0,0]"
           visible="true" />
 
-        <!-- Crisp Frame Border Lines around video viewport -->
-        <Rectangle width="1200" height="2" color="0x1F2937FF" translation="[0, 0]" />
-        <Rectangle width="1200" height="2" color="0x1F2937FF" translation="[0, 673]" />
-        <Rectangle width="2" height="675" color="0x1F2937FF" translation="[0, 0]" />
-        <Rectangle width="2" height="675" color="0x1F2937FF" translation="[1198, 0]" />
+        <!-- Tweet / Text Billboard Canvas (Active when focused note has no video) -->
+        <Group id="tweetBillboardGroup" visible="false">
+          <!-- Glassmorphic Backdrop -->
+          <Rectangle width="1920" height="1080" color="0x0B1220F8" />
+          <Rectangle width="1920" height="6" color="0x38BDF8FF" />
 
-        <!-- Video Overlay Header (Title & Timestamp) with translucent tint -->
-        <Rectangle
-          id="videoOverlayTop"
-          width="1200"
-          height="54"
-          color="0x00000088">
-          <Label
-            id="videoTitle"
-            text="Loading community annotations..."
-            font="font:MediumBoldSystemFont"
-            color="0xFFFFFFFF"
-            width="940"
-            translation="[20, 14]" />
-          <Label
-            id="timestampBadge"
-            text="00:00 / 00:00"
-            font="font:MediumBoldSystemFont"
-            color="0x38BDF8FF"
-            translation="[980, 14]" />
-        </Rectangle>
-      </Group>
+          <Group translation="[360, 160]">
+            <!-- Original Source Area -->
+            <Rectangle id="bbPlatformBg" width="190" height="34" color="0x1E293BEE" translation="[0, 0]">
+              <Label id="bbPlatform" text="X / Twitter" font="font:SmallBoldSystemFont" color="0x38BDF8FF" horizAlign="center" width="190" translation="[0, 8]" />
+            </Rectangle>
+            <Label id="bbDomain" text="x.com" font="font:SmallSystemFont" color="0x94A3B8FF" translation="[210, 6]" />
 
-      <!-- Playback Progress Bar (Full 1200px width tracking 15s or 90s) -->
-      <Group id="progressGroup" translation="[0, 683]">
-        <Rectangle
-          id="progressBarBg"
-          width="1200"
-          height="8"
-          color="0x1E293BFF" />
-        <Rectangle
-          id="videoProgressBar"
-          width="0"
-          height="8"
-          color="0x38BDF8FF" />
-      </Group>
+            <!-- Original Quote -->
+            <Label id="bbQuote" text="Quote" font="font:MediumBoldSystemFont" color="0xFFFFFFFF" width="1200" wrap="true" maxLines="6" lineSpacing="10" translation="[0, 80]" />
+            
+            <Rectangle width="1200" height="2" color="0x1E293BFF" translation="[0, 380]" />
 
-      <!-- Action Pill Bar (Directly below progress bar) -->
-      <Group id="actionBarGroup" translation="[0, 703]">
-        <!-- Fact Check Pill Button -->
-        <Rectangle
-          id="btnFactCheck"
-          width="210"
-          height="52"
-          color="0x064E3BFF"
-          translation="[0, 0]">
-          <Poster id="btnFcIcon" uri="pkg:/images/icon_bolt.png" width="24" height="24" translation="[16, 14]" />
-          <Label
-            id="lblFactCheck"
-            text="Verified"
-            font="font:SmallBoldSystemFont"
-            color="0x34D399FF"
-            translation="[46, 14]" />
-        </Rectangle>
+            <!-- Annotation Area -->
+            <Poster id="bbAnnotatorAvatar" width="64" height="64" loadDisplayMode="scaleToFill" translation="[0, 420]" />
+            <Label id="bbAuthor" text="@community" font="font:LargeBoldSystemFont" color="0x38BDF8FF" translation="[80, 436]" />
 
-        <!-- Reaction: Fire -->
-        <Rectangle id="btnFire" width="105" height="52" color="0x1F2937FF" translation="[225, 0]">
-          <Poster uri="pkg:/images/icon_fire.png" width="26" height="26" translation="[13, 13]" />
-          <Label id="lblFireCount" text="0" font="font:MediumBoldSystemFont" color="0xFFFFFFFF" translation="[46, 12]" />
-        </Rectangle>
+            <Rectangle id="bbIntentPill" width="6" height="120" color="0x34D399FF" translation="[0, 520]" />
+            <Label id="bbComment" text="Comment" font="font:MediumSystemFont" color="0xE2E8F0FF" width="1160" wrap="true" maxLines="4" translation="[20, 520]" />
 
-        <!-- Reaction: Think -->
-        <Rectangle id="btnThink" width="105" height="52" color="0x1F2937FF" translation="[345, 0]">
-          <Poster uri="pkg:/images/icon_think.png" width="26" height="26" translation="[13, 13]" />
-          <Label id="lblThinkCount" text="0" font="font:MediumBoldSystemFont" color="0xFFFFFFFF" translation="[46, 12]" />
-        </Rectangle>
-
-        <!-- Reaction: Idea -->
-        <Rectangle id="btnIdea" width="105" height="52" color="0x1F2937FF" translation="[465, 0]">
-          <Poster uri="pkg:/images/icon_idea.png" width="26" height="26" translation="[13, 13]" />
-          <Label id="lblIdeaCount" text="0" font="font:MediumBoldSystemFont" color="0xFFFFFFFF" translation="[46, 12]" />
-        </Rectangle>
-
-        <!-- Reaction: 100 -->
-        <Rectangle id="btnHundred" width="115" height="52" color="0x1F2937FF" translation="[585, 0]">
-          <Poster uri="pkg:/images/icon_100.png" width="26" height="26" translation="[13, 13]" />
-          <Label id="lblHundredCount" text="0" font="font:MediumBoldSystemFont" color="0xFFFFFFFF" translation="[48, 12]" />
-        </Rectangle>
-
-        <!-- Reaction: Down -->
-        <Rectangle id="btnDown" width="105" height="52" color="0x1F2937FF" translation="[715, 0]">
-          <Poster uri="pkg:/images/icon_down.png" width="26" height="26" translation="[13, 13]" />
-          <Label id="lblDownCount" text="0" font="font:MediumBoldSystemFont" color="0xFFFFFFFF" translation="[46, 12]" />
-        </Rectangle>
-      </Group>
-
-      <!-- Streamlined AI Fact-Check Context Card (Pure AI Content) -->
-      <Rectangle
-        id="factCheckBanner"
-        width="1200"
-        height="100"
-        color="0x064E3BDD"
-        translation="[0, 765]">
-        <!-- Left Color Accent Stripe -->
-        <Rectangle id="fcBorder" width="6" height="100" color="0x34D399FF" translation="[0, 0]" />
-        <!-- Pure AI Verifier Context Explanation -->
-        <Label
-          id="fcDetail"
-          text="The community verified the referenced claims against primary sources. Multi-source consensus confirmed."
-          font="font:SmallSystemFont"
-          color="0xF1F5F9FF"
-          width="1144"
-          wrap="true"
-          maxLines="3"
-          translation="[28, 16]" />
-      </Rectangle>
-    </Group>
-
-    <!-- Backdrop Glassmorphic Panel for Active Rail Browsing (State B) -->
-    <Group id="railBackdropGroup" translation="[1265, 85]" visible="false">
-      <!-- Dark Frosted Backdrop -->
-      <Rectangle
-        id="railBackdrop"
-        width="630"
-        height="950"
-        color="0x030712F2" />
-      <!-- Left Cyan Accent Border Line -->
-      <Rectangle
-        id="railBackdropBorder"
-        width="2"
-        height="950"
-        color="0x38BDF866" />
-      <!-- Mode Badge Indicator -->
-      <Rectangle
-        id="railModeBadge"
-        width="170"
-        height="28"
-        color="0x0284C733"
-        translation="[436, 12]">
-        <Label
-          text="ACTIVE BROWSING"
-          font="font:SmallBoldSystemFont"
-          color="0x38BDF8FF"
-          horizAlign="center"
-          width="170"
-          translation="[0, 5]" />
-      </Rectangle>
-    </Group>
-
-    <!-- Right-Hand Rail: Live Synced Community Notes (620px wide) -->
-    <Group id="railGroup" translation="[1275, 100]">
-      <!-- Note Card 1 (Active Synced / Focusable) -->
-      <Rectangle
-        id="card1Outline"
-        width="594"
-        height="279"
-        color="0x38BDF8FF"
-        translation="[-2, -2]"
-        visible="false" />
-      <Rectangle
-        id="card1"
-        width="590"
-        height="275"
-        color="0x0F172AFF"
-        translation="[0, 0]">
-        <Rectangle id="card1Accent" width="590" height="4" color="0x38BDF8FF" translation="[0, 0]" />
-        <!-- Emoji Badge -->
-        <Poster id="card1EmojiPoster" uri="pkg:/images/icon_idea.png" width="22" height="22" translation="[18, 16]" />
-        <Label id="card1Author" text="@annotated" font="font:MediumBoldSystemFont" color="0xF8FAFCFF" translation="[48, 16]" />
-        <Label id="card1Time" text="Live" font="font:SmallBoldSystemFont" color="0x38BDF8FF" horizAlign="right" width="90" translation="[480, 16]" />
-        
-        <Label
-          id="card1Quote"
-          text="Connecting to database..."
-          font="font:SmallSystemFont"
-          color="0x94A3B8FF"
-          width="540"
-          maxLines="1"
-          translation="[20, 56]" />
-          
-        <Label
-          id="card1Note"
-          text="Fetching real-time community notes..."
-          font="font:SmallSystemFont"
-          color="0xE2E8F0FF"
-          width="540"
-          wrap="true"
-          maxLines="3"
-          translation="[20, 96]" />
-        
-        <Group translation="[20, 225]">
-          <Poster uri="pkg:/images/icon_fire.png" width="20" height="20" translation="[0, 0]" />
-          <Label id="card1FireCount" text="0" font="font:SmallSystemFont" color="0x94A3B8FF" translation="[26, 0]" />
-          <Poster uri="pkg:/images/icon_idea.png" width="20" height="20" translation="[70, 0]" />
-          <Label id="card1IdeaCount" text="0" font="font:SmallSystemFont" color="0x94A3B8FF" translation="[96, 0]" />
-          <Poster id="card1FcIcon" uri="pkg:/images/icon_bolt.png" width="20" height="20" translation="[140, 0]" />
-          <Label id="card1FcLabel" text="Verified" font="font:SmallBoldSystemFont" color="0x34D399FF" translation="[166, 0]" />
-        </Group>
-      </Rectangle>
-
-      <!-- Note Card 2 -->
-      <Rectangle
-        id="card2Outline"
-        width="594"
-        height="279"
-        color="0x38BDF8FF"
-        translation="[-2, 288]"
-        visible="false" />
-      <Rectangle
-        id="card2"
-        width="590"
-        height="275"
-        color="0x111827FF"
-        translation="[0, 290]">
-        <Rectangle id="card2Accent" width="590" height="4" color="0x1E293BFF" translation="[0, 0]" />
-        <!-- Emoji Badge -->
-        <Poster id="card2EmojiPoster" uri="pkg:/images/icon_think.png" width="22" height="22" translation="[18, 16]" />
-        <Label id="card2Author" text="@community" font="font:MediumBoldSystemFont" color="0xF8FAFCFF" translation="[48, 16]" />
-        <Label id="card2Time" text="" font="font:SmallBoldSystemFont" color="0x64748BFF" horizAlign="right" width="90" translation="[480, 16]" />
-        
-        <Label
-          id="card2Quote"
-          text=""
-          font="font:SmallSystemFont"
-          color="0x94A3B8FF"
-          width="540"
-          maxLines="1"
-          translation="[20, 56]" />
-
-        <Label
-          id="card2Note"
-          text="Waiting for feed..."
-          font="font:SmallSystemFont"
-          color="0xE2E8F0FF"
-          width="540"
-          wrap="true"
-          maxLines="3"
-          translation="[20, 96]" />
-        <Group translation="[20, 225]">
-          <Poster uri="pkg:/images/icon_100.png" width="24" height="20" translation="[0, 0]" />
-          <Label id="card2HundredCount" text="0" font="font:SmallSystemFont" color="0x94A3B8FF" translation="[30, 0]" />
-          <Poster uri="pkg:/images/icon_think.png" width="20" height="20" translation="[70, 0]" />
-          <Label id="card2ThinkCount" text="0" font="font:SmallSystemFont" color="0x94A3B8FF" translation="[96, 0]" />
-          <Poster id="card2FcIcon" uri="pkg:/images/icon_think.png" width="20" height="20" translation="[140, 0]" />
-          <Label id="card2FcLabel" text="Verified" font="font:SmallBoldSystemFont" color="0x818CF8FF" translation="[166, 0]" />
-        </Group>
-      </Rectangle>
-
-      <!-- Note Card 3 -->
-      <Rectangle
-        id="card3Outline"
-        width="594"
-        height="279"
-        color="0x38BDF8FF"
-        translation="[-2, 578]"
-        visible="false" />
-      <Rectangle
-        id="card3"
-        width="590"
-        height="275"
-        color="0x111827FF"
-        translation="[0, 580]">
-        <Rectangle id="card3Accent" width="590" height="4" color="0x1E293BFF" translation="[0, 0]" />
-        <!-- Emoji Badge -->
-        <Poster id="card3EmojiPoster" uri="pkg:/images/icon_fire.png" width="22" height="22" translation="[18, 16]" />
-        <Label id="card3Author" text="@community" font="font:MediumBoldSystemFont" color="0xF8FAFCFF" translation="[48, 16]" />
-        <Label id="card3Time" text="" font="font:SmallBoldSystemFont" color="0x64748BFF" horizAlign="right" width="90" translation="[480, 16]" />
-        
-        <Label
-          id="card3Quote"
-          text=""
-          font="font:SmallSystemFont"
-          color="0x94A3B8FF"
-          width="540"
-          maxLines="1"
-          translation="[20, 56]" />
-
-        <Label
-          id="card3Note"
-          text="Waiting for feed..."
-          font="font:SmallSystemFont"
-          color="0xE2E8F0FF"
-          width="540"
-          wrap="true"
-          maxLines="3"
-          translation="[20, 96]" />
-        <Group translation="[20, 225]">
-          <Poster uri="pkg:/images/icon_fire.png" width="20" height="20" translation="[0, 0]" />
-          <Label id="card3FireCount" text="0" font="font:SmallSystemFont" color="0x94A3B8FF" translation="[26, 0]" />
-          <Poster uri="pkg:/images/icon_idea.png" width="20" height="20" translation="[70, 0]" />
-          <Label id="card3IdeaCount" text="0" font="font:SmallSystemFont" color="0x94A3B8FF" translation="[96, 0]" />
-          <Poster id="card3FcIcon" uri="pkg:/images/icon_bolt.png" width="20" height="20" translation="[140, 0]" />
-          <Label id="card3FcLabel" text="Verified" font="font:SmallBoldSystemFont" color="0x34D399FF" translation="[166, 0]" />
-        </Group>
-      </Rectangle>
-    </Group>
-
-    <!-- ======================================================== -->
-    <!-- CINEMATIC DRAMATIC OPENING OVERLAY WITH BRAND IDENTITY   -->
-    <!-- ======================================================== -->
-    <!-- Cinematic Intro Overlay (Netflix / Prime slow zoom on lowercase 'annotated.') -->
-    <Group id="introOverlay" visible="true" opacity="1.0">
-      <Rectangle
-        id="introBg"
-        width="1920"
-        height="1080"
-        color="0x030712FF" />
-
-      <!-- Cinematic Wordmark with Scale Zoom -->
-      <Group id="introWordmarkGroup" translation="[960, 540]" scale="[0.90, 0.90]" scaleRotateCenter="[0, 0]" opacity="0.0">
-        <Label
-          id="introTitle"
-          text="annotated"
-          font="font:LargeBoldSystemFont"
-          color="0xF8FAFCFF"
-          translation="[-115, -22]" />
-        <Label
-          id="introPeriod"
-          text="."
-          font="font:LargeBoldSystemFont"
-          color="0xEF4444FF"
-          translation="[98, -22]" />
-      </Group>
-
-      <!-- SceneGraph Slow-Zoom Animation Sequence (Netflix/Prime Style) -->
-      <Animation id="introAnim" duration="2.8" repeat="false" easeFunction="linear">
-        <Vector2DFieldInterpolator
-          key="[0.0, 1.0]"
-          keyValue="[[0.90, 0.90], [1.16, 1.16]]"
-          fieldToInterp="introWordmarkGroup.scale" />
-
-        <FloatFieldInterpolator
-          key="[0.0, 0.25, 0.75, 1.0]"
-          keyValue="[0.0, 1.0, 1.0, 0.0]"
-          fieldToInterp="introWordmarkGroup.opacity" />
-
-        <FloatFieldInterpolator
-          key="[0.0, 0.8, 1.0]"
-          keyValue="[1.0, 1.0, 0.0]"
-          fieldToInterp="introOverlay.opacity" />
-      </Animation>
-    </Group>
-
-    <!-- ======================================================== -->
-    <!-- EXPANDED ANNOTATION DETAIL MODAL WITH SCANNABLE QR PASS  -->
-    <!-- ======================================================== -->
-    <Group id="detailModalGroup" visible="false">
-      <!-- Dark Frosted Blur Backdrop -->
-      <Rectangle
-        id="modalBackdrop"
-        width="1920"
-        height="1080"
-        color="0x030712F2" />
-
-      <!-- Center Elevated Container (1460 x 820) -->
-      <Rectangle
-        id="modalCard"
-        width="1460"
-        height="820"
-        color="0x0B1120F4"
-        translation="[230, 130]">
-        <!-- Top Cyan Accent Bar -->
-        <Rectangle width="1460" height="3" color="0x38BDF8FF" translation="[0, 0]" />
-        <!-- Subtle Outer Border -->
-        <Rectangle width="1460" height="1" color="0x1E293BFF" translation="[0, 819]" />
-        <Rectangle width="1" height="820" color="0x1E293BFF" translation="[0, 0]" />
-        <Rectangle width="1" height="820" color="0x1E293BFF" translation="[1459, 0]" />
-
-        <!-- Modal Header -->
-        <Group translation="[50, 24]">
-          <Poster id="modalAppLogo" uri="pkg:/images/annotated_logo_512.png" width="36" height="36" translation="[0, 6]" />
-          <Label
-            id="modalPlatformText"
-            text="ANNOTATION"
-            font="font:SmallBoldSystemFont"
-            color="0x38BDF8FF"
-            translation="[48, 0]" />
-          <Label
-            id="modalAuthor"
-            text="@teslaownersSV"
-            font="font:LargeBoldSystemFont"
-            color="0xFFFFFFFF"
-            translation="[48, 34]" />
-        </Group>
-
-        <!-- Divider Line -->
-        <Rectangle width="1360" height="1" color="0x1E293B88" translation="[50, 100]" />
-
-        <!-- Left Section: Clean Nordic Flow (870px wide) -->
-        <Group translation="[50, 125]">
-          <!-- Highlighted Source Text -->
-          <Label
-            text="SOURCE"
-            font="font:SmallBoldSystemFont"
-            color="0x38BDF8FF"
-            translation="[0, 0]" />
-          <!-- Vertical Accent Line -->
-          <Rectangle width="3" height="150" color="0x38BDF888" translation="[0, 26]" />
-          <Label
-            id="modalFullQuote"
-            text="Connecting to primary source..."
-            font="font:MediumSystemFont"
-            color="0xE2E8F0FF"
-            width="830"
-            wrap="true"
-            maxLines="4"
-            translation="[18, 26]" />
-
-          <!-- Subtle Divider -->
-          <Rectangle width="860" height="1" color="0x1E293B66" translation="[0, 190]" />
-
-          <!-- Annotation Section -->
-          <Label
-            text="ANNOTATION"
-            font="font:SmallBoldSystemFont"
-            color="0x34D399FF"
-            translation="[0, 205]" />
-          <Poster id="modalEmojiIcon" uri="pkg:/images/icon_idea.png" width="22" height="22" translation="[0, 237]" />
-          <Label
-            id="modalFullComment"
-            text="Loading community annotation..."
-            font="font:MediumBoldSystemFont"
-            color="0xFFFFFFFF"
-            width="820"
-            wrap="true"
-            maxLines="3"
-            translation="[30, 234]" />
-
-          <!-- Generous Divider -->
-          <Rectangle width="860" height="1" color="0x334155AA" translation="[0, 320]" />
-
-          <!-- Fact Check / Community Verification Section (Expanded for Full Content) -->
-          <Group id="modalFcBox" translation="[0, 340]">
-            <Rectangle id="modalFcAccent" width="4" height="270" color="0x34D399FF" translation="[0, 0]" />
-            <Poster id="modalFcIcon" uri="pkg:/images/icon_bolt.png" width="24" height="24" translation="[16, 2]" />
-            <Label
-              id="modalFcHeadline"
-              text="VERIFIED ACCURATE"
-              font="font:MediumBoldSystemFont"
-              color="0x34D399FF"
-              translation="[50, 2]" />
-            <Label
-              id="modalFcDetail"
-              text="Consensus verified with primary sources."
-              font="font:MediumSystemFont"
-              color="0xF1F5F9FF"
-              width="810"
-              wrap="true"
-              maxLines="8"
-              translation="[16, 42]" />
+            <!-- Hidden legacies -->
+            <Rectangle id="bbImageFrame" visible="false"><Poster id="bbAttachedImage" /></Rectangle>
+            <Rectangle id="bbQrBg" visible="false"><Poster id="bbQrCode" /></Rectangle>
           </Group>
         </Group>
+      </Rectangle>
+    </Group>
 
-        <!-- Right Section: Scannable Mobile Pass (440px wide, 630px high) -->
-        <Group translation="[960, 125]">
+
+    <!-- Main Stage Reaction Bar -->
+    <Group id="mainReactionBar" translation="[740, 1000]">
+      <Rectangle id="bgFire" width="80" height="40" color="0x334155AA" translation="[0, 0]">
+        <Poster uri="pkg:/images/icon_fire.png" width="24" height="24" translation="[8, 8]" />
+        <Label id="lblFire" text="0" font="font:SmallBoldSystemFont" color="0xCBD5E1FF" translation="[36, 12]" />
+      </Rectangle>
+      <Rectangle id="bgThink" width="80" height="40" color="0x334155AA" translation="[90, 0]">
+        <Poster uri="pkg:/images/icon_think.png" width="24" height="24" translation="[8, 8]" />
+        <Label id="lblThink" text="0" font="font:SmallBoldSystemFont" color="0xCBD5E1FF" translation="[36, 12]" />
+      </Rectangle>
+      <Rectangle id="bgIdea" width="80" height="40" color="0x334155AA" translation="[180, 0]">
+        <Poster uri="pkg:/images/icon_idea.png" width="24" height="24" translation="[8, 8]" />
+        <Label id="lblIdea" text="0" font="font:SmallBoldSystemFont" color="0xCBD5E1FF" translation="[36, 12]" />
+      </Rectangle>
+      <Rectangle id="bgHundred" width="80" height="40" color="0x334155AA" translation="[270, 0]">
+        <Poster uri="pkg:/images/icon_100.png" width="24" height="24" translation="[8, 8]" />
+        <Label id="lblHundred" text="0" font="font:SmallBoldSystemFont" color="0xCBD5E1FF" translation="[36, 12]" />
+      </Rectangle>
+      <Rectangle id="bgDown" width="80" height="40" color="0x334155AA" translation="[360, 0]">
+        <Poster uri="pkg:/images/icon_down.png" width="24" height="24" translation="[8, 8]" />
+        <Label id="lblDown" text="0" font="font:SmallBoldSystemFont" color="0xCBD5E1FF" translation="[36, 12]" />
+      </Rectangle>
+    </Group>
+
+    <!-- Progress Bar -->
+    <Group id="progressBarGroup" translation="[0, 1072]" visible="true">
+      <Rectangle width="1920" height="8" color="0x1E293B88" />
+      <Rectangle id="progressFill" width="0" height="8" color="0x38BDF8FF" />
+    </Group>
+
+    <!-- Global Dynamic QR Code Pinned to Corner -->
+    <Rectangle id="globalQrBg" width="240" height="280" color="0xFFFFFFFF" translation="[1620, 40]" visible="false">
+      <Poster id="globalQrCode" width="232" height="232" translation="[4, 4]" />
+      <Label text="Scan to comment" font="font:SmallBoldSystemFont" color="0x0F172AFF" translation="[0, 246]" horizAlign="center" width="240" />
+    </Rectangle>
+
+    <!-- Phase 2: Compact Floating Annotation Bubble -->
+    <FloatingAnnotationBubble id="annotationBubble" />
+
+    <!-- Full-Screen Detail View Modal with Dynamic QR Code -->
+    <Group id="detailModalGroup" visible="false" translation="[0, 0]">
+      <!-- Dim Scrim Backdrop -->
+      <Rectangle
+        width="1920"
+        height="1080"
+        color="0x030712F0" />
+
+      <!-- Center Modal Card Surface -->
+      <Rectangle
+        id="detailModalCard"
+        width="1560"
+        height="760"
+        color="0x0B1220FC"
+        translation="[180, 140]">
+        
+        <!-- Top Cyan Accent Line -->
+        <Rectangle
+          width="1560"
+          height="6"
+          color="0x38BDF8FF" />
+
+        <!-- Modal Header Row -->
+        <Group translation="[50, 32]">
           <Rectangle
-            width="440"
-            height="630"
-            color="0x03071288">
-            <Rectangle width="440" height="2" color="0x38BDF8AA" translation="[0, 0]" />
-
-            <!-- Clean Header -->
+            id="modalPlatformBg"
+            width="170"
+            height="34"
+            color="0x1E293BEE">
             <Label
-              text="Open on Mobile"
-              font="font:MediumBoldSystemFont"
+              id="modalPlatform"
+              text="X / Twitter"
+              font="font:SmallBoldSystemFont"
               color="0x38BDF8FF"
               horizAlign="center"
-              width="440"
-              translation="[0, 36]" />
+              width="170"
+              translation="[0, 8]" />
+          </Rectangle>
 
-            <!-- White QR Container Plate -->
+          <Label
+            id="modalDomain"
+            text="x.com"
+            font="font:SmallSystemFont"
+            color="0x94A3B8FF"
+            translation="[190, 8]" />
+        </Group>
+
+        <!-- Left Column: Source & Community Annotation (Width: 920px) -->
+        <Group translation="[50, 90]">
+          <!-- Author Handle -->
+          <Label
+            id="modalAuthor"
+            text="@magnetarsenti"
+            font="font:LargeBoldSystemFont"
+            color="0x38BDF8FF"
+            translation="[0, 0]" />
+
+          <!-- Page Title / Headline -->
+          <Label
+            id="modalTitle"
+            text="Annotated Source Title"
+            font="font:MediumBoldSystemFont"
+            color="0xFFFFFFFF"
+            width="900"
+            wrap="true"
+            maxLines="2"
+            translation="[0, 48]" />
+
+          <!-- Quote Block -->
+          <Rectangle
+            width="900"
+            height="230"
+            color="0x111827EE"
+            translation="[0, 116]">
+            <Rectangle width="6" height="230" color="0x38BDF8FF" />
+            <Label
+              text="ORIGINAL SOURCE QUOTE"
+              font="font:SmallBoldSystemFont"
+              color="0x38BDF8FF"
+              translation="[20, 14]" />
+            <Label
+              id="modalQuote"
+              text="Public quote from verified webpage or video"
+              font="font:MediumSystemFont"
+              color="0xF8FAFCFF"
+              width="850"
+              wrap="true"
+              maxLines="5"
+              lineSpacing="6"
+              translation="[20, 48]" />
+          </Rectangle>
+
+          <!-- Commentary Block -->
+          <Rectangle
+            width="900"
+            height="200"
+            color="0x111827EE"
+            translation="[0, 366]">
+            <Rectangle width="6" height="200" color="0x34D399FF" />
+            <Label
+              text="COMMUNITY COMMENTARY &amp; FACT CHECK"
+              font="font:SmallBoldSystemFont"
+              color="0x34D399FF"
+              translation="[20, 14]" />
+            <Label
+              id="modalComment"
+              text="Community commentary"
+              font="font:MediumSystemFont"
+              color="0xE2E8F0FF"
+              width="850"
+              wrap="true"
+              maxLines="4"
+              translation="[20, 48]" />
+          </Rectangle>
+        </Group>
+
+        <!-- Right Column: Clean QR Code Card (Width: 470px) -->
+        <Group translation="[1040, 90]">
+          <!-- QR Card Container -->
+          <Rectangle
+            width="470"
+            height="580"
+            color="0x1E293B88"
+            translation="[0, 0]">
+            <Rectangle width="470" height="4" color="0x38BDF8FF" />
+
+            <!-- White high-contrast backing for camera scanning -->
             <Rectangle
-              width="320"
-              height="320"
+              id="modalQrBg"
+              width="390"
+              height="390"
               color="0xFFFFFFFF"
-              translation="[60, 100]">
+              translation="[40, 95]">
               <Poster
-                id="modalQrPoster"
-                width="300"
-                height="300"
-                translation="[10, 10]" />
+                id="modalQrCode"
+                width="374"
+                height="374"
+                translation="[8, 8]" />
             </Rectangle>
           </Rectangle>
         </Group>
       </Rectangle>
     </Group>
-      <Timer id="playbackTimer" repeat="true" duration="0.25" />
   </children>
 </component>
+
