@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">Annotated</string>
+    <string name="action_annotate">Annotate</string>
+</resources>

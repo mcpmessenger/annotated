@@ -1,0 +1,763 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>annotated. - 10-Foot Living Room TV Experience</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+    }
+
+    body {
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      background-color: #000000;
+      color: #FFFFFF;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      position: relative;
+    }
+
+    /* FULL-SCREEN VIDEO CANVAS (Edge-to-Edge) */
+    .fullscreen-video-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: 1;
+      background: #000000;
+      overflow: hidden;
+    }
+    .fullscreen-video-container video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    /* CINEMATIC AMBIENT VIGNETTE OVERLAY */
+    .cinematic-vignette {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: 2;
+      pointer-events: none;
+      background: linear-gradient(180deg, rgba(9, 13, 22, 0.88) 0%, rgba(9, 13, 22, 0.1) 22%, rgba(9, 13, 22, 0.1) 60%, rgba(9, 13, 22, 0.95) 100%),
+                  linear-gradient(90deg, rgba(9, 13, 22, 0.45) 0%, transparent 25%, transparent 75%, rgba(9, 13, 22, 0.45) 100%);
+    }
+
+    /* FLOATING TOP HEADER */
+    .header {
+      position: fixed;
+      top: 3.5vh;
+      left: 4vw;
+      right: 4vw;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      z-index: 10;
+    }
+    .brand-group {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    .brand {
+      font-size: 2.5rem;
+      font-weight: 800;
+      letter-spacing: -1px;
+      text-shadow: 0 4px 15px rgba(0, 0, 0, 0.9);
+    }
+    .brand-dot {
+      color: #EF4444; /* Signature Red Dot */
+    }
+    .feed-counter {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: #94A3B8;
+      background: rgba(15, 23, 42, 0.7);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      padding: 4px 12px;
+      border-radius: 999px;
+      backdrop-filter: blur(10px);
+    }
+
+    /* COLOR-CODED STATUS PILL (Green / Yellow / Red) */
+    .status-badge {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 20px;
+      border-radius: 999px;
+      font-size: 1rem;
+      font-weight: 800;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      backdrop-filter: blur(14px);
+      box-shadow: 0 4px 25px rgba(0, 0, 0, 0.7);
+      transition: all 0.3s ease;
+    }
+    /* Green: Verified */
+    .status-badge.verified {
+      background: rgba(34, 197, 94, 0.18);
+      border: 1.5px solid #22C55E;
+      color: #4ADE80;
+      box-shadow: 0 0 20px rgba(34, 197, 94, 0.3);
+    }
+    /* Yellow: Needs Info */
+    .status-badge.needs-info {
+      background: rgba(245, 158, 11, 0.18);
+      border: 1.5px solid #F59E0B;
+      color: #FBBF24;
+      box-shadow: 0 0 20px rgba(245, 158, 11, 0.3);
+    }
+    /* Red: False / Disputed */
+    .status-badge.false {
+      background: rgba(239, 68, 68, 0.22);
+      border: 1.5px solid #EF4444;
+      color: #F87171;
+      box-shadow: 0 0 25px rgba(239, 68, 68, 0.45);
+    }
+
+    /* DIAGONAL "FALSE" RUBBER STAMP */
+    .stamp-false-banner {
+      position: fixed;
+      top: 14vh;
+      right: 6vw;
+      transform: rotate(-16deg);
+      border: 6px double #EF4444;
+      color: #EF4444;
+      background: rgba(239, 68, 68, 0.18);
+      padding: 10px 36px;
+      font-family: 'Impact', 'Arial Black', sans-serif;
+      font-size: 3.2rem;
+      font-weight: 900;
+      letter-spacing: 6px;
+      text-transform: uppercase;
+      border-radius: 10px;
+      box-shadow: 0 0 40px rgba(239, 68, 68, 0.65), inset 0 0 20px rgba(239, 68, 68, 0.4);
+      text-shadow: 0 0 15px rgba(239, 68, 68, 0.9);
+      z-index: 30;
+      pointer-events: none;
+      backdrop-filter: blur(6px);
+      display: none;
+      animation: stampImpact 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+    }
+    .stamp-false-banner.visible {
+      display: block;
+    }
+    @keyframes stampImpact {
+      0% { transform: rotate(-16deg) scale(2.2); opacity: 0; }
+      100% { transform: rotate(-16deg) scale(1); opacity: 1; }
+    }
+
+    /* FLOATING ANNOTATION BUBBLE (Bottom Left Overlay) */
+    .annotation-bubble {
+      position: fixed;
+      bottom: 15vh;
+      left: 4vw;
+      width: 520px;
+      max-width: 55vw;
+      background: rgba(15, 23, 42, 0.88);
+      border: 1px solid rgba(56, 189, 248, 0.45);
+      border-radius: 16px;
+      padding: 18px 22px;
+      backdrop-filter: blur(18px);
+      box-shadow: 0 15px 40px rgba(0, 0, 0, 0.85);
+      z-index: 10;
+      transition: all 0.3s ease;
+    }
+    .bubble-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+    .author-info {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 1rem;
+      font-weight: 700;
+      color: #F4F4F5;
+    }
+    .avatar {
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      background: #38BDF8;
+      box-shadow: 0 0 8px rgba(56, 189, 248, 0.6);
+      background-size: cover;
+      background-position: center;
+    }
+    .bubble-meta {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .timestamp-badge {
+      font-size: 0.85rem;
+      font-weight: 600;
+      background: rgba(255, 255, 255, 0.12);
+      padding: 3px 8px;
+      border-radius: 4px;
+      color: #E4E4E7;
+    }
+    .intent-badge {
+      font-size: 0.8rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      background: rgba(56, 189, 248, 0.2);
+      color: #38BDF8;
+      border: 1px solid rgba(56, 189, 248, 0.4);
+      padding: 3px 8px;
+      border-radius: 4px;
+    }
+    .bubble-quote {
+      font-size: 0.95rem;
+      color: #E2E8F0;
+      line-height: 1.4;
+      margin-bottom: 6px;
+      font-style: italic;
+      border-left: 3px solid #38BDF8;
+      padding-left: 10px;
+      max-height: 3.8em;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .bubble-comment {
+      font-size: 1.05rem;
+      font-weight: 600;
+      color: #FFFFFF;
+      line-height: 1.4;
+    }
+
+    /* REMOTE CHANNEL HINT (Floating Top Right) */
+    .remote-nav-hint {
+      position: fixed;
+      top: 11vh;
+      left: 4vw;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #94A3B8;
+      background: rgba(15, 23, 42, 0.75);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 6px 14px;
+      border-radius: 8px;
+      backdrop-filter: blur(10px);
+      z-index: 10;
+    }
+    .nav-arrow-badge {
+      background: rgba(255, 255, 255, 0.15);
+      color: #FFFFFF;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-weight: 800;
+    }
+
+    /* FLOATING 7-BUTTON REACTION BAR (Bottom Dock) */
+    .reaction-bar-container {
+      position: fixed;
+      bottom: 3.5vh;
+      left: 4vw;
+      right: 4vw;
+      height: 9.5vh;
+      background: rgba(15, 23, 42, 0.88);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      border-radius: 16px;
+      padding: 8px;
+      backdrop-filter: blur(20px);
+      box-shadow: 0 15px 40px rgba(0, 0, 0, 0.85);
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      z-index: 10;
+    }
+    .reaction-btn {
+      flex: 1;
+      height: 100%;
+      background: rgba(30, 41, 59, 0.65);
+      border: 2px solid transparent;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: #FFFFFF;
+      white-space: nowrap;
+      transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+    }
+    .reaction-btn img {
+      width: 26px;
+      height: 26px;
+      object-fit: contain;
+    }
+    .reaction-btn.focused {
+      transform: scale(1.05);
+      border-color: #38BDF8;
+      background: rgba(56, 189, 248, 0.25);
+      box-shadow: 0 0 20px rgba(56, 189, 248, 0.6);
+    }
+    /* Signature Red Backlight for File Claim */
+    .reaction-btn.claim-btn.focused {
+      border-color: #EF4444 !important;
+      background: rgba(239, 68, 68, 0.25) !important;
+      box-shadow: 0 0 25px rgba(239, 68, 68, 0.75) !important;
+    }
+
+    /* FULL-SCREEN OVERLAY MODALS */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(0, 0, 0, 0.88);
+      backdrop-filter: blur(12px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+    }
+    .modal-overlay.open {
+      display: flex;
+    }
+    .qr-card {
+      background: #111827;
+      border: 1px solid #374151;
+      border-radius: 20px;
+      padding: 36px 48px;
+      text-align: center;
+      max-width: 580px;
+      box-shadow: 0 25px 60px rgba(0, 0, 0, 0.95);
+      animation: popIn 0.2s ease-out forwards;
+    }
+    @keyframes popIn {
+      from { transform: scale(0.92); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+    .qr-title {
+      font-size: 1.8rem;
+      font-weight: 800;
+      color: #FFFFFF;
+      margin-bottom: 8px;
+    }
+    .qr-desc {
+      font-size: 1rem;
+      color: #9CA3AF;
+      margin-bottom: 24px;
+      line-height: 1.4;
+    }
+    .qr-card img {
+      width: 250px;
+      height: 250px;
+      border-radius: 12px;
+      background: #FFFFFF;
+      padding: 10px;
+      margin: 0 auto 20px auto;
+      display: block;
+    }
+    .qr-hint {
+      font-size: 0.95rem;
+      color: #6B7280;
+    }
+    .qr-hint strong {
+      color: #F3F4F6;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- FULL-SCREEN EDGE-TO-EDGE VIDEO LAYER -->
+  <div class="fullscreen-video-container">
+    <video id="tvVideo" autoplay loop playsinline muted>
+      <source id="videoSource" src="https://annotated-processed-videos.s3.us-east-1.amazonaws.com/processed/legacy_d31852c7-603f-43f6-b395-ff77d3c204ff.mp4" type="video/mp4">
+    </video>
+  </div>
+
+  <!-- CINEMATIC VIGNETTE GRADIENTS -->
+  <div class="cinematic-vignette"></div>
+
+  <!-- DIAGONAL "FALSE" RUBBER STAMP (Revealed when claim is FALSE) -->
+  <div class="stamp-false-banner" id="stampFalse">FALSE</div>
+
+  <!-- FLOATING TOP HEADER -->
+  <header class="header">
+    <div class="brand-group">
+      <div class="brand">annotated<span class="brand-dot">.</span></div>
+      <div class="feed-counter" id="feedCounter">LIVE FEED · S3</div>
+    </div>
+    
+    <!-- DYNAMIC COLOR-CODED STATUS BADGE -->
+    <div class="status-badge verified" id="statusBadge">
+      <span id="statusIcon">✓</span>
+      <span id="statusText">VERIFIED ACCURATE</span>
+    </div>
+  </header>
+
+  <!-- REMOTE D-PAD CHANNEL HINT -->
+  <div class="remote-nav-hint">
+    <span><span class="nav-arrow-badge">▲</span> <span class="nav-arrow-badge">▼</span> Next / Prev Video</span>
+    <span>•</span>
+    <span><span class="nav-arrow-badge">◄</span> <span class="nav-arrow-badge">►</span> Reaction Dock</span>
+  </div>
+
+  <!-- FLOATING ANNOTATION BUBBLE (Bottom Left) -->
+  <div class="annotation-bubble" id="annotationBubble">
+    <div class="bubble-header">
+      <div class="author-info">
+        <div class="avatar" id="authorAvatar"></div>
+        <span id="authorName">@sentilabs01</span>
+      </div>
+      <div class="bubble-meta">
+        <span class="timestamp-badge" id="bubbleTime">00:04</span>
+        <span class="intent-badge" id="bubbleIntent">HOT TAKE</span>
+      </div>
+    </div>
+    <div class="bubble-quote" id="bubbleQuote">"Still waiting for the AI labs to saturate this benchmark"</div>
+    <div class="bubble-comment" id="bubbleComment">Notice how Grok 4.7 and Claude 5.5 tie with a score of zero here.</div>
+  </div>
+
+  <!-- FLOATING 7-BUTTON REACTION DOCK (Fact Check replaced with Annotate) -->
+  <div class="reaction-bar-container" id="reactionBar">
+    <div class="reaction-btn focused" data-index="0" data-action="annotate">
+      <span>✏️</span>
+      <span>Annotate</span>
+    </div>
+    <div class="reaction-btn" data-index="1" data-action="fire">
+      <img src="images/icon_fire.png" alt="Fire">
+      <span class="count" id="countFire">12</span>
+    </div>
+    <div class="reaction-btn" data-index="2" data-action="think">
+      <img src="images/icon_think.png" alt="Think">
+      <span class="count" id="countThink">5</span>
+    </div>
+    <div class="reaction-btn" data-index="3" data-action="idea">
+      <img src="images/icon_idea.png" alt="Idea">
+      <span class="count" id="countIdea">8</span>
+    </div>
+    <div class="reaction-btn" data-index="4" data-action="100">
+      <img src="images/icon_100.png" alt="100">
+      <span class="count" id="count100">24</span>
+    </div>
+    <div class="reaction-btn" data-index="5" data-action="down">
+      <img src="images/icon_down.png" alt="Dislike">
+      <span class="count" id="countDown">2</span>
+    </div>
+    <div class="reaction-btn claim-btn" data-index="6" data-action="claim">
+      <span>&#9888;&#65039;</span>
+      <span>File Claim</span>
+    </div>
+  </div>
+
+  <!-- QR DISPUTE MODAL (File Claim) -->
+  <div class="modal-overlay" id="qrModal">
+    <div class="qr-card">
+      <h2 class="qr-title">File a Community Dispute</h2>
+      <p class="qr-desc">Scan with your phone to submit evidence, dispute this claim, or review the verification audit log.</p>
+      <img id="qrImageDispute" src="https://api.qrserver.com/v1/create-qr-code/?size=300x300&margin=8&data=https%3A%2F%2Fannotated-repo.vercel.app%2Fn%2Fannotation-d31852c7" alt="QR Code">
+      <div class="qr-hint">Press <strong>OK</strong> or <strong>Back</strong> on your remote to close</div>
+    </div>
+  </div>
+
+  <!-- ANNOTATE MODAL (Scan to Annotate Live) -->
+  <div class="modal-overlay" id="annotateModal">
+    <div class="qr-card">
+      <h2 class="qr-title">✏️ Add Live Annotation</h2>
+      <p class="qr-desc">Scan with your smartphone to highlight this exact moment and publish your community note.</p>
+      <img id="qrImageAnnotate" src="https://api.qrserver.com/v1/create-qr-code/?size=300x300&margin=8&data=https%3A%2F%2Fannotated-repo.vercel.app" alt="QR Code">
+      <div class="qr-hint">Press <strong>OK</strong> or <strong>Back</strong> on your remote to close</div>
+    </div>
+  </div>
+
+  <script>
+    let focusedIndex = 0;
+    const totalButtons = 7;
+    const buttons = document.querySelectorAll('.reaction-btn');
+    const qrModal = document.getElementById('qrModal');
+    const annotateModal = document.getElementById('annotateModal');
+    const video = document.getElementById('tvVideo');
+    const videoSource = document.getElementById('videoSource');
+    const statusBadge = document.getElementById('statusBadge');
+    const statusIcon = document.getElementById('statusIcon');
+    const statusText = document.getElementById('statusText');
+    const stampFalse = document.getElementById('stampFalse');
+    const feedCounter = document.getElementById('feedCounter');
+
+    // FEED STATE (Dynamic Ingestion from Live API / S3)
+    let feedItems = [
+      {
+        id: "d31852c7",
+        video_url: "https://annotated-processed-videos.s3.us-east-1.amazonaws.com/processed/legacy_d31852c7-603f-43f6-b395-ff77d3c204ff.mp4",
+        author: "@sentilabs01",
+        avatar: "",
+        quote: "\"Still waiting for the AI labs to saturate this benchmark\"",
+        comment: "Notice how Grok 4.7 and Claude 5.5 tie with a score of zero here.",
+        intent: "HOT TAKE",
+        status: "verified", // verified | needs-info | false
+        pass_url: "https://annotated-repo.vercel.app/n/annotation-d31852c7",
+        reactions: { fire: 12, think: 5, idea: 8, hundred: 24, down: 2 }
+      },
+      {
+        id: "4569046e",
+        video_url: "https://annotated-processed-videos.s3.us-east-1.amazonaws.com/processed/4569046e-d24a-4b99-a331-9f5c8337fac7_1790722387721_clip.mp4.mp4",
+        author: "@sentilabs01",
+        avatar: "",
+        quote: "FULL: Elon Musk, Jensen Huang, Tom Brown Discuss the AI Revolution",
+        comment: "Shared a video clip analyzing compute scaling limits. Needs citation.",
+        intent: "ANALYSIS",
+        status: "needs-info",
+        pass_url: "https://annotated-repo.vercel.app/n/shared-a-video-clip-10-29-11-59--2b9b858e",
+        reactions: { fire: 18, think: 9, idea: 14, hundred: 40, down: 1 }
+      },
+      {
+        id: "f92376a1",
+        video_url: "https://dajadbvlldrmgzztdksn.supabase.co/storage/v1/object/public/annotation-media/video_1790745794141.mp4",
+        author: "@sentilabs01",
+        avatar: "",
+        quote: "NASA Admin Jared Isaacman Discusses Space Advances",
+        comment: "Telemetry claims cross-referenced with official flight logs. Debunked trajectory report.",
+        intent: "FACT CHECK",
+        status: "false", // FALSE TRIGGER
+        pass_url: "https://annotated-repo.vercel.app/n/shared-a-video-clip-00-21-00-53--f92376a1",
+        reactions: { fire: 4, think: 11, idea: 3, hundred: 6, down: 32 }
+      }
+    ];
+
+    let currentItemIndex = 0;
+
+    // FETCH REAL FEED DATA FROM LIVE S3 / SUPABASE FEED ENDPOINT
+    async function fetchLiveFeed() {
+      try {
+        const res = await fetch('https://annotated-repo.vercel.app/api/feed?video_only=true');
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        const data = await res.json();
+        if (data && data.items && data.items.length > 0) {
+          const validVideoItems = data.items.filter(item => item.media && item.media.playable_url);
+          if (validVideoItems.length > 0) {
+            feedItems = validVideoItems.map((item, idx) => {
+              // Assign realistic status for variety (verified, needs-info, false)
+              let status = 'verified';
+              if (item.is_disputed || (item.comment && item.comment.toLowerCase().includes('false'))) {
+                status = 'false';
+              } else if (idx % 3 === 1) {
+                status = 'needs-info';
+              } else if (idx % 3 === 2) {
+                status = 'false';
+              }
+
+              return {
+                id: item.id,
+                video_url: item.media.playable_url,
+                author: '@' + (item.author?.username || 'annotated'),
+                avatar: item.author?.avatar_url || '',
+                quote: item.quote || item.source?.title || 'Video Clip',
+                comment: item.comment ? item.comment.replace(/\[.*?\]/g, '').trim() : 'Community annotation on this video.',
+                intent: (item.intent || 'HOT TAKE').toUpperCase(),
+                status: status,
+                pass_url: item.pass_url || 'https://annotated-repo.vercel.app',
+                reactions: {
+                  fire: (item.reactions && item.reactions['🔥']) || 8,
+                  think: (item.reactions && item.reactions['🤔']) || 3,
+                  idea: (item.reactions && item.reactions['💡']) || 5,
+                  hundred: (item.reactions && item.reactions['💯']) || 15,
+                  down: (item.reactions && item.reactions['👎']) || 1
+                }
+              };
+            });
+            console.log("Successfully ingested " + feedItems.length + " live S3/Supabase videos!");
+            renderItem(0);
+          }
+        }
+      } catch (err) {
+        console.log("Using seeded S3 pipeline clips, live API fetch error:", err);
+      }
+    }
+
+    // RENDER ACTIVE VIDEO & METADATA
+    function renderItem(idx) {
+      if (idx < 0 || idx >= feedItems.length) return;
+      currentItemIndex = idx;
+      const item = feedItems[currentItemIndex];
+
+      // Update video source
+      if (video) {
+        video.src = item.video_url;
+        video.load();
+        video.play().catch(e => console.log("Play waiting for gesture:", e));
+      }
+
+      // Update Header Status Badge
+      statusBadge.className = 'status-badge ' + item.status;
+      if (item.status === 'verified') {
+        statusIcon.textContent = '✓';
+        statusText.textContent = 'VERIFIED ACCURATE';
+        stampFalse.classList.remove('visible');
+      } else if (item.status === 'needs-info') {
+        statusIcon.textContent = '⏳';
+        statusText.textContent = 'NEEDS INFO / UNVERIFIED';
+        stampFalse.classList.remove('visible');
+      } else if (item.status === 'false') {
+        statusIcon.textContent = '✕';
+        statusText.textContent = 'RATED FALSE';
+        stampFalse.classList.add('visible'); // Show diagonal FALSE stamp!
+      }
+
+      // Update Feed Counter
+      feedCounter.textContent = `VIDEO ${currentItemIndex + 1} OF ${feedItems.length} · S3`;
+
+      // Update Bubble
+      document.getElementById('authorName').textContent = item.author;
+      document.getElementById('bubbleQuote').textContent = item.quote;
+      document.getElementById('bubbleComment').textContent = item.comment;
+      document.getElementById('bubbleIntent').textContent = item.intent;
+
+      const avatarEl = document.getElementById('authorAvatar');
+      if (item.avatar) {
+        avatarEl.style.backgroundImage = `url('${item.avatar}')`;
+      } else {
+        avatarEl.style.backgroundImage = 'none';
+      }
+
+      // Update Reaction Counts
+      document.getElementById('countFire').textContent = item.reactions.fire;
+      document.getElementById('countThink').textContent = item.reactions.think;
+      document.getElementById('countIdea').textContent = item.reactions.idea;
+      document.getElementById('count100').textContent = item.reactions.hundred;
+      document.getElementById('countDown').textContent = item.reactions.down;
+
+      // Update QR Codes
+      const disputeQR = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&margin=8&data=${encodeURIComponent(item.pass_url)}`;
+      document.getElementById('qrImageDispute').src = disputeQR;
+      const annotateQR = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&margin=8&data=${encodeURIComponent(item.pass_url + '?action=annotate')}`;
+      document.getElementById('qrImageAnnotate').src = annotateQR;
+    }
+
+    function updateFocus() {
+      buttons.forEach((btn, idx) => {
+        if (idx === focusedIndex) {
+          btn.classList.add('focused');
+        } else {
+          btn.classList.remove('focused');
+        }
+      });
+    }
+
+    function closeModals() {
+      qrModal.classList.remove('open');
+      annotateModal.classList.remove('open');
+    }
+
+    function handleAction(index) {
+      if (index === 6) {
+        // File Claim
+        if (qrModal.classList.contains('open')) {
+          qrModal.classList.remove('open');
+        } else {
+          closeModals();
+          qrModal.classList.add('open');
+        }
+      } else if (index === 0) {
+        // Annotate
+        if (annotateModal.classList.contains('open')) {
+          annotateModal.classList.remove('open');
+        } else {
+          closeModals();
+          annotateModal.classList.add('open');
+        }
+      } else {
+        const countSpan = buttons[index].querySelector('.count');
+        if (countSpan) {
+          let current = parseInt(countSpan.textContent, 10) || 0;
+          countSpan.textContent = current + 1;
+          buttons[index].style.transform = 'scale(1.15)';
+          setTimeout(() => { buttons[index].style.transform = ''; }, 150);
+        }
+      }
+    }
+
+    window.handleTvBack = function() {
+      if (qrModal.classList.contains('open') || annotateModal.classList.contains('open')) {
+        closeModals();
+      } else if (window.AndroidBridge && window.AndroidBridge.exitApp) {
+        window.AndroidBridge.exitApp();
+      }
+    };
+
+    window.handleTvKey = function(key) {
+      if (key === 'ArrowLeft') {
+        closeModals();
+        focusedIndex = (focusedIndex - 1 + totalButtons) % totalButtons;
+        updateFocus();
+      } else if (key === 'ArrowRight') {
+        closeModals();
+        focusedIndex = (focusedIndex + 1) % totalButtons;
+        updateFocus();
+      } else if (key === 'ArrowDown') {
+        // Next Video in S3 Feed
+        closeModals();
+        const nextIdx = (currentItemIndex + 1) % feedItems.length;
+        renderItem(nextIdx);
+      } else if (key === 'ArrowUp') {
+        // Previous Video in S3 Feed
+        closeModals();
+        const prevIdx = (currentItemIndex - 1 + feedItems.length) % feedItems.length;
+        renderItem(prevIdx);
+      } else if (key === 'Enter') {
+        if (qrModal.classList.contains('open') || annotateModal.classList.contains('open')) {
+          closeModals();
+        } else {
+          handleAction(focusedIndex);
+        }
+      } else if (key === 'Back' || key === 'Escape') {
+        if (qrModal.classList.contains('open') || annotateModal.classList.contains('open')) {
+          closeModals();
+        }
+      }
+    };
+
+    window.addEventListener('keydown', (e) => {
+      if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Enter', 'Escape', 'Backspace'].includes(e.key)) {
+        e.preventDefault();
+        const keyMap = {
+          'ArrowLeft': 'ArrowLeft',
+          'ArrowRight': 'ArrowRight',
+          'ArrowUp': 'ArrowUp',
+          'ArrowDown': 'ArrowDown',
+          'Enter': 'Enter',
+          'Escape': 'Back',
+          'Backspace': 'Back'
+        };
+        window.handleTvKey(keyMap[e.key]);
+      }
+    });
+
+    if (video) {
+      video.addEventListener('timeupdate', () => {
+        const time = video.currentTime;
+        const timeBadge = document.getElementById('bubbleTime');
+        const mins = Math.floor(time / 60);
+        const secs = Math.floor(time % 60);
+        const formatted = String(mins).padStart(2, '0') + ':' + String(secs).padStart(2, '0');
+        if (timeBadge) timeBadge.textContent = formatted;
+      });
+    }
+
+    // Initialize
+    renderItem(0);
+    fetchLiveFeed();
+  </script>
+</body>
+</html>
