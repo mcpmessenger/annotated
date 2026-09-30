@@ -38,6 +38,7 @@ sub init()
     m.bbAnnotatorAvatar = m.top.findNode("bbAnnotatorAvatar")
     m.bbQuote = m.top.findNode("bbQuote")
     m.bbComment = m.top.findNode("bbComment")
+    m.bbDivider = m.top.findNode("bbDivider")
     m.bbImageFrame = m.top.findNode("bbImageFrame")
     m.bbAttachedImage = m.top.findNode("bbAttachedImage")
     m.bbIntent = m.top.findNode("bbIntent")
@@ -45,8 +46,11 @@ sub init()
     m.bbQrBg = m.top.findNode("bbQrBg")
     m.bbQrCode = m.top.findNode("bbQrCode")
 
+    m.globalQrGroup = m.top.findNode("globalQrGroup")
     m.globalQrBg = m.top.findNode("globalQrBg")
     m.globalQrCode = m.top.findNode("globalQrCode")
+    m.annotateQrOverlay = m.top.findNode("annotateQrOverlay")
+    m.bigAnnotateQr = m.top.findNode("bigAnnotateQr")
 
     m.detailModalGroup = m.top.findNode("detailModalGroup")
     m.modalPlatform = m.top.findNode("modalPlatform")
@@ -91,6 +95,7 @@ sub init()
     ' m.buttons array removed
     m.focusedButtonIndex = 0
     m.focusedEmojiIndex = -1
+    m.castedReactions = {}
 
     m.cards = [m.card1, m.card2, m.card3]
     m.cardOutlines = [m.card1Outline, m.card2Outline, m.card3Outline]
@@ -106,10 +111,12 @@ sub init()
     ' Progress bar references
     m.progressFill = m.top.findNode("progressFill")
     m.bgFire = m.top.findNode("bgFire")
+    m.bgAnnotate = m.top.findNode("bgAnnotate")
     m.bgThink = m.top.findNode("bgThink")
     m.bgIdea = m.top.findNode("bgIdea")
     m.bgHundred = m.top.findNode("bgHundred")
-    m.bgDown = m.top.findNode("bgDown")
+        m.bgDown = m.top.findNode("bgDown")
+    m.bgClaim = m.top.findNode("bgClaim")
     m.lblFire = m.top.findNode("lblFire")
     m.lblThink = m.top.findNode("lblThink")
     m.lblIdea = m.top.findNode("lblIdea")
@@ -181,6 +188,15 @@ end sub
 function resolvePlayableVideoUrl(item as Dynamic) as String
     if item = invalid then return ""
 
+    ' GLOBAL ROKU OVERRIDE: Prevent fragmented mp4/webm crashing Roku hardware decoder
+    ' If it originates from our raw supabase bucket, instantly route to our processed S3 bucket
+    if item.media <> invalid and item.media.raw_url <> invalid
+        rawStr = item.media.raw_url
+        if Instr(1, rawStr, "supabase") > 0 and item.id <> invalid
+            return "https://annotated-processed-videos.s3.us-east-1.amazonaws.com/processed/legacy_" + item.id + ".mp4"
+        end if
+    end if
+
     playUrl = ""
     rawUrl = ""
     
@@ -218,7 +234,7 @@ function resolvePlayableVideoUrl(item as Dynamic) as String
     end if
 
     ' Dynamic WebM to MP4 fallback for Roku
-    if Instr(1, rawUrl, "annotation-media/") > 0 and Instr(1, lowerRaw, ".webm") > 0
+    if Instr(1, rawUrl, "annotation-media/") > 0 
         if item.id <> invalid
             return "https://annotated-processed-videos.s3.us-east-1.amazonaws.com/processed/legacy_" + item.id + ".mp4"
         end if
@@ -248,10 +264,9 @@ sub renderBillboard(item as Object)
         m.mainVideo.control = "stop"
         m.mainVideo.visible = false
     end if
-    if m.videoOverlayTop <> invalid then if m.videoOverlayTop <> invalid then m.videoOverlayTop.visible = false
+    if m.videoOverlayTop <> invalid then m.videoOverlayTop.visible = false
     if m.tweetBillboardGroup <> invalid then m.tweetBillboardGroup.visible = true
 
-    ' Check if there is an attached screenshot/image to render on billboard
     imageUrl = ""
     if item.media <> invalid
         if item.media.image_url <> invalid and item.media.image_url <> ""
@@ -269,10 +284,14 @@ sub renderBillboard(item as Object)
     if imageUrl <> ""
         if m.bbImageFrame <> invalid then m.bbImageFrame.visible = true
         if m.bbAttachedImage <> invalid then m.bbAttachedImage.uri = imageUrl
-        if m.bbQuote <> invalid then m.bbQuote.width = 600
+        if m.bbQuote <> invalid then m.bbQuote.width = 580
+        if m.bbComment <> invalid then m.bbComment.width = 580
+        if m.bbDivider <> invalid then m.bbDivider.width = 580
     else
         if m.bbImageFrame <> invalid then m.bbImageFrame.visible = false
-        if m.bbQuote <> invalid then m.bbQuote.width = 1044
+        if m.bbQuote <> invalid then m.bbQuote.width = 1200
+        if m.bbComment <> invalid then m.bbComment.width = 1160
+        if m.bbDivider <> invalid then m.bbDivider.width = 1200
     end if
 
     domain = ""
@@ -300,54 +319,43 @@ sub renderBillboard(item as Object)
         end if
     end if
 
-if item.author <> invalid
+    if item.author <> invalid
         if item.author.username <> invalid
-            m.bbAuthor.text = "@" + item.author.username
+            if m.bbAuthor <> invalid then m.bbAuthor.text = "@" + item.author.username
         else if item.author.display_name <> invalid
-            m.bbAuthor.text = item.author.display_name
+            if m.bbAuthor <> invalid then m.bbAuthor.text = item.author.display_name
         end if
         
         if item.author.avatar_url <> invalid and item.author.avatar_url <> ""
-            m.bbAnnotatorAvatar.uri = item.author.avatar_url
-            m.bbAnnotatorAvatar.visible = true
+            if m.bbAnnotatorAvatar <> invalid
+                m.bbAnnotatorAvatar.uri = item.author.avatar_url
+                m.bbAnnotatorAvatar.visible = true
+            end if
         else
-            m.bbAnnotatorAvatar.visible = false
+            if m.bbAnnotatorAvatar <> invalid then m.bbAnnotatorAvatar.visible = false
         end if
     else
-        m.bbAuthor.text = "@community"
-        m.bbAnnotatorAvatar.visible = false
+        if m.bbAuthor <> invalid then m.bbAuthor.text = "@community"
+        if m.bbAnnotatorAvatar <> invalid then m.bbAnnotatorAvatar.visible = false
     end if
 
     quoteText = "Public annotation from community web layer"
-    if item.quote <> invalid and item.quote <> ""
+    if item.highlighted_text <> invalid and item.highlighted_text <> ""
+        quoteText = cleanText(item.highlighted_text)
+    else if item.page_title <> invalid and item.page_title <> ""
+        quoteText = cleanText(item.page_title)
+    else if item.quote <> invalid and item.quote <> ""
         quoteText = cleanText(item.quote)
     end if
     if m.bbQuote <> invalid then m.bbQuote.text = """" + quoteText + """"
 
-    commText = "Annotated commentary"
     if item.comment <> invalid and item.comment <> ""
-        commText = cleanText(item.comment)
-    end if
-    if m.bbComment <> invalid then m.bbComment.text = commText
-
-    if m.bbIntent <> invalid then m.bbIntent.text = formatEmotes(item)
-    if m.timestampBadge <> invalid then if m.timestampBadge <> invalid then m.timestampBadge.text = "Text Note"
-
-    slug = ""
-    if item.slug <> invalid and item.slug <> ""
-        slug = item.slug
-    else if item.id <> invalid
-        slug = item.id
-    end if
-    qrUrl = ""
-    if item.qr_url <> invalid and item.qr_url <> ""
-        qrUrl = item.qr_url
+        if m.bbComment <> invalid then m.bbComment.text = cleanText(item.comment)
     else
-        qrUrl = "https://api.qrserver.com/v1/create-qr-code/?size=340x340&margin=8&data=https%3A%2F%2Fannotated-repo.vercel.app%2Fn%2F" + slug
+        if m.bbComment <> invalid then m.bbComment.text = "No additional commentary provided."
     end if
-    if m.bbQrCode <> invalid then m.bbQrCode.uri = qrUrl
 
-    print "[Annotated Stage] Presented Tweet/Text Billboard: "; authorName; " | Quote: "; Left(quoteText, 35)
+    print "[Annotated Stage] Presented Tweet/Text Billboard: "; sourceLabel; " | Quote: "; Left(quoteText, 35)
 end sub
 
 sub playAnnotationVideo(index as Integer)
@@ -367,8 +375,56 @@ sub playAnnotationVideo(index as Integer)
 
     if m.videoTitle <> invalid then m.videoTitle.text = title
     m.currentPlayingCardIndex = index
+    m.castedReactions = {}
+    
+    ' Reset status lines to Yellow (Pending / Not Verified)
+    if m.bbIntentPill <> invalid then m.bbIntentPill.color = "0xFBBF24FF"
+    if m.ltStatusLine <> invalid then m.ltStatusLine.color = "0xFBBF24FF"
+
+    ' Run Fact Check Task!
+    if m.fcTask <> invalid then m.fcTask.control = "stop"
+    m.fcTask = createObject("roSGNode", "FactCheckTask")
+    if m.fcTask <> invalid
+        m.fcTask.annotationData = FormatJson(item)
+        m.fcTask.observeField("response", "onFactCheckResult")
+        m.fcTask.control = "RUN"
+    end if
 
     isTextNote = (videoUrl = "" or item.media = invalid or item.media.type = "text" or item.media.type = "image")
+
+    m.lowerThirdGroup = m.top.findNode("lowerThirdGroup")
+    m.ltAvatar = m.top.findNode("ltAvatar")
+    m.ltAuthor = m.top.findNode("ltAuthor")
+    m.ltComment = m.top.findNode("ltComment")
+    m.ltStatusLine = m.top.findNode("ltStatusLine")
+    m.bbIntentPill = m.top.findNode("bbIntentPill")
+
+    if m.lowerThirdGroup <> invalid
+        hasComment = false
+        if item.comment <> invalid and item.comment <> ""
+            hasComment = true
+            if m.ltComment <> invalid then m.ltComment.text = cleanText(item.comment)
+            
+            authorText = "@community"
+            if item.author <> invalid
+                if item.author.username <> invalid then authorText = item.author.username
+            end if
+            if m.ltAuthor <> invalid then m.ltAuthor.text = authorText
+            
+            if m.ltAvatar <> invalid
+                m.ltAvatar.uri = ""
+                if item.author <> invalid and item.author.avatar_url <> invalid
+                    m.ltAvatar.uri = item.author.avatar_url
+                end if
+            end if
+        end if
+        
+        if isTextNote or not hasComment
+            m.lowerThirdGroup.visible = false
+        else
+            m.lowerThirdGroup.visible = true
+        end if
+    end if
 
     if isTextNote
         stopProgressTimer()
@@ -509,8 +565,11 @@ sub playAnnotationVideo(index as Integer)
     if m.globalQrCode <> invalid
         m.globalQrCode.uri = qrUrl
     end if
+    if m.bigAnnotateQr <> invalid
+        m.bigAnnotateQr.uri = qrUrl
+    end if
     if m.globalQrBg <> invalid
-        m.globalQrBg.visible = true
+        
     end if
 
 end sub
@@ -1082,13 +1141,12 @@ end sub
 function onKeyEvent(key as String, press as Boolean) as Boolean
     handled = false
 
-    if press
-        print "[Annotated] Remote key: '"; key; "'"
-
-        if m.detailModalGroup <> invalid and m.detailModalGroup.visible = true
-            if key = "back" or key = "replay" or key = "OK" or key = "Select" or key = "options"
-                showDetailModal(false)
-                return true
+    if press then
+        if m.uiState = m.STATE_ENTRY
+            if key = "OK" or key = "Select"
+                if m.annotations <> invalid and m.annotations.count() > 0
+                    playAnnotationVideo(0)
+                end if
             end if
             return true
         end if
@@ -1116,16 +1174,57 @@ function onKeyEvent(key as String, press as Boolean) as Boolean
             if m.focusedEmojiIndex = -1 then m.focusedEmojiIndex = 0
             if m.focusedEmojiIndex > 0 then m.focusedEmojiIndex = m.focusedEmojiIndex - 1
             setFocusedEmoji(m.focusedEmojiIndex)
+            if m.annotateQrOverlay <> invalid then m.annotateQrOverlay.visible = false
+            if m.uiState = m.STATE_BUBBLE_OPEN then setUIState(m.STATE_PLAYBACK)
             handled = true
         else if key = "right"
             if m.focusedEmojiIndex = -1 then m.focusedEmojiIndex = 0
-            if m.focusedEmojiIndex < 4 then m.focusedEmojiIndex = m.focusedEmojiIndex + 1
+            if m.focusedEmojiIndex < 6 then m.focusedEmojiIndex = m.focusedEmojiIndex + 1
             setFocusedEmoji(m.focusedEmojiIndex)
+            if m.annotateQrOverlay <> invalid then m.annotateQrOverlay.visible = false
+            if m.uiState = m.STATE_BUBBLE_OPEN then setUIState(m.STATE_PLAYBACK)
             handled = true
         else if key = "OK" or key = "Select"
-            if m.focusedEmojiIndex >= 0 and m.focusedEmojiIndex <= 4
-                print "Casted emoji reaction: "; m.focusedEmojiIndex
-                ' Optionally flash it or reset
+            if m.focusedEmojiIndex = 6
+                if m.uiState = m.STATE_BUBBLE_OPEN
+                    setUIState(m.STATE_PLAYBACK)
+                else
+                    setUIState(m.STATE_BUBBLE_OPEN)
+                end if
+                handled = true
+            else if m.focusedEmojiIndex = 0
+                ' Toggle the big Annotate QR Overlay
+                if m.annotateQrOverlay <> invalid
+                    m.annotateQrOverlay.visible = not m.annotateQrOverlay.visible
+                end if
+                handled = true
+            else if m.focusedEmojiIndex >= 1 and m.focusedEmojiIndex <= 5
+                if m.annotations <> invalid and m.currentPlayingCardIndex >= 0
+                    item = m.annotations[m.currentPlayingCardIndex]
+                    if item <> invalid and item.id <> invalid
+                        castKey = Str(m.currentPlayingCardIndex) + "_" + Str(m.focusedEmojiIndex)
+                        if m.castedReactions[castKey] <> true
+                            print "Casted emoji reaction: "; m.focusedEmojiIndex
+                            m.castedReactions[castKey] = true
+                            
+                            m.postTask = createObject("roSGNode", "PostReactionTask")
+                            if m.postTask <> invalid
+                                m.postTask.annotationId = item.id
+                                m.postTask.reactionIndex = m.focusedEmojiIndex - 1
+                                m.postTask.control = "RUN"
+                            end if
+                            
+                            ' Optimistically update UI
+                            counts = [invalid, m.lblFire, m.lblThink, m.lblIdea, m.lblHundred, m.lblDown]
+                            if counts[m.focusedEmojiIndex] <> invalid
+                                currentCount = Val(counts[m.focusedEmojiIndex].text)
+                                counts[m.focusedEmojiIndex].text = Str(currentCount + 1).trim()
+                            end if
+                        else
+                            print "Already casted this reaction!"
+                        end if
+                    end if
+                end if
             else
                 ' Default OK action if no emoji focused -> maybe toggle bubble or detail modal
                 if m.uiState = m.STATE_PLAYBACK
@@ -1143,12 +1242,15 @@ function onKeyEvent(key as String, press as Boolean) as Boolean
             end if
             handled = true
         else if key = "back"
-            if m.focusedEmojiIndex <> -1
-                m.focusedEmojiIndex = -1
-                setFocusedEmoji(-1)
+            if m.annotateQrOverlay <> invalid and m.annotateQrOverlay.visible = true
+                m.annotateQrOverlay.visible = false
                 handled = true
             else if m.uiState = m.STATE_BUBBLE_OPEN
                 setUIState(m.STATE_PLAYBACK)
+                handled = true
+            else if m.focusedEmojiIndex <> -1
+                m.focusedEmojiIndex = -1
+                setFocusedEmoji(-1)
                 handled = true
             end if
             ' If not handled, let system exit
@@ -1160,14 +1262,38 @@ end function
 
 
 sub setFocusedEmoji(index as Integer)
-    bgs = [m.bgFire, m.bgThink, m.bgIdea, m.bgHundred, m.bgDown]
-    for i = 0 to 4
+    bgs = [m.bgAnnotate, m.bgFire, m.bgThink, m.bgIdea, m.bgHundred, m.bgDown, m.bgClaim]
+    for i = 0 to 6
         if bgs[i] <> invalid
             if i = index
-                bgs[i].color = "0x059669FF" ' Emerald highlight
+                if i = 6
+                    bgs[i].color = "0xDC2626FF" ' Red highlight
+                else
+                    bgs[i].color = "0x059669FF" ' Emerald highlight
+                end if
             else
                 bgs[i].color = "0x334155AA" ' Normal slate
             end if
         end if
     end for
+end sub
+
+sub onFactCheckResult(event as Object)
+    respStr = event.getData()
+    if respStr <> "" and respStr <> "ERROR"
+        res = ParseJson(respStr)
+        if res <> invalid
+            verdict = res.verdict
+            if verdict = "VERIFIED" or verdict = "VERIFIED_TRUE"
+                if m.bbIntentPill <> invalid then m.bbIntentPill.color = "0x34D399FF" ' Green
+                if m.ltStatusLine <> invalid then m.ltStatusLine.color = "0x34D399FF"
+            else if verdict = "FALSE" or verdict = "MISLEADING"
+                if m.bbIntentPill <> invalid then m.bbIntentPill.color = "0xEF4444FF" ' Red
+                if m.ltStatusLine <> invalid then m.ltStatusLine.color = "0xEF4444FF"
+            else
+                if m.bbIntentPill <> invalid then m.bbIntentPill.color = "0xFBBF24FF" ' Yellow
+                if m.ltStatusLine <> invalid then m.ltStatusLine.color = "0xFBBF24FF"
+            end if
+        end if
+    end if
 end sub

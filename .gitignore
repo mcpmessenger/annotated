@@ -26,3 +26,10 @@ tooling/roku-mcp/dist/
 *ROKU*CREDENTIAL*
 *roku*credential*
 ROKU_PACKAGING_CREDENTIALS.md
+
+.env*
+
+ffmpeg.exe
+media_cache/
+out/
+*.md
