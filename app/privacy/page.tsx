@@ -40,7 +40,7 @@ export default function PrivacyPage() {
           </section>
 
           <section className="mb-10 border border-[hsl(var(--border))] rounded-xl p-6 bg-[hsl(var(--card))] shadow-sm">
-            <h2 className="text-xl font-bold mb-3 text-[hsl(var(--accent))]">Roku Connected TV Application</h2>
+            <h2 className="text-xl font-bold mb-3 text-[hsl(var(--accent))]">Roku & Connected TV Applications</h2>
             <p className="text-base leading-relaxed text-[hsl(var(--foreground))] mb-3">
               To comply with Roku Developer Certification and privacy standards, we disclose how the Annotated Roku channel handles your data:
             </p>
@@ -56,6 +56,27 @@ export default function PrivacyPage() {
               </li>
               <li>
                 <strong>Scannable Mobile Pass & QR Codes:</strong> The TV channel displays QR codes pointing to public annotation passes (e.g. <code>annotated-repo.vercel.app/n/[id]</code>). Scanning a QR code does not transmit your Roku device ID or personal TV information to your mobile phone.
+              </li>
+            </ul>
+          </section>
+
+          <section className="mb-10 border border-[hsl(var(--border))] rounded-xl p-6 bg-[hsl(var(--card))] shadow-sm">
+            <h2 className="text-xl font-bold mb-3 text-[hsl(var(--accent))]">Amazon Appstore & Fire TV Application</h2>
+            <p className="text-base leading-relaxed text-[hsl(var(--foreground))] mb-3">
+              To comply with Amazon Developer Appstore policies and Fire TV privacy guidelines:
+            </p>
+            <ul className="space-y-2 text-base text-[hsl(var(--foreground))]">
+              <li>
+                <strong>No Mandatory Account or Login:</strong> You can access all public fact-checking feeds, video streams, and community notes without signing in or providing personal information.
+              </li>
+              <li>
+                <strong>Anonymous Technical Telemetry:</strong> We collect only standard anonymous operational metrics (such as device model and media player playback status) solely to ensure smooth video streaming and responsive D-pad remote navigation.
+              </li>
+              <li>
+                <strong>No User Tracking or Data Brokering:</strong> The Annotated Fire TV app does not track your behavior across other Fire TV apps, does not include third-party ad trackers, and will never sell or share viewer data with data brokers.
+              </li>
+              <li>
+                <strong>Dispute & QR Code Privacy:</strong> QR codes displayed for filing disputes open standard web annotation records on our secure web domain and do not expose your Amazon account or Fire TV device identifiers.
               </li>
             </ul>
           </section>
