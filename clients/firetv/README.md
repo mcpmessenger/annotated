@@ -21,22 +21,24 @@ Built for the **Amazon Developer Hackathon (Deadline: Oct 23, 2026)**.
 
 ## ✨ Key Features
 
-* **Edge-to-Edge 1080p Video Canvas**: Full-bleed video display (`100vw × 100vh`) with non-intrusive floating HUD elements tailored specifically for 10-foot viewing distances.
-* **Dynamic Color-Coded Consensus Badges**:
-  * 🟢 **`✓ VERIFIED ACCURATE`**: Supported by verifiable sources and verified consensus.
-  * 🟡 **`⏳ NEEDS INFO / UNVERIFIED`**: Pending community review, satirical/comedy context (e.g., SNL, parody), or unverified claims.
-  * 🔴 **`✕ RATED FALSE`**: Flagged by community fact-checkers as debunked or inaccurate.
-* **Diagonal "FALSE" Rubber Stamp**: Iconic grunge stamp stamped diagonally across the screen whenever a clip or claim is rated false.
-* **Dynamic Annotation Accent Line**: The quote boundary line dynamically matches the truth state (Green for verified, Yellow for needs context, Red for false).
+* **Edge-to-Edge 1080p Canvas**: Full-bleed media presentation (`100vw × 100vh`) with non-intrusive floating glassmorphic overlays engineered specifically for 10-foot viewing distances.
+* **Multi-Format Interleaved Content Feed**: Automatically ingests and interleaves full-length video clips, X/Twitter threads, and web annotations (`Video -> Tweet -> Article -> Video`) from live Supabase & S3 APIs.
+* **Ambient Color Consensus System**: Clean, zero-clutter interface relying purely on ambient visual cues:
+  * 🟢 **Green (`#22C55E`)**: Verified Accurate (supported by primary sources & community consensus).
+  * 🟡 **Yellow (`#F59E0B`)**: Needs Info / Context (satire/comedy context such as SNL clips, opinion pieces, speculative claims).
+  * 🔴 **Red (`#EF4444`)**: Disputed / Rated False (accompanied by the iconic diagonal "FALSE" rubber stamp).
+* **Top-Aligned Content Layout**: Non-video content (tweets & articles) is top-aligned to eliminate dead space and completely prevent visual collision with bottom annotation cards.
+* **1-Reaction-Per-Device Enforcement**: Remote control likes/reactions are capped at 1 per device per note using persistent local storage, featuring animated button feedback and floating TV toasts.
+* **Enlarged Mini QR Code with Countdown Timer**: High-density QR code pinned in the bottom right corner with real-time playback timers (15s for static posts, up to 90s for videos) and a glowing bottom progress bar.
 * **Instant Smartphone Bridge**:
-  * **`✏️ Annotate`**: Generates a live QR code allowing viewers to capture and comment on the exact video timestamp directly from their mobile phone.
-  * **`⚠️ File Claim`**: Prompts an interactive dispute dialog to submit evidence, counter-arguments, and check audit logs.
+  * **`✏️ Annotate`**: Scan to capture and publish timestamped notes directly from your phone.
+  * **`⚠️ File Claim`**: Scan to dispute a claim, submit counter-evidence, and view community audit logs.
+* **Default Unmuted TV Audio**: Instant audio playback at 100% volume with system TV volume control and automatic fallback unmuting on first remote gesture.
 * **Intuitive Remote Control (D-Pad)**:
-  * **▲ Up / ▼ Down Arrows**: Seamlessly channel-surf through video clips.
-  * **◄ Left / ► Right Arrows**: Glide smoothly across the bottom reaction dock.
-  * **OK / Select**: Activate actions (Annotate, React, Dispute).
-  * **Back Button**: Gracefully closes active overlays and modals before exiting.
-* **Live S3 & Supabase Pipeline**: Streams H.264 video clips directly from Amazon S3 and Supabase REST feeds.
+  * **▲ Up / ▼ Down**: Surf forward and backward through clips and posts.
+  * **◄ Left / ► Right**: Glide across the bottom 7-action reaction dock.
+  * **OK / Select**: Trigger annotations, reactions, or modal dialogs.
+  * **Back Button**: Smoothly dismisses open modals before exiting.
 
 ---
 
