@@ -71,15 +71,16 @@
       display: flex;
     }
     .static-hero-card {
-      max-width: 880px;
-      width: 82vw;
+      max-width: 860px;
+      width: 80vw;
       background: rgba(15, 23, 42, 0.88);
       border: 1.5px solid rgba(255, 255, 255, 0.16);
       border-radius: 24px;
-      padding: 38px 46px;
+      padding: 28px 40px;
       backdrop-filter: blur(24px);
       box-shadow: 0 25px 60px rgba(0, 0, 0, 0.92);
       animation: heroFadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      margin-top: -1vh;
     }
     @keyframes heroFadeIn {
       from { opacity: 0; transform: translateY(16px); }
@@ -89,7 +90,7 @@
       display: flex;
       align-items: center;
       gap: 12px;
-      margin-bottom: 18px;
+      margin-bottom: 14px;
     }
     .static-type-pill {
       font-size: 0.85rem;
@@ -108,28 +109,28 @@
       color: #94A3B8;
     }
     .static-headline {
-      font-size: 1.95rem;
+      font-size: 1.8rem;
       font-weight: 800;
       color: #F8FAFC;
-      line-height: 1.3;
-      margin-bottom: 20px;
+      line-height: 1.25;
+      margin-bottom: 14px;
       letter-spacing: -0.02em;
     }
     .static-quote-callout {
-      font-size: 1.25rem;
+      font-size: 1.18rem;
       font-style: italic;
       color: #E2E8F0;
-      line-height: 1.45;
-      padding: 16px 22px;
+      line-height: 1.4;
+      padding: 14px 20px;
       border-left: 5px solid #38BDF8;
       background: rgba(30, 41, 59, 0.45);
       border-radius: 0 14px 14px 0;
-      margin-bottom: 22px;
+      margin-bottom: 16px;
     }
     .static-commentary-box {
-      font-size: 1.15rem;
+      font-size: 1.1rem;
       color: #CBD5E1;
-      line-height: 1.45;
+      line-height: 1.4;
     }
     .commentary-tag {
       font-weight: 800;
@@ -147,15 +148,67 @@
       justify-content: space-between;
       align-items: center;
       z-index: 10;
+      transition: all 0.3s ease;
     }
     .brand {
       font-size: 2.6rem;
       font-weight: 800;
       letter-spacing: -1px;
       text-shadow: 0 4px 15px rgba(0, 0, 0, 0.9);
+      transition: font-size 0.3s ease;
     }
     .brand-dot {
       color: #EF4444; /* Signature Red Dot */
+    }
+
+    /* COMPACT HEADER FOR TWEETS / STATIC POSTS */
+    .header.compact-header {
+      top: 2vh;
+    }
+    .header.compact-header .brand {
+      font-size: 1.7rem;
+    }
+    .header.compact-header .status-badge {
+      padding: 5px 16px;
+      font-size: 0.85rem;
+    }
+
+    /* TV TOAST NOTIFICATION */
+    .tv-toast {
+      position: fixed;
+      top: 10vh;
+      left: 50%;
+      transform: translateX(-50%) translateY(-25px);
+      background: rgba(15, 23, 42, 0.94);
+      border: 1.5px solid rgba(56, 189, 248, 0.6);
+      color: #F8FAFC;
+      padding: 10px 24px;
+      border-radius: 999px;
+      font-size: 1.05rem;
+      font-weight: 700;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8), 0 0 20px rgba(56, 189, 248, 0.3);
+      backdrop-filter: blur(16px);
+      z-index: 250;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s ease, transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .tv-toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      20%, 60% { transform: translateX(-6px); }
+      40%, 80% { transform: translateX(6px); }
+    }
+    .reaction-btn.shake {
+      animation: shake 0.35s ease-in-out;
+    }
+    .reaction-btn.user-reacted {
+      border-color: rgba(56, 189, 248, 0.85) !important;
+      background: rgba(56, 189, 248, 0.25) !important;
+      box-shadow: 0 0 16px rgba(56, 189, 248, 0.5) !important;
     }
     /* FLOATING MINI QR CODE (Bottom Right Overlay) */
     .mini-qr-card {
@@ -384,24 +437,15 @@
       border-radius: 4px;
       transition: all 0.3s ease;
     }
-    .bubble-quote {
-      font-size: 0.95rem;
-      color: #E2E8F0;
-      line-height: 1.4;
-      margin-bottom: 6px;
-      font-style: italic;
-      border-left: 4px solid #38BDF8; /* Dynamic Accent Line */
-      padding-left: 10px;
-      max-height: 3.8em;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      transition: all 0.3s ease;
-    }
     .bubble-comment {
-      font-size: 1.05rem;
+      font-size: 1.08rem;
       font-weight: 600;
       color: #FFFFFF;
-      line-height: 1.4;
+      line-height: 1.45;
+      border-left: 4px solid #38BDF8; /* Dynamic colored line */
+      padding-left: 12px;
+      margin-top: 4px;
+      transition: border-left-color 0.3s ease;
     }
 
     /* ACCENT LINE & BUBBLE COLOR THEMING BASED ON VERIFICATION */
@@ -410,7 +454,7 @@
       border-color: rgba(34, 197, 94, 0.55);
       box-shadow: 0 15px 40px rgba(0, 0, 0, 0.85), 0 0 20px rgba(34, 197, 94, 0.25);
     }
-    .annotation-bubble.verified .bubble-quote {
+    .annotation-bubble.verified .bubble-comment {
       border-left-color: #22C55E !important; /* Green Line for True */
     }
     .annotation-bubble.verified .intent-badge {
@@ -427,7 +471,7 @@
       border-color: rgba(245, 158, 11, 0.55);
       box-shadow: 0 15px 40px rgba(0, 0, 0, 0.85), 0 0 20px rgba(245, 158, 11, 0.25);
     }
-    .annotation-bubble.needs-info .bubble-quote {
+    .annotation-bubble.needs-info .bubble-comment {
       border-left-color: #F59E0B !important; /* Yellow Line for Needs Info */
     }
     .annotation-bubble.needs-info .intent-badge {
@@ -444,7 +488,7 @@
       border-color: rgba(239, 68, 68, 0.65);
       box-shadow: 0 15px 40px rgba(0, 0, 0, 0.85), 0 0 25px rgba(239, 68, 68, 0.35);
     }
-    .annotation-bubble.false .bubble-quote {
+    .annotation-bubble.false .bubble-comment {
       border-left-color: #EF4444 !important; /* Red Line for False */
     }
     .annotation-bubble.false .intent-badge {
@@ -611,7 +655,10 @@
     </div>
   </header>
 
-  <!-- FLOATING ANNOTATION BUBBLE (Bottom Left) -->
+  <!-- TV FLOATING TOAST NOTIFICATION -->
+  <div class="tv-toast" id="tvToast">Reaction recorded! 👍</div>
+
+  <!-- FLOATING ANNOTATION BUBBLE (Bottom Left: strictly community annotation) -->
   <div class="annotation-bubble verified" id="annotationBubble">
     <div class="bubble-header">
       <div class="author-info">
@@ -623,7 +670,6 @@
         <span class="intent-badge" id="bubbleIntent">HOT TAKE</span>
       </div>
     </div>
-    <div class="bubble-quote" id="bubbleQuote">"Still waiting for the AI labs to saturate this benchmark"</div>
     <div class="bubble-comment" id="bubbleComment">Notice how Grok 4.7 and Claude 5.5 tie with a score of zero here.</div>
   </div>
 
@@ -1020,6 +1066,12 @@
         }, 250);
       }
 
+      // Compact Header Toggle for Tweets & Static Content
+      const headerEl = document.querySelector('.header');
+      if (headerEl) {
+        headerEl.classList.toggle('compact-header', !isVideo);
+      }
+
       // Update Header Status Badge & Annotation Bubble Class
       statusBadge.className = 'status-badge ' + item.status;
       annotationBubble.className = 'annotation-bubble ' + item.status;
@@ -1038,9 +1090,10 @@
         stampFalse.classList.add('visible'); // Show diagonal FALSE stamp!
       }
 
-      // Update Bubble content
+      // Update Bubble content (strictly community annotation, no duplicate quote)
       document.getElementById('authorName').textContent = item.author;
-      document.getElementById('bubbleQuote').textContent = item.quote;
+      const bQuote = document.getElementById('bubbleQuote');
+      if (bQuote) bQuote.textContent = item.quote;
       document.getElementById('bubbleComment').textContent = item.comment;
       document.getElementById('bubbleIntent').textContent = item.intent;
 
@@ -1051,12 +1104,23 @@
         avatarEl.style.backgroundImage = 'none';
       }
 
-      // Update Reaction Counts
+      // Update Reaction Counts & Device Vote State
       document.getElementById('countFire').textContent = item.reactions.fire;
       document.getElementById('countThink').textContent = item.reactions.think;
       document.getElementById('countIdea').textContent = item.reactions.idea;
       document.getElementById('count100').textContent = item.reactions.hundred;
       document.getElementById('countDown').textContent = item.reactions.down;
+
+      const savedVote = localStorage.getItem('annotated_voted_' + item.id);
+      buttons.forEach((btn, bIdx) => {
+        if (bIdx >= 1 && bIdx <= 5) {
+          if (savedVote && btn.dataset.action === savedVote) {
+            btn.classList.add('user-reacted');
+          } else {
+            btn.classList.remove('user-reacted');
+          }
+        }
+      });
 
       // Update QR Codes
       const passUrl = item.pass_url || 'https://annotated-repo.vercel.app';
@@ -1087,6 +1151,17 @@
       annotateModal.classList.remove('open');
     }
 
+    function showToast(msg) {
+      const toast = document.getElementById('tvToast');
+      if (!toast) return;
+      toast.textContent = msg;
+      toast.classList.add('show');
+      clearTimeout(toast._timeout);
+      toast._timeout = setTimeout(() => {
+        toast.classList.remove('show');
+      }, 2200);
+    }
+
     function handleAction(index) {
       if (index === 6) {
         // File Claim
@@ -1105,12 +1180,32 @@
           annotateModal.classList.add('open');
         }
       } else {
+        // Reaction buttons (indices 1 to 5) - Strictly limit to 1 reaction per device
+        const item = feedItems[currentItemIndex];
+        if (!item) return;
+        const action = buttons[index].dataset.action;
+        const voteKey = 'annotated_voted_' + item.id;
+        const existingVote = localStorage.getItem(voteKey);
+
+        if (existingVote) {
+          buttons[index].classList.remove('shake');
+          void buttons[index].offsetWidth; // force DOM reflow
+          buttons[index].classList.add('shake');
+          showToast("⚠️ Already reacted to this note (1 per device)");
+          return;
+        }
+
         const countSpan = buttons[index].querySelector('.count');
         if (countSpan) {
           let current = parseInt(countSpan.textContent, 10) || 0;
           countSpan.textContent = current + 1;
+          if (!item.reactions) item.reactions = {};
+          item.reactions[action] = current + 1;
+          localStorage.setItem(voteKey, action);
+          buttons[index].classList.add('user-reacted');
           buttons[index].style.transform = 'scale(1.15)';
           setTimeout(() => { buttons[index].style.transform = ''; }, 150);
+          showToast("Reaction recorded! 👍");
         }
       }
     }
