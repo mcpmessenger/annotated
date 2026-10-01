@@ -1,33 +1,63 @@
-# Built application files
-*.apk
-*.aar
-*.aab
+# ====================================================================
+# Android & Gradle .gitignore for annotated-firetv
+# ====================================================================
 
-# Gradle files
+# Built application files and binaries
+*.apk
+*.ap_
+*.aab
+*.aar
+*.dex
+
+# Java / Kotlin class files
+*.class
+
+# Gradle build cache and outputs
 .gradle/
 build/
 app/build/
+*/build/
+.gradletasknamecache
 
-# Local configuration file (sdk path, etc)
+# Local developer configuration (SDK location, paths)
 local.properties
 
-# Log files
-*.log
-
-# Android Studio Navigation editor temp files
-.navigation/
-
-# Android Studio / IntelliJ IDEA
+# Android Studio & IntelliJ IDEA
 *.iml
+*.iws
+*.ipr
 .idea/
+.navigation/
+captures/
+.externalNativeBuild/
+.cxx/
 
-# Keystore and signing files (CRITICAL SECURITY)
+# CRITICAL SECURITY: Signing Keys, Certificates & Credentials
 *.jks
 *.keystore
 *.p12
 *.pem
+*.key
 keystore.properties
+google-services.json
 
-# OS files
+# OS-specific files
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
 Thumbs.db
+desktop.ini
+
+# Log and temporary files
+*.log
+*.tmp
+*.bak
+*.swp
+*~
+
+# Python cache (used by helper scripts)
+__pycache__/
+*.pyc
