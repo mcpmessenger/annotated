@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import React, { Suspense, useState, useEffect } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
@@ -21,7 +21,7 @@ import {
 import { VideoClipTrimmer } from '@/components/VideoClipTrimmer';
 import { Tooltip } from '@/components/Tooltip';
 
-const SIGNATURE_EMOJIS = ['ðŸ”¥', 'ðŸ¤”', 'ðŸ’¡', 'ðŸ’¯', 'ðŸ‘Ž'];
+const SIGNATURE_EMOJIS = ['🔥', '🤔', '💡', '💯', '👎'];
 
 function ShareContent() {
   const router = useRouter();
@@ -57,7 +57,7 @@ function ShareContent() {
 
   const [copied, setCopied] = useState(false);
   const [comment, setComment] = useState('');
-  const [intent, setIntent] = useState('ðŸ’¡');
+  const [intent, setIntent] = useState('💡');
   const [session, setSession] = useState<any>(null);
   const [publishing, setPublishing] = useState(false);
   const [publishedSlug, setPublishedSlug] = useState<string | null>(null);
@@ -106,7 +106,7 @@ function ShareContent() {
         : (comment.trim() || 'Shared via Mobile');
 
       const finalQuote = (showVideoTrimmer && clipRange)
-        ? (quoteText ? `${quoteText} ${clipRange.formatted}` : `ðŸŽ¬ Video Clip (${displayTitle}) ${clipRange.formatted}`)
+        ? (quoteText ? `${quoteText} ${clipRange.formatted}` : `🎬 Video Clip (${displayTitle}) ${clipRange.formatted}`)
         : (quoteText || displayTitle);
 
       const finalUrl = (youtubeVideoId && clipRange && showVideoTrimmer)
@@ -167,7 +167,7 @@ function ShareContent() {
     <div className="max-w-xl mx-auto px-4 py-8 space-y-6">
       
 
-      {/* Main Composer Box â€” Harmonious with Extension & Header */}
+      {/* Main Composer Box — Harmonious with Extension & Header */}
       <div className="rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--background))] p-5 shadow-sm space-y-4">
         {/* Source Link Chip */}
         {targetUrl && (
@@ -184,7 +184,7 @@ function ShareContent() {
           </div>
         )}
 
-        {/* Quoted Text Box â€” Extension Signature Styling */}
+        {/* Quoted Text Box — Extension Signature Styling */}
         {quoteText && (
           <div className="pl-3.5 border-l-4 border-[#FFD21A] bg-[hsl(var(--border))]/25 py-2.5 pr-3 rounded-r-lg italic text-[hsl(var(--foreground))] text-sm leading-relaxed font-serif">
             &ldquo;{quoteText}&rdquo;
@@ -205,7 +205,7 @@ function ShareContent() {
                 }`}
               >
                 <Film className="w-3.5 h-3.5" />
-                <span>{showVideoTrimmer ? 'Hide 90s Trimmer' : 'âœ‚ï¸ Trim 90s Video Clip'}</span>
+                <span>{showVideoTrimmer ? 'Hide 90s Trimmer' : '✂️ Trim 90s Video Clip'}</span>
               </button>
               {clipRange && showVideoTrimmer && (
                 <span className="text-xs font-mono text-[hsl(var(--text-muted))] font-bold">
@@ -227,7 +227,7 @@ function ShareContent() {
         {/* Inline Annotation Composer */}
         {publishedSlug ? (
           <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs flex items-center justify-between gap-3">
-            <span>ðŸŽ‰ Annotation published successfully!</span>
+            <span>🎉 Annotation published successfully!</span>
             <button
               onClick={() => router.push(`/explore`)}
               className="px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold transition cursor-pointer"
@@ -237,7 +237,7 @@ function ShareContent() {
           </div>
         ) : (
           <div className="space-y-4 pt-1">
-            {/* Signature Emoji Bar â€” Exact match to extension widget */}
+            {/* Signature Emoji Bar — Exact match to extension widget */}
             <div className="flex items-center gap-2">
               <span className="text-xs font-bold text-[hsl(var(--text-muted))]">Quick React:</span>
               <div className="flex items-center gap-1.5">
@@ -268,7 +268,7 @@ function ShareContent() {
               className="w-full rounded-lg bg-[hsl(var(--border))]/15 border border-[hsl(var(--border))] p-3 text-sm text-[hsl(var(--foreground))] placeholder-[hsl(var(--text-muted))] focus:outline-none focus:border-[#FFD21A] transition resize-none leading-relaxed"
             />
 
-            {/* Action Bar â€” Signature extension-styled Publish button */}
+            {/* Action Bar — Signature extension-styled Publish button */}
             <div className="space-y-2 pt-1">
               <button
                 onClick={handlePublish}
@@ -276,7 +276,7 @@ function ShareContent() {
                 className="w-full py-2.5 px-4 rounded-lg bg-[#000] text-white hover:bg-black/90 font-bold text-sm flex items-center justify-center gap-2 transition disabled:opacity-50 cursor-pointer shadow-sm active:scale-[0.99]"
               >
                 <span>{publishing ? 'Publishing...' : session ? 'Publish' : 'Sign in to Publish'}</span>
-                <span className="text-[#FFD21A] font-extrabold text-base">â†’</span>
+                <span className="text-[#FFD21A] font-extrabold text-base">→</span>
               </button>
 
               <div className="flex items-center justify-end">
@@ -287,7 +287,7 @@ function ShareContent() {
                     disabled={factCheckLoading}
                     className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-full bg-[hsl(var(--secondary))] hover:bg-[hsl(var(--border))] text-[hsl(var(--foreground))] text-xs font-semibold border border-[hsl(var(--border))] transition disabled:opacity-50 cursor-pointer touch-manipulation min-h-[32px]"
                   >
-                    <span className="text-xs leading-none">âš¡</span>
+                    <span className="text-xs leading-none">⚡</span>
                     <span>{factCheckLoading ? 'Verifying...' : 'Fact Check with Gemini'}</span>
                   </button>
                 </Tooltip>
@@ -297,13 +297,13 @@ function ShareContent() {
         )}
       </div>
 
-      {/* Fact Check Results Card â€” Matching AnnotationCard Nordic Styling */}
+      {/* Fact Check Results Card — Matching AnnotationCard Nordic Styling */}
       {factCheckData && (
         <div className="rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--border))]/15 p-5 shadow-sm space-y-3 animate-in fade-in duration-200">
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2">
               <span className="inline-flex items-center gap-1 font-bold text-[#FFD21A] dark:text-[#FFD21A] text-xs uppercase tracking-wide">
-                <span className="leading-none">âš¡</span>
+                <span className="leading-none">⚡</span>
                 <span>Gemini Fact Check</span>
               </span>
               {factCheckData.verdict && (
@@ -311,14 +311,14 @@ function ShareContent() {
                   className={`inline-flex items-center gap-1 font-bold px-2 py-0.5 rounded-full text-[10px] ${
                     factCheckData.verdict === 'VERIFIED'
                       ? 'bg-green-500/10 text-green-600 dark:text-green-400 border border-green-500/20'
-                      : factCheckData.verdict === 'FALSE'
+                      : factCheckData.verdict === 'FALSE' || factCheckData.verdict === 'MISLEADING'
                       ? 'bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20'
                       : 'bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 border border-yellow-500/20'
                   }`}
                 >
                   {factCheckData.verdict === 'VERIFIED' ? (
                     <CheckCircle2 className="w-3 h-3" />
-                  ) : factCheckData.verdict === 'FALSE' ? (
+                  ) : factCheckData.verdict === 'FALSE' || factCheckData.verdict === 'MISLEADING' ? (
                     <XCircle className="w-3 h-3" />
                   ) : (
                     <AlertTriangle className="w-3 h-3" />
