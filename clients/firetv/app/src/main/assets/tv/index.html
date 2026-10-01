@@ -73,44 +73,98 @@
     .brand-dot {
       color: #EF4444; /* Signature Red Dot */
     }
-    .header-actions {
+    /* FLOATING MINI QR CODE (Bottom Right Overlay) */
+    .mini-qr-card {
+      position: fixed;
+      bottom: 15vh;
+      right: 4vw;
+      background: rgba(15, 23, 42, 0.88);
+      border: 1.5px solid rgba(56, 189, 248, 0.45);
+      border-radius: 16px;
+      padding: 10px 14px 12px 14px;
+      backdrop-filter: blur(18px);
+      box-shadow: 0 15px 40px rgba(0, 0, 0, 0.85);
+      z-index: 10;
       display: flex;
+      flex-direction: column;
       align-items: center;
-      gap: 16px;
+      gap: 6px;
+      transition: all 0.3s ease;
     }
-    .audio-pill {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 9px 20px;
-      border-radius: 999px;
-      font-size: 0.95rem;
+    .mini-qr-card.verified {
+      border-color: rgba(34, 197, 94, 0.55);
+      box-shadow: 0 15px 40px rgba(0, 0, 0, 0.85), 0 0 18px rgba(34, 197, 94, 0.25);
+    }
+    .mini-qr-card.needs-info {
+      border-color: rgba(245, 158, 11, 0.55);
+      box-shadow: 0 15px 40px rgba(0, 0, 0, 0.85), 0 0 18px rgba(245, 158, 11, 0.25);
+    }
+    .mini-qr-card.false {
+      border-color: rgba(239, 68, 68, 0.65);
+      box-shadow: 0 15px 40px rgba(0, 0, 0, 0.85), 0 0 20px rgba(239, 68, 68, 0.35);
+    }
+    .mini-qr-label {
+      font-size: 0.72rem;
       font-weight: 800;
-      letter-spacing: 0.5px;
-      backdrop-filter: blur(16px);
-      box-shadow: 0 4px 25px rgba(0, 0, 0, 0.7);
+      letter-spacing: 0.08em;
+      color: #94A3B8;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      text-transform: uppercase;
+    }
+    .mini-qr-img-wrapper {
+      background: #FFFFFF;
+      padding: 5px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    }
+    .mini-qr-img-wrapper img {
+      width: 82px;
+      height: 82px;
+      display: block;
+      object-fit: contain;
+    }
+    .mini-qr-timer {
+      font-size: 0.8rem;
+      font-weight: 700;
+      font-family: 'JetBrains Mono', 'Courier New', monospace;
+      color: #F1F5F9;
+      letter-spacing: 0.04em;
+    }
+
+    /* BOTTOM PLAYBACK PROGRESS BAR */
+    .progress-bar-container {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 5px;
       background: rgba(15, 23, 42, 0.85);
-      border: 1.5px solid rgba(56, 189, 248, 0.5);
-      color: #38BDF8;
-      cursor: pointer;
-      transition: all 0.25s ease;
-      user-select: none;
+      z-index: 100;
+      overflow: hidden;
     }
-    .audio-pill:hover, .audio-pill:active {
-      transform: scale(1.05);
-      border-color: #38BDF8;
-      box-shadow: 0 0 20px rgba(56, 189, 248, 0.4);
+    .progress-bar-fill {
+      height: 100%;
+      width: 0%;
+      transition: width 0.15s linear;
+      background: #38BDF8;
+      box-shadow: 0 0 12px rgba(56, 189, 248, 0.9);
     }
-    .audio-pill.muted {
-      background: rgba(239, 68, 68, 0.2);
-      border-color: #EF4444;
-      color: #F87171;
-      box-shadow: 0 0 20px rgba(239, 68, 68, 0.4);
-      animation: pulseMute 2s infinite ease-in-out;
+    .progress-bar-fill.verified {
+      background: #22C55E;
+      box-shadow: 0 0 14px rgba(34, 197, 94, 0.9);
     }
-    @keyframes pulseMute {
-      0%, 100% { opacity: 0.9; }
-      50% { opacity: 0.5; }
+    .progress-bar-fill.needs-info {
+      background: #F59E0B;
+      box-shadow: 0 0 14px rgba(245, 158, 11, 0.9);
+    }
+    .progress-bar-fill.false {
+      background: #EF4444;
+      box-shadow: 0 0 14px rgba(239, 68, 68, 0.9);
     }
 
     /* COLOR-CODED STATUS PILL (Green / Yellow / Red) */
@@ -450,18 +504,10 @@
   <header class="header">
     <div class="brand">annotated<span class="brand-dot">.</span></div>
     
-    <div class="header-actions">
-      <!-- AUDIO TOGGLE / UNMUTE PILL -->
-      <div class="audio-pill muted" id="audioPill" onclick="toggleAudio()" title="Click or Press [M] to Toggle Audio">
-        <span id="audioIcon">🔇</span>
-        <span id="audioText">CLICK TO UNMUTE [M]</span>
-      </div>
-
-      <!-- DYNAMIC COLOR-CODED STATUS BADGE -->
-      <div class="status-badge verified" id="statusBadge">
-        <span id="statusIcon">✓</span>
-        <span id="statusText">VERIFIED ACCURATE</span>
-      </div>
+    <!-- DYNAMIC COLOR-CODED STATUS BADGE -->
+    <div class="status-badge verified" id="statusBadge">
+      <span id="statusIcon">✓</span>
+      <span id="statusText">VERIFIED ACCURATE</span>
     </div>
   </header>
 
@@ -479,6 +525,18 @@
     </div>
     <div class="bubble-quote" id="bubbleQuote">"Still waiting for the AI labs to saturate this benchmark"</div>
     <div class="bubble-comment" id="bubbleComment">Notice how Grok 4.7 and Claude 5.5 tie with a score of zero here.</div>
+  </div>
+
+  <!-- FLOATING MINI QR CODE (Bottom Right Overlay) -->
+  <div class="mini-qr-card verified" id="miniQrCard">
+    <div class="mini-qr-label">
+      <span>📱</span>
+      <span>SCAN NOTE</span>
+    </div>
+    <div class="mini-qr-img-wrapper">
+      <img id="miniQrImg" src="" alt="Scan QR">
+    </div>
+    <div class="mini-qr-timer" id="miniQrTimer">00:00 / 01:30</div>
   </div>
 
   <!-- FLOATING 7-BUTTON REACTION DOCK (Fact Check replaced with Annotate) -->
@@ -511,6 +569,11 @@
       <span>&#9888;&#65039;</span>
       <span>File Claim</span>
     </div>
+  </div>
+
+  <!-- BOTTOM PLAYBACK PROGRESS BAR -->
+  <div class="progress-bar-container">
+    <div class="progress-bar-fill verified" id="progressBar"></div>
   </div>
 
   <!-- QR DISPUTE MODAL (File Claim) -->
@@ -547,49 +610,52 @@
     const stampFalse = document.getElementById('stampFalse');
     const annotationBubble = document.getElementById('annotationBubble');
 
-    // AUDIO STATE & UNMUTE ENGINE
-    const audioPill = document.getElementById('audioPill');
-    const audioIcon = document.getElementById('audioIcon');
-    const audioText = document.getElementById('audioText');
-    let isUserUnmuted = false;
+    // MINI QR & PLAYBACK PROGRESS ENGINE
+    const miniQrCard = document.getElementById('miniQrCard');
+    const miniQrImg = document.getElementById('miniQrImg');
+    const miniQrTimer = document.getElementById('miniQrTimer');
+    const progressBar = document.getElementById('progressBar');
 
-    function setAudioState(unmuted) {
-      isUserUnmuted = unmuted;
+    const STATIC_DURATION = 15; // 15s for tweets / static posts
+    const MAX_VIDEO_DURATION = 90; // up to 90s for video clips
+    let staticTimer = null;
+    let staticElapsed = 0;
+
+    // DEFAULT VOLUME: ALWAYS ON (1.0 Volume, relies on system/TV volume)
+    function ensureAudio() {
       if (video) {
-        video.muted = !unmuted;
-        if (unmuted) {
-          video.volume = 1.0;
-        }
-      }
-      if (audioPill) {
-        if (unmuted) {
-          audioPill.classList.remove('muted');
-          if (audioIcon) audioIcon.textContent = '🔊';
-          if (audioText) audioText.textContent = 'AUDIO ON [M]';
-        } else {
-          audioPill.classList.add('muted');
-          if (audioIcon) audioIcon.textContent = '🔇';
-          if (audioText) audioText.textContent = 'CLICK TO UNMUTE [M]';
-        }
+        video.muted = false;
+        video.volume = 1.0;
       }
     }
 
-    function toggleAudio() {
-      setAudioState(!isUserUnmuted);
-      if (isUserUnmuted && video) {
-        video.play().catch(e => console.log("Play error:", e));
+    // Auto-unmute on any user gesture if browser policy blocked initial audio
+    window.addEventListener('click', ensureAudio, { passive: true });
+    window.addEventListener('touchstart', ensureAudio, { passive: true });
+    window.addEventListener('keydown', ensureAudio, { passive: true });
+
+    function updateProgress(current, total) {
+      const safeTotal = total > 0 ? total : 1;
+      const pct = Math.min(100, Math.max(0, (current / safeTotal) * 100));
+      if (progressBar) {
+        progressBar.style.width = pct + '%';
+      }
+      if (miniQrTimer) {
+        const curMins = Math.floor(current / 60);
+        const curSecs = Math.floor(current % 60);
+        const totMins = Math.floor(safeTotal / 60);
+        const totSecs = Math.floor(safeTotal % 60);
+        const fmtCur = String(curMins).padStart(2, '0') + ':' + String(curSecs).padStart(2, '0');
+        const fmtTot = String(totMins).padStart(2, '0') + ':' + String(totSecs).padStart(2, '0');
+        miniQrTimer.textContent = `${fmtCur} / ${fmtTot}`;
       }
     }
 
-    function autoEnableAudio() {
-      if (!isUserUnmuted) {
-        setAudioState(true);
-      }
+    function autoAdvanceNext() {
+      clearInterval(staticTimer);
+      const nextIdx = (currentItemIndex + 1) % feedItems.length;
+      renderItem(nextIdx);
     }
-
-    // Auto-unmute on ANY first user gesture: click, touch, or key
-    window.addEventListener('click', autoEnableAudio, { passive: true });
-    window.addEventListener('touchstart', autoEnableAudio, { passive: true });
 
     // FEED STATE (Dynamic Ingestion from Live API / S3)
     let feedItems = [
@@ -708,22 +774,40 @@
       currentItemIndex = idx;
       const item = feedItems[currentItemIndex];
 
-      // Update video source
-      if (video) {
+      // Clear previous static timers
+      clearInterval(staticTimer);
+      updateProgress(0, 1);
+
+      // Update video source or static post timer
+      const isVideo = Boolean(item.video_url && item.video_url.endsWith('.mp4'));
+      if (isVideo && video) {
+        video.style.display = 'block';
         video.src = item.video_url;
         video.load();
-        video.muted = !isUserUnmuted;
+        video.muted = false;
         video.volume = 1.0;
         const playPromise = video.play();
         if (playPromise !== undefined) {
           playPromise.catch(e => {
-            console.log("Play error or waiting for gesture:", e);
-            if (!video.muted) {
-              video.muted = true;
-              video.play().catch(() => {});
-            }
+            console.log("Autoplay unmuted blocked, falling back to muted until user gesture:", e);
+            video.muted = true;
+            video.play().catch(() => {});
           });
         }
+      } else if (video) {
+        // Static Post / Tweet: 15-second timer
+        video.pause();
+        video.style.display = 'none';
+        staticElapsed = 0;
+        updateProgress(0, STATIC_DURATION);
+        staticTimer = setInterval(() => {
+          staticElapsed += 0.25;
+          updateProgress(staticElapsed, STATIC_DURATION);
+          if (staticElapsed >= STATIC_DURATION) {
+            clearInterval(staticTimer);
+            autoAdvanceNext();
+          }
+        }, 250);
       }
 
       // Update Header Status Badge & Annotation Bubble Class
@@ -765,10 +849,17 @@
       document.getElementById('countDown').textContent = item.reactions.down;
 
       // Update QR Codes
-      const disputeQR = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&margin=8&data=${encodeURIComponent(item.pass_url)}`;
+      const passUrl = item.pass_url || 'https://annotated-repo.vercel.app';
+      const disputeQR = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&margin=8&data=${encodeURIComponent(passUrl)}`;
       document.getElementById('qrImageDispute').src = disputeQR;
-      const annotateQR = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&margin=8&data=${encodeURIComponent(item.pass_url + '?action=annotate')}`;
+      const annotateQR = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&margin=8&data=${encodeURIComponent(passUrl + '?action=annotate')}`;
       document.getElementById('qrImageAnnotate').src = annotateQR;
+
+      // Update Mini Bottom Right QR Card & Progress Bar Accent
+      const miniQrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&margin=4&data=${encodeURIComponent(passUrl)}`;
+      if (miniQrImg) miniQrImg.src = miniQrUrl;
+      if (miniQrCard) miniQrCard.className = 'mini-qr-card ' + item.status;
+      if (progressBar) progressBar.className = 'progress-bar-fill ' + item.status;
     }
 
     function updateFocus() {
@@ -855,13 +946,7 @@
     };
 
     window.addEventListener('keydown', (e) => {
-      // Auto-enable audio on any user keypress
-      autoEnableAudio();
-
-      if (e.key === 'm' || e.key === 'M') {
-        toggleAudio();
-        return;
-      }
+      ensureAudio();
 
       if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Enter', 'Escape', 'Backspace'].includes(e.key)) {
         e.preventDefault();
@@ -881,11 +966,23 @@
     if (video) {
       video.addEventListener('timeupdate', () => {
         const time = video.currentTime;
+        const total = Math.min(video.duration || MAX_VIDEO_DURATION, MAX_VIDEO_DURATION);
+        updateProgress(time, total);
+
         const timeBadge = document.getElementById('bubbleTime');
         const mins = Math.floor(time / 60);
         const secs = Math.floor(time % 60);
         const formatted = String(mins).padStart(2, '0') + ':' + String(secs).padStart(2, '0');
         if (timeBadge) timeBadge.textContent = formatted;
+
+        // Auto-advance if exceeded max 90s or ended
+        if (time >= MAX_VIDEO_DURATION || (video.duration && time >= video.duration - 0.2)) {
+          autoAdvanceNext();
+        }
+      });
+
+      video.addEventListener('ended', () => {
+        autoAdvanceNext();
       });
     }
 
@@ -893,20 +990,16 @@
     renderItem(0);
     fetchLiveFeed();
 
-    // Try unmuted playback immediately (Native Android TV WebView supports this)
+    // Default Volume: 1.0 (Always Unmuted, relies on system/TV volume)
     if (video) {
       video.muted = false;
       video.volume = 1.0;
       const initialPlay = video.play();
       if (initialPlay !== undefined) {
-        initialPlay.then(() => {
-          setAudioState(true);
-        }).catch(err => {
-          // Fallback for desktop browsers with strict autoplay policy
-          console.log("Browser policy blocked unmuted autoplay, starting muted until interaction:", err);
+        initialPlay.catch(err => {
+          console.log("Browser policy blocked unmuted autoplay, starting muted until first user key/click:", err);
           video.muted = true;
           video.play().catch(() => {});
-          setAudioState(false);
         });
       }
     }
