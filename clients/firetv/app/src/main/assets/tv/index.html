@@ -53,7 +53,7 @@
                   linear-gradient(90deg, rgba(9, 13, 22, 0.45) 0%, transparent 25%, transparent 75%, rgba(9, 13, 22, 0.45) 100%);
     }
 
-    /* STATIC POST / TWEET / WEB BACKDROP */
+    /* STATIC POST / TWEET / WEB BACKDROP (Top-Aligned to Eliminate Dead Space) */
     .static-backdrop {
       position: fixed;
       top: 0;
@@ -61,26 +61,27 @@
       width: 100vw;
       height: 100vh;
       display: none;
-      align-items: center;
+      align-items: flex-start;
       justify-content: center;
-      background: radial-gradient(circle at 50% 45%, rgba(30, 41, 59, 0.96) 0%, rgba(9, 13, 22, 0.98) 100%);
+      background: radial-gradient(circle at 50% 25%, rgba(30, 41, 59, 0.96) 0%, rgba(9, 13, 22, 0.98) 100%);
       z-index: 1;
-      padding: 60px;
+      padding-top: 4vh;
+      padding-left: 4vw;
+      padding-right: 4vw;
     }
     .static-backdrop.visible {
       display: flex;
     }
     .static-hero-card {
-      max-width: 860px;
-      width: 80vw;
+      max-width: 940px;
+      width: 90vw;
       background: rgba(15, 23, 42, 0.88);
-      border: 1.5px solid rgba(255, 255, 255, 0.16);
-      border-radius: 24px;
-      padding: 28px 40px;
+      border: 1.5px solid rgba(255, 255, 255, 0.14);
+      border-radius: 20px;
+      padding: 20px 28px;
       backdrop-filter: blur(24px);
-      box-shadow: 0 25px 60px rgba(0, 0, 0, 0.92);
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.92);
       animation: heroFadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-      margin-top: -1vh;
     }
     @keyframes heroFadeIn {
       from { opacity: 0; transform: translateY(16px); }
@@ -89,46 +90,46 @@
     .static-header-meta {
       display: flex;
       align-items: center;
-      gap: 12px;
-      margin-bottom: 14px;
+      gap: 10px;
+      margin-bottom: 10px;
     }
     .static-type-pill {
-      font-size: 0.85rem;
+      font-size: 0.78rem;
       font-weight: 800;
       letter-spacing: 0.08em;
       text-transform: uppercase;
-      padding: 6px 14px;
+      padding: 4px 12px;
       border-radius: 999px;
       background: rgba(56, 189, 248, 0.2);
       color: #38BDF8;
       border: 1px solid rgba(56, 189, 248, 0.4);
     }
     .static-domain-pill {
-      font-size: 0.95rem;
+      font-size: 0.88rem;
       font-weight: 600;
       color: #94A3B8;
     }
     .static-headline {
-      font-size: 1.8rem;
+      font-size: 1.45rem;
       font-weight: 800;
       color: #F8FAFC;
-      line-height: 1.25;
-      margin-bottom: 14px;
-      letter-spacing: -0.02em;
+      line-height: 1.3;
+      margin-bottom: 10px;
+      letter-spacing: -0.01em;
     }
     .static-quote-callout {
-      font-size: 1.18rem;
+      font-size: 1.15rem;
       font-style: italic;
       color: #E2E8F0;
       line-height: 1.4;
-      padding: 14px 20px;
-      border-left: 5px solid #38BDF8;
+      padding: 10px 16px;
+      border-left: 4px solid #38BDF8;
       background: rgba(30, 41, 59, 0.45);
-      border-radius: 0 14px 14px 0;
-      margin-bottom: 16px;
+      border-radius: 0 10px 10px 0;
+      margin-bottom: 12px;
     }
     .static-commentary-box {
-      font-size: 1.1rem;
+      font-size: 1.05rem;
       color: #CBD5E1;
       line-height: 1.4;
     }
@@ -138,45 +139,10 @@
       margin-right: 8px;
     }
 
-    /* FLOATING TOP HEADER */
-    .header {
-      position: fixed;
-      top: 3.5vh;
-      left: 4vw;
-      right: 4vw;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      z-index: 10;
-      transition: all 0.3s ease;
-    }
-    .brand {
-      font-size: 2.6rem;
-      font-weight: 800;
-      letter-spacing: -1px;
-      text-shadow: 0 4px 15px rgba(0, 0, 0, 0.9);
-      transition: font-size 0.3s ease;
-    }
-    .brand-dot {
-      color: #EF4444; /* Signature Red Dot */
-    }
-
-    /* COMPACT HEADER FOR TWEETS / STATIC POSTS */
-    .header.compact-header {
-      top: 2vh;
-    }
-    .header.compact-header .brand {
-      font-size: 1.7rem;
-    }
-    .header.compact-header .status-badge {
-      padding: 5px 16px;
-      font-size: 0.85rem;
-    }
-
     /* TV TOAST NOTIFICATION */
     .tv-toast {
       position: fixed;
-      top: 10vh;
+      top: 3.5vh;
       left: 50%;
       transform: translateX(-50%) translateY(-25px);
       background: rgba(15, 23, 42, 0.94);
@@ -210,22 +176,23 @@
       background: rgba(56, 189, 248, 0.25) !important;
       box-shadow: 0 0 16px rgba(56, 189, 248, 0.5) !important;
     }
-    /* FLOATING MINI QR CODE (Bottom Right Overlay) */
+
+    /* FLOATING MINI QR CODE (Bottom Right Overlay - Compact & Border Glow) */
     .mini-qr-card {
       position: fixed;
       bottom: 15vh;
       right: 4vw;
-      background: rgba(15, 23, 42, 0.88);
+      background: rgba(15, 23, 42, 0.9);
       border: 1.5px solid rgba(56, 189, 248, 0.45);
-      border-radius: 16px;
-      padding: 10px 14px 12px 14px;
+      border-radius: 18px;
+      padding: 8px 8px 6px 8px;
       backdrop-filter: blur(18px);
       box-shadow: 0 15px 40px rgba(0, 0, 0, 0.85);
       z-index: 10;
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 6px;
+      gap: 5px;
       transition: all 0.3s ease;
     }
     .mini-qr-card.verified {
@@ -240,37 +207,28 @@
       border-color: rgba(239, 68, 68, 0.65);
       box-shadow: 0 15px 40px rgba(0, 0, 0, 0.85), 0 0 20px rgba(239, 68, 68, 0.35);
     }
-    .mini-qr-label {
-      font-size: 0.72rem;
-      font-weight: 800;
-      letter-spacing: 0.08em;
-      color: #94A3B8;
-      display: flex;
-      align-items: center;
-      gap: 5px;
-      text-transform: uppercase;
-    }
     .mini-qr-img-wrapper {
       background: #FFFFFF;
-      padding: 5px;
-      border-radius: 10px;
+      padding: 6px;
+      border-radius: 12px;
       display: flex;
       align-items: center;
       justify-content: center;
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
     }
     .mini-qr-img-wrapper img {
-      width: 82px;
-      height: 82px;
+      width: 108px;
+      height: 108px;
       display: block;
       object-fit: contain;
     }
     .mini-qr-timer {
-      font-size: 0.8rem;
+      font-size: 0.82rem;
       font-weight: 700;
       font-family: 'JetBrains Mono', 'Courier New', monospace;
       color: #F1F5F9;
       letter-spacing: 0.04em;
+      padding-bottom: 2px;
     }
 
     /* BOTTOM PLAYBACK PROGRESS BAR */
@@ -302,43 +260,6 @@
     .progress-bar-fill.false {
       background: #EF4444;
       box-shadow: 0 0 14px rgba(239, 68, 68, 0.9);
-    }
-
-    /* COLOR-CODED STATUS PILL (Green / Yellow / Red) */
-    .status-badge {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 9px 22px;
-      border-radius: 999px;
-      font-size: 1.05rem;
-      font-weight: 800;
-      letter-spacing: 0.5px;
-      text-transform: uppercase;
-      backdrop-filter: blur(16px);
-      box-shadow: 0 4px 25px rgba(0, 0, 0, 0.7);
-      transition: all 0.3s ease;
-    }
-    /* Green: Verified */
-    .status-badge.verified {
-      background: rgba(34, 197, 94, 0.2);
-      border: 1.5px solid #22C55E;
-      color: #4ADE80;
-      box-shadow: 0 0 25px rgba(34, 197, 94, 0.35);
-    }
-    /* Yellow: Needs Info / Unverified */
-    .status-badge.needs-info {
-      background: rgba(245, 158, 11, 0.2);
-      border: 1.5px solid #F59E0B;
-      color: #FBBF24;
-      box-shadow: 0 0 25px rgba(245, 158, 11, 0.35);
-    }
-    /* Red: False / Disputed */
-    .status-badge.false {
-      background: rgba(239, 68, 68, 0.25);
-      border: 1.5px solid #EF4444;
-      color: #F87171;
-      box-shadow: 0 0 30px rgba(239, 68, 68, 0.5);
     }
 
     /* DIAGONAL "FALSE" RUBBER STAMP */
@@ -644,17 +565,6 @@
   <!-- DIAGONAL "FALSE" RUBBER STAMP (Revealed when claim is FALSE) -->
   <div class="stamp-false-banner" id="stampFalse">FALSE</div>
 
-  <!-- FLOATING TOP HEADER -->
-  <header class="header">
-    <div class="brand">annotated<span class="brand-dot">.</span></div>
-    
-    <!-- DYNAMIC COLOR-CODED STATUS BADGE -->
-    <div class="status-badge verified" id="statusBadge">
-      <span id="statusIcon">✓</span>
-      <span id="statusText">VERIFIED ACCURATE</span>
-    </div>
-  </header>
-
   <!-- TV FLOATING TOAST NOTIFICATION -->
   <div class="tv-toast" id="tvToast">Reaction recorded! 👍</div>
 
@@ -673,12 +583,8 @@
     <div class="bubble-comment" id="bubbleComment">Notice how Grok 4.7 and Claude 5.5 tie with a score of zero here.</div>
   </div>
 
-  <!-- FLOATING MINI QR CODE (Bottom Right Overlay) -->
+  <!-- FLOATING MINI QR CODE (Bottom Right Overlay - Focused & Sleek) -->
   <div class="mini-qr-card verified" id="miniQrCard">
-    <div class="mini-qr-label">
-      <span>📱</span>
-      <span>SCAN NOTE</span>
-    </div>
     <div class="mini-qr-img-wrapper">
       <img id="miniQrImg" src="" alt="Scan QR">
     </div>
@@ -750,9 +656,6 @@
     const annotateModal = document.getElementById('annotateModal');
     const video = document.getElementById('tvVideo');
     const videoSource = document.getElementById('videoSource');
-    const statusBadge = document.getElementById('statusBadge');
-    const statusIcon = document.getElementById('statusIcon');
-    const statusText = document.getElementById('statusText');
     const stampFalse = document.getElementById('stampFalse');
     const annotationBubble = document.getElementById('annotationBubble');
 
@@ -1049,9 +952,34 @@
           const isTweet = item.type === 'tweet' || (item.source && item.source.domain && (item.source.domain.includes('twitter') || item.source.domain.includes('x.com')));
           if (staticTypePill) staticTypePill.textContent = isTweet ? '🐦 TWEET' : '🌐 WEB ANNOTATION';
           if (staticDomainPill) staticDomainPill.textContent = item.source?.domain || (isTweet ? 'x.com' : 'web');
-          if (staticHeadline) staticHeadline.textContent = item.source?.title || item.quote || 'Community Annotation';
-          if (staticQuoteCallout) staticQuoteCallout.textContent = `"${item.quote || item.comment || ''}"`;
-          if (staticCommentaryText) staticCommentaryText.textContent = item.comment || 'Editorial observation recorded by the community.';
+
+          // Clean tweet title and eliminate ugly scraped strings (e.g. "SpaceX on X: '...' / X" and t.co links)
+          function cleanContentText(str) {
+            if (!str) return '';
+            let s = String(str).trim();
+            s = s.replace(/^📹\s*Video\s*Clip\s*\(/i, '').replace(/\)\s*$/i, '');
+            s = s.replace(/^[^\n:]+\s+on\s+X:\s*["“]?/i, '');
+            s = s.replace(/["”]?\s*\/\s*X\s*$/i, '');
+            s = s.replace(/https?:\/\/t\.co\/\w+/gi, '').trim();
+            s = s.replace(/^["“]|["”]$/g, '').trim();
+            return s;
+          }
+
+          const rawTitle = item.source?.title || item.quote || 'Community Annotation';
+          const cleanedTitle = cleanContentText(rawTitle);
+          const cleanedQuote = cleanContentText(item.quote || '');
+          const cleanedComment = (item.comment || '').replace(/\[.*?\]/g, '').trim();
+
+          if (staticHeadline) staticHeadline.textContent = cleanedTitle || 'Community Post';
+          if (staticQuoteCallout) {
+            if (cleanedQuote && cleanedQuote !== cleanedTitle) {
+              staticQuoteCallout.style.display = 'block';
+              staticQuoteCallout.textContent = `"${cleanedQuote}"`;
+            } else {
+              staticQuoteCallout.style.display = 'none';
+            }
+          }
+          if (staticCommentaryText) staticCommentaryText.textContent = cleanedComment || 'Editorial observation recorded by the community.';
         }
 
         staticElapsed = 0;
@@ -1066,35 +994,20 @@
         }, 250);
       }
 
-      // Compact Header Toggle for Tweets & Static Content
-      const headerEl = document.querySelector('.header');
-      if (headerEl) {
-        headerEl.classList.toggle('compact-header', !isVideo);
-      }
-
-      // Update Header Status Badge & Annotation Bubble Class
-      statusBadge.className = 'status-badge ' + item.status;
+      // Update Color Theming (Relies strictly on color cues: bubble, QR, and progress bar)
       annotationBubble.className = 'annotation-bubble ' + item.status;
 
-      if (item.status === 'verified') {
-        statusIcon.textContent = '✓';
-        statusText.textContent = 'VERIFIED ACCURATE';
-        stampFalse.classList.remove('visible');
-      } else if (item.status === 'needs-info') {
-        statusIcon.textContent = '⏳';
-        statusText.textContent = 'NEEDS INFO / UNVERIFIED';
-        stampFalse.classList.remove('visible');
-      } else if (item.status === 'false') {
-        statusIcon.textContent = '✕';
-        statusText.textContent = 'RATED FALSE';
+      if (item.status === 'false') {
         stampFalse.classList.add('visible'); // Show diagonal FALSE stamp!
+      } else {
+        stampFalse.classList.remove('visible');
       }
 
       // Update Bubble content (strictly community annotation, no duplicate quote)
       document.getElementById('authorName').textContent = item.author;
       const bQuote = document.getElementById('bubbleQuote');
       if (bQuote) bQuote.textContent = item.quote;
-      document.getElementById('bubbleComment').textContent = item.comment;
+      document.getElementById('bubbleComment').textContent = (item.comment || '').replace(/\[.*?\]/g, '').trim();
       document.getElementById('bubbleIntent').textContent = item.intent;
 
       const avatarEl = document.getElementById('authorAvatar');
@@ -1129,8 +1042,8 @@
       const annotateQR = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&margin=8&data=${encodeURIComponent(passUrl + '?action=annotate')}`;
       document.getElementById('qrImageAnnotate').src = annotateQR;
 
-      // Update Mini Bottom Right QR Card & Progress Bar Accent
-      const miniQrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&margin=4&data=${encodeURIComponent(passUrl)}`;
+      // Update Mini Bottom Right QR Card (Crisp & slightly enlarged)
+      const miniQrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&margin=4&data=${encodeURIComponent(passUrl)}`;
       if (miniQrImg) miniQrImg.src = miniQrUrl;
       if (miniQrCard) miniQrCard.className = 'mini-qr-card ' + item.status;
       if (progressBar) progressBar.className = 'progress-bar-fill ' + item.status;
