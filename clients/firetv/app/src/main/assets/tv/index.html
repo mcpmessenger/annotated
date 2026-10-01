@@ -73,6 +73,45 @@
     .brand-dot {
       color: #EF4444; /* Signature Red Dot */
     }
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    .audio-pill {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 9px 20px;
+      border-radius: 999px;
+      font-size: 0.95rem;
+      font-weight: 800;
+      letter-spacing: 0.5px;
+      backdrop-filter: blur(16px);
+      box-shadow: 0 4px 25px rgba(0, 0, 0, 0.7);
+      background: rgba(15, 23, 42, 0.85);
+      border: 1.5px solid rgba(56, 189, 248, 0.5);
+      color: #38BDF8;
+      cursor: pointer;
+      transition: all 0.25s ease;
+      user-select: none;
+    }
+    .audio-pill:hover, .audio-pill:active {
+      transform: scale(1.05);
+      border-color: #38BDF8;
+      box-shadow: 0 0 20px rgba(56, 189, 248, 0.4);
+    }
+    .audio-pill.muted {
+      background: rgba(239, 68, 68, 0.2);
+      border-color: #EF4444;
+      color: #F87171;
+      box-shadow: 0 0 20px rgba(239, 68, 68, 0.4);
+      animation: pulseMute 2s infinite ease-in-out;
+    }
+    @keyframes pulseMute {
+      0%, 100% { opacity: 0.9; }
+      50% { opacity: 0.5; }
+    }
 
     /* COLOR-CODED STATUS PILL (Green / Yellow / Red) */
     .status-badge {
@@ -396,7 +435,7 @@
 
   <!-- FULL-SCREEN EDGE-TO-EDGE VIDEO LAYER -->
   <div class="fullscreen-video-container">
-    <video id="tvVideo" autoplay loop playsinline muted>
+    <video id="tvVideo" autoplay loop playsinline>
       <source id="videoSource" src="https://annotated-processed-videos.s3.us-east-1.amazonaws.com/processed/legacy_d31852c7-603f-43f6-b395-ff77d3c204ff.mp4" type="video/mp4">
     </video>
   </div>
@@ -411,10 +450,18 @@
   <header class="header">
     <div class="brand">annotated<span class="brand-dot">.</span></div>
     
-    <!-- DYNAMIC COLOR-CODED STATUS BADGE -->
-    <div class="status-badge verified" id="statusBadge">
-      <span id="statusIcon">✓</span>
-      <span id="statusText">VERIFIED ACCURATE</span>
+    <div class="header-actions">
+      <!-- AUDIO TOGGLE / UNMUTE PILL -->
+      <div class="audio-pill muted" id="audioPill" onclick="toggleAudio()" title="Click or Press [M] to Toggle Audio">
+        <span id="audioIcon">🔇</span>
+        <span id="audioText">CLICK TO UNMUTE [M]</span>
+      </div>
+
+      <!-- DYNAMIC COLOR-CODED STATUS BADGE -->
+      <div class="status-badge verified" id="statusBadge">
+        <span id="statusIcon">✓</span>
+        <span id="statusText">VERIFIED ACCURATE</span>
+      </div>
     </div>
   </header>
 
@@ -499,6 +546,50 @@
     const statusText = document.getElementById('statusText');
     const stampFalse = document.getElementById('stampFalse');
     const annotationBubble = document.getElementById('annotationBubble');
+
+    // AUDIO STATE & UNMUTE ENGINE
+    const audioPill = document.getElementById('audioPill');
+    const audioIcon = document.getElementById('audioIcon');
+    const audioText = document.getElementById('audioText');
+    let isUserUnmuted = false;
+
+    function setAudioState(unmuted) {
+      isUserUnmuted = unmuted;
+      if (video) {
+        video.muted = !unmuted;
+        if (unmuted) {
+          video.volume = 1.0;
+        }
+      }
+      if (audioPill) {
+        if (unmuted) {
+          audioPill.classList.remove('muted');
+          if (audioIcon) audioIcon.textContent = '🔊';
+          if (audioText) audioText.textContent = 'AUDIO ON [M]';
+        } else {
+          audioPill.classList.add('muted');
+          if (audioIcon) audioIcon.textContent = '🔇';
+          if (audioText) audioText.textContent = 'CLICK TO UNMUTE [M]';
+        }
+      }
+    }
+
+    function toggleAudio() {
+      setAudioState(!isUserUnmuted);
+      if (isUserUnmuted && video) {
+        video.play().catch(e => console.log("Play error:", e));
+      }
+    }
+
+    function autoEnableAudio() {
+      if (!isUserUnmuted) {
+        setAudioState(true);
+      }
+    }
+
+    // Auto-unmute on ANY first user gesture: click, touch, or key
+    window.addEventListener('click', autoEnableAudio, { passive: true });
+    window.addEventListener('touchstart', autoEnableAudio, { passive: true });
 
     // FEED STATE (Dynamic Ingestion from Live API / S3)
     let feedItems = [
@@ -621,7 +712,18 @@
       if (video) {
         video.src = item.video_url;
         video.load();
-        video.play().catch(e => console.log("Play waiting for gesture:", e));
+        video.muted = !isUserUnmuted;
+        video.volume = 1.0;
+        const playPromise = video.play();
+        if (playPromise !== undefined) {
+          playPromise.catch(e => {
+            console.log("Play error or waiting for gesture:", e);
+            if (!video.muted) {
+              video.muted = true;
+              video.play().catch(() => {});
+            }
+          });
+        }
       }
 
       // Update Header Status Badge & Annotation Bubble Class
@@ -753,6 +855,14 @@
     };
 
     window.addEventListener('keydown', (e) => {
+      // Auto-enable audio on any user keypress
+      autoEnableAudio();
+
+      if (e.key === 'm' || e.key === 'M') {
+        toggleAudio();
+        return;
+      }
+
       if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Enter', 'Escape', 'Backspace'].includes(e.key)) {
         e.preventDefault();
         const keyMap = {
@@ -782,6 +892,24 @@
     // Initialize
     renderItem(0);
     fetchLiveFeed();
+
+    // Try unmuted playback immediately (Native Android TV WebView supports this)
+    if (video) {
+      video.muted = false;
+      video.volume = 1.0;
+      const initialPlay = video.play();
+      if (initialPlay !== undefined) {
+        initialPlay.then(() => {
+          setAudioState(true);
+        }).catch(err => {
+          // Fallback for desktop browsers with strict autoplay policy
+          console.log("Browser policy blocked unmuted autoplay, starting muted until interaction:", err);
+          video.muted = true;
+          video.play().catch(() => {});
+          setAudioState(false);
+        });
+      }
+    }
   </script>
 </body>
 </html>
