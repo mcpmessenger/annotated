@@ -1207,8 +1207,15 @@
     }
 
     // Initialize
-    renderItem(0);
-    fetchLiveFeed();
+    const urlParams = new URLSearchParams(window.location.search);
+    const initialIdx = parseInt(urlParams.get('item') || '0', 10);
+    const modalParam = urlParams.get('modal');
+    if (modalParam === 'annotate') annotateModal.classList.add('open');
+    if (modalParam === 'claim') qrModal.classList.add('open');
+    renderItem(initialIdx);
+    if (!urlParams.has('item')) {
+      fetchLiveFeed();
+    }
 
     // Default Volume: 1.0 (Always Unmuted, relies on system/TV volume)
     if (video) {
