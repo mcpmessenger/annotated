@@ -53,6 +53,90 @@
                   linear-gradient(90deg, rgba(9, 13, 22, 0.45) 0%, transparent 25%, transparent 75%, rgba(9, 13, 22, 0.45) 100%);
     }
 
+    /* STATIC POST / TWEET / WEB BACKDROP */
+    .static-backdrop {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: radial-gradient(circle at 50% 45%, rgba(30, 41, 59, 0.96) 0%, rgba(9, 13, 22, 0.98) 100%);
+      z-index: 1;
+      padding: 60px;
+    }
+    .static-backdrop.visible {
+      display: flex;
+    }
+    .static-hero-card {
+      max-width: 880px;
+      width: 82vw;
+      background: rgba(15, 23, 42, 0.88);
+      border: 1.5px solid rgba(255, 255, 255, 0.16);
+      border-radius: 24px;
+      padding: 38px 46px;
+      backdrop-filter: blur(24px);
+      box-shadow: 0 25px 60px rgba(0, 0, 0, 0.92);
+      animation: heroFadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    @keyframes heroFadeIn {
+      from { opacity: 0; transform: translateY(16px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .static-header-meta {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+    .static-type-pill {
+      font-size: 0.85rem;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 6px 14px;
+      border-radius: 999px;
+      background: rgba(56, 189, 248, 0.2);
+      color: #38BDF8;
+      border: 1px solid rgba(56, 189, 248, 0.4);
+    }
+    .static-domain-pill {
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: #94A3B8;
+    }
+    .static-headline {
+      font-size: 1.95rem;
+      font-weight: 800;
+      color: #F8FAFC;
+      line-height: 1.3;
+      margin-bottom: 20px;
+      letter-spacing: -0.02em;
+    }
+    .static-quote-callout {
+      font-size: 1.25rem;
+      font-style: italic;
+      color: #E2E8F0;
+      line-height: 1.45;
+      padding: 16px 22px;
+      border-left: 5px solid #38BDF8;
+      background: rgba(30, 41, 59, 0.45);
+      border-radius: 0 14px 14px 0;
+      margin-bottom: 22px;
+    }
+    .static-commentary-box {
+      font-size: 1.15rem;
+      color: #CBD5E1;
+      line-height: 1.45;
+    }
+    .commentary-tag {
+      font-weight: 800;
+      color: #38BDF8;
+      margin-right: 8px;
+    }
+
     /* FLOATING TOP HEADER */
     .header {
       position: fixed;
@@ -488,10 +572,26 @@
 <body>
 
   <!-- FULL-SCREEN EDGE-TO-EDGE VIDEO LAYER -->
-  <div class="fullscreen-video-container">
-    <video id="tvVideo" autoplay loop playsinline>
+  <div class="fullscreen-video-container" id="videoContainer">
+    <video id="tvVideo" autoplay playsinline>
       <source id="videoSource" src="https://annotated-processed-videos.s3.us-east-1.amazonaws.com/processed/legacy_d31852c7-603f-43f6-b395-ff77d3c204ff.mp4" type="video/mp4">
     </video>
+  </div>
+
+  <!-- STATIC POST / TWEET / WEB ANNOTATION HERO BACKDROP -->
+  <div class="static-backdrop" id="staticBackdrop">
+    <div class="static-hero-card" id="staticHeroCard">
+      <div class="static-header-meta">
+        <span class="static-type-pill" id="staticTypePill">🐦 TWEET</span>
+        <span class="static-domain-pill" id="staticDomainPill">x.com</span>
+      </div>
+      <div class="static-headline" id="staticHeadline">Post Headline</div>
+      <div class="static-quote-callout" id="staticQuoteCallout">"Quoted claim from source"</div>
+      <div class="static-commentary-box" id="staticCommentaryBox">
+        <span class="commentary-tag">Community Context:</span>
+        <span id="staticCommentaryText">Detailed analysis</span>
+      </div>
+    </div>
   </div>
 
   <!-- CINEMATIC VIGNETTE GRADIENTS -->
@@ -651,28 +751,65 @@
       }
     }
 
+    let isAdvancing = false;
+
     function autoAdvanceNext() {
+      if (isAdvancing) return;
+      isAdvancing = true;
       clearInterval(staticTimer);
       const nextIdx = (currentItemIndex + 1) % feedItems.length;
+      console.log(`Auto-advancing from item ${currentItemIndex} to ${nextIdx}`);
       renderItem(nextIdx);
+      setTimeout(() => { isAdvancing = false; }, 800);
     }
 
     // FEED STATE (Dynamic Ingestion from Live API / S3)
     let feedItems = [
       {
         id: "d31852c7",
+        type: "video",
         video_url: "https://annotated-processed-videos.s3.us-east-1.amazonaws.com/processed/legacy_d31852c7-603f-43f6-b395-ff77d3c204ff.mp4",
         author: "@sentilabs01",
         avatar: "",
         quote: "\"Still waiting for the AI labs to saturate this benchmark\"",
         comment: "Notice how Grok 4.7 and Claude 5.5 tie with a score of zero here.",
         intent: "HOT TAKE",
-        status: "verified", // verified | needs-info | false
+        status: "verified",
+        source: { title: "Benchmark Saturation Test", domain: "s3.amazonaws.com" },
         pass_url: "https://annotated-repo.vercel.app/n/annotation-d31852c7",
         reactions: { fire: 12, think: 5, idea: 8, hundred: 24, down: 2 }
       },
       {
+        id: "tweet_01",
+        type: "tweet",
+        video_url: null,
+        author: "@magnetarsenti",
+        avatar: "",
+        quote: "Frontier compute clusters hitting power substation constraints across three states.",
+        comment: "Grid interconnection queues for 1GW datacenter campuses now exceed 48 months.",
+        intent: "ANALYSIS",
+        status: "needs-info",
+        source: { title: "Power Infrastructure Limits", domain: "x.com" },
+        pass_url: "https://annotated-repo.vercel.app/n/shared-a-video-clip-10-29-11-59--2b9b858e",
+        reactions: { fire: 19, think: 14, idea: 7, hundred: 11, down: 1 }
+      },
+      {
+        id: "web_02",
+        type: "web",
+        video_url: null,
+        author: "@sentilabs01",
+        avatar: "",
+        quote: "Annotated is the public annotation layer for the internet.",
+        comment: "Every URL is now an open conversation canvas with cryptographic provenance.",
+        intent: "FACT CHECK",
+        status: "verified",
+        source: { title: "The Web Annotation Architecture", domain: "annotated-repo.vercel.app" },
+        pass_url: "https://annotated-repo.vercel.app",
+        reactions: { fire: 34, think: 9, idea: 22, hundred: 40, down: 0 }
+      },
+      {
         id: "4569046e",
+        type: "video",
         video_url: "https://annotated-processed-videos.s3.us-east-1.amazonaws.com/processed/4569046e-d24a-4b99-a331-9f5c8337fac7_1790722387721_clip.mp4.mp4",
         author: "@sentilabs01",
         avatar: "",
@@ -680,20 +817,9 @@
         comment: "Compute scaling limits analysis across frontier models.",
         intent: "ANALYSIS",
         status: "needs-info",
+        source: { title: "AI Revolution Discussion", domain: "youtube.com" },
         pass_url: "https://annotated-repo.vercel.app/n/shared-a-video-clip-10-29-11-59--2b9b858e",
         reactions: { fire: 18, think: 9, idea: 14, hundred: 40, down: 1 }
-      },
-      {
-        id: "f92376a1",
-        video_url: "https://dajadbvlldrmgzztdksn.supabase.co/storage/v1/object/public/annotation-media/video_1790745794141.mp4",
-        author: "@sentilabs01",
-        avatar: "",
-        quote: "NASA Admin Jared Isaacman Discusses Space Advances",
-        comment: "Disputed orbital speed calculation flagged during launch broadcast review.",
-        intent: "FACT CHECK",
-        status: "false",
-        pass_url: "https://annotated-repo.vercel.app/n/shared-a-video-clip-00-21-00-53--f92376a1",
-        reactions: { fire: 4, think: 11, idea: 3, hundred: 6, down: 32 }
       }
     ];
 
@@ -729,42 +855,52 @@
       return 'needs-info';
     }
 
-    // FETCH REAL FEED DATA FROM LIVE S3 / SUPABASE FEED ENDPOINT
+    // FETCH REAL FEED DATA FROM LIVE SUPABASE FEED ENDPOINT
     async function fetchLiveFeed() {
       try {
-        const res = await fetch('https://annotated-repo.vercel.app/api/feed?video_only=true');
+        const res = await fetch('https://annotated-repo.vercel.app/api/feed');
         if (!res.ok) throw new Error("HTTP " + res.status);
         const data = await res.json();
         if (data && data.items && data.items.length > 0) {
-          const validVideoItems = data.items.filter(item => item.media && item.media.playable_url);
-          if (validVideoItems.length > 0) {
-            feedItems = validVideoItems.map((item) => {
-              const accurateStatus = evaluateAccuracy(item);
-              return {
-                id: item.id,
-                video_url: item.media.playable_url,
-                author: '@' + (item.author?.username || 'annotated'),
-                avatar: item.author?.avatar_url || '',
-                quote: item.quote || item.source?.title || 'Video Clip',
-                comment: item.comment ? item.comment.replace(/\[.*?\]/g, '').trim() : 'Community annotation on this video.',
-                intent: (item.intent || 'HOT TAKE').toUpperCase(),
-                status: accurateStatus,
-                pass_url: item.pass_url || 'https://annotated-repo.vercel.app',
-                reactions: {
-                  fire: (item.reactions && item.reactions['🔥']) || 8,
-                  think: (item.reactions && item.reactions['🤔']) || 3,
-                  idea: (item.reactions && item.reactions['💡']) || 5,
-                  hundred: (item.reactions && item.reactions['💯']) || 15,
-                  down: (item.reactions && item.reactions['👎']) || 1
-                }
-              };
-            });
-            console.log("Successfully ingested " + feedItems.length + " live S3/Supabase videos!");
-            renderItem(0);
-          }
+          feedItems = data.items.map((item) => {
+            const accurateStatus = evaluateAccuracy(item);
+            const mediaObj = item.media || {};
+            const sourceObj = item.source || {};
+            const sourceUrl = String(sourceObj.url || '').toLowerCase();
+            const isVideo = Boolean(mediaObj.playable_url && mediaObj.playable_url.endsWith('.mp4'));
+            let itemType = 'web';
+            if (isVideo) {
+              itemType = 'video';
+            } else if (sourceUrl.includes('twitter.com') || sourceUrl.includes('x.com')) {
+              itemType = 'tweet';
+            }
+
+            return {
+              id: item.id,
+              type: itemType,
+              video_url: isVideo ? mediaObj.playable_url : null,
+              author: '@' + (item.author?.username || item.author?.handle || 'annotated'),
+              avatar: item.author?.avatar_url || '',
+              quote: item.quote || sourceObj.title || 'Community Observation',
+              comment: item.comment ? item.comment.replace(/\[.*?\]/g, '').trim() : 'Community annotation on this content.',
+              intent: (item.intent || (isVideo ? 'VIDEO CLIP' : (itemType === 'tweet' ? 'TWEET' : 'ARTICLE'))).toUpperCase(),
+              status: accurateStatus,
+              source: sourceObj,
+              pass_url: item.pass_url || 'https://annotated-repo.vercel.app',
+              reactions: {
+                fire: (item.reactions && item.reactions['🔥']) || 8,
+                think: (item.reactions && item.reactions['🤔']) || 3,
+                idea: (item.reactions && item.reactions['💡']) || 5,
+                hundred: (item.reactions && item.reactions['💯']) || 15,
+                down: (item.reactions && item.reactions['👎']) || 1
+              }
+            };
+          });
+          console.log("Successfully ingested " + feedItems.length + " live items (videos, tweets, articles)!");
+          renderItem(0);
         }
       } catch (err) {
-        console.log("Using seeded S3 pipeline clips, live API fetch error:", err);
+        console.log("Using seeded pipeline items, live API fetch error:", err);
       }
     }
 
@@ -778,9 +914,17 @@
       clearInterval(staticTimer);
       updateProgress(0, 1);
 
-      // Update video source or static post timer
-      const isVideo = Boolean(item.video_url && item.video_url.endsWith('.mp4'));
+      const staticBackdrop = document.getElementById('staticBackdrop');
+      const staticTypePill = document.getElementById('staticTypePill');
+      const staticDomainPill = document.getElementById('staticDomainPill');
+      const staticHeadline = document.getElementById('staticHeadline');
+      const staticQuoteCallout = document.getElementById('staticQuoteCallout');
+      const staticCommentaryText = document.getElementById('staticCommentaryText');
+
+      const isVideo = Boolean(item.type === 'video' && item.video_url);
+
       if (isVideo && video) {
+        if (staticBackdrop) staticBackdrop.classList.remove('visible');
         video.style.display = 'block';
         video.src = item.video_url;
         video.load();
@@ -794,10 +938,22 @@
             video.play().catch(() => {});
           });
         }
-      } else if (video) {
-        // Static Post / Tweet: 15-second timer
-        video.pause();
-        video.style.display = 'none';
+      } else {
+        // Static Post / Tweet / Web Annotation: 15-second timer
+        if (video) {
+          video.pause();
+          video.style.display = 'none';
+        }
+        if (staticBackdrop) {
+          staticBackdrop.classList.add('visible');
+          const isTweet = item.type === 'tweet' || (item.source && item.source.domain && (item.source.domain.includes('twitter') || item.source.domain.includes('x.com')));
+          if (staticTypePill) staticTypePill.textContent = isTweet ? '🐦 TWEET' : '🌐 WEB ANNOTATION';
+          if (staticDomainPill) staticDomainPill.textContent = item.source?.domain || (isTweet ? 'x.com' : 'web');
+          if (staticHeadline) staticHeadline.textContent = item.source?.title || item.quote || 'Community Annotation';
+          if (staticQuoteCallout) staticQuoteCallout.textContent = `"${item.quote || item.comment || ''}"`;
+          if (staticCommentaryText) staticCommentaryText.textContent = item.comment || 'Editorial observation recorded by the community.';
+        }
+
         staticElapsed = 0;
         updateProgress(0, STATIC_DURATION);
         staticTimer = setInterval(() => {
@@ -965,9 +1121,11 @@
 
     if (video) {
       video.addEventListener('timeupdate', () => {
+        if (isAdvancing) return;
         const time = video.currentTime;
-        const total = Math.min(video.duration || MAX_VIDEO_DURATION, MAX_VIDEO_DURATION);
-        updateProgress(time, total);
+        const duration = video.duration;
+        const maxDuration = (duration && duration < MAX_VIDEO_DURATION) ? duration : MAX_VIDEO_DURATION;
+        updateProgress(time, maxDuration);
 
         const timeBadge = document.getElementById('bubbleTime');
         const mins = Math.floor(time / 60);
@@ -975,8 +1133,8 @@
         const formatted = String(mins).padStart(2, '0') + ':' + String(secs).padStart(2, '0');
         if (timeBadge) timeBadge.textContent = formatted;
 
-        // Auto-advance if exceeded max 90s or ended
-        if (time >= MAX_VIDEO_DURATION || (video.duration && time >= video.duration - 0.2)) {
+        // Auto-advance if exceeded max 90s or reached end of video
+        if (time >= MAX_VIDEO_DURATION || (duration && time >= duration - 0.35)) {
           autoAdvanceNext();
         }
       });
