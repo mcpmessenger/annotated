@@ -23,7 +23,7 @@ android {
         create("release") {
             val keystorePropertiesFile = file("keystore.properties")
             if (keystorePropertiesFile.exists()) {
-                val properties = java.util.Properties()
+                val properties = Properties()
                 properties.load(keystorePropertiesFile.inputStream())
                 storeFile = file(properties.getProperty("storeFile") ?: "release.jks")
                 storePassword = properties.getProperty("storePassword")
