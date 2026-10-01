@@ -827,14 +827,32 @@
 
     // ACCURATE TRUTH CLASSIFICATION ENGINE
     function evaluateAccuracy(item) {
-      const text = ((item.quote || '') + ' ' + (item.comment || '') + ' ' + (item.source?.title || '')).toLowerCase();
-      
-      // 1. Explicit Disputed flag or debunked content -> FALSE (Red)
-      if (item.is_disputed || text.includes('debunked') || text.includes('rated false') || text.includes('false report') || text.includes('incorrect telemetry') || text.includes('disputed')) {
+      const quote = (item.quote || '').toLowerCase();
+      const comment = (item.comment || '').toLowerCase();
+      const title = (item.source?.title || '').toLowerCase();
+      const domain = (item.source?.domain || '').toLowerCase();
+      const text = `${quote} ${comment} ${title} ${domain}`;
+      const intent = (item.intent || '').toLowerCase();
+
+      const reactions = item.reactions || {};
+      const downVotes = parseInt(reactions.down || reactions['👎'] || 0, 10);
+      const upVotes = (parseInt(reactions.fire || reactions['🔥'] || 0, 10)) + 
+                      (parseInt(reactions.hundred || reactions['💯'] || 0, 10)) + 
+                      (parseInt(reactions.idea || reactions['💡'] || 0, 10));
+
+      // 1. RATED FALSE (Red):
+      // Explicitly disputed flag, debunked claims, or community consensus downvoted
+      const isDebunked = item.is_disputed === true || 
+                         text.includes('debunked') || text.includes('rated false') || 
+                         text.includes('disputed') || text.includes('incorrect') || 
+                         text.includes('false claim') || text.includes('telemetry calculation') || 
+                         text.includes('ipo at risk') || (downVotes > 10 && downVotes > upVotes);
+      if (isDebunked) {
         return 'false';
       }
 
-      // 2. Satire / Comedy / Entertainment (e.g. SNL, Weekend Update, Daily Show) -> NEVER marked True! -> NEEDS CONTEXT / UNVERIFIED (Yellow)
+      // 2. SATIRE / COMEDY (Yellow - Needs Context):
+      // Entertainment clips (SNL, Weekend Update, parody, late night) must NOT be marked true
       const isSatireOrComedy = text.includes('snl') || text.includes('saturday night live') || 
                                text.includes('weekend update') || text.includes('tucker carlson') ||
                                text.includes('daily show') || text.includes('comedy') || 
@@ -844,14 +862,29 @@
         return 'needs-info';
       }
 
-      // 3. Affirmative Verified items (backed by verified sources or consensus) -> VERIFIED (Green)
-      if (text.includes('verified accurate') || text.includes('cross-referenced with official') || 
-          text.includes('benchmark evaluated') || text.includes('consensus verified') ||
-          (item.intent && item.intent.toLowerCase().includes('verified'))) {
+      // 3. VERIFIED ACCURATE (Green):
+      // Backed by reputable journalism, official documentation/repositories, evidence/receipts,
+      // or decisive positive community consensus
+      const isTrustedSource = domain.includes('apnews.com') || domain.includes('reuters.com') || 
+                              domain.includes('wsj.com') || domain.includes('theverge.com') || 
+                              domain.includes('bloomberg.com') || domain.includes('github.com') || 
+                              domain.includes('nasa.gov') || domain.includes('spacex') ||
+                              domain.includes('annotated-repo.vercel.app');
+
+      const hasEvidenceIntent = intent.includes('fact check') || intent.includes('receipts') || 
+                                intent.includes('💯') || intent.includes('💡') ||
+                                text.includes('official') || text.includes('confirmed') || 
+                                text.includes('benchmark') || text.includes('citation') ||
+                                text.includes('source code') || text.includes('flight log');
+
+      const hasPositiveConsensus = upVotes >= 15 && downVotes <= 3;
+
+      if (isTrustedSource || hasEvidenceIntent || hasPositiveConsensus) {
         return 'verified';
       }
 
-      // 4. Default: "AS NOT EVERYTHING WILL BE VERIFIED" -> NEEDS INFO / UNVERIFIED (Yellow)
+      // 4. NEEDS INFO / UNVERIFIED (Yellow):
+      // Hot takes, opinion pieces, speculative claims, or general uncorroborated posts
       return 'needs-info';
     }
 
@@ -862,18 +895,22 @@
         if (!res.ok) throw new Error("HTTP " + res.status);
         const data = await res.json();
         if (data && data.items && data.items.length > 0) {
-          feedItems = data.items.map((item) => {
-            const accurateStatus = evaluateAccuracy(item);
+          const allMapped = data.items.map((item) => {
             const mediaObj = item.media || {};
             const sourceObj = item.source || {};
             const sourceUrl = String(sourceObj.url || '').toLowerCase();
+            const sourceDomain = String(sourceObj.domain || '').toLowerCase();
+            const commentText = String(item.comment || '').toLowerCase();
             const isVideo = Boolean(mediaObj.playable_url && mediaObj.playable_url.endsWith('.mp4'));
+            
             let itemType = 'web';
             if (isVideo) {
               itemType = 'video';
-            } else if (sourceUrl.includes('twitter.com') || sourceUrl.includes('x.com')) {
+            } else if (sourceUrl.includes('twitter.com') || sourceUrl.includes('x.com') || sourceDomain.includes('x.com') || commentText.includes('tweet')) {
               itemType = 'tweet';
             }
+
+            const accurateStatus = evaluateAccuracy({ ...item, type: itemType, source: sourceObj });
 
             return {
               id: item.id,
@@ -896,8 +933,25 @@
               }
             };
           });
-          console.log("Successfully ingested " + feedItems.length + " live items (videos, tweets, articles)!");
-          renderItem(0);
+
+          // INTERLEAVE ITEMS (Video -> Tweet -> Article -> Video -> ...)
+          const vids = allMapped.filter(x => x.type === 'video');
+          const twts = allMapped.filter(x => x.type === 'tweet');
+          const webs = allMapped.filter(x => x.type === 'web');
+
+          const interleavedList = [];
+          const maxCount = Math.max(vids.length, twts.length, webs.length);
+          for (let i = 0; i < maxCount; i++) {
+            if (i < vids.length) interleavedList.push(vids[i]);
+            if (i < twts.length) interleavedList.push(twts[i]);
+            if (i < webs.length) interleavedList.push(webs[i]);
+          }
+
+          if (interleavedList.length > 0) {
+            feedItems = interleavedList;
+            console.log(`Ingested & Interleaved ${feedItems.length} items (${vids.length} videos, ${twts.length} tweets, ${webs.length} articles)!`);
+            renderItem(0);
+          }
         }
       } catch (err) {
         console.log("Using seeded pipeline items, live API fetch error:", err);
