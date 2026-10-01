@@ -113,10 +113,10 @@ ${promptTarget}
 }`;
 
       const candidateModels = [
-        "gemini-2.5-flash",
-        "gemini-1.5-flash",
-        "gemini-1.5-flash-latest",
-        "gemini-1.5-flash-8b"
+        "gemini-3.5-flash",
+        "gemini-3.5-flash-lite",
+        "gemini-3.8-flash",
+        "gemini-flash-latest"
       ];
 
       for (const model of candidateModels) {

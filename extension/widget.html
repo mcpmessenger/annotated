@@ -94,7 +94,7 @@
         </div>
 
         <!-- High-Precision Start & Stop Controls (Single Streamlined Row) -->
-        <div class="trimmer-controls-compact">
+        <div class="trimmer-controls-compact" style="display: none;">
           <!-- Start Control Group -->
           <div class="trim-group">
             <span class="trim-tag start-tag">START</span>
@@ -127,7 +127,7 @@
             <span id="recordNowBtnIcon">🔴</span>
             <span id="recordNowBtnLabel">Record Now</span>
           </button>
-          <button type="button" id="grabClipBtn" class="grab-clip-action-btn" data-tooltip="Grab clip using Start & Stop range">
+          <button type="button" id="grabClipBtn" class="grab-clip-action-btn" style="display: none;" data-tooltip="Grab clip using Start & Stop range">
             <span id="grabClipBtnIcon">✂️</span>
             <span id="grabClipBtnLabel">Grab Range</span>
           </button>
@@ -150,13 +150,13 @@
           <video id="previewVideo" class="hidden" controls style="max-height: 110px; max-width: 100%; border-radius: 4px;" playsinline></video>
         </div>
       </div>
-      <div class="emoji-bar" style="flex-wrap: wrap; gap: 4px;">
-        <span class="emoji-label">Tag:</span>
-        <button class="emoji-btn" data-emoji="hot take" data-intent="hot take" style="font-size:10px; padding: 3px 9px; border-radius: 99px; font-weight: 700; letter-spacing: 0.02em;">🔥 hot take</button>
-        <button class="emoji-btn" data-emoji="fact check" data-intent="fact check" style="font-size:10px; padding: 3px 9px; border-radius: 99px; font-weight: 700; letter-spacing: 0.02em;">✅ fact check</button>
-        <button class="emoji-btn" data-emoji="steelman" data-intent="steelman" style="font-size:10px; padding: 3px 9px; border-radius: 99px; font-weight: 700; letter-spacing: 0.02em;">🛡️ steelman</button>
-        <button class="emoji-btn" data-emoji="receipts" data-intent="receipts" style="font-size:10px; padding: 3px 9px; border-radius: 99px; font-weight: 700; letter-spacing: 0.02em;">🧾 receipts</button>
-        <button class="emoji-btn" data-emoji="explainer" data-intent="explainer" style="font-size:10px; padding: 3px 9px; border-radius: 99px; font-weight: 700; letter-spacing: 0.02em;">💬 explainer</button>
+      <div class="emoji-bar" style="flex-wrap: wrap; gap: 6px; margin-bottom: 8px;">
+        <span class="emoji-label">React:</span>
+        <button class="emoji-btn" data-emoji="🔥" data-intent="hot take" style="font-size:16px; padding: 4px; border-radius: 99px; cursor: pointer; background: transparent; border: none; transition: transform 0.1s;">🔥</button>
+        <button class="emoji-btn" data-emoji="✅" data-intent="fact check" style="font-size:16px; padding: 4px; border-radius: 99px; cursor: pointer; background: transparent; border: none; transition: transform 0.1s;">✅</button>
+        <button class="emoji-btn" data-emoji="🛡️" data-intent="steelman" style="font-size:16px; padding: 4px; border-radius: 99px; cursor: pointer; background: transparent; border: none; transition: transform 0.1s;">🛡️</button>
+        <button class="emoji-btn" data-emoji="🧾" data-intent="receipts" style="font-size:16px; padding: 4px; border-radius: 99px; cursor: pointer; background: transparent; border: none; transition: transform 0.1s;">🧾</button>
+        <button class="emoji-btn" data-emoji="💬" data-intent="explainer" style="font-size:16px; padding: 4px; border-radius: 99px; cursor: pointer; background: transparent; border: none; transition: transform 0.1s;">💬</button>
       </div>
       <textarea id="comment" maxlength="1000" placeholder="What do you want people to notice?"></textarea>
 
