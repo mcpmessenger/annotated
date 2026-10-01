@@ -64,13 +64,8 @@
       align-items: center;
       z-index: 10;
     }
-    .brand-group {
-      display: flex;
-      align-items: center;
-      gap: 16px;
-    }
     .brand {
-      font-size: 2.5rem;
+      font-size: 2.6rem;
       font-weight: 800;
       letter-spacing: -1px;
       text-shadow: 0 4px 15px rgba(0, 0, 0, 0.9);
@@ -78,52 +73,42 @@
     .brand-dot {
       color: #EF4444; /* Signature Red Dot */
     }
-    .feed-counter {
-      font-size: 0.9rem;
-      font-weight: 600;
-      color: #94A3B8;
-      background: rgba(15, 23, 42, 0.7);
-      border: 1px solid rgba(255, 255, 255, 0.12);
-      padding: 4px 12px;
-      border-radius: 999px;
-      backdrop-filter: blur(10px);
-    }
 
     /* COLOR-CODED STATUS PILL (Green / Yellow / Red) */
     .status-badge {
       display: flex;
       align-items: center;
       gap: 8px;
-      padding: 8px 20px;
+      padding: 9px 22px;
       border-radius: 999px;
-      font-size: 1rem;
+      font-size: 1.05rem;
       font-weight: 800;
       letter-spacing: 0.5px;
       text-transform: uppercase;
-      backdrop-filter: blur(14px);
+      backdrop-filter: blur(16px);
       box-shadow: 0 4px 25px rgba(0, 0, 0, 0.7);
       transition: all 0.3s ease;
     }
     /* Green: Verified */
     .status-badge.verified {
-      background: rgba(34, 197, 94, 0.18);
+      background: rgba(34, 197, 94, 0.2);
       border: 1.5px solid #22C55E;
       color: #4ADE80;
-      box-shadow: 0 0 20px rgba(34, 197, 94, 0.3);
+      box-shadow: 0 0 25px rgba(34, 197, 94, 0.35);
     }
-    /* Yellow: Needs Info */
+    /* Yellow: Needs Info / Unverified */
     .status-badge.needs-info {
-      background: rgba(245, 158, 11, 0.18);
+      background: rgba(245, 158, 11, 0.2);
       border: 1.5px solid #F59E0B;
       color: #FBBF24;
-      box-shadow: 0 0 20px rgba(245, 158, 11, 0.3);
+      box-shadow: 0 0 25px rgba(245, 158, 11, 0.35);
     }
     /* Red: False / Disputed */
     .status-badge.false {
-      background: rgba(239, 68, 68, 0.22);
+      background: rgba(239, 68, 68, 0.25);
       border: 1.5px solid #EF4444;
       color: #F87171;
-      box-shadow: 0 0 25px rgba(239, 68, 68, 0.45);
+      box-shadow: 0 0 30px rgba(239, 68, 68, 0.5);
     }
 
     /* DIAGONAL "FALSE" RUBBER STAMP */
@@ -166,7 +151,7 @@
       width: 520px;
       max-width: 55vw;
       background: rgba(15, 23, 42, 0.88);
-      border: 1px solid rgba(56, 189, 248, 0.45);
+      border: 1.5px solid rgba(56, 189, 248, 0.45);
       border-radius: 16px;
       padding: 18px 22px;
       backdrop-filter: blur(18px);
@@ -196,6 +181,7 @@
       box-shadow: 0 0 8px rgba(56, 189, 248, 0.6);
       background-size: cover;
       background-position: center;
+      transition: all 0.3s ease;
     }
     .bubble-meta {
       display: flex;
@@ -219,6 +205,7 @@
       border: 1px solid rgba(56, 189, 248, 0.4);
       padding: 3px 8px;
       border-radius: 4px;
+      transition: all 0.3s ease;
     }
     .bubble-quote {
       font-size: 0.95rem;
@@ -226,11 +213,12 @@
       line-height: 1.4;
       margin-bottom: 6px;
       font-style: italic;
-      border-left: 3px solid #38BDF8;
+      border-left: 4px solid #38BDF8; /* Dynamic Accent Line */
       padding-left: 10px;
       max-height: 3.8em;
       overflow: hidden;
       text-overflow: ellipsis;
+      transition: all 0.3s ease;
     }
     .bubble-comment {
       font-size: 1.05rem;
@@ -239,30 +227,56 @@
       line-height: 1.4;
     }
 
-    /* REMOTE CHANNEL HINT (Floating Top Right) */
-    .remote-nav-hint {
-      position: fixed;
-      top: 11vh;
-      left: 4vw;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      font-size: 0.85rem;
-      font-weight: 600;
-      color: #94A3B8;
-      background: rgba(15, 23, 42, 0.75);
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      padding: 6px 14px;
-      border-radius: 8px;
-      backdrop-filter: blur(10px);
-      z-index: 10;
+    /* ACCENT LINE & BUBBLE COLOR THEMING BASED ON VERIFICATION */
+    /* 1. GREEN FOR TRUE / VERIFIED */
+    .annotation-bubble.verified {
+      border-color: rgba(34, 197, 94, 0.55);
+      box-shadow: 0 15px 40px rgba(0, 0, 0, 0.85), 0 0 20px rgba(34, 197, 94, 0.25);
     }
-    .nav-arrow-badge {
-      background: rgba(255, 255, 255, 0.15);
-      color: #FFFFFF;
-      padding: 2px 6px;
-      border-radius: 4px;
-      font-weight: 800;
+    .annotation-bubble.verified .bubble-quote {
+      border-left-color: #22C55E !important; /* Green Line for True */
+    }
+    .annotation-bubble.verified .intent-badge {
+      background: rgba(34, 197, 94, 0.2) !important;
+      color: #4ADE80 !important;
+      border-color: rgba(34, 197, 94, 0.4) !important;
+    }
+    .annotation-bubble.verified .avatar {
+      box-shadow: 0 0 10px rgba(34, 197, 94, 0.6) !important;
+    }
+
+    /* 2. YELLOW FOR NEEDS INFO / UNVERIFIED */
+    .annotation-bubble.needs-info {
+      border-color: rgba(245, 158, 11, 0.55);
+      box-shadow: 0 15px 40px rgba(0, 0, 0, 0.85), 0 0 20px rgba(245, 158, 11, 0.25);
+    }
+    .annotation-bubble.needs-info .bubble-quote {
+      border-left-color: #F59E0B !important; /* Yellow Line for Needs Info */
+    }
+    .annotation-bubble.needs-info .intent-badge {
+      background: rgba(245, 158, 11, 0.2) !important;
+      color: #FBBF24 !important;
+      border-color: rgba(245, 158, 11, 0.4) !important;
+    }
+    .annotation-bubble.needs-info .avatar {
+      box-shadow: 0 0 10px rgba(245, 158, 11, 0.6) !important;
+    }
+
+    /* 3. RED FOR FALSE / DISPUTED */
+    .annotation-bubble.false {
+      border-color: rgba(239, 68, 68, 0.65);
+      box-shadow: 0 15px 40px rgba(0, 0, 0, 0.85), 0 0 25px rgba(239, 68, 68, 0.35);
+    }
+    .annotation-bubble.false .bubble-quote {
+      border-left-color: #EF4444 !important; /* Red Line for False */
+    }
+    .annotation-bubble.false .intent-badge {
+      background: rgba(239, 68, 68, 0.25) !important;
+      color: #F87171 !important;
+      border-color: rgba(239, 68, 68, 0.5) !important;
+    }
+    .annotation-bubble.false .avatar {
+      box-shadow: 0 0 12px rgba(239, 68, 68, 0.8) !important;
     }
 
     /* FLOATING 7-BUTTON REACTION BAR (Bottom Dock) */
@@ -395,10 +409,7 @@
 
   <!-- FLOATING TOP HEADER -->
   <header class="header">
-    <div class="brand-group">
-      <div class="brand">annotated<span class="brand-dot">.</span></div>
-      <div class="feed-counter" id="feedCounter">LIVE FEED · S3</div>
-    </div>
+    <div class="brand">annotated<span class="brand-dot">.</span></div>
     
     <!-- DYNAMIC COLOR-CODED STATUS BADGE -->
     <div class="status-badge verified" id="statusBadge">
@@ -407,15 +418,8 @@
     </div>
   </header>
 
-  <!-- REMOTE D-PAD CHANNEL HINT -->
-  <div class="remote-nav-hint">
-    <span><span class="nav-arrow-badge">▲</span> <span class="nav-arrow-badge">▼</span> Next / Prev Video</span>
-    <span>•</span>
-    <span><span class="nav-arrow-badge">◄</span> <span class="nav-arrow-badge">►</span> Reaction Dock</span>
-  </div>
-
   <!-- FLOATING ANNOTATION BUBBLE (Bottom Left) -->
-  <div class="annotation-bubble" id="annotationBubble">
+  <div class="annotation-bubble verified" id="annotationBubble">
     <div class="bubble-header">
       <div class="author-info">
         <div class="avatar" id="authorAvatar"></div>
@@ -494,7 +498,7 @@
     const statusIcon = document.getElementById('statusIcon');
     const statusText = document.getElementById('statusText');
     const stampFalse = document.getElementById('stampFalse');
-    const feedCounter = document.getElementById('feedCounter');
+    const annotationBubble = document.getElementById('annotationBubble');
 
     // FEED STATE (Dynamic Ingestion from Live API / S3)
     let feedItems = [
@@ -516,7 +520,7 @@
         author: "@sentilabs01",
         avatar: "",
         quote: "FULL: Elon Musk, Jensen Huang, Tom Brown Discuss the AI Revolution",
-        comment: "Shared a video clip analyzing compute scaling limits. Needs citation.",
+        comment: "Compute scaling limits analysis across frontier models.",
         intent: "ANALYSIS",
         status: "needs-info",
         pass_url: "https://annotated-repo.vercel.app/n/shared-a-video-clip-10-29-11-59--2b9b858e",
@@ -528,15 +532,45 @@
         author: "@sentilabs01",
         avatar: "",
         quote: "NASA Admin Jared Isaacman Discusses Space Advances",
-        comment: "Telemetry claims cross-referenced with official flight logs. Debunked trajectory report.",
+        comment: "Disputed orbital speed calculation flagged during launch broadcast review.",
         intent: "FACT CHECK",
-        status: "false", // FALSE TRIGGER
+        status: "false",
         pass_url: "https://annotated-repo.vercel.app/n/shared-a-video-clip-00-21-00-53--f92376a1",
         reactions: { fire: 4, think: 11, idea: 3, hundred: 6, down: 32 }
       }
     ];
 
     let currentItemIndex = 0;
+
+    // ACCURATE TRUTH CLASSIFICATION ENGINE
+    function evaluateAccuracy(item) {
+      const text = ((item.quote || '') + ' ' + (item.comment || '') + ' ' + (item.source?.title || '')).toLowerCase();
+      
+      // 1. Explicit Disputed flag or debunked content -> FALSE (Red)
+      if (item.is_disputed || text.includes('debunked') || text.includes('rated false') || text.includes('false report') || text.includes('incorrect telemetry') || text.includes('disputed')) {
+        return 'false';
+      }
+
+      // 2. Satire / Comedy / Entertainment (e.g. SNL, Weekend Update, Daily Show) -> NEVER marked True! -> NEEDS CONTEXT / UNVERIFIED (Yellow)
+      const isSatireOrComedy = text.includes('snl') || text.includes('saturday night live') || 
+                               text.includes('weekend update') || text.includes('tucker carlson') ||
+                               text.includes('daily show') || text.includes('comedy') || 
+                               text.includes('parody') || text.includes('jimmy kimmel') ||
+                               text.includes('jimmy fallon') || text.includes('john oliver');
+      if (isSatireOrComedy) {
+        return 'needs-info';
+      }
+
+      // 3. Affirmative Verified items (backed by verified sources or consensus) -> VERIFIED (Green)
+      if (text.includes('verified accurate') || text.includes('cross-referenced with official') || 
+          text.includes('benchmark evaluated') || text.includes('consensus verified') ||
+          (item.intent && item.intent.toLowerCase().includes('verified'))) {
+        return 'verified';
+      }
+
+      // 4. Default: "AS NOT EVERYTHING WILL BE VERIFIED" -> NEEDS INFO / UNVERIFIED (Yellow)
+      return 'needs-info';
+    }
 
     // FETCH REAL FEED DATA FROM LIVE S3 / SUPABASE FEED ENDPOINT
     async function fetchLiveFeed() {
@@ -547,17 +581,8 @@
         if (data && data.items && data.items.length > 0) {
           const validVideoItems = data.items.filter(item => item.media && item.media.playable_url);
           if (validVideoItems.length > 0) {
-            feedItems = validVideoItems.map((item, idx) => {
-              // Assign realistic status for variety (verified, needs-info, false)
-              let status = 'verified';
-              if (item.is_disputed || (item.comment && item.comment.toLowerCase().includes('false'))) {
-                status = 'false';
-              } else if (idx % 3 === 1) {
-                status = 'needs-info';
-              } else if (idx % 3 === 2) {
-                status = 'false';
-              }
-
+            feedItems = validVideoItems.map((item) => {
+              const accurateStatus = evaluateAccuracy(item);
               return {
                 id: item.id,
                 video_url: item.media.playable_url,
@@ -566,7 +591,7 @@
                 quote: item.quote || item.source?.title || 'Video Clip',
                 comment: item.comment ? item.comment.replace(/\[.*?\]/g, '').trim() : 'Community annotation on this video.',
                 intent: (item.intent || 'HOT TAKE').toUpperCase(),
-                status: status,
+                status: accurateStatus,
                 pass_url: item.pass_url || 'https://annotated-repo.vercel.app',
                 reactions: {
                   fire: (item.reactions && item.reactions['🔥']) || 8,
@@ -599,8 +624,10 @@
         video.play().catch(e => console.log("Play waiting for gesture:", e));
       }
 
-      // Update Header Status Badge
+      // Update Header Status Badge & Annotation Bubble Class
       statusBadge.className = 'status-badge ' + item.status;
+      annotationBubble.className = 'annotation-bubble ' + item.status;
+
       if (item.status === 'verified') {
         statusIcon.textContent = '✓';
         statusText.textContent = 'VERIFIED ACCURATE';
@@ -615,10 +642,7 @@
         stampFalse.classList.add('visible'); // Show diagonal FALSE stamp!
       }
 
-      // Update Feed Counter
-      feedCounter.textContent = `VIDEO ${currentItemIndex + 1} OF ${feedItems.length} · S3`;
-
-      // Update Bubble
+      // Update Bubble content
       document.getElementById('authorName').textContent = item.author;
       document.getElementById('bubbleQuote').textContent = item.quote;
       document.getElementById('bubbleComment').textContent = item.comment;
