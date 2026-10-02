@@ -23,9 +23,9 @@ export function Footer() {
             <a href="https://chromewebstore.google.com/detail/annotated/bnaejhcknifnikgiohecinndejbajfdo" target="_blank" rel="noopener noreferrer" className="hover:text-[hsl(var(--foreground))] transition-colors">
               Chrome Extension
             </a>
-            <a href="/roku" className="hover:text-[hsl(var(--foreground))] transition-colors">
-              Roku TV (Preview)
-            </a>
+            <span className="text-[hsl(var(--text-muted))] cursor-not-allowed">
+              Fire TV / Roku (Coming soon)
+            </span>
             <a href="https://github.com/mcpmessenger/annotated" target="_blank" rel="noopener noreferrer" className="hover:text-[hsl(var(--foreground))] transition-colors">
               GitHub
             </a>

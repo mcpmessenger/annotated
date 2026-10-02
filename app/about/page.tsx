@@ -77,10 +77,10 @@ export default function AboutPage() {
                 </p>
               </div>
 
-              <div className="border border-[hsl(var(--border))] rounded-lg p-5 bg-[hsl(var(--card))]">
+              <div className="border border-[hsl(var(--border))] rounded-lg p-5 bg-[hsl(var(--card))] opacity-75">
                 <div className="text-2xl mb-2">📺</div>
-                <h3 className="font-bold text-base mb-1">Roku TV Channel</h3>
-                <span className="text-xs font-semibold text-sky-400 uppercase tracking-wider block mb-2">The Living Room</span>
+                <h3 className="font-bold text-base mb-1">Fire TV &amp; Roku Apps</h3>
+                <span className="text-xs font-semibold text-blue-500 uppercase tracking-wider block mb-2">Coming Soon</span>
                 <p className="text-sm text-[hsl(var(--text-muted))]">
                   Experience video annotations and community fact-checking on the big screen with your TV remote.
                 </p>
@@ -92,15 +92,15 @@ export default function AboutPage() {
                 <div>
                   <h4 className="font-bold text-sm text-[hsl(var(--foreground))]">Why TV? Fact-Checking on the Big Screen</h4>
                   <p className="text-xs text-[hsl(var(--text-muted))] mt-1 max-w-xl">
-                    Long-form video essays, news reports, and documentaries are best watched on television. Our official Roku channel brings community consensus badges (Verified, Disputed, Unverified), timestamped commentary, and remote reactions directly to your living room.
+                    Long-form video essays, news reports, and documentaries are best watched on television. Our upcoming Fire TV and Roku apps will bring community consensus badges (Verified, Disputed, Unverified), timestamped commentary, and remote reactions directly to your living room.
                   </p>
                 </div>
-                <Link
-                  href="/roku"
-                  className="inline-flex items-center px-4 py-2 rounded text-xs font-semibold bg-[hsl(var(--foreground))] text-[hsl(var(--background))] hover:opacity-90 transition-opacity flex-shrink-0"
+                <button
+                  disabled
+                  className="inline-flex items-center px-4 py-2 rounded text-xs font-semibold bg-[hsl(var(--muted))] text-[hsl(var(--text-muted))] cursor-not-allowed flex-shrink-0"
                 >
-                  Explore Roku Channel &rarr;
-                </Link>
+                  Coming Soon
+                </button>
               </div>
             </div>
           </section>
