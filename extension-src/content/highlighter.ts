@@ -33,15 +33,31 @@ export function injectHighlightStyles(): void {
   (document.head || document.documentElement).appendChild(style);
 }
 
+export function clearAllHighlights(): void {
+  const marks = document.querySelectorAll('.annotated-highlight, [data-annotated-highlight]');
+  marks.forEach((mark) => {
+    const parent = mark.parentNode;
+    if (parent) {
+      while (mark.firstChild) {
+        parent.insertBefore(mark.firstChild, mark);
+      }
+      parent.removeChild(mark);
+    }
+  });
+}
+
 export function extractCandidatePhrases(rawQuote: string): Set<string> {
   const candidates = new Set<string>();
   const clean = rawQuote.trim();
-  if (!clean) return candidates;
+  if (!clean || clean.length < 5) return candidates;
 
   candidates.add(clean);
 
-  // Split into clauses
-  const clauses = clean.split(/[,.;:!?\n\r]+/).map((c) => c.trim()).filter((c) => c.length > 5);
+  // Split into clauses only if meaningful length (at least 15 chars and at least 3 words to avoid false positives like "1d ago")
+  const clauses = clean
+    .split(/[,.;:!?\n\r]+/)
+    .map((c) => c.trim())
+    .filter((c) => c.length >= 15 && c.split(/\s+/).length >= 3);
   clauses.forEach((c) => candidates.add(c));
 
   // Word windows

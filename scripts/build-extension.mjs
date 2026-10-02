@@ -82,6 +82,7 @@ async function build() {
     const targetDirs = [
       desktopDir,
       `C:\\Users\\senti\\Desktop\\annotated-v${version}`,
+      'C:\\Users\\senti\\OneDrive\\Desktop\\annotated-extension-test',
       'C:\\Users\\senti\\OneDrive\\Desktop\\Extensions\\Annotated\\annotated-extension-unpacked',
       'C:\\Users\\senti\\OneDrive\\Desktop\\Extensions\\Annotated\\annotated-extension-w-logos',
     ];

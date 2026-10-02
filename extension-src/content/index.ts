@@ -5,7 +5,7 @@
 import type { Annotation, UserProfile } from '../types/annotation';
 import { pageKey, extractYouTubeVideoId } from '../shared/utils';
 import { SUPABASE_CONFIG } from '../shared/config';
-import { injectHighlightStyles, renderHighlight, highlightMap } from './highlighter';
+import { injectHighlightStyles, renderHighlight, highlightMap, clearAllHighlights } from './highlighter';
 import { renderYouTubeProgressBarMarkers, renderYouTubeVideoTag } from './youtube';
 import { recordSelection, buildPageInfo } from './selection';
 import { createWidget, openAnnotationInWidget, notifyWidgetOfSelection, setupMessageRouter, ensureWidgetContainer, widgetIframe } from './widget-host';
@@ -21,6 +21,7 @@ const state: {
 let domMutationDebounce: any = null;
 
 export async function loadAnnotations(): Promise<void> {
+  clearAllHighlights();
   const currentKey = pageKey();
   const vId = extractYouTubeVideoId(location.href);
 
@@ -29,6 +30,9 @@ export async function loadAnnotations(): Promise<void> {
     let url = `${SUPABASE_CONFIG.url}/rest/v1/annotations?select=*`;
     if (vId) {
       url += `&url=ilike.*${encodeURIComponent(vId)}*`;
+    } else if (location.hostname.includes('youtube.com')) {
+      // On YouTube homepage or non-video pages, do not fetch video annotations
+      url += `&url=eq.${encodeURIComponent(location.origin + '/')}`;
     } else {
       url += `&url=ilike.*${encodeURIComponent(location.origin + location.pathname)}*`;
     }
@@ -41,16 +45,23 @@ export async function loadAnnotations(): Promise<void> {
     });
     const items = await res.json();
     if (Array.isArray(items)) {
-      // Filter out sub-path bleeding (e.g. youtube.com/watch annotations showing up on youtube.com/)
+      // Filter out sub-path and cross-video bleeding
       state.annotations = items.filter((ann: Annotation) => {
-        if (!ann.url) return false;
-        if (vId) return true; // If we have a video ID, the ilike query is precise enough
-        
+        if (!ann?.url) return false;
         try {
           const annUrl = new URL(ann.url);
-          return annUrl.pathname === location.pathname;
+          if (location.hostname.includes('youtube.com')) {
+            if (vId) {
+              return String(ann.url).includes(vId);
+            }
+            // On YouTube homepage or browse pages, never show /watch video annotations
+            return annUrl.pathname === '/' && location.pathname === '/';
+          }
+
+          // On all other websites: host and path must strictly match
+          return annUrl.hostname === location.hostname && annUrl.pathname === location.pathname;
         } catch (_) {
-          return true;
+          return false;
         }
       });
 
