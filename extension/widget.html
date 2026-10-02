@@ -25,9 +25,9 @@
             </div>
             <div class="profile-stats-row">
               <div class="stat-pill"><span id="statFollowers" class="stat-num">0</span> <span class="stat-lbl">followers</span></div>
-              <div class="stat-dot">·</div>
+              <div class="stat-dot">Â·</div>
               <div class="stat-pill"><span id="statFollowing" class="stat-num">0</span> <span class="stat-lbl">following</span></div>
-              <div class="stat-dot">·</div>
+              <div class="stat-dot">Â·</div>
               <div class="stat-pill"><span id="statNotes" class="stat-num">0</span> <span class="stat-lbl">notes</span></div>
             </div>
           </div>
@@ -50,7 +50,7 @@
         Sign in with Google
       </button>
       <div id="authError" class="auth-error hidden"></div>
-      <button id="authBackBtn" class="tiny-btn" type="button" style="margin-top: 14px; width: 100%; border: none; background: transparent; cursor: pointer; color: var(--muted); font-size: 11px;">← Back to note</button>
+      <button id="authBackBtn" class="tiny-btn" type="button" style="margin-top: 14px; width: 100%; border: none; background: transparent; cursor: pointer; color: var(--muted); font-size: 11px;">â† Back to note</button>
     </div>
   </div>
 
@@ -59,83 +59,78 @@
     <section id="composerSection" class="composer card">
       <div class="quote-box"><div class="quote-mark">"</div><div id="quote" class="quote">Select text on any page to anchor a comment here.</div></div>
       <!-- VIDEO TRIMMER & CLIP PROGRESS BAR / SLIDERS -->
-      <div id="videoTrimmerBox" class="video-trimmer-box hidden">
-        <div class="trimmer-header">
-          <div class="trimmer-title-wrap">
-            <span class="trimmer-icon">🎥</span>
-            <span class="trimmer-title">Video Clip</span>
-            <span id="trimModeBadge" class="trim-mode-badge">CLIPPER</span>
-          </div>
-          <div class="trimmer-header-right">
-            <span id="trimDurationBadge" class="trim-duration-badge" data-tooltip="Clip Duration (Max 90s)" data-tooltip-pos="top">90s</span>
-            <button type="button" id="clearVideoBtn" data-tooltip="Clear / close video clip" data-tooltip-pos="top" class="trimmer-close-btn">&#10005;</button>
-          </div>
+      <!-- ═══ MINIMAL VIDEO CLIPPER ═══════════════════════════════════ -->
+      <div id="videoTrimmerBox" class="snd-clipper hidden">
+
+        <!-- Row 1: Header -->
+        <div class="snd-head">
+          <span class="snd-label">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
+            Clip
+          </span>
+          <span id="trimDurationBadge" class="snd-dur">0s</span>
+          <button type="button" id="clearVideoBtn" class="snd-x" aria-label="Discard clip">
+            <svg width="11" height="11" viewBox="0 0 14 14"><line x1="1" y1="1" x2="13" y2="13" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><line x1="13" y1="1" x2="1" y2="13" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+          </button>
         </div>
 
-        <div id="videoPreviewContainer" class="video-preview-container">
-          <video id="videoPreviewEl" controls playsinline style="width: 100%; max-height: 72px; object-fit: contain; border-radius: 6px; background: #000;"></video>
+        <!-- Row 2: Video preview (hidden until clip recorded) -->
+        <div id="videoPreviewContainer" class="snd-preview">
+          <video id="videoPreviewEl" controls playsinline></video>
         </div>
 
-        <!-- Progress Bar & Dual Range Sliders -->
-        <div class="trimmer-timeline-box" id="trimmerTimelineBox">
-          <div class="timeline-labels">
-            <span id="timelineStartLabel" class="timeline-bound-lbl">00:00</span>
-            <span id="timelineCurrentPlayheadLabel" class="timeline-center-lbl">00:00</span>
-            <span id="timelineEndLabel" class="timeline-bound-lbl">01:30</span>
+        <!-- Row 3: Progress rail with two drag handles -->
+        <div class="snd-rail-wrap" id="trimmerTimelineBox">
+          <div class="snd-timecodes">
+            <span id="timelineStartLabel" class="timeline-bound-lbl">0:00</span>
+            <span id="timelineCurrentPlayheadLabel" class="timeline-center-lbl snd-tc-mid">0:00</span>
+            <span id="timelineEndLabel" class="timeline-bound-lbl">1:30</span>
           </div>
-          <div class="trimmer-slider-wrap" id="trimmerSliderWrap">
-            <div class="trimmer-track-bg">
-              <div id="trimmerActiveFill" class="trimmer-active-fill"></div>
-              <div id="trimmerPlayheadMarker" class="trimmer-playhead-marker"></div>
+          <div class="snd-rail" id="trimmerSliderWrap">
+            <div class="snd-track">
+              <div id="trimmerActiveFill" class="snd-fill"></div>
+              <div id="trimmerPlayheadMarker" class="snd-playhead"></div>
             </div>
-            <input type="range" id="trimStartSlider" min="0" max="90" value="0" step="1" class="trim-range-input range-start" />
-            <input type="range" id="trimEndSlider" min="0" max="90" value="90" step="1" class="trim-range-input range-end" />
+            <input type="range" id="trimStartSlider" min="0" max="90" value="0"  step="1" class="trim-range-input range-start snd-thumb" />
+            <input type="range" id="trimEndSlider"   min="0" max="90" value="90" step="1" class="trim-range-input range-end   snd-thumb" />
           </div>
         </div>
 
-        <!-- High-Precision Start & Stop Controls (Single Streamlined Row) -->
-        <div class="trimmer-controls-compact" style="display: none;">
-          <!-- Start Control Group -->
-          <div class="trim-group">
-            <span class="trim-tag start-tag">START</span>
-            <button type="button" id="startMinusBtn" class="step-btn" data-tooltip="-1s (Shift: -5s)" data-tooltip-pos="top">‹</button>
-            <input type="text" id="trimStartFormatted" class="time-input" value="00:00" placeholder="00:00" data-tooltip="Start Time (e.g. 01:25 or 85)" data-tooltip-pos="top" />
-            <button type="button" id="startPlusBtn" class="step-btn" data-tooltip="+1s (Shift: +5s)" data-tooltip-pos="top">›</button>
-            <button type="button" id="setStartCurrentBtn" class="time-now-btn" data-tooltip="Snap Start to current video time" data-tooltip-pos="top">📍</button>
-            <input type="hidden" id="trimStartInput" value="0" />
-          </div>
+        <!-- Row 4: Record / Stop actions -->
+        <div class="snd-actions" id="trimmerActionsBar">
+          <button type="button" id="recordNowBtn" class="snd-btn snd-record">
+            <span class="snd-dot"></span>
+            <span id="recordNowBtnLabel">Record</span>
+          </button>
+        </div>
 
-          <!-- Live Duration Badge in Center -->
-          <div class="trim-duration-badge-compact" data-tooltip="Clip Duration (Max 90s)" data-tooltip-pos="top">
-            ⏱️ <span id="trimDurationLabel" class="time-duration-val">90s</span>
-          </div>
-
-          <!-- Stop Control Group -->
-          <div class="trim-group">
-            <span class="trim-tag stop-tag">STOP</span>
-            <button type="button" id="endMinusBtn" class="step-btn" data-tooltip="-1s (Shift: -5s)" data-tooltip-pos="top">‹</button>
-            <input type="text" id="trimEndFormatted" class="time-input" value="01:30" placeholder="01:30" data-tooltip="Stop Time (e.g. 01:30 or 90)" data-tooltip-pos="top" />
-            <button type="button" id="endPlusBtn" class="step-btn" data-tooltip="+1s (Shift: +5s)" data-tooltip-pos="top">›</button>
-            <button type="button" id="setEndCurrentBtn" class="time-now-btn" data-tooltip="Snap Stop to current video time" data-tooltip-pos="top">📍</button>
-            <input type="hidden" id="trimEndInput" value="90" />
+        <!-- Hidden compat slots that JS engine references -->
+        <div style="display:none;">
+          <span id="recordNowBtnIcon">🔴</span>
+          <span id="trimModeBadge">CLIPPER</span>
+          <span id="trimDurationLabel">90s</span>
+          <button id="grabClipBtn"><span id="grabClipBtnIcon">X</span><span id="grabClipBtnLabel">Grab</span></button>
+          <button id="previewTrimLoopBtn">loop</button>
+          <div class="trimmer-controls-compact">
+            <div class="trim-group">
+              <button id="startMinusBtn">-</button>
+              <input id="trimStartFormatted" value="00:00"/>
+              <button id="startPlusBtn">+</button>
+              <button id="setStartCurrentBtn">pin</button>
+              <input type="hidden" id="trimStartInput" value="0"/>
+            </div>
+            <div class="trim-group">
+              <button id="endMinusBtn">-</button>
+              <input id="trimEndFormatted" value="01:30"/>
+              <button id="endPlusBtn">+</button>
+              <button id="setEndCurrentBtn">pin</button>
+              <input type="hidden" id="trimEndInput" value="90"/>
+            </div>
           </div>
         </div>
 
-        <!-- Action Row: Live Record & Range Grab -->
-        <div class="trimmer-actions-bar" id="trimmerActionsBar">
-          <button type="button" id="recordNowBtn" class="record-now-action-btn" data-tooltip="Record live from current video position — click Stop anytime" data-tooltip-pos="top">
-            <span id="recordNowBtnIcon">🔴</span>
-            <span id="recordNowBtnLabel">Record Now</span>
-          </button>
-          <button type="button" id="grabClipBtn" class="grab-clip-action-btn" style="display: none;" data-tooltip="Grab clip using Start & Stop range">
-            <span id="grabClipBtnIcon">✂️</span>
-            <span id="grabClipBtnLabel">Grab Range</span>
-          </button>
-          <button type="button" id="previewTrimLoopBtn" class="preview-trim-btn" style="display:none;" data-tooltip="Loop preview clip">
-            🔁 Loop
-          </button>
-        </div>
       </div>
+      <!-- ═══════════════════════════════════════════════════════════════ -->
       <!-- MEDIA ATTACHMENT / THUMBNAIL PREVIEW -->
       <div id="mediaPreview" class="hidden" style="margin-bottom: 10px; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--soft);">
         <div style="display: flex; align-items: center; justify-content: space-between; padding: 6px 10px; border-bottom: 1px solid var(--line); font-size: 11px;">
@@ -152,30 +147,30 @@
       </div>
       <div class="emoji-bar" style="flex-wrap: wrap; gap: 6px; margin-bottom: 8px;">
         <span class="emoji-label">React:</span>
-        <button class="emoji-btn" data-emoji="🔥" data-intent="hot take" style="font-size:16px; padding: 4px; border-radius: 99px; cursor: pointer; background: transparent; border: none; transition: transform 0.1s;">🔥</button>
-        <button class="emoji-btn" data-emoji="✅" data-intent="fact check" style="font-size:16px; padding: 4px; border-radius: 99px; cursor: pointer; background: transparent; border: none; transition: transform 0.1s;">✅</button>
-        <button class="emoji-btn" data-emoji="🛡️" data-intent="steelman" style="font-size:16px; padding: 4px; border-radius: 99px; cursor: pointer; background: transparent; border: none; transition: transform 0.1s;">🛡️</button>
-        <button class="emoji-btn" data-emoji="🧾" data-intent="receipts" style="font-size:16px; padding: 4px; border-radius: 99px; cursor: pointer; background: transparent; border: none; transition: transform 0.1s;">🧾</button>
-        <button class="emoji-btn" data-emoji="💬" data-intent="explainer" style="font-size:16px; padding: 4px; border-radius: 99px; cursor: pointer; background: transparent; border: none; transition: transform 0.1s;">💬</button>
+        <button class="emoji-btn" data-emoji="ðŸ”¥" data-intent="hot take" style="font-size:16px; padding: 4px; border-radius: 99px; cursor: pointer; background: transparent; border: none; transition: transform 0.1s;">ðŸ”¥</button>
+        <button class="emoji-btn" data-emoji="âœ…" data-intent="fact check" style="font-size:16px; padding: 4px; border-radius: 99px; cursor: pointer; background: transparent; border: none; transition: transform 0.1s;">âœ…</button>
+        <button class="emoji-btn" data-emoji="ðŸ›¡ï¸" data-intent="steelman" style="font-size:16px; padding: 4px; border-radius: 99px; cursor: pointer; background: transparent; border: none; transition: transform 0.1s;">ðŸ›¡ï¸</button>
+        <button class="emoji-btn" data-emoji="ðŸ§¾" data-intent="receipts" style="font-size:16px; padding: 4px; border-radius: 99px; cursor: pointer; background: transparent; border: none; transition: transform 0.1s;">ðŸ§¾</button>
+        <button class="emoji-btn" data-emoji="ðŸ’¬" data-intent="explainer" style="font-size:16px; padding: 4px; border-radius: 99px; cursor: pointer; background: transparent; border: none; transition: transform 0.1s;">ðŸ’¬</button>
       </div>
       <textarea id="comment" maxlength="1000" placeholder="What do you want people to notice?"></textarea>
 
       <!-- Composer Gemini Fact Check Box -->
       <div id="composerFactCheckBox" style="display:none; margin-top: 10px; padding: 10px; background: var(--soft); border: 1px solid var(--line); border-radius: 8px; font-size: 11px;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-          <span style="font-weight: 750; color: var(--yellow); display: inline-flex; align-items: center; gap: 4px;">⚡ Gemini Fact Check</span>
+          <span style="font-weight: 750; color: var(--yellow); display: inline-flex; align-items: center; gap: 4px;">âš¡ Gemini Fact Check</span>
           <div style="display: flex; align-items: center; gap: 6px;">
             <span id="composerFactCheckBadge" style="font-size: 9px; font-weight: 750; padding: 1px 6px; border-radius: 99px; background: rgba(0,0,0,0.1); color: var(--muted);">AI READY</span>
-            <button id="composerFactCheckCloseBtn" type="button" data-tooltip="Hide Fact Check" data-tooltip-pos="left" style="background: none; border: none; color: var(--muted); cursor: pointer; font-size: 11px; font-weight: 700; padding: 0 4px;">✕</button>
+            <button id="composerFactCheckCloseBtn" type="button" data-tooltip="Hide Fact Check" data-tooltip-pos="left" style="background: none; border: none; color: var(--muted); cursor: pointer; font-size: 11px; font-weight: 700; padding: 0 4px;">âœ•</button>
           </div>
         </div>
         <div id="composerFactCheckText" style="line-height: 1.4; color: var(--ink);">Highlight text or clip a video to fact-check with Gemini AI.</div>
       </div>
 
       <div class="textarea-footer" style="display: flex; gap: 6px; justify-content: space-between; align-items: center; border-top: 1px solid var(--border); padding-top: 12px; margin-top: 12px;">
-        <button id="dictateBtn" class="dictate-btn-main" data-tooltip="Speech to Text" data-tooltip-pos="top" style="width: 36px; min-width: 36px; height: 36px; padding: 0; font-size: 16px; flex: 0 0 36px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center;">🎤</button>
-        <button id="clipVideoBtn" class="dictate-btn-main" data-tooltip="Clip Video" data-tooltip-pos="top" style="width: 36px; min-width: 36px; height: 36px; padding: 0; font-size: 16px; flex: 0 0 36px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center;">🎥</button>
-        <button id="screenshotBtn" class="dictate-btn-main" data-tooltip="Capture Screenshot" data-tooltip-pos="top" style="width: 36px; min-width: 36px; height: 36px; padding: 0; font-size: 16px; flex: 0 0 36px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center;">📸</button>
+        <button id="dictateBtn" class="dictate-btn-main" data-tooltip="Speech to Text" data-tooltip-pos="top" style="width: 36px; min-width: 36px; height: 36px; padding: 0; font-size: 16px; flex: 0 0 36px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center;">ðŸŽ¤</button>
+        <button id="clipVideoBtn" class="dictate-btn-main" data-tooltip="Clip Video" data-tooltip-pos="top" style="width: 36px; min-width: 36px; height: 36px; padding: 0; font-size: 16px; flex: 0 0 36px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center;">ðŸŽ¥</button>
+        <button id="screenshotBtn" class="dictate-btn-main" data-tooltip="Capture Screenshot" data-tooltip-pos="top" style="width: 36px; min-width: 36px; height: 36px; padding: 0; font-size: 16px; flex: 0 0 36px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center;">ðŸ“¸</button>
 
         <button id="publishBtn" class="publish-btn" disabled style="flex: 1; min-width: 80px; margin: 0; padding: 0 14px; height: 36px; white-space: nowrap; font-weight: 700; border-radius: 8px;">Publish</button>
       </div>
@@ -185,10 +180,10 @@
     <!-- ANNOTATION DETAIL CARD -->
     <section id="annotationDetailCard" class="annotation-detail-card card hidden">
       <div class="detail-header">
-        <button id="detailBackBtn" class="detail-back-btn" data-tooltip="Back to note composer">← <span style="font-weight:600;">Compose</span></button>
+        <button id="detailBackBtn" class="detail-back-btn" data-tooltip="Back to note composer">â† <span style="font-weight:600;">Compose</span></button>
         <div class="detail-tags" style="display: flex; align-items: center; gap: 8px;">
           <span id="detailIntentBadge" class="detail-intent-badge" data-tooltip="Tag" style="font-size:10px; font-weight:700; padding: 2px 8px; border-radius: 99px; background: var(--soft); border: 1px solid var(--line); color: var(--ink); letter-spacing: 0.03em;">hot take</span>
-          <button id="detailDeleteBtn" class="detail-delete-btn hidden" data-tooltip="Delete note" style="background: none; border: 1px solid var(--line); border-radius: 6px; color: var(--muted); cursor: pointer; padding: 4px 7px; font-size: 12px; display: inline-flex; align-items: center; justify-content: center; transition: all 0.15s ease;">🗑️</button>
+          <button id="detailDeleteBtn" class="detail-delete-btn hidden" data-tooltip="Delete note" style="background: none; border: 1px solid var(--line); border-radius: 6px; color: var(--muted); cursor: pointer; padding: 4px 7px; font-size: 12px; display: inline-flex; align-items: center; justify-content: center; transition: all 0.15s ease;">ðŸ—‘ï¸</button>
         </div>
       </div>
 
@@ -199,7 +194,7 @@
           <div id="detailComment" class="detail-comment-text" style="font-size: 13px; line-height: 1.5; color: var(--ink); white-space: pre-wrap; font-weight: 500;"></div>
           <div style="display: flex; align-items: center; gap: 5px; margin-top: 5px; flex-wrap: wrap;">
             <span id="detailDate" class="muted" style="font-size: 10px;">Just now</span>
-            <span id="detailSourceBadge" class="muted" style="font-size: 10px; cursor: pointer; display: none; white-space: nowrap;">· 🔗 <span id="detailSourceHost">source</span></span>
+            <span id="detailSourceBadge" class="muted" style="font-size: 10px; cursor: pointer; display: none; white-space: nowrap;">Â· ðŸ”— <span id="detailSourceHost">source</span></span>
           </div>
         </div>
       </div>
@@ -217,10 +212,10 @@
       <!-- Gemini Fact Check Box (prominent directly below comment) -->
       <div id="detailFactCheckBox" style="display:none; margin-top: 10px; padding: 10px; background: var(--soft); border: 1px solid var(--line); border-radius: 8px; font-size: 11px;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-          <span style="font-weight: 750; color: var(--yellow); display: inline-flex; align-items: center; gap: 4px;">⚡ Gemini Fact Check</span>
+          <span style="font-weight: 750; color: var(--yellow); display: inline-flex; align-items: center; gap: 4px;">âš¡ Gemini Fact Check</span>
           <div style="display: flex; align-items: center; gap: 6px;">
             <span id="detailFactCheckBadge" style="font-size: 9px; font-weight: 750; padding: 1px 6px; border-radius: 99px; background: rgba(0,0,0,0.1);">ANALYZING</span>
-            <button id="detailFactCheckCloseBtn" type="button" data-tooltip="Hide Fact Check" data-tooltip-pos="left" style="background: none; border: none; color: var(--muted); cursor: pointer; font-size: 11px; font-weight: 700; padding: 0 4px;">✕</button>
+            <button id="detailFactCheckCloseBtn" type="button" data-tooltip="Hide Fact Check" data-tooltip-pos="left" style="background: none; border: none; color: var(--muted); cursor: pointer; font-size: 11px; font-weight: 700; padding: 0 4px;">âœ•</button>
           </div>
         </div>
         <div id="detailFactCheckText" style="line-height: 1.4; color: var(--ink);">Checking claims with Gemini...</div>
@@ -228,11 +223,11 @@
 
       <!-- Quick React Bar (Emojis) -->
       <div id="detailReactBar" style="display: flex; align-items: center; gap: 4px; margin-top: 10px; padding: 6px 8px; background: var(--soft); border: 1px solid var(--line); border-radius: 8px;">
-        <button class="detail-react-btn" data-react="🔥" data-tooltip="React with 🔥" data-tooltip-pos="top" style="background: none; border: 1px solid var(--line); border-radius: 20px; padding: 2px 7px; font-size: 12px; cursor: pointer; display: inline-flex; align-items: center; gap: 3px; color: var(--ink); transition: all 0.15s; white-space: nowrap;">🔥 <span class="react-count" style="font-size: 10px; font-weight: 700; min-width: 8px;">0</span></button>
-        <button class="detail-react-btn" data-react="🤔" data-tooltip="React with 🤔" data-tooltip-pos="top" style="background: none; border: 1px solid var(--line); border-radius: 20px; padding: 2px 7px; font-size: 12px; cursor: pointer; display: inline-flex; align-items: center; gap: 3px; color: var(--ink); transition: all 0.15s; white-space: nowrap;">🤔 <span class="react-count" style="font-size: 10px; font-weight: 700; min-width: 8px;">0</span></button>
-        <button class="detail-react-btn" data-react="💡" data-tooltip="React with 💡" data-tooltip-pos="top" style="background: none; border: 1px solid var(--line); border-radius: 20px; padding: 2px 7px; font-size: 12px; cursor: pointer; display: inline-flex; align-items: center; gap: 3px; color: var(--ink); transition: all 0.15s; white-space: nowrap;">💡 <span class="react-count" style="font-size: 10px; font-weight: 700; min-width: 8px;">0</span></button>
-        <button class="detail-react-btn" data-react="💯" data-tooltip="React with 💯" data-tooltip-pos="top" style="background: none; border: 1px solid var(--line); border-radius: 20px; padding: 2px 7px; font-size: 12px; cursor: pointer; display: inline-flex; align-items: center; gap: 3px; color: var(--ink); transition: all 0.15s; white-space: nowrap;">💯 <span class="react-count" style="font-size: 10px; font-weight: 700; min-width: 8px;">0</span></button>
-        <button class="detail-react-btn" data-react="👎" data-tooltip="React with 👎" data-tooltip-pos="top" style="background: none; border: 1px solid var(--line); border-radius: 20px; padding: 2px 7px; font-size: 12px; cursor: pointer; display: inline-flex; align-items: center; gap: 3px; color: var(--ink); transition: all 0.15s; white-space: nowrap;">👎 <span class="react-count" style="font-size: 10px; font-weight: 700; min-width: 8px;">0</span></button>
+        <button class="detail-react-btn" data-react="ðŸ”¥" data-tooltip="React with ðŸ”¥" data-tooltip-pos="top" style="background: none; border: 1px solid var(--line); border-radius: 20px; padding: 2px 7px; font-size: 12px; cursor: pointer; display: inline-flex; align-items: center; gap: 3px; color: var(--ink); transition: all 0.15s; white-space: nowrap;">ðŸ”¥ <span class="react-count" style="font-size: 10px; font-weight: 700; min-width: 8px;">0</span></button>
+        <button class="detail-react-btn" data-react="ðŸ¤”" data-tooltip="React with ðŸ¤”" data-tooltip-pos="top" style="background: none; border: 1px solid var(--line); border-radius: 20px; padding: 2px 7px; font-size: 12px; cursor: pointer; display: inline-flex; align-items: center; gap: 3px; color: var(--ink); transition: all 0.15s; white-space: nowrap;">ðŸ¤” <span class="react-count" style="font-size: 10px; font-weight: 700; min-width: 8px;">0</span></button>
+        <button class="detail-react-btn" data-react="ðŸ’¡" data-tooltip="React with ðŸ’¡" data-tooltip-pos="top" style="background: none; border: 1px solid var(--line); border-radius: 20px; padding: 2px 7px; font-size: 12px; cursor: pointer; display: inline-flex; align-items: center; gap: 3px; color: var(--ink); transition: all 0.15s; white-space: nowrap;">ðŸ’¡ <span class="react-count" style="font-size: 10px; font-weight: 700; min-width: 8px;">0</span></button>
+        <button class="detail-react-btn" data-react="ðŸ’¯" data-tooltip="React with ðŸ’¯" data-tooltip-pos="top" style="background: none; border: 1px solid var(--line); border-radius: 20px; padding: 2px 7px; font-size: 12px; cursor: pointer; display: inline-flex; align-items: center; gap: 3px; color: var(--ink); transition: all 0.15s; white-space: nowrap;">ðŸ’¯ <span class="react-count" style="font-size: 10px; font-weight: 700; min-width: 8px;">0</span></button>
+        <button class="detail-react-btn" data-react="ðŸ‘Ž" data-tooltip="React with ðŸ‘Ž" data-tooltip-pos="top" style="background: none; border: 1px solid var(--line); border-radius: 20px; padding: 2px 7px; font-size: 12px; cursor: pointer; display: inline-flex; align-items: center; gap: 3px; color: var(--ink); transition: all 0.15s; white-space: nowrap;">ðŸ‘Ž <span class="react-count" style="font-size: 10px; font-weight: 700; min-width: 8px;">0</span></button>
       </div>
 
       <!-- Comments -->
@@ -244,7 +239,7 @@
           </div>
           <div style="display: flex; justify-content: flex-end; align-items: center; gap: 6px;">
             <span id="widgetCommentStatus" style="font-size: 11px; color: var(--muted); flex: 1;"></span>
-            <button type="button" id="widgetCommentMicBtn" data-tooltip="Speak to comment" data-tooltip-pos="top" style="background: var(--soft); color: var(--ink); border: 1px solid var(--line); border-radius: 5px; cursor: pointer; font-size: 13px; padding: 5px 8px; display: inline-flex; align-items: center; justify-content: center; transition: all 0.15s ease;">🎤</button>
+            <button type="button" id="widgetCommentMicBtn" data-tooltip="Speak to comment" data-tooltip-pos="top" style="background: var(--soft); color: var(--ink); border: 1px solid var(--line); border-radius: 5px; cursor: pointer; font-size: 13px; padding: 5px 8px; display: inline-flex; align-items: center; justify-content: center; transition: all 0.15s ease;">ðŸŽ¤</button>
             <button type="submit" id="widgetCommentSubmitBtn" style="background: var(--yellow); color: #000; border: none; font-weight: 700; font-size: 11px; padding: 6px 14px; border-radius: 5px; cursor: pointer; transition: opacity 0.15s;">Reply</button>
           </div>
         </form>
