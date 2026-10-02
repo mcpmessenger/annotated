@@ -93,9 +93,10 @@ export async function publishAnnotation(
   }
 
   const safeQuote =
-    (payload.quote && payload.quote.trim()) ||
     (payload.videoClipBlob
       ? `🎬 Video Clip (${payload.page.title || 'Video'})`
+      : payload.quote && payload.quote.trim()
+      ? payload.quote.trim()
       : media_url
       ? `Attachment: ${payload.page.title || 'Media'}`
       : payload.page.title || 'Page Annotation');

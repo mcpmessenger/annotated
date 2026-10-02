@@ -242,16 +242,19 @@ function init(): void {
     }
   });
 
-  // FIX BUG 1: YouTube SPA navigation events are declared inside module scope
+  // YouTube SPA navigation events
   const onYouTubeNavigation = () => {
     setTimeout(() => {
       loadAnnotations();
-    }, 300);
+      const info = buildPageInfo();
+      notifyWidgetOfSelection(info);
+    }, 400);
   };
 
   window.addEventListener('yt-navigate-finish', onYouTubeNavigation);
   window.addEventListener('yt-page-data-updated', onYouTubeNavigation);
   window.addEventListener('spfdone', onYouTubeNavigation);
+  window.addEventListener('popstate', onYouTubeNavigation);
 
   // Initial load
   loadAnnotations();

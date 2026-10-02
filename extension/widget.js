@@ -395,7 +395,7 @@
         console.error("[AudioUpload] Error:", err);
       }
     }
-    const safeQuote = payload.quote && payload.quote.trim() || (payload.videoClipBlob ? `\u{1F3AC} Video Clip (${payload.page.title || "Video"})` : media_url ? `Attachment: ${payload.page.title || "Media"}` : payload.page.title || "Page Annotation");
+    const safeQuote = payload.videoClipBlob ? `\u{1F3AC} Video Clip (${payload.page.title || "Video"})` : payload.quote && payload.quote.trim() ? payload.quote.trim() : media_url ? `Attachment: ${payload.page.title || "Media"}` : payload.page.title || "Page Annotation";
     const allowedIntents = ["\u{1F525}", "\u{1F914}", "\u{1F4A1}", "\u{1F4AF}", "\u{1F44E}"];
     const safeIntent = payload.intent && allowedIntents.includes(payload.intent) ? payload.intent : "\u{1F4A1}";
     let safeComment = payload.comment.trim() || (payload.videoClipBlob ? "Shared a video clip" : "Annotation");
@@ -2722,6 +2722,7 @@
           }
           break;
         case "PAGE_INFO_RESPONSE":
+          const prevUrl = page.url;
           page = {
             title: data.title || page.title,
             url: data.url || page.url,
@@ -2730,6 +2731,17 @@
           };
           const pageHost = $("#pageHost");
           if (pageHost) pageHost.textContent = page.hostname.replace(/^www\./, "");
+          if (prevUrl && data.url && prevUrl !== data.url) {
+            setQuote("");
+            const commentEl2 = $("#comment");
+            if (commentEl2) commentEl2.value = "";
+            const preview = $("#videoPreviewEl");
+            if (preview) preview.src = "";
+            composerState.videoClipBlob = null;
+            composerState.videoStartTs = null;
+            composerState.videoEndTs = null;
+            $("#videoTrimmerBox")?.classList.add("hidden");
+          }
           if (data.quote || data.selectedText) {
             const q = (data.quote || data.selectedText || "").trim();
             if (q) {

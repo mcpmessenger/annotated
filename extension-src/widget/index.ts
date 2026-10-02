@@ -85,6 +85,7 @@ function setupParentMessageListener(): void {
         break;
 
       case 'PAGE_INFO_RESPONSE':
+        const prevUrl = page.url;
         page = {
           title: data.title || page.title,
           url: data.url || page.url,
@@ -93,6 +94,20 @@ function setupParentMessageListener(): void {
         };
         const pageHost = $('#pageHost');
         if (pageHost) pageHost.textContent = page.hostname.replace(/^www\./, '');
+
+        // If URL changed (e.g. navigated to a different video in YouTube SPA), clear stale draft
+        if (prevUrl && data.url && prevUrl !== data.url) {
+          setQuote('');
+          const commentEl = $('#comment') as HTMLTextAreaElement | null;
+          if (commentEl) commentEl.value = '';
+          const preview = $('#videoPreviewEl') as HTMLVideoElement | null;
+          if (preview) preview.src = '';
+          composerState.videoClipBlob = null;
+          composerState.videoStartTs = null;
+          composerState.videoEndTs = null;
+          $('#videoTrimmerBox')?.classList.add('hidden');
+        }
+
         if (data.quote || data.selectedText) {
           const q = (data.quote || data.selectedText || '').trim();
           if (q) {
