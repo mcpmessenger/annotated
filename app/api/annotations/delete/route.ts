@@ -44,24 +44,39 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const authHeader = req.headers.get("authorization");
+    const client = createClient(supabaseUrl, supabaseKey, {
+      global: {
+        headers: authHeader ? { Authorization: authHeader } : {},
+      },
+    });
+
     // Clean up dependent tables first if foreign keys are not cascade
     await Promise.allSettled([
-      supabase.from("annotation_reactions").delete().eq("annotation_id", id),
-      supabase.from("comments").delete().eq("annotation_id", id),
-      supabase.from("notifications").delete().eq("annotation_id", id),
+      client.from("annotation_reactions").delete().eq("annotation_id", id),
+      client.from("comments").delete().eq("annotation_id", id),
+      client.from("notifications").delete().eq("annotation_id", id),
     ]);
 
-    // Delete the primary annotation
-    const { error } = await supabase
+    // Delete the primary annotation and verify deletion happened
+    const { data: deletedRows, error } = await client
       .from("annotations")
       .delete()
-      .eq("id", id);
+      .eq("id", id)
+      .select("id");
 
     if (error) {
       console.error("[API Delete Annotation] Supabase error:", error);
       return NextResponse.json(
         { error: error.message },
         { status: 500, headers: CORS_HEADERS }
+      );
+    }
+
+    if (!deletedRows || deletedRows.length === 0) {
+      return NextResponse.json(
+        { error: "Annotation could not be deleted. Please verify you are signed in as the author." },
+        { status: 403, headers: CORS_HEADERS }
       );
     }
 

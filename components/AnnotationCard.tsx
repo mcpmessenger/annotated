@@ -149,18 +149,29 @@ export function AnnotationCard({
 
     setIsDeleting(true);
     try {
-      // First call the server-side delete endpoint to ensure RLS bypass and cascade
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+
+      // 1. Call server delete endpoint with user session token
       const res = await fetch(`/api/annotations/delete?id=${encodeURIComponent(annotation.id)}`, {
         method: "POST",
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
       });
-      
+
       if (!res.ok) {
-        // Fallback to client-side supabase delete
-        const { error } = await supabase
+        // 2. Direct client-side delete with Supabase session and verify rows deleted
+        const { data, error } = await supabase
           .from("annotations")
           .delete()
-          .eq("id", annotation.id);
+          .eq("id", annotation.id)
+          .select("id");
+
         if (error) throw error;
+        if (!data || data.length === 0) {
+          throw new Error("Could not delete annotation. Please verify you are logged in as the author.");
+        }
       }
 
       setIsDeleted(true);

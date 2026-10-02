@@ -162,12 +162,30 @@ export default function AnnotationPage() {
 
     setIsDeleting(true);
     try {
-      const { error } = await supabase
-        .from("annotations")
-        .delete()
-        .eq("id", annotation.id);
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
 
-      if (error) throw error;
+      // 1. Call server delete endpoint with auth token
+      const res = await fetch(`/api/annotations/delete?id=${encodeURIComponent(annotation.id)}`, {
+        method: "POST",
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
+
+      if (!res.ok) {
+        // 2. Direct client-side delete fallback
+        const { data, error } = await supabase
+          .from("annotations")
+          .delete()
+          .eq("id", annotation.id)
+          .select("id");
+
+        if (error) throw error;
+        if (!data || data.length === 0) {
+          throw new Error("Could not delete annotation. Please verify you are signed in as the author.");
+        }
+      }
 
       router.push(`/u/${annotation.username}`);
     } catch (err: any) {
