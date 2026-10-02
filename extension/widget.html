@@ -1,4 +1,4 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -25,9 +25,9 @@
             </div>
             <div class="profile-stats-row">
               <div class="stat-pill"><span id="statFollowers" class="stat-num">0</span> <span class="stat-lbl">followers</span></div>
-              <div class="stat-dot">Â·</div>
+              <div class="stat-dot">&middot;</div>
               <div class="stat-pill"><span id="statFollowing" class="stat-num">0</span> <span class="stat-lbl">following</span></div>
-              <div class="stat-dot">Â·</div>
+              <div class="stat-dot">&middot;</div>
               <div class="stat-pill"><span id="statNotes" class="stat-num">0</span> <span class="stat-lbl">notes</span></div>
             </div>
           </div>
@@ -145,15 +145,7 @@
           <video id="previewVideo" class="hidden" controls style="max-height: 110px; max-width: 100%; border-radius: 4px;" playsinline></video>
         </div>
       </div>
-            <div class="emoji-bar" style="flex-wrap: wrap; gap: 6px; margin-bottom: 8px;">
-        <span class="emoji-label">React:</span>
-        <button class="emoji-btn" data-emoji="&#x1F525;" data-intent="hot take"   style="font-size:18px; padding: 4px; background:none; border:none; cursor:pointer; line-height:1;">&#x1F525;</button>
-        <button class="emoji-btn" data-emoji="&#x2705;"  data-intent="fact check" style="font-size:18px; padding: 4px; background:none; border:none; cursor:pointer; line-height:1;">&#x2705;</button>
-        <button class="emoji-btn" data-emoji="&#x1F6E1;" data-intent="steelman"   style="font-size:18px; padding: 4px; background:none; border:none; cursor:pointer; line-height:1;">&#x1F6E1;</button>
-        <button class="emoji-btn" data-emoji="&#x1F9FE;" data-intent="receipts"   style="font-size:18px; padding: 4px; background:none; border:none; cursor:pointer; line-height:1;">&#x1F9FE;</button>
-        <button class="emoji-btn" data-emoji="&#x1F4AC;" data-intent="explainer"  style="font-size:18px; padding: 4px; background:none; border:none; cursor:pointer; line-height:1;">&#x1F4AC;</button>
-      </div>
-      <textarea id="comment" maxlength="1000" placeholder="What do you want people to notice?"></textarea>
+                  <textarea id="comment" maxlength="1000" placeholder="What do you want people to notice?"></textarea>
 
       <!-- Composer Gemini Fact Check Box -->
       <div id="composerFactCheckBox" style="display:none; margin-top: 10px; padding: 10px; background: var(--soft); border: 1px solid var(--line); border-radius: 8px; font-size: 11px;">
@@ -194,7 +186,7 @@
           <div id="detailComment" class="detail-comment-text" style="font-size: 13px; line-height: 1.5; color: var(--ink); white-space: pre-wrap; font-weight: 500;"></div>
           <div style="display: flex; align-items: center; gap: 5px; margin-top: 5px; flex-wrap: wrap;">
             <span id="detailDate" class="muted" style="font-size: 10px;">Just now</span>
-            <span id="detailSourceBadge" class="muted" style="font-size: 10px; cursor: pointer; display: none; white-space: nowrap;">Â· ðŸ”— <span id="detailSourceHost">source</span></span>
+            <span id="detailSourceBadge" class="muted" style="font-size: 10px; cursor: pointer; display: none; white-space: nowrap;">&middot; ðŸ”— <span id="detailSourceHost">source</span></span>
           </div>
         </div>
       </div>
