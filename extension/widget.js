@@ -354,43 +354,9 @@
     }
     if (payload.videoClipBlob) {
       try {
-        let finalBlob = payload.videoClipBlob;
-        const isMp4 = finalBlob.type.includes("mp4");
+        const isMp4 = payload.videoClipBlob.type.includes("mp4");
         const ext = isMp4 ? "mp4" : "webm";
         const contentType = isMp4 ? "video/mp4" : "video/webm";
-
-        if (isMp4) {
-          onProgress("Optimizing MP4 for Roku...", 10);
-          try {
-            if (!window.ffmpegInstance) {
-              const { FFmpegWASM } = window;
-              const ffmpeg = new FFmpegWASM.FFmpeg();
-              await ffmpeg.load({
-                coreURL: chrome.runtime.getURL("ffmpeg-core.js"),
-                wasmURL: chrome.runtime.getURL("ffmpeg-core.wasm"),
-              });
-              window.ffmpegInstance = ffmpeg;
-            }
-            const ffmpeg = window.ffmpegInstance;
-            const inputName = `input_${Date.now()}.mp4`;
-            const outputName = `output_${Date.now()}.mp4`;
-            
-            const arrayBuffer = await finalBlob.arrayBuffer();
-            await ffmpeg.writeFile(inputName, new Uint8Array(arrayBuffer));
-            
-            await ffmpeg.exec(["-i", inputName, "-c", "copy", "-movflags", "+faststart", outputName]);
-            
-            const data = await ffmpeg.readFile(outputName);
-            finalBlob = new Blob([data.buffer], { type: "video/mp4" });
-            
-            ffmpeg.deleteFile(inputName);
-            ffmpeg.deleteFile(outputName);
-          } catch (ffmpegErr) {
-            console.error("[FFmpeg] MP4 Remux failed, falling back to original blob:", ffmpegErr);
-          }
-        }
-
-        onProgress("Uploading video...", 20);
         const fileName = `video_${Date.now()}.${ext}`;
         const uploadRes = await fetch(`${SUPABASE_CONFIG2.url}/storage/v1/object/annotation-media/${fileName}`, {
           method: "POST",
@@ -399,7 +365,7 @@
             Authorization: `Bearer ${supabase.token || SUPABASE_CONFIG2.anonKey}`,
             "Content-Type": contentType
           },
-          body: finalBlob
+          body: payload.videoClipBlob
         });
         if (uploadRes.ok) {
           media_url = `${SUPABASE_CONFIG2.url}/storage/v1/object/public/annotation-media/${fileName}`;
@@ -430,8 +396,8 @@
       }
     }
     const safeQuote = payload.quote && payload.quote.trim() || (payload.videoClipBlob ? `\u{1F3AC} Video Clip (${payload.page.title || "Video"})` : media_url ? `Attachment: ${payload.page.title || "Media"}` : payload.page.title || "Page Annotation");
-    const allowedIntents = ["hot take", "fact check", "steelman", "receipts", "explainer"];
-    const safeIntent = payload.intent && allowedIntents.includes(payload.intent) ? payload.intent : "hot take";
+    const allowedIntents = ["\u{1F525}", "\u{1F914}", "\u{1F4A1}", "\u{1F4AF}", "\u{1F44E}"];
+    const safeIntent = payload.intent && allowedIntents.includes(payload.intent) ? payload.intent : "\u{1F4A1}";
     let safeComment = payload.comment.trim() || (payload.videoClipBlob ? "Shared a video clip" : "Annotation");
     if (payload.videoStartTs != null && payload.videoEndTs != null) {
       const fmt = (ts) => {
@@ -547,18 +513,18 @@
   }
   function wireFactCheck(ann, pageTitle, pageUrl, onResize) {
     const factBox = $("#detailFactCheckBox");
-    // factBtn is now the tag pill badge itself
-    const factBtn = $("#detailIntentBadge");
+    const factBtn = $("#detailFactCheckBtn");
     const fb = $("#detailFactCheckBox");
     const ft = $("#detailFactCheckText");
     const fbadge = $("#detailFactCheckBadge");
     const closeBtn = $("#detailFactCheckCloseBtn");
     const hasMedia = !!(ann.media_url || ann.audio_url);
-    const isFactCheckTag = (ann.intent || "") === "fact check";
     const updateBtnState = (isOpen) => {
       if (factBtn) {
-        factBtn.setAttribute("data-tooltip", isOpen ? "Click to hide Fact Check" : "Click to run Fact Check");
-        factBtn.style.boxShadow = isOpen ? "0 0 0 2px #22c55e66" : "";
+        factBtn.innerHTML = "&#9889;";
+        factBtn.setAttribute("data-tooltip", isOpen ? "Hide Fact Check" : "Show Fact Check");
+        factBtn.style.background = isOpen ? "var(--soft)" : "var(--surface)";
+        factBtn.style.borderColor = isOpen ? "var(--yellow)" : "var(--line)";
       }
       if (onResize) {
         onResize(isOpen ? hasMedia ? 740 : 660 : hasMedia ? 630 : 550);
@@ -575,11 +541,6 @@
     };
     if (factBox) factBox.style.display = "none";
     updateBtnState(false);
-    // Make the tag pill always look clickable
-    if (factBtn) {
-      factBtn.style.cursor = "pointer";
-      factBtn.title = "Click to run Fact Check";
-    }
     const cacheKey = `annotated_fc_${ann.id || ann.slug || ""}`;
     let cachedData = null;
     if (typeof window !== "undefined" && (ann.id || ann.slug)) {
@@ -629,7 +590,6 @@
         }
       }
     };
-    // Tag pill click toggles fact check box
     if (factBtn) {
       factBtn.onclick = (e) => {
         e.stopPropagation();
@@ -644,12 +604,6 @@
           runFactCheck();
         }
       };
-    }
-    // Auto-open fact check when tag is "fact check"
-    if (isFactCheckTag && fb) {
-      fb.style.display = "block";
-      updateBtnState(true);
-      runFactCheck();
     }
     if (closeBtn) {
       closeBtn.onclick = (e) => {
@@ -1163,11 +1117,8 @@
         $("#videoTrimmerBox")?.classList.remove("hidden");
         onResize(getComposerHeight());
         updatePublishButton();
-        
-        // Auto-trigger fact check for video captures
         const fb = $("#composerFactCheckBox");
-        if (fb && moduleGetPage) {
-          fb.style.display = "block";
+        if (fb && fb.style.display !== "none" && moduleGetPage) {
           triggerComposerFactCheck(moduleGetPage, onResize);
         }
       });
@@ -1247,30 +1198,13 @@
           b.style.background = "";
           b.style.borderRadius = "";
         });
-        const fcBox = $("#composerFactCheckBox");
         if (isAlreadyActive) {
           composerState.intent = null;
-          // Hide fact check box when deselecting
-          if (fcBox) fcBox.style.display = "none";
         } else {
           btn.classList.add("active");
           btn.style.background = "var(--yellow)";
           btn.style.borderRadius = "6px";
           composerState.intent = emoji || null;
-          // Show/hide fact check box based on tag selection
-          if (fcBox) {
-            if (emoji === "fact check") {
-              fcBox.style.display = "block";
-              // Trigger analysis if there's a quote or comment
-              const quote = $("#comment")?.value?.trim() || "";
-              if (quote) {
-                const fcText = $("#composerFactCheckText");
-                if (fcText) fcText.textContent = "Select 'fact check' then Publish — Gemini will analyze on save.";
-              }
-            } else {
-              fcBox.style.display = "none";
-            }
-          }
         }
         updatePublishButton();
       });
@@ -2342,19 +2276,7 @@
     const qEl = $("#detailQuote");
     if (qEl) qEl.textContent = ann.quote || ann.quote_text || "Annotation";
     const intentEl = $("#detailIntentBadge");
-    if (intentEl) {
-      const tag = ann.intent || "hot take";
-      const tagColors = {
-        "hot take":   { bg: "#7f1d1d22", border: "#ef4444", color: "#ef4444", icon: "🔥" },
-        "fact check": { bg: "#14532d22", border: "#22c55e", color: "#22c55e", icon: "✅" },
-        "steelman":   { bg: "#1e3a5f22", border: "#3b82f6", color: "#3b82f6", icon: "🛡️" },
-        "receipts":   { bg: "#451a0322", border: "#f97316", color: "#f97316", icon: "🧾" },
-        "explainer":  { bg: "#2e1065aa", border: "#a855f7", color: "#a855f7", icon: "💬" },
-      };
-      const c = tagColors[tag] || tagColors["hot take"];
-      intentEl.textContent = `${c.icon} ${tag}`;
-      intentEl.style.cssText += `; background:${c.bg}; border-color:${c.border}; color:${c.color};`;
-    }
+    if (intentEl) intentEl.textContent = ann.intent || "\u{1F4A1}";
     const slug = ann.slug || ann.id;
     const targetUser = ann.username || (ann.author_profile?.email ? ann.author_profile.email.split("@")[0] : currentUser2?.email ? currentUser2.email.split("@")[0] : "user");
     const detailUrl = slug ? `${SITE_URL}/${encodeURIComponent(targetUser)}/${encodeURIComponent(slug)}` : SITE_URL;

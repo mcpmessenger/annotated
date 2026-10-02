@@ -145,7 +145,15 @@
           <video id="previewVideo" class="hidden" controls style="max-height: 110px; max-width: 100%; border-radius: 4px;" playsinline></video>
         </div>
       </div>
-                  <textarea id="comment" maxlength="1000" placeholder="What do you want people to notice?"></textarea>
+                        <!-- Reaction / Intent Selector matching Roku, Fire TV & Website -->
+      <div class="emoji-bar" style="display: flex; align-items: center; justify-content: space-between; gap: 6px; margin: 8px 0 8px;">
+        <button type="button" class="emoji-btn" data-intent="&#x1F525;" data-emoji="&#x1F525;" data-tooltip="Fire" data-tooltip-pos="top" style="flex: 1; height: 32px; font-size: 16px; border-radius: 8px; border: 1px solid var(--line); background: var(--soft); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; transition: all 0.15s ease;">&#x1F525;</button>
+        <button type="button" class="emoji-btn" data-intent="&#x1F914;" data-emoji="&#x1F914;" data-tooltip="Thinking" data-tooltip-pos="top" style="flex: 1; height: 32px; font-size: 16px; border-radius: 8px; border: 1px solid var(--line); background: var(--soft); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; transition: all 0.15s ease;">&#x1F914;</button>
+        <button type="button" class="emoji-btn" data-intent="&#x1F4A1;" data-emoji="&#x1F4A1;" data-tooltip="Idea" data-tooltip-pos="top" style="flex: 1; height: 32px; font-size: 16px; border-radius: 8px; border: 1px solid var(--line); background: var(--soft); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; transition: all 0.15s ease;">&#x1F4A1;</button>
+        <button type="button" class="emoji-btn" data-intent="&#x1F4AF;" data-emoji="&#x1F4AF;" data-tooltip="100" data-tooltip-pos="top" style="flex: 1; height: 32px; font-size: 16px; border-radius: 8px; border: 1px solid var(--line); background: var(--soft); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; transition: all 0.15s ease;">&#x1F4AF;</button>
+        <button type="button" class="emoji-btn" data-intent="&#x1F44E;" data-emoji="&#x1F44E;" data-tooltip="Disagree" data-tooltip-pos="top" style="flex: 1; height: 32px; font-size: 16px; border-radius: 8px; border: 1px solid var(--line); background: var(--soft); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; transition: all 0.15s ease;">&#x1F44E;</button>
+      </div>
+      <textarea id="comment" maxlength="1000" placeholder="What do you want people to notice?"></textarea>
 
       <!-- Composer Gemini Fact Check Box -->
       <div id="composerFactCheckBox" style="display:none; margin-top: 10px; padding: 10px; background: var(--soft); border: 1px solid var(--line); border-radius: 8px; font-size: 11px;">
