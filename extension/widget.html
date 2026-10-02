@@ -50,7 +50,7 @@
         Sign in with Google
       </button>
       <div id="authError" class="auth-error hidden"></div>
-      <button id="authBackBtn" class="tiny-btn" type="button" style="margin-top: 14px; width: 100%; border: none; background: transparent; cursor: pointer; color: var(--muted); font-size: 11px;">â† Back to note</button>
+      <button id="authBackBtn" class="tiny-btn" type="button" style="margin-top: 14px; width: 100%; border: none; background: transparent; cursor: pointer; color: var(--muted); font-size: 11px;">&#x2190; Back to note</button>
     </div>
   </div>
 
@@ -150,19 +150,19 @@
       <!-- Composer Gemini Fact Check Box -->
       <div id="composerFactCheckBox" style="display:none; margin-top: 10px; padding: 10px; background: var(--soft); border: 1px solid var(--line); border-radius: 8px; font-size: 11px;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-          <span style="font-weight: 750; color: var(--yellow); display: inline-flex; align-items: center; gap: 4px;">âš¡ Gemini Fact Check</span>
+          <span style="font-weight: 750; color: var(--yellow); display: inline-flex; align-items: center; gap: 4px;">&#x26A1; Gemini Fact Check</span>
           <div style="display: flex; align-items: center; gap: 6px;">
             <span id="composerFactCheckBadge" style="font-size: 9px; font-weight: 750; padding: 1px 6px; border-radius: 99px; background: rgba(0,0,0,0.1); color: var(--muted);">AI READY</span>
-            <button id="composerFactCheckCloseBtn" type="button" data-tooltip="Hide Fact Check" data-tooltip-pos="left" style="background: none; border: none; color: var(--muted); cursor: pointer; font-size: 11px; font-weight: 700; padding: 0 4px;">âœ•</button>
+            <button id="composerFactCheckCloseBtn" type="button" data-tooltip="Hide Fact Check" data-tooltip-pos="left" style="background: none; border: none; color: var(--muted); cursor: pointer; font-size: 11px; font-weight: 700; padding: 0 4px;">&#x2715;</button>
           </div>
         </div>
         <div id="composerFactCheckText" style="line-height: 1.4; color: var(--ink);">Highlight text or clip a video to fact-check with Gemini AI.</div>
       </div>
 
       <div class="textarea-footer" style="display: flex; gap: 6px; justify-content: space-between; align-items: center; border-top: 1px solid var(--border); padding-top: 12px; margin-top: 12px;">
-        <button id="dictateBtn" class="dictate-btn-main" data-tooltip="Speech to Text" data-tooltip-pos="top" style="width: 36px; min-width: 36px; height: 36px; padding: 0; font-size: 16px; flex: 0 0 36px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center;">ðŸŽ¤</button>
-        <button id="clipVideoBtn" class="dictate-btn-main" data-tooltip="Clip Video" data-tooltip-pos="top" style="width: 36px; min-width: 36px; height: 36px; padding: 0; font-size: 16px; flex: 0 0 36px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center;">ðŸŽ¥</button>
-        <button id="screenshotBtn" class="dictate-btn-main" data-tooltip="Capture Screenshot" data-tooltip-pos="top" style="width: 36px; min-width: 36px; height: 36px; padding: 0; font-size: 16px; flex: 0 0 36px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center;">ðŸ“¸</button>
+        <button id="dictateBtn" class="dictate-btn-main" data-tooltip="Speech to Text" data-tooltip-pos="top" style="width: 36px; min-width: 36px; height: 36px; padding: 0; font-size: 16px; flex: 0 0 36px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center;">&#x1F3A4;</button>
+        <button id="clipVideoBtn" class="dictate-btn-main" data-tooltip="Clip Video" data-tooltip-pos="top" style="width: 36px; min-width: 36px; height: 36px; padding: 0; font-size: 16px; flex: 0 0 36px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center;">&#x1F3A5;</button>
+        <button id="screenshotBtn" class="dictate-btn-main" data-tooltip="Capture Screenshot" data-tooltip-pos="top" style="width: 36px; min-width: 36px; height: 36px; padding: 0; font-size: 16px; flex: 0 0 36px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center;">&#x1F4F8;</button>
 
         <button id="publishBtn" class="publish-btn" disabled style="flex: 1; min-width: 80px; margin: 0; padding: 0 14px; height: 36px; white-space: nowrap; font-weight: 700; border-radius: 8px;">Publish</button>
       </div>
@@ -172,10 +172,10 @@
     <!-- ANNOTATION DETAIL CARD -->
     <section id="annotationDetailCard" class="annotation-detail-card card hidden">
       <div class="detail-header">
-        <button id="detailBackBtn" class="detail-back-btn" data-tooltip="Back to note composer">â† <span style="font-weight:600;">Compose</span></button>
+        <button id="detailBackBtn" class="detail-back-btn" data-tooltip="Back to note composer">&#x2190; <span style="font-weight:600;">Compose</span></button>
         <div class="detail-tags" style="display: flex; align-items: center; gap: 8px;">
           <span id="detailIntentBadge" class="detail-intent-badge" data-tooltip="Tag" style="font-size:10px; font-weight:700; padding: 2px 8px; border-radius: 99px; background: var(--soft); border: 1px solid var(--line); color: var(--ink); letter-spacing: 0.03em;">hot take</span>
-          <button id="detailDeleteBtn" class="detail-delete-btn hidden" data-tooltip="Delete note" style="background: none; border: 1px solid var(--line); border-radius: 6px; color: var(--muted); cursor: pointer; padding: 4px 7px; font-size: 12px; display: inline-flex; align-items: center; justify-content: center; transition: all 0.15s ease;">ðŸ—‘ï¸</button>
+          <button id="detailDeleteBtn" class="detail-delete-btn hidden" data-tooltip="Delete note" style="background: none; border: 1px solid var(--line); border-radius: 6px; color: var(--muted); cursor: pointer; padding: 4px 7px; font-size: 12px; display: inline-flex; align-items: center; justify-content: center; transition: all 0.15s ease;">&#x1F5D1;</button>
         </div>
       </div>
 
@@ -186,7 +186,7 @@
           <div id="detailComment" class="detail-comment-text" style="font-size: 13px; line-height: 1.5; color: var(--ink); white-space: pre-wrap; font-weight: 500;"></div>
           <div style="display: flex; align-items: center; gap: 5px; margin-top: 5px; flex-wrap: wrap;">
             <span id="detailDate" class="muted" style="font-size: 10px;">Just now</span>
-            <span id="detailSourceBadge" class="muted" style="font-size: 10px; cursor: pointer; display: none; white-space: nowrap;">&middot; ðŸ”— <span id="detailSourceHost">source</span></span>
+            <span id="detailSourceBadge" class="muted" style="font-size: 10px; cursor: pointer; display: none; white-space: nowrap;">&middot; &#x1F517; <span id="detailSourceHost">source</span></span>
           </div>
         </div>
       </div>
@@ -204,10 +204,10 @@
       <!-- Gemini Fact Check Box (prominent directly below comment) -->
       <div id="detailFactCheckBox" style="display:none; margin-top: 10px; padding: 10px; background: var(--soft); border: 1px solid var(--line); border-radius: 8px; font-size: 11px;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-          <span style="font-weight: 750; color: var(--yellow); display: inline-flex; align-items: center; gap: 4px;">âš¡ Gemini Fact Check</span>
+          <span style="font-weight: 750; color: var(--yellow); display: inline-flex; align-items: center; gap: 4px;">&#x26A1; Gemini Fact Check</span>
           <div style="display: flex; align-items: center; gap: 6px;">
             <span id="detailFactCheckBadge" style="font-size: 9px; font-weight: 750; padding: 1px 6px; border-radius: 99px; background: rgba(0,0,0,0.1);">ANALYZING</span>
-            <button id="detailFactCheckCloseBtn" type="button" data-tooltip="Hide Fact Check" data-tooltip-pos="left" style="background: none; border: none; color: var(--muted); cursor: pointer; font-size: 11px; font-weight: 700; padding: 0 4px;">âœ•</button>
+            <button id="detailFactCheckCloseBtn" type="button" data-tooltip="Hide Fact Check" data-tooltip-pos="left" style="background: none; border: none; color: var(--muted); cursor: pointer; font-size: 11px; font-weight: 700; padding: 0 4px;">&#x2715;</button>
           </div>
         </div>
         <div id="detailFactCheckText" style="line-height: 1.4; color: var(--ink);">Checking claims with Gemini...</div>
@@ -215,11 +215,11 @@
 
       <!-- Quick React Bar (Emojis) -->
       <div id="detailReactBar" style="display: flex; align-items: center; gap: 4px; margin-top: 10px; padding: 6px 8px; background: var(--soft); border: 1px solid var(--line); border-radius: 8px;">
-        <button class="detail-react-btn" data-react="ðŸ”¥" data-tooltip="React with ðŸ”¥" data-tooltip-pos="top" style="background: none; border: 1px solid var(--line); border-radius: 20px; padding: 2px 7px; font-size: 12px; cursor: pointer; display: inline-flex; align-items: center; gap: 3px; color: var(--ink); transition: all 0.15s; white-space: nowrap;">ðŸ”¥ <span class="react-count" style="font-size: 10px; font-weight: 700; min-width: 8px;">0</span></button>
-        <button class="detail-react-btn" data-react="ðŸ¤”" data-tooltip="React with ðŸ¤”" data-tooltip-pos="top" style="background: none; border: 1px solid var(--line); border-radius: 20px; padding: 2px 7px; font-size: 12px; cursor: pointer; display: inline-flex; align-items: center; gap: 3px; color: var(--ink); transition: all 0.15s; white-space: nowrap;">ðŸ¤” <span class="react-count" style="font-size: 10px; font-weight: 700; min-width: 8px;">0</span></button>
-        <button class="detail-react-btn" data-react="ðŸ’¡" data-tooltip="React with ðŸ’¡" data-tooltip-pos="top" style="background: none; border: 1px solid var(--line); border-radius: 20px; padding: 2px 7px; font-size: 12px; cursor: pointer; display: inline-flex; align-items: center; gap: 3px; color: var(--ink); transition: all 0.15s; white-space: nowrap;">ðŸ’¡ <span class="react-count" style="font-size: 10px; font-weight: 700; min-width: 8px;">0</span></button>
-        <button class="detail-react-btn" data-react="ðŸ’¯" data-tooltip="React with ðŸ’¯" data-tooltip-pos="top" style="background: none; border: 1px solid var(--line); border-radius: 20px; padding: 2px 7px; font-size: 12px; cursor: pointer; display: inline-flex; align-items: center; gap: 3px; color: var(--ink); transition: all 0.15s; white-space: nowrap;">ðŸ’¯ <span class="react-count" style="font-size: 10px; font-weight: 700; min-width: 8px;">0</span></button>
-        <button class="detail-react-btn" data-react="ðŸ‘Ž" data-tooltip="React with ðŸ‘Ž" data-tooltip-pos="top" style="background: none; border: 1px solid var(--line); border-radius: 20px; padding: 2px 7px; font-size: 12px; cursor: pointer; display: inline-flex; align-items: center; gap: 3px; color: var(--ink); transition: all 0.15s; white-space: nowrap;">ðŸ‘Ž <span class="react-count" style="font-size: 10px; font-weight: 700; min-width: 8px;">0</span></button>
+        <button class="detail-react-btn" data-react="&#x1F525;" data-tooltip="React with &#x1F525;" data-tooltip-pos="top" style="background: none; border: 1px solid var(--line); border-radius: 20px; padding: 2px 7px; font-size: 12px; cursor: pointer; display: inline-flex; align-items: center; gap: 3px; color: var(--ink); transition: all 0.15s; white-space: nowrap;">&#x1F525; <span class="react-count" style="font-size: 10px; font-weight: 700; min-width: 8px;">0</span></button>
+        <button class="detail-react-btn" data-react="&#x1F914;" data-tooltip="React with &#x1F914;" data-tooltip-pos="top" style="background: none; border: 1px solid var(--line); border-radius: 20px; padding: 2px 7px; font-size: 12px; cursor: pointer; display: inline-flex; align-items: center; gap: 3px; color: var(--ink); transition: all 0.15s; white-space: nowrap;">&#x1F914; <span class="react-count" style="font-size: 10px; font-weight: 700; min-width: 8px;">0</span></button>
+        <button class="detail-react-btn" data-react="&#x1F4A1;" data-tooltip="React with &#x1F4A1;" data-tooltip-pos="top" style="background: none; border: 1px solid var(--line); border-radius: 20px; padding: 2px 7px; font-size: 12px; cursor: pointer; display: inline-flex; align-items: center; gap: 3px; color: var(--ink); transition: all 0.15s; white-space: nowrap;">&#x1F4A1; <span class="react-count" style="font-size: 10px; font-weight: 700; min-width: 8px;">0</span></button>
+        <button class="detail-react-btn" data-react="&#x1F4AF;" data-tooltip="React with &#x1F4AF;" data-tooltip-pos="top" style="background: none; border: 1px solid var(--line); border-radius: 20px; padding: 2px 7px; font-size: 12px; cursor: pointer; display: inline-flex; align-items: center; gap: 3px; color: var(--ink); transition: all 0.15s; white-space: nowrap;">&#x1F4AF; <span class="react-count" style="font-size: 10px; font-weight: 700; min-width: 8px;">0</span></button>
+        <button class="detail-react-btn" data-react="&#x1F44E;" data-tooltip="React with &#x1F44E;" data-tooltip-pos="top" style="background: none; border: 1px solid var(--line); border-radius: 20px; padding: 2px 7px; font-size: 12px; cursor: pointer; display: inline-flex; align-items: center; gap: 3px; color: var(--ink); transition: all 0.15s; white-space: nowrap;">&#x1F44E; <span class="react-count" style="font-size: 10px; font-weight: 700; min-width: 8px;">0</span></button>
       </div>
 
       <!-- Comments -->
@@ -231,7 +231,7 @@
           </div>
           <div style="display: flex; justify-content: flex-end; align-items: center; gap: 6px;">
             <span id="widgetCommentStatus" style="font-size: 11px; color: var(--muted); flex: 1;"></span>
-            <button type="button" id="widgetCommentMicBtn" data-tooltip="Speak to comment" data-tooltip-pos="top" style="background: var(--soft); color: var(--ink); border: 1px solid var(--line); border-radius: 5px; cursor: pointer; font-size: 13px; padding: 5px 8px; display: inline-flex; align-items: center; justify-content: center; transition: all 0.15s ease;">ðŸŽ¤</button>
+            <button type="button" id="widgetCommentMicBtn" data-tooltip="Speak to comment" data-tooltip-pos="top" style="background: var(--soft); color: var(--ink); border: 1px solid var(--line); border-radius: 5px; cursor: pointer; font-size: 13px; padding: 5px 8px; display: inline-flex; align-items: center; justify-content: center; transition: all 0.15s ease;">&#x1F3A4;</button>
             <button type="submit" id="widgetCommentSubmitBtn" style="background: var(--yellow); color: #000; border: none; font-weight: 700; font-size: 11px; padding: 6px 14px; border-radius: 5px; cursor: pointer; transition: opacity 0.15s;">Reply</button>
           </div>
         </form>
