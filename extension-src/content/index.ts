@@ -41,7 +41,18 @@ export async function loadAnnotations(): Promise<void> {
     });
     const items = await res.json();
     if (Array.isArray(items)) {
-      state.annotations = items;
+      // Filter out sub-path bleeding (e.g. youtube.com/watch annotations showing up on youtube.com/)
+      state.annotations = items.filter((ann: Annotation) => {
+        if (!ann.url) return false;
+        if (vId) return true; // If we have a video ID, the ilike query is precise enough
+        
+        try {
+          const annUrl = new URL(ann.url);
+          return annUrl.pathname === location.pathname;
+        } catch (_) {
+          return true;
+        }
+      });
 
       // Batch query profiles
       const userIds = Array.from(new Set(items.map((a: Annotation) => a.user_id).filter(Boolean)));
