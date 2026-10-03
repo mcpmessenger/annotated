@@ -20,6 +20,7 @@ export interface Annotation {
   created_at?: string;
   username?: string;
   user_name?: string;
+  avatar_url?: string;
   author_profile?: UserProfile;
   extractedTimestamp?: number | null;
   _hasScrolled?: boolean;

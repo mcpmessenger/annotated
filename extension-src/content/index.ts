@@ -9,6 +9,7 @@ import { injectHighlightStyles, renderHighlight, highlightMap, clearAllHighlight
 import { renderYouTubeProgressBarMarkers, renderYouTubeVideoTag } from './youtube';
 import { recordSelection, buildPageInfo } from './selection';
 import { createWidget, openAnnotationInWidget, notifyWidgetOfSelection, setupMessageRouter, ensureWidgetContainer, widgetIframe } from './widget-host';
+import { setupHighlightTooltip } from './tooltip';
 
 const state: {
   annotations: Annotation[];
@@ -58,8 +59,13 @@ export async function loadAnnotations(): Promise<void> {
             return annUrl.pathname === '/' && location.pathname === '/';
           }
 
-          // On all other websites: host and path must strictly match
-          return annUrl.hostname === location.hostname && annUrl.pathname === location.pathname;
+          // Twitter / X cross-domain compatibility (x.com vs twitter.com)
+          const isTwitterOrX =
+            (annUrl.hostname.includes('x.com') || annUrl.hostname.includes('twitter.com')) &&
+            (location.hostname.includes('x.com') || location.hostname.includes('twitter.com'));
+          const hostMatch = isTwitterOrX || annUrl.hostname === location.hostname;
+          const pathMatch = annUrl.pathname.replace(/\/$/, '') === location.pathname.replace(/\/$/, '');
+          return hostMatch && pathMatch;
         } catch (_) {
           return false;
         }
@@ -87,6 +93,13 @@ export async function loadAnnotations(): Promise<void> {
         } catch (_) {}
       }
 
+      // Attach author_profile to annotations
+      state.annotations.forEach((ann) => {
+        if (ann.user_id && state.profiles[ann.user_id]) {
+          ann.author_profile = state.profiles[ann.user_id];
+        }
+      });
+
       // Fetch cloud-persisted fact check verdicts before initial render
       await loadFactChecksForAnnotations(state.annotations);
 
@@ -100,6 +113,11 @@ export async function loadAnnotations(): Promise<void> {
   // 2. Fallback to local storage
   chrome.storage.local.get(currentKey, async (data: Record<string, any>) => {
     state.annotations = (data[currentKey] as Annotation[]) || [];
+    state.annotations.forEach((ann) => {
+      if (ann.user_id && state.profiles[ann.user_id]) {
+        ann.author_profile = state.profiles[ann.user_id];
+      }
+    });
     await loadFactChecksForAnnotations(state.annotations);
     renderAllPending();
   });
@@ -173,6 +191,7 @@ export function renderAllPending(): void {
 
 function init(): void {
   injectHighlightStyles();
+  setupHighlightTooltip(() => state.annotations, () => state.profiles);
   setupMessageRouter(() => loadAnnotations());
 
   // Text selection tracking
@@ -205,7 +224,12 @@ function init(): void {
       const target = (e.target as Element)?.closest('.annotated-highlight');
       if (target) {
         const ann = highlightMap.get(target);
-        if (ann) openAnnotationInWidget(ann);
+        if (ann) {
+          if (ann.user_id && state.profiles[ann.user_id]) {
+            ann.author_profile = state.profiles[ann.user_id];
+          }
+          openAnnotationInWidget(ann);
+        }
       }
     },
     true

@@ -2404,6 +2404,7 @@
     }
     const applyProfile = (name, handle, avatarUrl) => {
       if (authorEl) {
+        authorEl.style.display = "inline";
         authorEl.innerHTML = `${escapeHtml(name)}${handle ? ` <span class="muted" style="font-weight: normal; font-size: 10px;">${escapeHtml(handle)}</span>` : ""}`;
       }
       if (avatarEl) {
@@ -2414,10 +2415,23 @@
           avatarEl.textContent = "";
         } else {
           avatarEl.style.backgroundImage = "none";
-          avatarEl.textContent = initials(name);
+          avatarEl.textContent = initials(name || "A");
         }
       }
     };
+    let pageOpHandle = "";
+    if (ann.url) {
+      try {
+        const u = new URL(ann.url);
+        if (u.hostname.includes("twitter.com") || u.hostname.includes("x.com")) {
+          const parts = u.pathname.split("/").filter(Boolean);
+          if (parts[0] && parts[0] !== "i" && parts[0] !== "home" && parts[0] !== "explore") {
+            pageOpHandle = `@${parts[0]}`;
+          }
+        }
+      } catch (_) {
+      }
+    }
     if (currentUser2 && (ann.user_id === currentUser2.id || !ann.user_id)) {
       const name = currentUser2.name || (currentUser2.email ? currentUser2.email.split("@")[0] : "You");
       const handle = currentUser2.email ? `@${currentUser2.email.split("@")[0]}` : "";
@@ -2427,8 +2441,27 @@
       const name = prof.full_name || (prof.email ? prof.email.split("@")[0] : "Annotator");
       const handle = prof.email ? `@${prof.email.split("@")[0]}` : "";
       applyProfile(name, handle, prof.avatar_url);
+    } else if (ann.avatar_url || ann.user_name) {
+      applyProfile(ann.user_name || "Annotator", pageOpHandle, ann.avatar_url);
     } else {
-      applyProfile(ann.user_name || "Community Member");
+      const fallbackName = pageOpHandle ? pageOpHandle.replace("@", "") : ann.user_name || "Annotator";
+      applyProfile(fallbackName, pageOpHandle);
+    }
+    if (!ann.author_profile && ann.user_id) {
+      fetch(`${SUPABASE_CONFIG.url}/rest/v1/profiles?id=eq.${encodeURIComponent(ann.user_id)}`, {
+        headers: {
+          apikey: SUPABASE_CONFIG.anonKey,
+          Authorization: `Bearer ${SUPABASE_CONFIG.anonKey}`
+        }
+      }).then((r) => r.json()).then((profs) => {
+        if (Array.isArray(profs) && profs[0]) {
+          ann.author_profile = profs[0];
+          const name = profs[0].full_name || (profs[0].email ? profs[0].email.split("@")[0] : "Annotator");
+          const handle = profs[0].email ? `@${profs[0].email.split("@")[0]}` : "";
+          applyProfile(name, handle, profs[0].avatar_url);
+        }
+      }).catch(() => {
+      });
     }
     const mediaBox = $("#detailMediaBox");
     if (mediaBox) {
