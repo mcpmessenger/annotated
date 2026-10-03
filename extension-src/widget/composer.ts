@@ -1082,6 +1082,13 @@ export function initComposer(
   composerFactCheckBtn?.addEventListener('click', (e) => {
     e.preventDefault();
     e.stopPropagation();
+    const user = getCurrentUser();
+    if (!user) {
+      if (onRequireAuth) {
+        onRequireAuth();
+      }
+      return;
+    }
     const fb = $('#composerFactCheckBox');
     if (fb && fb.style.display !== 'none') {
       hideComposerFactCheck(onResize);

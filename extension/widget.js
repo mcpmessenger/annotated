@@ -511,7 +511,7 @@
       confidence: "MEDIUM"
     };
   }
-  function wireFactCheck(ann, pageTitle, pageUrl, onResize) {
+  function wireFactCheck(ann, pageTitle, pageUrl, onResize, getUser) {
     const factBox = $("#detailFactCheckBox");
     const factBtn = $("#detailFactCheckBtn");
     const fb = $("#detailFactCheckBox");
@@ -624,6 +624,13 @@
           fb.style.display = "none";
           updateBtnState(false);
         } else {
+          if (!cachedData) {
+            const user = getUser ? getUser() : null;
+            if (!user) {
+              showAuth("Sign in with Google to run an AI fact check on this annotation.");
+              return;
+            }
+          }
           fb.style.display = "block";
           updateBtnState(true);
           runFactCheck();
@@ -1530,6 +1537,13 @@
     composerFactCheckBtn?.addEventListener("click", (e) => {
       e.preventDefault();
       e.stopPropagation();
+      const user = getCurrentUser();
+      if (!user) {
+        if (onRequireAuth) {
+          onRequireAuth();
+        }
+        return;
+      }
       const fb = $("#composerFactCheckBox");
       if (fb && fb.style.display !== "none") {
         hideComposerFactCheck(onResize);
@@ -2397,7 +2411,7 @@
       };
     }
     wireDetailReactions(ann.id || ann.slug || "", activeUser);
-    wireFactCheck(ann, ann.title || "Page", ann.url || location.href, onResize);
+    wireFactCheck(ann, ann.title || "Page", ann.url || location.href, onResize, () => activeUser);
     if (ann.id || ann.slug) loadWidgetComments(ann.id || ann.slug || "", activeUser);
     const hasMedia = !!(ann.media_url || ann.audio_url);
     onResize(hasMedia ? 630 : 550);

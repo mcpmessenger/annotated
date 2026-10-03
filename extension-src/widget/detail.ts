@@ -229,7 +229,7 @@ export async function showAnnotationDetail(
   wireDetailReactions(ann.id || ann.slug || '', activeUser);
 
   // Wire Fact Check (defaults to open with hide toggle)
-  wireFactCheck(ann, ann.title || 'Page', ann.url || location.href, onResize);
+  wireFactCheck(ann, ann.title || 'Page', ann.url || location.href, onResize, () => activeUser);
 
   // Wire Comments
   if (ann.id || ann.slug) loadWidgetComments(ann.id || ann.slug || '', activeUser);

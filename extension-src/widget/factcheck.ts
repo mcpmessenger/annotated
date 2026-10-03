@@ -3,7 +3,8 @@
 import { $ } from '../shared/dom';
 import { FACTCHECK_API_URL } from '../shared/config';
 import { escapeHtml } from '../shared/utils';
-import type { Annotation, FactCheckResult } from '../types/annotation';
+import { showAuth } from './auth';
+import type { Annotation, FactCheckResult, CurrentUser } from '../types/annotation';
 
 export interface FactCheckRequestPayload {
   quote?: string;
@@ -75,7 +76,8 @@ export function wireFactCheck(
   ann: Annotation,
   pageTitle: string,
   pageUrl: string,
-  onResize?: (height: number) => void
+  onResize?: (height: number) => void,
+  getUser?: () => CurrentUser | null
 ): void {
   const factBox = $('#detailFactCheckBox');
   const factBtn = $('#detailFactCheckBtn');
@@ -204,6 +206,13 @@ export function wireFactCheck(
         fb.style.display = 'none';
         updateBtnState(false);
       } else {
+        if (!cachedData) {
+          const user = getUser ? getUser() : null;
+          if (!user) {
+            showAuth('Sign in with Google to run an AI fact check on this annotation.');
+            return;
+          }
+        }
         fb.style.display = 'block';
         updateBtnState(true);
         runFactCheck();

@@ -109,6 +109,16 @@ export function AnnotationCard({
       return;
     }
 
+    if (!currentUserId) {
+      if (confirm("Please sign in to run an AI fact check. Would you like to sign in with Google now?")) {
+        await supabase.auth.signInWithOAuth({
+          provider: "google",
+          options: { redirectTo: window.location.href }
+        });
+      }
+      return;
+    }
+
     executeFactCheck(e);
   };
 
