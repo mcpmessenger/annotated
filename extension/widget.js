@@ -5,7 +5,7 @@
   var $$ = (sel, root = document) => root.querySelectorAll(sel);
 
   // extension-src/shared/config.ts
-  var SUPABASE_CONFIG2 = {
+  var SUPABASE_CONFIG = {
     url: "https://dajadbvlldrmgzztdksn.supabase.co",
     anonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRhamFkYnZsbGRybWd6enRka3NuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk1ODYwMTcsImV4cCI6MjEwNTE2MjAxN30.ZGteNtShkBErPckuMGX4tWMn0AtgU_THFSI37Wgd-eU"
   };
@@ -14,7 +14,7 @@
 
   // extension-src/shared/supabase.ts
   var SupabaseClient = class {
-    constructor(url = SUPABASE_CONFIG2.url, key = SUPABASE_CONFIG2.anonKey) {
+    constructor(url = SUPABASE_CONFIG.url, key = SUPABASE_CONFIG.anonKey) {
       this.token = null;
       this.url = url;
       this.key = key;
@@ -358,17 +358,17 @@
         const ext = isMp4 ? "mp4" : "webm";
         const contentType = isMp4 ? "video/mp4" : "video/webm";
         const fileName = `video_${Date.now()}.${ext}`;
-        const uploadRes = await fetch(`${SUPABASE_CONFIG2.url}/storage/v1/object/annotation-media/${fileName}`, {
+        const uploadRes = await fetch(`${SUPABASE_CONFIG.url}/storage/v1/object/annotation-media/${fileName}`, {
           method: "POST",
           headers: {
-            apikey: SUPABASE_CONFIG2.anonKey,
-            Authorization: `Bearer ${supabase.token || SUPABASE_CONFIG2.anonKey}`,
+            apikey: SUPABASE_CONFIG.anonKey,
+            Authorization: `Bearer ${supabase.token || SUPABASE_CONFIG.anonKey}`,
             "Content-Type": contentType
           },
           body: payload.videoClipBlob
         });
         if (uploadRes.ok) {
-          media_url = `${SUPABASE_CONFIG2.url}/storage/v1/object/public/annotation-media/${fileName}`;
+          media_url = `${SUPABASE_CONFIG.url}/storage/v1/object/public/annotation-media/${fileName}`;
           media_type = "video";
         }
       } catch (err) {
@@ -379,17 +379,17 @@
     if (payload.recordedAudioBlob) {
       try {
         const fileName = `audio_${Date.now()}.webm`;
-        const uploadRes = await fetch(`${SUPABASE_CONFIG2.url}/storage/v1/object/annotation-media/${fileName}`, {
+        const uploadRes = await fetch(`${SUPABASE_CONFIG.url}/storage/v1/object/annotation-media/${fileName}`, {
           method: "POST",
           headers: {
-            apikey: SUPABASE_CONFIG2.anonKey,
-            Authorization: `Bearer ${supabase.token || SUPABASE_CONFIG2.anonKey}`,
+            apikey: SUPABASE_CONFIG.anonKey,
+            Authorization: `Bearer ${supabase.token || SUPABASE_CONFIG.anonKey}`,
             "Content-Type": "audio/webm"
           },
           body: payload.recordedAudioBlob
         });
         if (uploadRes.ok) {
-          audio_url = `${SUPABASE_CONFIG2.url}/storage/v1/object/public/annotation-media/${fileName}`;
+          audio_url = `${SUPABASE_CONFIG.url}/storage/v1/object/public/annotation-media/${fileName}`;
         }
       } catch (err) {
         console.error("[AudioUpload] Error:", err);
@@ -1911,13 +1911,13 @@
     if (countEl) countEl.textContent = "\u2026";
     try {
       const res = await fetch(
-        `${SUPABASE_CONFIG2.url}/rest/v1/comments?annotation_id=eq.${encodeURIComponent(
+        `${SUPABASE_CONFIG.url}/rest/v1/comments?annotation_id=eq.${encodeURIComponent(
           annotationId
         )}&order=created_at.asc`,
         {
           headers: {
-            apikey: SUPABASE_CONFIG2.anonKey,
-            Authorization: `Bearer ${SUPABASE_CONFIG2.anonKey}`
+            apikey: SUPABASE_CONFIG.anonKey,
+            Authorization: `Bearer ${SUPABASE_CONFIG.anonKey}`
           }
         }
       );
@@ -1933,11 +1933,11 @@
       if (userIds.length > 0) {
         try {
           const profRes = await fetch(
-            `${SUPABASE_CONFIG2.url}/rest/v1/profiles?id=in.(${userIds.join(",")})`,
+            `${SUPABASE_CONFIG.url}/rest/v1/profiles?id=in.(${userIds.join(",")})`,
             {
               headers: {
-                apikey: SUPABASE_CONFIG2.anonKey,
-                Authorization: `Bearer ${SUPABASE_CONFIG2.anonKey}`
+                apikey: SUPABASE_CONFIG.anonKey,
+                Authorization: `Bearer ${SUPABASE_CONFIG.anonKey}`
               }
             }
           );
@@ -1958,12 +1958,12 @@
       if (commentIds.length > 0) {
         try {
           const reactRes = await fetch(
-            `${SUPABASE_CONFIG2.url}/rest/v1/comment_reactions?comment_id=in.(${commentIds.join(
+            `${SUPABASE_CONFIG.url}/rest/v1/comment_reactions?comment_id=in.(${commentIds.join(
               ","
             )})&select=comment_id,emoji,user_id`,
             {
               headers: {
-                apikey: SUPABASE_CONFIG2.anonKey
+                apikey: SUPABASE_CONFIG.anonKey
               }
             }
           );
@@ -2089,7 +2089,7 @@
             try {
               const headers = await supabase.getAuthHeaders();
               await fetch(
-                `${SUPABASE_CONFIG2.url}/rest/v1/comment_reactions?comment_id=eq.${encodeURIComponent(
+                `${SUPABASE_CONFIG.url}/rest/v1/comment_reactions?comment_id=eq.${encodeURIComponent(
                   commentId
                 )}&user_id=eq.${encodeURIComponent(reactUser.id)}&emoji=eq.${encodeURIComponent(emoji)}`,
                 {
@@ -2111,7 +2111,7 @@
             }
             try {
               const headers = await supabase.getAuthHeaders({ Prefer: "resolution=merge-duplicates" });
-              await fetch(`${SUPABASE_CONFIG2.url}/rest/v1/comment_reactions`, {
+              await fetch(`${SUPABASE_CONFIG.url}/rest/v1/comment_reactions`, {
                 method: "POST",
                 headers,
                 body: JSON.stringify({
@@ -2136,7 +2136,7 @@
           try {
             const headers = await supabase.getAuthHeaders();
             const delRes = await fetch(
-              `${SUPABASE_CONFIG2.url}/rest/v1/comments?id=eq.${encodeURIComponent(commentId)}`,
+              `${SUPABASE_CONFIG.url}/rest/v1/comments?id=eq.${encodeURIComponent(commentId)}`,
               {
                 method: "DELETE",
                 headers
@@ -2189,7 +2189,7 @@
         }
         try {
           const headers = await supabase.getAuthHeaders({ Prefer: "return=representation" });
-          const res = await fetch(`${SUPABASE_CONFIG2.url}/rest/v1/comments`, {
+          const res = await fetch(`${SUPABASE_CONFIG.url}/rest/v1/comments`, {
             method: "POST",
             headers,
             body: JSON.stringify({
@@ -2277,7 +2277,7 @@
               });
               try {
                 const authHeaders = await supabase.getAuthHeaders();
-                await fetch(`${SUPABASE_CONFIG2.url}/rest/v1/annotations?id=eq.${encodeURIComponent(ann.id)}`, {
+                await fetch(`${SUPABASE_CONFIG.url}/rest/v1/annotations?id=eq.${encodeURIComponent(ann.id)}`, {
                   method: "DELETE",
                   headers: authHeaders
                 });
@@ -2429,10 +2429,10 @@
     const loadReactions = async () => {
       try {
         const res = await fetch(
-          `${SUPABASE_CONFIG2.url}/rest/v1/annotation_reactions?annotation_id=eq.${encodeURIComponent(
+          `${SUPABASE_CONFIG.url}/rest/v1/annotation_reactions?annotation_id=eq.${encodeURIComponent(
             annotationId
           )}&select=emoji,user_id`,
-          { headers: { apikey: SUPABASE_CONFIG2.anonKey } }
+          { headers: { apikey: SUPABASE_CONFIG.anonKey } }
         );
         const rows = await res.json();
         if (!Array.isArray(rows)) return;
@@ -2508,7 +2508,7 @@
           const headers = await supabase.getAuthHeaders();
           if (isActive) {
             await fetch(
-              `${SUPABASE_CONFIG2.url}/rest/v1/annotation_reactions?annotation_id=eq.${encodeURIComponent(
+              `${SUPABASE_CONFIG.url}/rest/v1/annotation_reactions?annotation_id=eq.${encodeURIComponent(
                 annotationId
               )}&user_id=eq.${encodeURIComponent(reactUser.id)}&emoji=eq.${encodeURIComponent(emoji)}`,
               {
@@ -2517,7 +2517,7 @@
               }
             );
           } else {
-            await fetch(`${SUPABASE_CONFIG2.url}/rest/v1/annotation_reactions`, {
+            await fetch(`${SUPABASE_CONFIG.url}/rest/v1/annotation_reactions`, {
               method: "POST",
               headers: {
                 ...headers,

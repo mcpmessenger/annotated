@@ -3,7 +3,7 @@
 import { $ } from '../shared/dom';
 import { supabase } from '../shared/supabase';
 import { escapeHtml, extractTimestamp, formatSeconds, openExternalUrl, pageKey, extractYouTubeVideoId } from '../shared/utils';
-import { SITE_URL } from '../shared/config';
+import { SITE_URL, SUPABASE_CONFIG } from '../shared/config';
 import type { Annotation, CurrentUser, PageContext } from '../types/annotation';
 
 export function renderFeed(

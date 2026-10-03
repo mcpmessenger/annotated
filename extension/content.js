@@ -164,7 +164,7 @@
               const id = k.replace("fc_", "");
               const newVerdict = changes[k].newValue;
               if (newVerdict) {
-                updateHighlightVerdict(id, newVerdict);
+                updateHighlightVerdict(id, String(newVerdict));
               }
             }
           });
