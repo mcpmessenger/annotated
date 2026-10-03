@@ -17,6 +17,7 @@ export interface Annotation {
   media_type?: string | null;
   audio_url?: string;
   media_timestamp?: number | null;
+  video_captions?: string;
   created_at?: string;
   username?: string;
   user_name?: string;

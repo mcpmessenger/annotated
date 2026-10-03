@@ -71,28 +71,59 @@ export function getMediaDuration(): number | null {
   return state.duration > 0 ? state.duration : null;
 }
 
-export function getActiveVideoCaptions(): string {
-  // Check YouTube captions on screen
-  const ytSegments = Array.from(document.querySelectorAll('.ytp-caption-segment, .caption-visual-line'));
-  if (ytSegments.length > 0) {
-    const text = ytSegments.map((s) => s.textContent?.trim()).filter(Boolean).join(' ');
-    if (text) return text;
-  }
-
-  // Check HTML5 video text tracks
+export function getActiveVideoCaptions(startSeconds?: number | null, endSeconds?: number | null): string {
+  // 1. Check HTML5 video text tracks for cues within the clip window
   const v = getActiveVideoElement();
   if (v && v.textTracks) {
+    const sStart = startSeconds != null ? Math.max(0, startSeconds - 2) : null;
+    const sEnd = startSeconds != null ? (endSeconds != null ? endSeconds + 2 : startSeconds + 17) : null;
+
     for (let i = 0; i < v.textTracks.length; i++) {
       const track = v.textTracks[i];
+      // If time window specified, scan all cues on track
+      if (sStart != null && sEnd != null && track.cues && track.cues.length > 0) {
+        const cueTexts: string[] = [];
+        for (let j = 0; j < track.cues.length; j++) {
+          const cue = track.cues[j] as any;
+          if (cue && cue.text) {
+            const cStart = cue.startTime ?? 0;
+            const cEnd = cue.endTime ?? cStart;
+            if (cEnd >= sStart && cStart <= sEnd) {
+              cueTexts.push(cue.text.trim());
+            }
+          }
+        }
+        if (cueTexts.length > 0) return cueTexts.join(' ');
+      }
+
+      // Check active cues if playing right now
       if (track.activeCues && track.activeCues.length > 0) {
         const cueTexts: string[] = [];
         for (let j = 0; j < track.activeCues.length; j++) {
           const cue = track.activeCues[j] as any;
-          if (cue && cue.text) cueTexts.push(cue.text);
+          if (cue && cue.text) cueTexts.push(cue.text.trim());
         }
         if (cueTexts.length > 0) return cueTexts.join(' ');
       }
     }
+  }
+
+  // 2. Check YouTube transcript segments if open on page
+  const transcriptSegments = Array.from(document.querySelectorAll('ytd-transcript-segment-renderer'));
+  if (transcriptSegments.length > 0) {
+    const texts: string[] = [];
+    transcriptSegments.forEach((seg) => {
+      const textEl = seg.querySelector('.segment-text');
+      if (textEl && textEl.textContent) texts.push(textEl.textContent.trim());
+    });
+    if (texts.length > 0) return texts.slice(0, 5).join(' ');
+  }
+
+  // 3. Check YouTube captions currently on screen
+  const ytSegments = Array.from(document.querySelectorAll('.ytp-caption-segment, .caption-visual-line'));
+  if (ytSegments.length > 0) {
+    const text = ytSegments.map((s) => s.textContent?.trim()).filter(Boolean).join(' ');
+    if (text) return text;
   }
 
   return '';

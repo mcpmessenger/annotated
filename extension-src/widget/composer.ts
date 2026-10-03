@@ -262,20 +262,15 @@ export function triggerComposerFactCheck(
       const startTs = composerState.videoStartTs ?? (videoCurrentPlayhead > 0 ? videoCurrentPlayhead : composerState.currentMediaTimestamp ?? null);
       const endTs = composerState.videoEndTs ?? (startTs != null ? startTs + 15 : null);
 
-      let effectiveQuote = quote;
-      if (!effectiveQuote && isVideo) {
-        const startFmt = formatSeconds(startTs || 0);
-        const endFmt = formatSeconds(endTs || 0);
-        if (pageCtx.video_captions) {
-          effectiveQuote = `[Video dialogue at ${startFmt}]: "${pageCtx.video_captions}"`;
-        } else {
-          effectiveQuote = `Video clip (${startFmt} - ${endFmt}) from "${pageCtx.title || 'Video'}"`;
-        }
+      let effectiveQuote = quote ? quote.trim() : undefined;
+      // Do not treat page/video title as quote
+      if (effectiveQuote && pageCtx.title && effectiveQuote.toLowerCase() === pageCtx.title.trim().toLowerCase()) {
+        effectiveQuote = undefined;
       }
 
       const data = await callFactCheckApi({
-        quote: effectiveQuote || undefined,
-        commentary: comment || undefined, // strictly user notes / reaction, NOT the claim!
+        quote: effectiveQuote,
+        commentary: comment || undefined,
         sourceUrl: pageCtx.url || location.href,
         sourceTitle: pageCtx.title || document.title,
         timestamp: startTs,

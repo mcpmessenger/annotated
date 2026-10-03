@@ -778,25 +778,50 @@
     const state2 = getActiveVideoState();
     return state2.duration > 0 ? state2.duration : null;
   }
-  function getActiveVideoCaptions() {
-    const ytSegments = Array.from(document.querySelectorAll(".ytp-caption-segment, .caption-visual-line"));
-    if (ytSegments.length > 0) {
-      const text = ytSegments.map((s) => s.textContent?.trim()).filter(Boolean).join(" ");
-      if (text) return text;
-    }
+  function getActiveVideoCaptions(startSeconds, endSeconds) {
     const v = getActiveVideoElement();
     if (v && v.textTracks) {
+      const sStart = startSeconds != null ? Math.max(0, startSeconds - 2) : null;
+      const sEnd = startSeconds != null ? endSeconds != null ? endSeconds + 2 : startSeconds + 17 : null;
       for (let i = 0; i < v.textTracks.length; i++) {
         const track = v.textTracks[i];
+        if (sStart != null && sEnd != null && track.cues && track.cues.length > 0) {
+          const cueTexts = [];
+          for (let j = 0; j < track.cues.length; j++) {
+            const cue = track.cues[j];
+            if (cue && cue.text) {
+              const cStart = cue.startTime ?? 0;
+              const cEnd = cue.endTime ?? cStart;
+              if (cEnd >= sStart && cStart <= sEnd) {
+                cueTexts.push(cue.text.trim());
+              }
+            }
+          }
+          if (cueTexts.length > 0) return cueTexts.join(" ");
+        }
         if (track.activeCues && track.activeCues.length > 0) {
           const cueTexts = [];
           for (let j = 0; j < track.activeCues.length; j++) {
             const cue = track.activeCues[j];
-            if (cue && cue.text) cueTexts.push(cue.text);
+            if (cue && cue.text) cueTexts.push(cue.text.trim());
           }
           if (cueTexts.length > 0) return cueTexts.join(" ");
         }
       }
+    }
+    const transcriptSegments = Array.from(document.querySelectorAll("ytd-transcript-segment-renderer"));
+    if (transcriptSegments.length > 0) {
+      const texts = [];
+      transcriptSegments.forEach((seg) => {
+        const textEl = seg.querySelector(".segment-text");
+        if (textEl && textEl.textContent) texts.push(textEl.textContent.trim());
+      });
+      if (texts.length > 0) return texts.slice(0, 5).join(" ");
+    }
+    const ytSegments = Array.from(document.querySelectorAll(".ytp-caption-segment, .caption-visual-line"));
+    if (ytSegments.length > 0) {
+      const text = ytSegments.map((s) => s.textContent?.trim()).filter(Boolean).join(" ");
+      if (text) return text;
     }
     return "";
   }

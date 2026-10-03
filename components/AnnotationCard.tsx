@@ -78,15 +78,30 @@ export function AnnotationCard({
     setFactCheckLoading(true);
 
     try {
+      const urlToUse = annotation.sourceUrl || "";
+      const commentToUse = (annotation.commentary || "").trim();
+      const isVideo =
+        annotation.media_type === "video" ||
+        (urlToUse && (urlToUse.includes("youtube.com") || urlToUse.includes("youtu.be") || urlToUse.includes("vimeo.com") || urlToUse.includes("tiktok.com")));
+
+      let quoteToUse = (annotation.quoteText || "").trim();
+      if (quoteToUse && annotation.sourceTitle && quoteToUse.toLowerCase() === annotation.sourceTitle.trim().toLowerCase()) {
+        quoteToUse = "";
+      }
+      if (quoteToUse && quoteToUse.toLowerCase().startsWith("video clip (")) {
+        quoteToUse = "";
+      }
+
       const res = await fetch("/api/ai/factcheck", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          quote: annotation.quoteText,
-          commentary: annotation.commentary,
-          sourceUrl: annotation.sourceUrl,
+          quote: quoteToUse || undefined,
+          commentary: commentToUse || undefined,
+          sourceUrl: urlToUse,
           sourceTitle: annotation.sourceTitle,
           mediaUrl: annotation.media_url,
+          isVideoClip: isVideo,
         }),
       });
       const data = await res.json();

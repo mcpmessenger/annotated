@@ -18,7 +18,6 @@ sub executeRequest()
     quote = ""
     if data.highlighted_text <> invalid then quote = data.highlighted_text
     if quote = "" and data.quote <> invalid then quote = data.quote
-    if quote = "" and data.page_title <> invalid then quote = data.page_title
     
     commentary = ""
     if data.comment <> invalid then commentary = data.comment

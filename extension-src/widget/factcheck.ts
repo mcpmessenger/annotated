@@ -2,7 +2,7 @@
 
 import { $ } from '../shared/dom';
 import { FACTCHECK_API_URL, SUPABASE_CONFIG } from '../shared/config';
-import { escapeHtml } from '../shared/utils';
+import { escapeHtml, extractTimestampRange } from '../shared/utils';
 import { showAuth } from './auth';
 import type { Annotation, FactCheckResult, CurrentUser } from '../types/annotation';
 
@@ -205,12 +205,37 @@ export function wireFactCheck(
     if (ft) ft.textContent = 'Analyzing claim and context with Google Gemini...';
 
     try {
+      const urlToUse = ann.url || pageUrl;
+      const commentToUse = (ann.comment || ann.commentary || '').trim();
+      const range = extractTimestampRange(urlToUse, commentToUse);
+      const isVideo = Boolean(
+        ann.media_type === 'video' ||
+        ann.media_timestamp != null ||
+        range != null ||
+        (urlToUse && (urlToUse.includes('youtube.com') || urlToUse.includes('youtu.be') || urlToUse.includes('vimeo.com') || urlToUse.includes('tiktok.com')))
+      );
+
+      const startTs = range?.start ?? ann.media_timestamp ?? null;
+      const endTs = range?.end ?? (startTs != null ? startTs + 15 : null);
+
+      let effectiveQuote = (ann.quote || ann.quote_text || '').trim();
+      if (effectiveQuote && ann.title && effectiveQuote.toLowerCase() === ann.title.trim().toLowerCase()) {
+        effectiveQuote = '';
+      }
+      if (effectiveQuote && effectiveQuote.toLowerCase().startsWith('video clip (')) {
+        effectiveQuote = '';
+      }
+
       const data = await callFactCheckApi({
-        quote: ann.quote || ann.quote_text,
-        commentary: ann.comment || ann.commentary,
-        sourceUrl: ann.url || pageUrl,
+        quote: effectiveQuote || undefined,
+        commentary: commentToUse || undefined,
+        sourceUrl: urlToUse,
         sourceTitle: ann.title || pageTitle,
-        timestamp: ann.media_timestamp,
+        timestamp: startTs,
+        videoStartTs: startTs,
+        videoEndTs: endTs,
+        isVideoClip: isVideo,
+        videoCaptions: ann.video_captions || undefined,
         mediaUrl: ann.media_url,
       });
       cachedData = data;

@@ -299,6 +299,35 @@
     }
     return null;
   }
+  function extractTimestampRange(url, comment) {
+    const urlStr = String(url || "");
+    const commentStr = String(comment || "");
+    const rangeCommentMatch = commentStr.match(
+      /\[(?:⏱️\s*)?(\d+):(\d+)(?::(\d+))?\s*-\s*(\d+):(\d+)(?::(\d+))?\]/
+    );
+    if (rangeCommentMatch) {
+      let s1 = parseInt(rangeCommentMatch[1], 10) * 60 + parseInt(rangeCommentMatch[2], 10);
+      if (rangeCommentMatch[3]) {
+        s1 = parseInt(rangeCommentMatch[1], 10) * 3600 + parseInt(rangeCommentMatch[2], 10) * 60 + parseInt(rangeCommentMatch[3], 10);
+      }
+      let s2 = parseInt(rangeCommentMatch[4], 10) * 60 + parseInt(rangeCommentMatch[5], 10);
+      if (rangeCommentMatch[6]) {
+        s2 = parseInt(rangeCommentMatch[4], 10) * 3600 + parseInt(rangeCommentMatch[5], 10) * 60 + parseInt(rangeCommentMatch[6], 10);
+      }
+      return { start: s1, end: Math.max(s1 + 5, s2) };
+    }
+    const urlRangeMatch = urlStr.match(/[?&#]t=(\d+)(?:s)?-(\d+)(?:s)?/i);
+    if (urlRangeMatch) {
+      const s1 = parseInt(urlRangeMatch[1], 10);
+      const s2 = parseInt(urlRangeMatch[2], 10);
+      return { start: s1, end: Math.max(s1 + 5, s2) };
+    }
+    const startTs = extractTimestamp(url, comment);
+    if (startTs != null && startTs >= 0) {
+      return { start: startTs, end: startTs + 15 };
+    }
+    return null;
+  }
   function extractYouTubeVideoId(url) {
     if (!url) return null;
     try {
@@ -623,12 +652,31 @@
       }
       if (ft) ft.textContent = "Analyzing claim and context with Google Gemini...";
       try {
+        const urlToUse = ann.url || pageUrl;
+        const commentToUse = (ann.comment || ann.commentary || "").trim();
+        const range = extractTimestampRange(urlToUse, commentToUse);
+        const isVideo = Boolean(
+          ann.media_type === "video" || ann.media_timestamp != null || range != null || urlToUse && (urlToUse.includes("youtube.com") || urlToUse.includes("youtu.be") || urlToUse.includes("vimeo.com") || urlToUse.includes("tiktok.com"))
+        );
+        const startTs = range?.start ?? ann.media_timestamp ?? null;
+        const endTs = range?.end ?? (startTs != null ? startTs + 15 : null);
+        let effectiveQuote = (ann.quote || ann.quote_text || "").trim();
+        if (effectiveQuote && ann.title && effectiveQuote.toLowerCase() === ann.title.trim().toLowerCase()) {
+          effectiveQuote = "";
+        }
+        if (effectiveQuote && effectiveQuote.toLowerCase().startsWith("video clip (")) {
+          effectiveQuote = "";
+        }
         const data = await callFactCheckApi({
-          quote: ann.quote || ann.quote_text,
-          commentary: ann.comment || ann.commentary,
-          sourceUrl: ann.url || pageUrl,
+          quote: effectiveQuote || void 0,
+          commentary: commentToUse || void 0,
+          sourceUrl: urlToUse,
           sourceTitle: ann.title || pageTitle,
-          timestamp: ann.media_timestamp,
+          timestamp: startTs,
+          videoStartTs: startTs,
+          videoEndTs: endTs,
+          isVideoClip: isVideo,
+          videoCaptions: ann.video_captions || void 0,
           mediaUrl: ann.media_url
         });
         cachedData = data;
@@ -926,20 +974,13 @@
       try {
         const startTs = composerState.videoStartTs ?? (videoCurrentPlayhead > 0 ? videoCurrentPlayhead : composerState.currentMediaTimestamp ?? null);
         const endTs = composerState.videoEndTs ?? (startTs != null ? startTs + 15 : null);
-        let effectiveQuote = quote;
-        if (!effectiveQuote && isVideo) {
-          const startFmt = formatSeconds(startTs || 0);
-          const endFmt = formatSeconds(endTs || 0);
-          if (pageCtx.video_captions) {
-            effectiveQuote = `[Video dialogue at ${startFmt}]: "${pageCtx.video_captions}"`;
-          } else {
-            effectiveQuote = `Video clip (${startFmt} - ${endFmt}) from "${pageCtx.title || "Video"}"`;
-          }
+        let effectiveQuote = quote ? quote.trim() : void 0;
+        if (effectiveQuote && pageCtx.title && effectiveQuote.toLowerCase() === pageCtx.title.trim().toLowerCase()) {
+          effectiveQuote = void 0;
         }
         const data = await callFactCheckApi({
-          quote: effectiveQuote || void 0,
+          quote: effectiveQuote,
           commentary: comment || void 0,
-          // strictly user notes / reaction, NOT the claim!
           sourceUrl: pageCtx.url || location.href,
           sourceTitle: pageCtx.title || document.title,
           timestamp: startTs,
