@@ -14,6 +14,9 @@ export const highlightMap = new WeakMap<Element, Annotation>();
 export const factCheckCache: Record<string, string> = {};
 
 export function getHighlightClass(annotation?: Annotation | null, verdictOverride?: string | null): string {
+  if ((annotation as any)?.is_disputed) {
+    return 'annotated-highlight annotated-highlight-false';
+  }
   const id = annotation?.id || '';
   const slug = annotation?.slug || '';
   const v = (
@@ -97,7 +100,11 @@ export function injectHighlightStyles(): void {
     }
 
     /* 🟡 Yellow: Default / Unverified */
+    mark.annotated-highlight-unverified,
+    span.annotated-highlight-unverified,
     .annotated-highlight-unverified,
+    mark.annotated-highlight:not(.annotated-highlight-verified):not(.annotated-highlight-false),
+    span.annotated-highlight:not(.annotated-highlight-verified):not(.annotated-highlight-false),
     .annotated-highlight:not(.annotated-highlight-verified):not(.annotated-highlight-false) {
       background-color: #fef08a !important;
       background-image: none !important;
@@ -105,13 +112,19 @@ export function injectHighlightStyles(): void {
       -webkit-text-fill-color: #713f12 !important;
       border-bottom: 2px solid #eab308 !important;
     }
+    mark.annotated-highlight-unverified:hover,
+    span.annotated-highlight-unverified:hover,
     .annotated-highlight-unverified:hover,
+    mark.annotated-highlight:not(.annotated-highlight-verified):not(.annotated-highlight-false):hover,
+    span.annotated-highlight:not(.annotated-highlight-verified):not(.annotated-highlight-false):hover,
     .annotated-highlight:not(.annotated-highlight-verified):not(.annotated-highlight-false):hover {
       background-color: #fde047 !important;
       border-bottom-color: #ca8a04 !important;
     }
 
     /* 🟢 Green: Verified */
+    mark.annotated-highlight-verified,
+    span.annotated-highlight-verified,
     .annotated-highlight-verified,
     .annotated-highlight.annotated-highlight-verified {
       background-color: #dcfce7 !important;
@@ -120,6 +133,8 @@ export function injectHighlightStyles(): void {
       -webkit-text-fill-color: #14532d !important;
       border-bottom: 2.5px solid #22c55e !important;
     }
+    mark.annotated-highlight-verified:hover,
+    span.annotated-highlight-verified:hover,
     .annotated-highlight-verified:hover,
     .annotated-highlight.annotated-highlight-verified:hover {
       background-color: #bbf7d0 !important;
@@ -127,6 +142,8 @@ export function injectHighlightStyles(): void {
     }
 
     /* 🔴 Red: False / Misleading */
+    mark.annotated-highlight-false,
+    span.annotated-highlight-false,
     .annotated-highlight-false,
     .annotated-highlight.annotated-highlight-false {
       background-color: #fee2e2 !important;
@@ -135,6 +152,8 @@ export function injectHighlightStyles(): void {
       -webkit-text-fill-color: #991b1b !important;
       border-bottom: 2.5px solid #ef4444 !important;
     }
+    mark.annotated-highlight-false:hover,
+    span.annotated-highlight-false:hover,
     .annotated-highlight-false:hover,
     .annotated-highlight.annotated-highlight-false:hover {
       background-color: #fecaca !important;
@@ -233,7 +252,9 @@ export function renderHighlight(annotation: Annotation): void {
     for (const tweet of Array.from(tweets)) {
       const tweetTextEl = tweet.querySelector('[data-testid="tweetText"]');
       if (tweetTextEl && tweetTextEl.textContent) {
-        if (norm(tweetTextEl.textContent).includes(norm(quote))) {
+        const tNorm = norm(tweetTextEl.textContent);
+        const qNorm = norm(quote);
+        if (tNorm.length > 5 && (tNorm.includes(qNorm) || (qNorm.length > 10 && qNorm.includes(tNorm)))) {
           const mark = document.createElement('span');
           mark.className = getHighlightClass(annotation);
           mark.style.whiteSpace = 'pre-wrap';

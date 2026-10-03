@@ -87,8 +87,8 @@ export async function loadAnnotations(): Promise<void> {
         } catch (_) {}
       }
 
-      // Fetch cloud-persisted fact check verdicts asynchronously
-      loadFactChecksForAnnotations(state.annotations);
+      // Fetch cloud-persisted fact check verdicts before initial render
+      await loadFactChecksForAnnotations(state.annotations);
 
       renderAllPending();
       return;
@@ -98,9 +98,9 @@ export async function loadAnnotations(): Promise<void> {
   }
 
   // 2. Fallback to local storage
-  chrome.storage.local.get(currentKey, (data: Record<string, any>) => {
+  chrome.storage.local.get(currentKey, async (data: Record<string, any>) => {
     state.annotations = (data[currentKey] as Annotation[]) || [];
-    loadFactChecksForAnnotations(state.annotations);
+    await loadFactChecksForAnnotations(state.annotations);
     renderAllPending();
   });
 }
