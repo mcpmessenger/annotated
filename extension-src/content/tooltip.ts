@@ -125,23 +125,7 @@ export function setupHighlightTooltip(
               (authorName || 'A')[0].toUpperCase()
             )}</div>`;
 
-        // Intent badge
-        const tag = (itemAnn.intent || 'hot take').toLowerCase();
-        const tagColors: Record<string, { bg: string; border: string; color: string; icon: string }> = {
-          'hot take': { bg: 'rgba(239,68,68,0.15)', border: '#ef4444', color: '#ef4444', icon: '🔥' },
-          'fact check': { bg: 'rgba(34,197,94,0.15)', border: '#22c55e', color: '#22c55e', icon: '✅' },
-          steelman: { bg: 'rgba(59,130,246,0.15)', border: '#3b82f6', color: '#3b82f6', icon: '🛡️' },
-          receipts: { bg: 'rgba(249,115,22,0.15)', border: '#f97316', color: '#f97316', icon: '🧾' },
-          explainer: { bg: 'rgba(168,85,247,0.15)', border: '#a855f7', color: '#a855f7', icon: '💬' },
-        };
-        const c = tagColors[tag] || {
-          bg: 'rgba(255,210,26,0.15)',
-          border: '#ffd21a',
-          color: '#ffd21a',
-          icon: '💡',
-        };
-
-        // Verdict check
+        // Verdict check & Fact Check badge
         const verdict = (
           (itemAnn.id && factCheckCache[itemAnn.id]) ||
           (itemAnn.slug && factCheckCache[itemAnn.slug]) ||
@@ -149,9 +133,13 @@ export function setupHighlightTooltip(
         ).toUpperCase();
         let verdictBadge = '';
         if (verdict === 'VERIFIED') {
-          verdictBadge = `<span style="font-size:9.5px; font-weight:800; background:rgba(34,197,94,0.2); border:1px solid #22c55e; color:#4ade80; padding:1px 5px; border-radius:4px;">✓ Verified</span>`;
+          verdictBadge = `<span style="font-size:9.5px; font-weight:800; background:rgba(34,197,94,0.2); border:1px solid #22c55e; color:#4ade80; padding:1px 6px; border-radius:4px;">✓ Verified</span>`;
         } else if (verdict === 'FALSE' || verdict === 'MISLEADING') {
-          verdictBadge = `<span style="font-size:9.5px; font-weight:800; background:rgba(239,68,68,0.2); border:1px solid #ef4444; color:#f87171; padding:1px 5px; border-radius:4px;">✕ False</span>`;
+          verdictBadge = `<span style="font-size:9.5px; font-weight:800; background:rgba(239,68,68,0.2); border:1px solid #ef4444; color:#f87171; padding:1px 6px; border-radius:4px;">✕ False</span>`;
+        } else if (verdict === 'CONTEXT_NEEDED') {
+          verdictBadge = `<span style="font-size:9.5px; font-weight:800; background:rgba(234,179,8,0.2); border:1px solid #eab308; color:#fde047; padding:1px 6px; border-radius:4px;">⚠️ Context</span>`;
+        } else {
+          verdictBadge = `<span style="font-size:9.5px; font-weight:700; background:rgba(255,210,26,0.12); border:1px solid rgba(255,210,26,0.3); color:#ffd21a; padding:1px 6px; border-radius:4px;">⚡ Fact Check</span>`;
         }
 
         const cleanComment = (itemAnn.comment || itemAnn.commentary || 'View annotation').trim();
@@ -167,11 +155,6 @@ export function setupHighlightTooltip(
             </div>
             <div style="display:flex; align-items:center; gap:4px;">
               ${verdictBadge}
-              <span style="font-size:9.5px; font-weight:700; background:${c.bg}; border:1px solid ${
-          c.border
-        }; color:${c.color}; padding:1px 5px; border-radius:99px; white-space:nowrap;">
-                ${c.icon} ${escapeHtml(itemAnn.intent || 'note')}
-              </span>
             </div>
           </div>
           <div style="font-size:11.5px; color:#cbd5e1; line-height:1.35; overflow:hidden; text-overflow:ellipsis; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical;">

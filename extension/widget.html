@@ -173,6 +173,7 @@
         <button id="dictateBtn" class="dictate-btn-main" data-tooltip="Speech to Text" data-tooltip-pos="top" style="width: 36px; min-width: 36px; height: 36px; padding: 0; font-size: 16px; flex: 0 0 36px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center;">&#x1F3A4;</button>
         <button id="clipVideoBtn" class="dictate-btn-main" data-tooltip="Clip Video" data-tooltip-pos="top" style="width: 36px; min-width: 36px; height: 36px; padding: 0; font-size: 16px; flex: 0 0 36px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center;">&#x1F3A5;</button>
         <button id="screenshotBtn" class="dictate-btn-main" data-tooltip="Capture Screenshot" data-tooltip-pos="top" style="width: 36px; min-width: 36px; height: 36px; padding: 0; font-size: 16px; flex: 0 0 36px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center;">&#x1F4F8;</button>
+        <button id="composerFactCheckBtn" class="dictate-btn-main" data-tooltip="Gemini Fact Check" data-tooltip-pos="top" style="width: 36px; min-width: 36px; height: 36px; padding: 0; font-size: 16px; flex: 0 0 36px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; color: var(--yellow);">&#x26A1;</button>
 
         <button id="publishBtn" class="publish-btn" disabled style="flex: 1; min-width: 80px; margin: 0; padding: 0 14px; height: 36px; white-space: nowrap; font-weight: 700; border-radius: 8px;">Publish</button>
       </div>
@@ -183,8 +184,11 @@
     <section id="annotationDetailCard" class="annotation-detail-card card hidden">
       <div class="detail-header">
         <button id="detailBackBtn" class="detail-back-btn" data-tooltip="Back to note composer">&#x2190; <span style="font-weight:600;">Compose</span></button>
-        <div class="detail-tags" style="display: flex; align-items: center; gap: 8px;">
-          <span id="detailIntentBadge" class="detail-intent-badge" data-tooltip="Tag" style="font-size:10px; font-weight:700; padding: 2px 8px; border-radius: 99px; background: var(--soft); border: 1px solid var(--line); color: var(--ink); letter-spacing: 0.03em;">hot take</span>
+        <div class="detail-tags" style="display: flex; align-items: center; gap: 6px;">
+          <button id="detailFactCheckBtn" type="button" data-tooltip="Gemini AI Fact Check" data-tooltip-pos="left" style="display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 99px; border: 1px solid var(--line); background: var(--soft); color: var(--ink); cursor: pointer; transition: all 0.15s ease;">
+            <span id="detailFactCheckBtnIcon">&#x26A1;</span>
+            <span id="detailFactCheckBtnLabel">Fact Check</span>
+          </button>
           <button id="detailDeleteBtn" class="detail-delete-btn hidden" data-tooltip="Delete note" style="background: none; border: 1px solid var(--line); border-radius: 6px; color: var(--muted); cursor: pointer; padding: 4px 7px; font-size: 12px; display: inline-flex; align-items: center; justify-content: center; transition: all 0.15s ease;">&#x1F5D1;</button>
         </div>
       </div>

@@ -97,9 +97,6 @@ export async function showAnnotationDetail(
   const qEl = $('#detailQuote');
   if (qEl) qEl.textContent = ann.quote || ann.quote_text || 'Annotation';
 
-  // Intent
-  const intentEl = $('#detailIntentBadge');
-  if (intentEl) intentEl.textContent = ann.intent || '💡';
 
   // Target Web URL
   const slug = ann.slug || ann.id;

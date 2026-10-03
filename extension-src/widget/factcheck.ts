@@ -90,19 +90,27 @@ export function wireFactCheck(
 
   const updateBtnState = (isOpen: boolean) => {
     if (factBtn) {
-      factBtn.innerHTML = '&#9889;';
-      factBtn.setAttribute('data-tooltip', isOpen ? 'Hide Fact Check' : 'Show Fact Check');
-      factBtn.style.background = isOpen ? 'var(--soft)' : 'var(--surface)';
-      const verdict = cachedData?.verdict;
+      const verdict = (cachedData?.verdict || '').toUpperCase();
       if (verdict === 'VERIFIED') {
+        factBtn.innerHTML = '<span style="color:#22c55e; font-weight:800;">✓</span> <span style="font-size:10.5px; font-weight:700; color:#15803d;">Verified</span>';
+        factBtn.setAttribute('data-tooltip', isOpen ? 'Hide Fact Check details' : 'Show Fact Check details');
+        factBtn.style.background = 'rgba(34, 197, 94, 0.12)';
         factBtn.style.borderColor = '#22c55e';
-        factBtn.style.color = '#22c55e';
       } else if (verdict === 'FALSE' || verdict === 'MISLEADING') {
+        factBtn.innerHTML = '<span style="color:#ef4444; font-weight:800;">✕</span> <span style="font-size:10.5px; font-weight:700; color:#b91c1c;">False</span>';
+        factBtn.setAttribute('data-tooltip', isOpen ? 'Hide Fact Check details' : 'Show Fact Check details');
+        factBtn.style.background = 'rgba(239, 68, 68, 0.12)';
         factBtn.style.borderColor = '#ef4444';
-        factBtn.style.color = '#ef4444';
+      } else if (verdict === 'CONTEXT_NEEDED') {
+        factBtn.innerHTML = '<span style="color:#eab308; font-weight:800;">⚠️</span> <span style="font-size:10.5px; font-weight:700; color:#a16207;">Context</span>';
+        factBtn.setAttribute('data-tooltip', isOpen ? 'Hide Fact Check details' : 'Show Fact Check details');
+        factBtn.style.background = 'rgba(234, 179, 8, 0.12)';
+        factBtn.style.borderColor = '#eab308';
       } else {
-        factBtn.style.borderColor = isOpen ? 'var(--yellow)' : 'var(--yellow)';
-        factBtn.style.color = 'var(--yellow)';
+        factBtn.innerHTML = '<span style="color:var(--yellow); font-weight:800;">⚡</span> <span style="font-size:10.5px; font-weight:700; color:var(--ink);">Fact Check</span>';
+        factBtn.setAttribute('data-tooltip', 'Run Gemini AI Fact Check');
+        factBtn.style.background = isOpen ? 'var(--soft)' : 'var(--surface)';
+        factBtn.style.borderColor = 'var(--line)';
       }
     }
     if (onResize) {
@@ -110,7 +118,7 @@ export function wireFactCheck(
     }
   };
 
-  const renderData = (data: FactCheckResult) => {
+  const renderData = (data: FactCheckResult, autoOpen: boolean = true) => {
     if (fbadge) {
       fbadge.textContent = (data.verdict || 'ANALYZED').replace('_', ' ');
       fbadge.style.color =
@@ -123,11 +131,11 @@ export function wireFactCheck(
     if (ft) {
       ft.innerHTML = `<strong>${escapeHtml(data.headline || '')}</strong><br><span style="font-size:10px; color:var(--muted);">${escapeHtml(data.explanation || '')}</span>`;
     }
+    if (autoOpen && fb) {
+      fb.style.display = 'block';
+    }
     updateBtnState(fb?.style.display !== 'none');
   };
-
-  // Default display CLOSED until user clicks the ⚡ Fact Check button
-  if (factBox) factBox.style.display = 'none';
 
   const cacheKey = `annotated_fc_${ann.id || ann.slug || ''}`;
   let cachedData: FactCheckResult | null = null;
@@ -144,6 +152,14 @@ export function wireFactCheck(
         }
       }
     } catch (_) {}
+  }
+
+  // If already fact-checked, make it immediately visible
+  if (cachedData) {
+    renderData(cachedData, true);
+  } else {
+    if (factBox) factBox.style.display = 'none';
+    updateBtnState(false);
   }
 
   // Preload from cloud storage if not cached locally
@@ -165,15 +181,13 @@ export function wireFactCheck(
                 if (ann.slug) payload[`fc_${ann.slug}`] = data.verdict;
                 chrome.storage.local.set(payload);
               }
-              renderData(data);
+              renderData(data, true);
             }
           }
         })
         .catch(() => {});
     }
   }
-
-  updateBtnState(false);
 
   let hasExecuted = false;
   const runFactCheck = async () => {
