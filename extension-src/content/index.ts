@@ -5,8 +5,13 @@
 import type { Annotation, UserProfile } from '../types/annotation';
 import { pageKey, extractYouTubeVideoId } from '../shared/utils';
 import { SUPABASE_CONFIG } from '../shared/config';
-import { injectHighlightStyles, renderHighlight, highlightMap, clearAllHighlights, factCheckCache, updateHighlightVerdict } from './highlighter';
-import { renderYouTubeProgressBarMarkers, renderYouTubeVideoTag } from './youtube';
+import { injectHighlightStyles, renderHighlight, highlightMap, clearAllHighlights, factCheckCache, updateHighlightVerdict, setOnVerdictChange } from './highlighter';
+import { renderYouTubeProgressBarMarkers, renderYouTubeVideoTag, updateYouTubeVerdict } from './youtube';
+
+// Wire reactive verdict updates to YouTube video tag and timeline markers
+setOnVerdictChange((id, v) => {
+  updateYouTubeVerdict(id, v);
+});
 import { recordSelection, buildPageInfo } from './selection';
 import { createWidget, openAnnotationInWidget, notifyWidgetOfSelection, setupMessageRouter, ensureWidgetContainer, widgetIframe } from './widget-host';
 import { setupHighlightTooltip } from './tooltip';
@@ -162,6 +167,7 @@ export async function loadFactChecksForAnnotations(items: Annotation[]): Promise
       }
     })
   );
+  renderAllPending();
 }
 
 export function renderAllPending(): void {

@@ -4,6 +4,7 @@ import { buildPageInfo, seekToTimestamp, getActiveVideoState } from './selection
 import { startCropScreenshot } from './screenshot-crop';
 import { startDictation, stopDictation } from './dictation';
 import { capture240pVideoClip, stopRecordingNow } from './video-clip';
+import { updateHighlightVerdict } from './highlighter';
 
 export let widgetContainer: HTMLElement | null = null;
 export let shadowRoot: ShadowRoot | null = null;
@@ -273,6 +274,14 @@ export function setupMessageRouter(onReloadAnnotations: () => void): void {
 
       case 'RELOAD_ANNOTATIONS':
         onReloadAnnotations();
+        break;
+
+      case 'FACTCHECK_VERDICT_UPDATED':
+        if (data.verdict && (data.id || data.slug)) {
+          const v = String(data.verdict).toUpperCase();
+          if (data.id) updateHighlightVerdict(data.id, v);
+          if (data.slug) updateHighlightVerdict(data.slug, v);
+        }
         break;
 
       case 'OPEN_TAB':

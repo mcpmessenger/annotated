@@ -589,6 +589,17 @@
         fb.style.display = "block";
       }
       updateBtnState(fb?.style.display !== "none");
+      if (data?.verdict && typeof window !== "undefined" && window.parent) {
+        window.parent.postMessage(
+          {
+            type: "FACTCHECK_VERDICT_UPDATED",
+            id: ann.id,
+            slug: ann.slug,
+            verdict: data.verdict
+          },
+          "*"
+        );
+      }
     };
     const cacheKey = `annotated_fc_${ann.id || ann.slug || ""}`;
     let cachedData = null;

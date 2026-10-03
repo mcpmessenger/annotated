@@ -67,6 +67,13 @@ export interface ReloadAnnotationsMessage {
   type: 'RELOAD_ANNOTATIONS';
 }
 
+export interface FactCheckVerdictUpdatedMessage {
+  type: 'FACTCHECK_VERDICT_UPDATED';
+  id?: string;
+  slug?: string;
+  verdict: string;
+}
+
 export interface OpenTabMessage {
   type: 'OPEN_TAB';
   url: string;
@@ -247,6 +254,7 @@ export type WidgetToContentMessage =
   | GetPageInfoMessage
   | SaveAnnotationMessage
   | ReloadAnnotationsMessage
+  | FactCheckVerdictUpdatedMessage
   | OpenTabMessage
   | OpenUrlMessage
   | TakeScreenshotMessage

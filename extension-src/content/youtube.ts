@@ -104,6 +104,8 @@ export function renderYouTubeProgressBarMarkers(
 
     const marker = document.createElement('div');
     marker.className = 'annotated-yt-progress-marker-wrap';
+    if (ann.id) marker.setAttribute('data-marker-id', ann.id);
+    if (ann.slug) marker.setAttribute('data-marker-slug', ann.slug);
     marker.style.cssText = `
       position: absolute;
       left: ${startPct}%;
@@ -120,7 +122,7 @@ export function renderYouTubeProgressBarMarkers(
     `;
 
     const visual = document.createElement('div');
-    visual.className = 'annotated-yt-progress-marker';
+    visual.className = 'annotated-yt-progress-marker annotated-marker-visual';
     visual.style.cssText = `
       width: 100%;
       height: 6px;
@@ -232,7 +234,18 @@ export function renderYouTubeVideoTag(
     return;
   }
 
-  const currentFingerprint = ytAnns.map((a) => `${a.id}:${a.comment || ''}`).join(',');
+  const currentFingerprint = ytAnns
+    .map((a) => {
+      const v = (
+        (a.id && factCheckCache[a.id]) ||
+        (a.slug && factCheckCache[a.slug]) ||
+        (a as any)?.fact_check_verdict ||
+        (a as any)?.verdict ||
+        ''
+      ).toUpperCase();
+      return `${a.id}:${a.comment || ''}:${v}`;
+    })
+    .join(',');
   let badge = document.getElementById('annotated-yt-floating-badge');
   if (badge && badge.getAttribute('data-fingerprint') === currentFingerprint) {
     return; // Already rendered and matches current annotations
@@ -327,6 +340,8 @@ export function renderYouTubeVideoTag(
 
   ytAnns.forEach((ann) => {
     const item = document.createElement('div');
+    if (ann.id) item.setAttribute('data-ann-id', ann.id);
+    if (ann.slug) item.setAttribute('data-ann-slug', ann.slug);
     const tsRange = extractTimestampRange(ann.url, ann.comment || ann.commentary);
     let tsStr = '';
     let startSec: number | null = null;
@@ -421,7 +436,7 @@ export function renderYouTubeVideoTag(
           )}</strong>
         </div>
         <div style="display: flex; align-items: center; gap: 5px; flex-shrink: 0;">
-          ${itemVerdictBadge}
+          <span class="annotated-yt-verdict-badge-wrap">${itemVerdictBadge}</span>
           ${intent ? `<span style="font-size: 12px;">${intent}</span>` : ''}
         </div>
       </div>
@@ -469,4 +484,85 @@ export function renderYouTubeVideoTag(
   });
 
   document.body.appendChild(badge);
+}
+
+export function updateYouTubeVerdict(annotationIdOrSlug: string, verdict: string): void {
+  if (!annotationIdOrSlug) return;
+  const v = (verdict || '').toUpperCase();
+  factCheckCache[annotationIdOrSlug] = v;
+
+  // 1. Update card item in YouTube menu
+  const items = document.querySelectorAll(
+    `[data-ann-id="${annotationIdOrSlug}"], [data-ann-slug="${annotationIdOrSlug}"]`
+  );
+  items.forEach((itemEl) => {
+    const el = itemEl as HTMLElement;
+    const badgeWrap = el.querySelector('.annotated-yt-verdict-badge-wrap');
+    if (badgeWrap) {
+      if (v === 'VERIFIED') {
+        badgeWrap.innerHTML = `<span style="font-size: 9.5px; font-weight: 800; background: rgba(34, 197, 94, 0.2); border: 1px solid #22c55e; color: #4ade80; padding: 2px 7px; border-radius: 4px; white-space: nowrap; display: inline-flex; align-items: center; gap: 3px;">✓ Verified</span>`;
+        el.style.borderColor = 'rgba(34, 197, 94, 0.45)';
+      } else if (v === 'FALSE' || v === 'MISLEADING') {
+        badgeWrap.innerHTML = `<span style="font-size: 9.5px; font-weight: 800; background: rgba(244, 63, 94, 0.2); border: 1px solid #f43f5e; color: #fb7185; padding: 2px 7px; border-radius: 4px; white-space: nowrap; display: inline-flex; align-items: center; gap: 3px;">✕ False</span>`;
+        el.style.borderColor = 'rgba(244, 63, 94, 0.5)';
+      } else if (v === 'CONTEXT_NEEDED') {
+        badgeWrap.innerHTML = `<span style="font-size: 9.5px; font-weight: 800; background: rgba(245, 158, 11, 0.2); border: 1px solid #f59e0b; color: #fbbf24; padding: 2px 7px; border-radius: 4px; white-space: nowrap; display: inline-flex; align-items: center; gap: 3px;">⚠️ Needs Context</span>`;
+        el.style.borderColor = 'rgba(245, 158, 11, 0.45)';
+      } else {
+        badgeWrap.innerHTML = `<span style="font-size: 9.5px; font-weight: 700; background: rgba(255, 210, 26, 0.12); border: 1px solid rgba(255, 210, 26, 0.35); color: #ffd21a; padding: 2px 7px; border-radius: 4px; white-space: nowrap; display: inline-flex; align-items: center; gap: 3px;">⚡ Fact Check</span>`;
+        el.style.borderColor = 'rgba(255, 255, 255, 0.12)';
+      }
+    }
+  });
+
+  // 2. Update floating badge & dropdown menu border/glow
+  const badge = document.getElementById('annotated-yt-floating-badge');
+  const menu = document.querySelector('.annotated-yt-dropdown-menu') as HTMLElement | null;
+  const arrowEl = badge?.querySelector('span:last-child') as HTMLElement | null;
+
+  const anyFalse = Object.values(factCheckCache).some((val) => val === 'FALSE' || val === 'MISLEADING');
+  const anyVerified = Object.values(factCheckCache).some((val) => val === 'VERIFIED');
+  const borderColor = anyFalse ? '#f43f5e' : anyVerified ? '#22c55e' : '#ffd21a';
+
+  if (badge) {
+    badge.style.borderColor = borderColor;
+    badge.style.boxShadow = anyFalse
+      ? '0 6px 20px rgba(0,0,0,0.5), 0 0 12px rgba(244, 63, 94, 0.4)'
+      : anyVerified
+      ? '0 6px 20px rgba(0,0,0,0.5), 0 0 12px rgba(34, 197, 94, 0.4)'
+      : '0 6px 20px rgba(0,0,0,0.5), 0 0 12px rgba(255, 210, 26, 0.25)';
+    if (arrowEl) {
+      arrowEl.style.background = borderColor;
+      arrowEl.style.color = anyFalse ? '#fff' : '#000';
+    }
+  }
+  if (menu) {
+    menu.style.borderColor = borderColor;
+    menu.style.boxShadow = `0 12px 32px rgba(0, 0, 0, 0.8), 0 0 16px ${
+      anyFalse ? 'rgba(244, 63, 94, 0.35)' : anyVerified ? 'rgba(34, 197, 94, 0.35)' : 'rgba(255, 210, 26, 0.25)'
+    }`;
+  }
+
+  // 3. Update scrubber timeline markers
+  const markers = document.querySelectorAll(
+    `[data-marker-id="${annotationIdOrSlug}"], [data-marker-slug="${annotationIdOrSlug}"]`
+  );
+  markers.forEach((markerEl) => {
+    const visual = markerEl.querySelector('.annotated-marker-visual') as HTMLElement | null;
+    if (visual) {
+      if (v === 'VERIFIED') {
+        visual.style.background = 'rgba(34, 197, 94, 0.85)';
+        visual.style.borderColor = '#22c55e';
+        visual.style.boxShadow = '0 0 10px rgba(34, 197, 94, 0.9), inset 0 0 4px rgba(34, 197, 94, 0.6)';
+      } else if (v === 'FALSE' || v === 'MISLEADING') {
+        visual.style.background = 'rgba(244, 63, 94, 0.85)';
+        visual.style.borderColor = '#f43f5e';
+        visual.style.boxShadow = '0 0 10px rgba(244, 63, 94, 0.95), inset 0 0 4px rgba(244, 63, 94, 0.7)';
+      } else {
+        visual.style.background = 'rgba(255, 210, 26, 0.75)';
+        visual.style.borderColor = '#ffd21a';
+        visual.style.boxShadow = '0 0 10px rgba(255, 210, 26, 0.8), inset 0 0 4px rgba(255, 210, 26, 0.6)';
+      }
+    }
+  });
 }

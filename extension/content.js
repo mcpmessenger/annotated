@@ -134,16 +134,24 @@
     }
     return "annotated-highlight annotated-highlight-unverified";
   }
+  var onVerdictChangeCallback = null;
+  function setOnVerdictChange(cb) {
+    onVerdictChangeCallback = cb;
+  }
   function updateHighlightVerdict(annotationIdOrSlug, verdict) {
     if (!annotationIdOrSlug) return;
-    factCheckCache[annotationIdOrSlug] = verdict;
+    const v = (verdict || "").toUpperCase();
+    factCheckCache[annotationIdOrSlug] = v;
     const marks = document.querySelectorAll(
       `[data-annotated-highlight="${annotationIdOrSlug}"], [data-annotated-slug="${annotationIdOrSlug}"]`
     );
-    const cls = getHighlightClass(null, verdict);
+    const cls = getHighlightClass(null, v);
     marks.forEach((m) => {
       m.className = cls;
     });
+    if (onVerdictChangeCallback) {
+      onVerdictChangeCallback(annotationIdOrSlug, v);
+    }
   }
   if (typeof chrome !== "undefined" && chrome.storage?.local) {
     try {
@@ -450,6 +458,8 @@
       }
       const marker = document.createElement("div");
       marker.className = "annotated-yt-progress-marker-wrap";
+      if (ann.id) marker.setAttribute("data-marker-id", ann.id);
+      if (ann.slug) marker.setAttribute("data-marker-slug", ann.slug);
       marker.style.cssText = `
       position: absolute;
       left: ${startPct}%;
@@ -465,7 +475,7 @@
       justify-content: center;
     `;
       const visual = document.createElement("div");
-      visual.className = "annotated-yt-progress-marker";
+      visual.className = "annotated-yt-progress-marker annotated-marker-visual";
       visual.style.cssText = `
       width: 100%;
       height: 6px;
@@ -552,7 +562,10 @@
       if (existingBadge) existingBadge.remove();
       return;
     }
-    const currentFingerprint = ytAnns.map((a) => `${a.id}:${a.comment || ""}`).join(",");
+    const currentFingerprint = ytAnns.map((a) => {
+      const v = (a.id && factCheckCache[a.id] || a.slug && factCheckCache[a.slug] || a?.fact_check_verdict || a?.verdict || "").toUpperCase();
+      return `${a.id}:${a.comment || ""}:${v}`;
+    }).join(",");
     let badge = document.getElementById("annotated-yt-floating-badge");
     if (badge && badge.getAttribute("data-fingerprint") === currentFingerprint) {
       return;
@@ -622,6 +635,8 @@
   `;
     ytAnns.forEach((ann) => {
       const item = document.createElement("div");
+      if (ann.id) item.setAttribute("data-ann-id", ann.id);
+      if (ann.slug) item.setAttribute("data-ann-slug", ann.slug);
       const tsRange = extractTimestampRange(ann.url, ann.comment || ann.commentary);
       let tsStr = "";
       let startSec = null;
@@ -695,7 +710,7 @@
       )}</strong>
         </div>
         <div style="display: flex; align-items: center; gap: 5px; flex-shrink: 0;">
-          ${itemVerdictBadge}
+          <span class="annotated-yt-verdict-badge-wrap">${itemVerdictBadge}</span>
           ${intent ? `<span style="font-size: 12px;">${intent}</span>` : ""}
         </div>
       </div>
@@ -730,6 +745,72 @@
       }
     });
     document.body.appendChild(badge);
+  }
+  function updateYouTubeVerdict(annotationIdOrSlug, verdict) {
+    if (!annotationIdOrSlug) return;
+    const v = (verdict || "").toUpperCase();
+    factCheckCache[annotationIdOrSlug] = v;
+    const items = document.querySelectorAll(
+      `[data-ann-id="${annotationIdOrSlug}"], [data-ann-slug="${annotationIdOrSlug}"]`
+    );
+    items.forEach((itemEl) => {
+      const el = itemEl;
+      const badgeWrap = el.querySelector(".annotated-yt-verdict-badge-wrap");
+      if (badgeWrap) {
+        if (v === "VERIFIED") {
+          badgeWrap.innerHTML = `<span style="font-size: 9.5px; font-weight: 800; background: rgba(34, 197, 94, 0.2); border: 1px solid #22c55e; color: #4ade80; padding: 2px 7px; border-radius: 4px; white-space: nowrap; display: inline-flex; align-items: center; gap: 3px;">\u2713 Verified</span>`;
+          el.style.borderColor = "rgba(34, 197, 94, 0.45)";
+        } else if (v === "FALSE" || v === "MISLEADING") {
+          badgeWrap.innerHTML = `<span style="font-size: 9.5px; font-weight: 800; background: rgba(244, 63, 94, 0.2); border: 1px solid #f43f5e; color: #fb7185; padding: 2px 7px; border-radius: 4px; white-space: nowrap; display: inline-flex; align-items: center; gap: 3px;">\u2715 False</span>`;
+          el.style.borderColor = "rgba(244, 63, 94, 0.5)";
+        } else if (v === "CONTEXT_NEEDED") {
+          badgeWrap.innerHTML = `<span style="font-size: 9.5px; font-weight: 800; background: rgba(245, 158, 11, 0.2); border: 1px solid #f59e0b; color: #fbbf24; padding: 2px 7px; border-radius: 4px; white-space: nowrap; display: inline-flex; align-items: center; gap: 3px;">\u26A0\uFE0F Needs Context</span>`;
+          el.style.borderColor = "rgba(245, 158, 11, 0.45)";
+        } else {
+          badgeWrap.innerHTML = `<span style="font-size: 9.5px; font-weight: 700; background: rgba(255, 210, 26, 0.12); border: 1px solid rgba(255, 210, 26, 0.35); color: #ffd21a; padding: 2px 7px; border-radius: 4px; white-space: nowrap; display: inline-flex; align-items: center; gap: 3px;">\u26A1 Fact Check</span>`;
+          el.style.borderColor = "rgba(255, 255, 255, 0.12)";
+        }
+      }
+    });
+    const badge = document.getElementById("annotated-yt-floating-badge");
+    const menu = document.querySelector(".annotated-yt-dropdown-menu");
+    const arrowEl = badge?.querySelector("span:last-child");
+    const anyFalse = Object.values(factCheckCache).some((val) => val === "FALSE" || val === "MISLEADING");
+    const anyVerified = Object.values(factCheckCache).some((val) => val === "VERIFIED");
+    const borderColor = anyFalse ? "#f43f5e" : anyVerified ? "#22c55e" : "#ffd21a";
+    if (badge) {
+      badge.style.borderColor = borderColor;
+      badge.style.boxShadow = anyFalse ? "0 6px 20px rgba(0,0,0,0.5), 0 0 12px rgba(244, 63, 94, 0.4)" : anyVerified ? "0 6px 20px rgba(0,0,0,0.5), 0 0 12px rgba(34, 197, 94, 0.4)" : "0 6px 20px rgba(0,0,0,0.5), 0 0 12px rgba(255, 210, 26, 0.25)";
+      if (arrowEl) {
+        arrowEl.style.background = borderColor;
+        arrowEl.style.color = anyFalse ? "#fff" : "#000";
+      }
+    }
+    if (menu) {
+      menu.style.borderColor = borderColor;
+      menu.style.boxShadow = `0 12px 32px rgba(0, 0, 0, 0.8), 0 0 16px ${anyFalse ? "rgba(244, 63, 94, 0.35)" : anyVerified ? "rgba(34, 197, 94, 0.35)" : "rgba(255, 210, 26, 0.25)"}`;
+    }
+    const markers = document.querySelectorAll(
+      `[data-marker-id="${annotationIdOrSlug}"], [data-marker-slug="${annotationIdOrSlug}"]`
+    );
+    markers.forEach((markerEl) => {
+      const visual = markerEl.querySelector(".annotated-marker-visual");
+      if (visual) {
+        if (v === "VERIFIED") {
+          visual.style.background = "rgba(34, 197, 94, 0.85)";
+          visual.style.borderColor = "#22c55e";
+          visual.style.boxShadow = "0 0 10px rgba(34, 197, 94, 0.9), inset 0 0 4px rgba(34, 197, 94, 0.6)";
+        } else if (v === "FALSE" || v === "MISLEADING") {
+          visual.style.background = "rgba(244, 63, 94, 0.85)";
+          visual.style.borderColor = "#f43f5e";
+          visual.style.boxShadow = "0 0 10px rgba(244, 63, 94, 0.95), inset 0 0 4px rgba(244, 63, 94, 0.7)";
+        } else {
+          visual.style.background = "rgba(255, 210, 26, 0.75)";
+          visual.style.borderColor = "#ffd21a";
+          visual.style.boxShadow = "0 0 10px rgba(255, 210, 26, 0.8), inset 0 0 4px rgba(255, 210, 26, 0.6)";
+        }
+      }
+    });
   }
 
   // extension-src/content/selection.ts
@@ -1706,6 +1787,13 @@
         case "RELOAD_ANNOTATIONS":
           onReloadAnnotations();
           break;
+        case "FACTCHECK_VERDICT_UPDATED":
+          if (data.verdict && (data.id || data.slug)) {
+            const v = String(data.verdict).toUpperCase();
+            if (data.id) updateHighlightVerdict(data.id, v);
+            if (data.slug) updateHighlightVerdict(data.slug, v);
+          }
+          break;
         case "OPEN_TAB":
         case "OPEN_URL":
           if (data.url) {
@@ -1920,6 +2008,9 @@
   }
 
   // extension-src/content/index.ts
+  setOnVerdictChange((id, v) => {
+    updateYouTubeVerdict(id, v);
+  });
   var state = {
     annotations: [],
     profiles: {}
@@ -2047,6 +2138,7 @@
         }
       })
     );
+    renderAllPending();
   }
   function renderAllPending() {
     state.annotations.forEach((ann) => renderHighlight(ann));

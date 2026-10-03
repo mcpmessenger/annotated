@@ -37,16 +37,25 @@ export function getHighlightClass(annotation?: Annotation | null, verdictOverrid
   return 'annotated-highlight annotated-highlight-unverified';
 }
 
+let onVerdictChangeCallback: ((id: string, verdict: string) => void) | null = null;
+export function setOnVerdictChange(cb: (id: string, verdict: string) => void): void {
+  onVerdictChangeCallback = cb;
+}
+
 export function updateHighlightVerdict(annotationIdOrSlug: string, verdict: string): void {
   if (!annotationIdOrSlug) return;
-  factCheckCache[annotationIdOrSlug] = verdict;
+  const v = (verdict || '').toUpperCase();
+  factCheckCache[annotationIdOrSlug] = v;
   const marks = document.querySelectorAll(
     `[data-annotated-highlight="${annotationIdOrSlug}"], [data-annotated-slug="${annotationIdOrSlug}"]`
   );
-  const cls = getHighlightClass(null, verdict);
+  const cls = getHighlightClass(null, v);
   marks.forEach((m) => {
     m.className = cls;
   });
+  if (onVerdictChangeCallback) {
+    onVerdictChangeCallback(annotationIdOrSlug, v);
+  }
 }
 
 // Initialize storage listener for reactive highlight updates when fact checks execute
