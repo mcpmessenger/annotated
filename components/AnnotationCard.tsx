@@ -274,44 +274,99 @@ export function AnnotationCard({
         </div>
       </div>
 
-      {/* Quoted Box */}
-      <div className="p-4 rounded my-4 border-l-4 border-[hsl(var(--accent))] bg-[hsl(var(--border))]">
-        <p className={`text-sm italic text-[hsl(var(--text-muted))] whitespace-pre-wrap ${!isExpanded ? 'line-clamp-3' : ''}`}>
-          &ldquo;{annotation.quoteText}&rdquo;
-        </p>
-        
-        <div className="flex items-center justify-between mt-2 pt-2 border-t border-[hsl(var(--border))]/50">
-          <p className="text-xs text-[hsl(var(--text-subtle))] flex items-center gap-1 max-w-[70%]">
-            <span>from</span>
-            <Tooltip content={annotation.sourceTitle || annotation.sourceUrl} position="top" className="truncate max-w-[260px] align-bottom">
-              <a 
-                href={annotation.sourceUrl} 
-                target="_blank" 
-                rel="noopener noreferrer" 
-                className="hover:text-[hsl(var(--accent))] hover:underline font-medium relative z-20 truncate inline-block"
-              >
-                {(() => {
-                  if (!annotation.sourceUrl) return annotation.sourceDomain || annotation.sourceTitle || "source";
-                  const tweetMatch = annotation.sourceUrl.match(/(?:x|twitter)\.com\/([^\/]+)\/status\/(\d+)/i);
-                  if (tweetMatch) {
-                    return `@${tweetMatch[1]} on x.com`;
-                  }
-                  return annotation.sourceDomain || (annotation.sourceTitle.length > 45 ? annotation.sourceTitle.slice(0, 45) + '...' : annotation.sourceTitle);
-                })()}
-              </a>
-            </Tooltip>
-          </p>
+      {/* Quoted Box with Color Coded Verification Status */}
+      {(() => {
+        const verdict = factCheckData?.verdict;
+        const isVerified = verdict === "VERIFIED";
+        const isFalse = verdict === "FALSE" || verdict === "MISLEADING";
 
-          {showToggle && (
-            <button 
-              onClick={(e) => { e.preventDefault(); e.stopPropagation(); setIsExpanded(!isExpanded); }}
-              className="text-[hsl(var(--accent))] text-xs font-semibold hover:underline relative z-20 ml-auto"
-            >
-              {isExpanded ? "See less" : "See more"}
-            </button>
-          )}
-        </div>
-      </div>
+        const statusConfig = isVerified
+          ? {
+              border: "border-emerald-500",
+              bg: "bg-emerald-500/10 dark:bg-emerald-950/20",
+              badgeBg: "bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border-emerald-500/30",
+              dot: "bg-emerald-500",
+              label: "Verified",
+              icon: "✓",
+            }
+          : isFalse
+          ? {
+              border: "border-red-500",
+              bg: "bg-red-500/10 dark:bg-red-950/20",
+              badgeBg: "bg-red-500/20 text-red-700 dark:text-red-300 border-red-500/30",
+              dot: "bg-red-500",
+              label: "False / Disputed",
+              icon: "✕",
+            }
+          : {
+              border: "border-amber-500",
+              bg: "bg-amber-500/10 dark:bg-amber-950/20",
+              badgeBg: "bg-amber-500/20 text-amber-700 dark:text-amber-300 border-amber-500/30",
+              dot: "bg-amber-500",
+              label: "Unverified",
+              icon: "!",
+            };
+
+        return (
+          <div className={`p-4 rounded my-4 border-l-4 transition-all ${statusConfig.border} ${statusConfig.bg}`}>
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-[hsl(var(--text-subtle))]">
+                Quoted Source
+              </span>
+              <Tooltip
+                content={
+                  isVerified
+                    ? "Verified by Gemini AI analysis"
+                    : isFalse
+                    ? "Flagged as false or misleading by Gemini AI analysis"
+                    : "Not yet fact-checked — click Fact Check below to verify"
+                }
+                position="top"
+              >
+                <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold border ${statusConfig.badgeBg}`}>
+                  <span className={`w-1.5 h-1.5 rounded-full ${statusConfig.dot}`}></span>
+                  <span>{statusConfig.label}</span>
+                </span>
+              </Tooltip>
+            </div>
+            <p className={`text-sm italic text-[hsl(var(--text-muted))] whitespace-pre-wrap ${!isExpanded ? 'line-clamp-3' : ''}`}>
+              &ldquo;{annotation.quoteText}&rdquo;
+            </p>
+            
+            <div className="flex items-center justify-between mt-2 pt-2 border-t border-[hsl(var(--border))]/50">
+              <p className="text-xs text-[hsl(var(--text-subtle))] flex items-center gap-1 max-w-[70%]">
+                <span>from</span>
+                <Tooltip content={annotation.sourceTitle || annotation.sourceUrl} position="top" className="truncate max-w-[260px] align-bottom">
+                  <a 
+                    href={annotation.sourceUrl} 
+                    target="_blank" 
+                    rel="noopener noreferrer" 
+                    className="hover:text-[hsl(var(--accent))] hover:underline font-medium relative z-20 truncate inline-block"
+                  >
+                    {(() => {
+                      if (!annotation.sourceUrl) return annotation.sourceDomain || annotation.sourceTitle || "source";
+                      const tweetMatch = annotation.sourceUrl.match(/(?:x|twitter)\.com\/([^\/]+)\/status\/(\d+)/i);
+                      if (tweetMatch) {
+                        return `@${tweetMatch[1]} on x.com`;
+                      }
+                      return annotation.sourceDomain || (annotation.sourceTitle.length > 45 ? annotation.sourceTitle.slice(0, 45) + '...' : annotation.sourceTitle);
+                    })()}
+                  </a>
+                </Tooltip>
+              </p>
+
+              {showToggle && (
+                <button 
+                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); setIsExpanded(!isExpanded); }}
+                  className="text-[hsl(var(--accent))] text-xs font-semibold hover:underline relative z-20 ml-auto"
+                >
+                  {isExpanded ? "See less" : "See more"}
+                </button>
+              )}
+            </div>
+          </div>
+        );
+      })()}
       
       {annotation.media_url && (
         <div className="my-4 rounded overflow-hidden border border-[hsl(var(--border))] bg-black relative z-20">
@@ -513,7 +568,13 @@ export function AnnotationCard({
             <button
               type="button"
               onClick={handleFactCheck}
-              className="flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded-full border border-[hsl(var(--accent))] text-[hsl(var(--accent))] hover:bg-[hsl(var(--accent))]/10 transition-colors cursor-pointer"
+              className={`flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded-full border transition-colors cursor-pointer ${
+                factCheckData?.verdict === "VERIFIED"
+                  ? "border-emerald-500/50 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20"
+                  : factCheckData?.verdict === "FALSE" || factCheckData?.verdict === "MISLEADING"
+                  ? "border-red-500/50 text-red-600 dark:text-red-400 bg-red-500/10 hover:bg-red-500/20"
+                  : "border-amber-500/50 text-amber-600 dark:text-amber-400 bg-amber-500/10 hover:bg-amber-500/20"
+              }`}
             >
               <span className="text-xs leading-none">⚡</span>
               <span className="hidden sm:inline">

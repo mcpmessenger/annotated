@@ -159,7 +159,7 @@ export function initAuthHandlers(
     onUserChanged(null);
     $('#userMenuWrap')?.classList.add('hidden');
     const topSignIn = $('#topSignInBtn');
-    if (topSignIn) topSignIn.style.display = 'inline-block';
+    if (topSignIn) topSignIn.style.display = 'inline-flex';
     hideAuth();
   });
 

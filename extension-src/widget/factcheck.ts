@@ -91,7 +91,17 @@ export function wireFactCheck(
       factBtn.innerHTML = '&#9889;';
       factBtn.setAttribute('data-tooltip', isOpen ? 'Hide Fact Check' : 'Show Fact Check');
       factBtn.style.background = isOpen ? 'var(--soft)' : 'var(--surface)';
-      factBtn.style.borderColor = isOpen ? 'var(--yellow)' : 'var(--line)';
+      const verdict = cachedData?.verdict;
+      if (verdict === 'VERIFIED') {
+        factBtn.style.borderColor = '#22c55e';
+        factBtn.style.color = '#22c55e';
+      } else if (verdict === 'FALSE' || verdict === 'MISLEADING') {
+        factBtn.style.borderColor = '#ef4444';
+        factBtn.style.color = '#ef4444';
+      } else {
+        factBtn.style.borderColor = isOpen ? 'var(--yellow)' : 'var(--yellow)';
+        factBtn.style.color = 'var(--yellow)';
+      }
     }
     if (onResize) {
       onResize(isOpen ? (hasMedia ? 740 : 660) : (hasMedia ? 630 : 550));
@@ -111,20 +121,30 @@ export function wireFactCheck(
     if (ft) {
       ft.innerHTML = `<strong>${escapeHtml(data.headline || '')}</strong><br><span style="font-size:10px; color:var(--muted);">${escapeHtml(data.explanation || '')}</span>`;
     }
+    updateBtnState(fb?.style.display !== 'none');
   };
 
   // Default display CLOSED until user clicks the ⚡ Fact Check button
   if (factBox) factBox.style.display = 'none';
-  updateBtnState(false);
 
   const cacheKey = `annotated_fc_${ann.id || ann.slug || ''}`;
   let cachedData: FactCheckResult | null = null;
   if (typeof window !== 'undefined' && (ann.id || ann.slug)) {
     try {
       const stored = localStorage.getItem(cacheKey);
-      if (stored) cachedData = JSON.parse(stored);
+      if (stored) {
+        cachedData = JSON.parse(stored);
+        if (cachedData?.verdict && typeof chrome !== 'undefined' && chrome.storage?.local) {
+          const payload: Record<string, string> = {};
+          if (ann.id) payload[`fc_${ann.id}`] = cachedData.verdict;
+          if (ann.slug) payload[`fc_${ann.slug}`] = cachedData.verdict;
+          chrome.storage.local.set(payload);
+        }
+      }
     } catch (_) {}
   }
+
+  updateBtnState(false);
 
   let hasExecuted = false;
   const runFactCheck = async () => {
@@ -156,6 +176,12 @@ export function wireFactCheck(
         try {
           localStorage.setItem(cacheKey, JSON.stringify(data));
         } catch (_) {}
+      }
+      if (typeof chrome !== 'undefined' && chrome.storage?.local && data?.verdict) {
+        const payload: Record<string, string> = {};
+        if (ann.id) payload[`fc_${ann.id}`] = data.verdict;
+        if (ann.slug) payload[`fc_${ann.slug}`] = data.verdict;
+        chrome.storage.local.set(payload);
       }
     } catch (err: unknown) {
       if (ft) {

@@ -1,7 +1,8 @@
 // ─── Multi-Platform In-Page Highlight Renderer ───────────────────────────────
-// Fixes critical bugs:
-// 1. norm() defined at module scope (was inaccessible inside mouseover handler)
-// 2. candidatePhrases uses a Set rather than an Array with invalid .add() call
+// Color-coded highlights:
+// 🟡 Yellow: Default / Unverified (pending user-initiated fact check)
+// 🟢 Green: Verified
+// 🔴 Red: False / Misleading
 
 import type { Annotation } from '../types/annotation';
 import { escapeHtml } from '../shared/utils';
@@ -10,6 +11,73 @@ export const norm = (s?: string | null): string =>
   (s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
 
 export const highlightMap = new WeakMap<Element, Annotation>();
+export const factCheckCache: Record<string, string> = {};
+
+export function getHighlightClass(annotation?: Annotation | null, verdictOverride?: string | null): string {
+  const id = annotation?.id || '';
+  const slug = annotation?.slug || '';
+  const v = (
+    verdictOverride ||
+    (id && factCheckCache[id]) ||
+    (slug && factCheckCache[slug]) ||
+    (annotation as any)?.fact_check_verdict ||
+    (annotation as any)?.verdict ||
+    ''
+  ).toUpperCase();
+
+  if (v === 'VERIFIED') {
+    return 'annotated-highlight annotated-highlight-verified';
+  }
+  if (v === 'FALSE' || v === 'MISLEADING') {
+    return 'annotated-highlight annotated-highlight-false';
+  }
+  return 'annotated-highlight annotated-highlight-unverified';
+}
+
+export function updateHighlightVerdict(annotationIdOrSlug: string, verdict: string): void {
+  if (!annotationIdOrSlug) return;
+  factCheckCache[annotationIdOrSlug] = verdict;
+  const marks = document.querySelectorAll(
+    `[data-annotated-highlight="${annotationIdOrSlug}"], [data-annotated-slug="${annotationIdOrSlug}"]`
+  );
+  const cls = getHighlightClass(null, verdict);
+  marks.forEach((m) => {
+    m.className = cls;
+  });
+}
+
+// Initialize storage listener for reactive highlight updates when fact checks execute
+if (typeof chrome !== 'undefined' && chrome.storage?.local) {
+  try {
+    chrome.storage.local.get(null, (allData: Record<string, any>) => {
+      if (allData) {
+        Object.keys(allData).forEach((k) => {
+          if (k.startsWith('fc_')) {
+            const id = k.replace('fc_', '');
+            factCheckCache[id] = allData[k];
+          }
+        });
+        Object.keys(factCheckCache).forEach((id) => {
+          updateHighlightVerdict(id, factCheckCache[id]);
+        });
+      }
+    });
+
+    chrome.storage.onChanged?.addListener((changes, area) => {
+      if (area === 'local') {
+        Object.keys(changes).forEach((k) => {
+          if (k.startsWith('fc_')) {
+            const id = k.replace('fc_', '');
+            const newVerdict = changes[k].newValue;
+            if (newVerdict) {
+              updateHighlightVerdict(id, newVerdict);
+            }
+          }
+        });
+      }
+    });
+  } catch (_) {}
+}
 
 export function injectHighlightStyles(): void {
   if (document.getElementById('annotated-highlight-style')) return;
@@ -17,17 +85,52 @@ export function injectHighlightStyles(): void {
   style.id = 'annotated-highlight-style';
   style.textContent = `
     .annotated-highlight {
-      background-color: #ffd21a !important;
-      color: #000000 !important;
-      -webkit-text-fill-color: #000000 !important;
-      border-radius: 2px !important;
+      border-radius: 3px !important;
       cursor: pointer !important;
-      padding: 1px 2px !important;
+      padding: 1px 3px !important;
       box-shadow: 0 1px 2px rgba(0,0,0,0.12) !important;
-      transition: background-color 0.15s ease !important;
+      transition: background-color 0.2s ease, border-color 0.2s ease !important;
+      font-weight: 500 !important;
+      box-decoration-break: clone !important;
+      -webkit-box-decoration-break: clone !important;
     }
-    .annotated-highlight:hover {
-      background-color: #f59e0b !important;
+
+    /* 🟡 Yellow: Default / Unverified */
+    .annotated-highlight,
+    .annotated-highlight-unverified {
+      background-color: #fef08a !important;
+      color: #713f12 !important;
+      -webkit-text-fill-color: #713f12 !important;
+      border-bottom: 2.5px solid #eab308 !important;
+    }
+    .annotated-highlight:hover,
+    .annotated-highlight-unverified:hover {
+      background-color: #fde047 !important;
+      border-bottom-color: #ca8a04 !important;
+    }
+
+    /* 🔴 Red: False / Misleading */
+    .annotated-highlight-false {
+      background-color: #fee2e2 !important;
+      color: #991b1b !important;
+      -webkit-text-fill-color: #991b1b !important;
+      border-bottom: 2.5px solid #ef4444 !important;
+    }
+    .annotated-highlight-false:hover {
+      background-color: #fecaca !important;
+      border-bottom-color: #dc2626 !important;
+    }
+
+    /* 🟢 Green: Verified */
+    .annotated-highlight-verified {
+      background-color: #dcfce7 !important;
+      color: #166534 !important;
+      -webkit-text-fill-color: #166534 !important;
+      border-bottom: 2.5px solid #22c55e !important;
+    }
+    .annotated-highlight-verified:hover {
+      background-color: #bbf7d0 !important;
+      border-bottom-color: #16a34a !important;
     }
   `;
   (document.head || document.documentElement).appendChild(style);
@@ -73,16 +176,18 @@ export function extractCandidatePhrases(rawQuote: string): Set<string> {
 export function safeHighlightRange(range: Range, annotation: Annotation): HTMLElement | null {
   try {
     const mark = document.createElement('mark');
-    mark.className = 'annotated-highlight';
-    mark.setAttribute('data-annotated-highlight', String(annotation.id || ''));
+    mark.className = getHighlightClass(annotation);
+    if (annotation.id) mark.setAttribute('data-annotated-highlight', String(annotation.id));
+    if (annotation.slug) mark.setAttribute('data-annotated-slug', String(annotation.slug));
     range.surroundContents(mark);
     highlightMap.set(mark, annotation);
     return mark;
   } catch (_) {
     try {
       const mark = document.createElement('mark');
-      mark.className = 'annotated-highlight';
-      mark.setAttribute('data-annotated-highlight', String(annotation.id || ''));
+      mark.className = getHighlightClass(annotation);
+      if (annotation.id) mark.setAttribute('data-annotated-highlight', String(annotation.id));
+      if (annotation.slug) mark.setAttribute('data-annotated-slug', String(annotation.slug));
       const contents = range.extractContents();
       mark.appendChild(contents);
       range.insertNode(mark);
@@ -122,8 +227,9 @@ export function renderHighlight(annotation: Annotation): void {
       if (tweetTextEl && tweetTextEl.textContent) {
         if (norm(tweetTextEl.textContent).includes(norm(quote))) {
           const mark = document.createElement('span');
-          mark.className = 'annotated-highlight';
-          mark.setAttribute('data-annotated-highlight', String(annotation.id || ''));
+          mark.className = getHighlightClass(annotation);
+          if (annotation.id) mark.setAttribute('data-annotated-highlight', String(annotation.id));
+          if (annotation.slug) mark.setAttribute('data-annotated-slug', String(annotation.slug));
           mark.textContent = tweetTextEl.textContent;
           tweetTextEl.innerHTML = '';
           tweetTextEl.appendChild(mark);

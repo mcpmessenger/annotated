@@ -338,9 +338,17 @@ export function Header() {
             ) : (
               <div className="flex items-center gap-1.5">
                 <Tooltip content="Sign in with Google" position="bottom">
-                  <button onClick={handleLoginGoogle} className="h-8 px-3 rounded-full border border-[hsl(var(--border))] bg-[hsl(var(--background))] flex items-center justify-center gap-1.5 text-xs font-semibold text-[hsl(var(--text-muted))] hover:text-[hsl(var(--foreground))] hover:border-[hsl(var(--foreground))] transition-all">
-                    <User size={15} />
-                    <span>Sign in</span>
+                  <button
+                    onClick={handleLoginGoogle}
+                    className="w-8 h-8 rounded-full border border-[hsl(var(--border))] bg-[hsl(var(--secondary))] hover:border-[hsl(var(--accent))] hover:ring-2 hover:ring-[hsl(var(--accent))]/30 flex items-center justify-center text-[hsl(var(--text-muted))] hover:text-[hsl(var(--foreground))] transition-all cursor-pointer overflow-hidden"
+                    aria-label="Sign in with Google"
+                  >
+                    <svg
+                      viewBox="0 0 24 24"
+                      className="w-4 h-4 fill-current opacity-70"
+                    >
+                      <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
+                    </svg>
                   </button>
                 </Tooltip>
               </div>
@@ -459,6 +467,9 @@ export function Header() {
             ) : (
               <div className="flex flex-col gap-2">
                 <button onClick={() => { handleLoginGoogle(); setMobileMenuOpen(false); }} className="w-full py-2 px-3 rounded-md bg-[hsl(var(--foreground))] text-[hsl(var(--background))] font-bold text-xs flex items-center justify-center gap-2">
+                  <div className="w-5 h-5 rounded-full bg-[hsl(var(--background))] text-[hsl(var(--foreground))] flex items-center justify-center">
+                    <User size={12} />
+                  </div>
                   <span>Sign in with Google</span>
                 </button>
               </div>

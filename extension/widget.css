@@ -138,6 +138,21 @@ body::-webkit-scrollbar-thumb {
   transform: scale(1.05);
 }
 
+.signin-avatar-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 9999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 0.2s ease, border-color 0.2s ease;
+}
+.signin-avatar-btn:hover {
+  border-color: var(--ink) !important;
+  transform: scale(1.05);
+}
+
 .user-dropdown {
   position: absolute;
   top: 36px;

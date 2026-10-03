@@ -197,7 +197,7 @@ async function boot(): Promise<void> {
         });
       } else {
         const topSignIn = $('#topSignInBtn');
-        if (topSignIn) topSignIn.style.display = 'inline-block';
+        if (topSignIn) topSignIn.style.display = 'inline-flex';
         $('#userMenuWrap')?.classList.add('hidden');
         showComposer(resizeWidget);
       }
@@ -227,7 +227,7 @@ async function boot(): Promise<void> {
   // Guest / Unauthenticated: keep #mainApp visible with emojis & fact check!
   currentUser = null;
   const topSignIn = $('#topSignInBtn');
-  if (topSignIn) topSignIn.style.display = 'inline-block';
+  if (topSignIn) topSignIn.style.display = 'inline-flex';
   $('#userMenuWrap')?.classList.add('hidden');
   $('#authScreen')?.classList.add('hidden');
   $('#mainApp')?.classList.remove('hidden');

@@ -355,15 +355,53 @@ export default function AnnotationPage() {
             </p>
           </section>
 
-          {/* Quoted text */}
-          <section className="mb-8">
-            <p className="text-xs text-[hsl(var(--text-subtle))] uppercase tracking-wide mb-3 font-bold">
-              Quoted text
-            </p>
-            <blockquote className="pl-6 border-l-2 border-[hsl(var(--accent))] italic text-lg text-[hsl(var(--foreground))]">
-              &ldquo;{annotation.quoteText}&rdquo;
-            </blockquote>
-          </section>
+          {/* Quoted text with Color Coded Verification Status */}
+          {(() => {
+            const verdict = factCheckData?.verdict;
+            const isVerified = verdict === "VERIFIED";
+            const isFalse = verdict === "FALSE" || verdict === "MISLEADING";
+
+            const statusConfig = isVerified
+              ? {
+                  border: "border-emerald-500",
+                  bg: "bg-emerald-500/10 dark:bg-emerald-950/20",
+                  badgeBg: "bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border-emerald-500/30",
+                  dot: "bg-emerald-500",
+                  label: "Verified",
+                }
+              : isFalse
+              ? {
+                  border: "border-red-500",
+                  bg: "bg-red-500/10 dark:bg-red-950/20",
+                  badgeBg: "bg-red-500/20 text-red-700 dark:text-red-300 border-red-500/30",
+                  dot: "bg-red-500",
+                  label: "False / Disputed",
+                }
+              : {
+                  border: "border-amber-500",
+                  bg: "bg-amber-500/10 dark:bg-amber-950/20",
+                  badgeBg: "bg-amber-500/20 text-amber-700 dark:text-amber-300 border-amber-500/30",
+                  dot: "bg-amber-500",
+                  label: "Unverified",
+                };
+
+            return (
+              <section className={`mb-8 p-5 rounded-lg border-l-4 transition-all ${statusConfig.border} ${statusConfig.bg}`}>
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-xs text-[hsl(var(--text-subtle))] uppercase tracking-wide font-bold">
+                    Quoted text
+                  </p>
+                  <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${statusConfig.badgeBg}`}>
+                    <span className={`w-1.5 h-1.5 rounded-full ${statusConfig.dot}`}></span>
+                    <span>{statusConfig.label}</span>
+                  </span>
+                </div>
+                <blockquote className="italic text-lg text-[hsl(var(--foreground))]">
+                  &ldquo;{annotation.quoteText}&rdquo;
+                </blockquote>
+              </section>
+            );
+          })()}
 
           {/* Media */}
           {annotation.media_url && (
