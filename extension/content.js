@@ -423,6 +423,31 @@
       const widthPct = Math.max(endPct - startPct, 0.6);
       const intent = ann.intent || "\u{1F4A1}";
       const commentText = (ann.comment || ann.commentary || ann.quote || ann.quote_text || "Annotation").trim();
+      const verdict = (ann.id && factCheckCache[ann.id] || ann.slug && factCheckCache[ann.slug] || ann?.fact_check_verdict || ann?.verdict || "").toUpperCase();
+      let markerBg = "rgba(255, 210, 26, 0.75)";
+      let markerBorder = "#ffd21a";
+      let markerShadow = "0 0 10px rgba(255, 210, 26, 0.8), inset 0 0 4px rgba(255, 210, 26, 0.6)";
+      let markerHoverShadow = "0 0 14px #ffffff, 0 0 8px #ffd21a";
+      let verdictTagHtml = `<span style="background:rgba(255,210,26,0.15); border:1px solid #ffd21a; color:#ffd21a; padding:2px 7px; border-radius:10px; font-weight:800; font-size:10px;">\u26A1 Fact Check</span>`;
+      if (verdict === "VERIFIED") {
+        markerBg = "rgba(34, 197, 94, 0.85)";
+        markerBorder = "#22c55e";
+        markerShadow = "0 0 10px rgba(34, 197, 94, 0.9), inset 0 0 4px rgba(34, 197, 94, 0.6)";
+        markerHoverShadow = "0 0 14px #ffffff, 0 0 8px #22c55e";
+        verdictTagHtml = `<span style="background:rgba(34,197,94,0.2); border:1px solid #22c55e; color:#4ade80; padding:2px 7px; border-radius:10px; font-weight:800; font-size:10px;">\u2713 Verified</span>`;
+      } else if (verdict === "FALSE" || verdict === "MISLEADING") {
+        markerBg = "rgba(244, 63, 94, 0.85)";
+        markerBorder = "#f43f5e";
+        markerShadow = "0 0 10px rgba(244, 63, 94, 0.95), inset 0 0 4px rgba(244, 63, 94, 0.7)";
+        markerHoverShadow = "0 0 14px #ffffff, 0 0 8px #f43f5e";
+        verdictTagHtml = `<span style="background:rgba(244,63,94,0.2); border:1px solid #f43f5e; color:#fb7185; padding:2px 7px; border-radius:10px; font-weight:800; font-size:10px;">\u2715 False</span>`;
+      } else if (verdict === "CONTEXT_NEEDED") {
+        markerBg = "rgba(245, 158, 11, 0.85)";
+        markerBorder = "#f59e0b";
+        markerShadow = "0 0 10px rgba(245, 158, 11, 0.9)";
+        markerHoverShadow = "0 0 14px #ffffff, 0 0 8px #f59e0b";
+        verdictTagHtml = `<span style="background:rgba(245,158,11,0.2); border:1px solid #f59e0b; color:#fbbf24; padding:2px 7px; border-radius:10px; font-weight:800; font-size:10px;">\u26A0\uFE0F Needs Context</span>`;
+      }
       const marker = document.createElement("div");
       marker.className = "annotated-yt-progress-marker-wrap";
       marker.style.cssText = `
@@ -444,18 +469,18 @@
       visual.style.cssText = `
       width: 100%;
       height: 6px;
-      background: rgba(255, 210, 26, 0.65);
-      border: 1px solid #ffd21a;
+      background: ${markerBg};
+      border: 1px solid ${markerBorder};
       border-radius: 3px;
-      box-shadow: 0 0 10px rgba(255, 210, 26, 0.8), inset 0 0 4px rgba(255, 210, 26, 0.6);
+      box-shadow: ${markerShadow};
       transition: transform 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
     `;
       marker.appendChild(visual);
       let markerTooltip = null;
       marker.addEventListener("mouseenter", () => {
         visual.style.transform = "scaleY(1.8)";
-        visual.style.background = "rgba(255, 255, 255, 0.9)";
-        visual.style.boxShadow = "0 0 14px #ffffff, 0 0 8px #ffd21a";
+        visual.style.background = "rgba(255, 255, 255, 0.95)";
+        visual.style.boxShadow = markerHoverShadow;
         markerTooltip = document.createElement("div");
         markerTooltip.className = "annotated-yt-marker-tooltip";
         markerTooltip.style.cssText = `
@@ -463,8 +488,8 @@
         bottom: 26px;
         left: ${startPct}%;
         transform: translateX(-20%);
-        background: #17242c;
-        border: 1.5px solid #ffd21a;
+        background: #0f172a;
+        border: 1.5px solid ${markerBorder};
         border-radius: 10px;
         padding: 8px 12px;
         color: #fff;
@@ -483,7 +508,8 @@
         const cleanComment = commentText.replace(/\[(?:⏱️\s*)?[0-9hms:]+\s*-\s*[0-9hms:]+\]/i, "").trim();
         markerTooltip.innerHTML = `
         <span style="background:#ffd21a; color:#000; padding:2px 7px; border-radius:12px; font-weight:800; font-size:11px;">\u23F1\uFE0F ${timeRangeStr}</span>
-        ${intent ? `<span style="color:#ffd21a; font-weight:700;">${intent}</span>` : ""}
+        ${verdictTagHtml}
+        ${intent ? `<span style="font-size:12px;">${intent}</span>` : ""}
         ${cleanComment ? `<span style="opacity:0.9; max-width:240px; overflow:hidden; text-overflow:ellipsis;">"${escapeHtml(
           cleanComment.slice(0, 50)
         )}${cleanComment.length > 50 ? "\u2026" : ""}"</span>` : ""}
@@ -492,8 +518,8 @@
       });
       marker.addEventListener("mouseleave", () => {
         visual.style.transform = "scale(1)";
-        visual.style.background = "rgba(255, 210, 26, 0.65)";
-        visual.style.boxShadow = "0 0 10px rgba(255, 210, 26, 0.8), inset 0 0 4px rgba(255, 210, 26, 0.6)";
+        visual.style.background = markerBg;
+        visual.style.boxShadow = markerShadow;
         if (markerTooltip) {
           markerTooltip.remove();
           markerTooltip = null;
@@ -532,6 +558,18 @@
       return;
     }
     if (badge) badge.remove();
+    const hasFalse = ytAnns.some((a) => {
+      const v = (a.id && factCheckCache[a.id] || a.slug && factCheckCache[a.slug] || a?.fact_check_verdict || a?.verdict || "").toUpperCase();
+      return v === "FALSE" || v === "MISLEADING";
+    });
+    const hasVerified = ytAnns.some((a) => {
+      const v = (a.id && factCheckCache[a.id] || a.slug && factCheckCache[a.slug] || a?.fact_check_verdict || a?.verdict || "").toUpperCase();
+      return v === "VERIFIED";
+    });
+    const badgeBorderColor = hasFalse ? "#f43f5e" : hasVerified ? "#22c55e" : "#ffd21a";
+    const badgeGlow = hasFalse ? "0 6px 20px rgba(0,0,0,0.5), 0 0 12px rgba(244, 63, 94, 0.4)" : hasVerified ? "0 6px 20px rgba(0,0,0,0.5), 0 0 12px rgba(34, 197, 94, 0.4)" : "0 6px 20px rgba(0,0,0,0.5), 0 0 12px rgba(255, 210, 26, 0.25)";
+    const arrowBg = hasFalse ? "#f43f5e" : hasVerified ? "#22c55e" : "#ffd21a";
+    const arrowColor = hasFalse ? "#fff" : "#000";
     badge = document.createElement("div");
     badge.id = "annotated-yt-floating-badge";
     badge.setAttribute("data-fingerprint", currentFingerprint);
@@ -542,24 +580,24 @@
     z-index: 2147483640;
     background: #0f172a;
     color: #f8fafc;
-    border: 1.5px solid #ffd21a;
+    border: 1.5px solid ${badgeBorderColor};
     border-radius: 9999px;
     padding: 7px 15px;
     font-size: 12px;
     font-weight: 700;
     cursor: pointer;
-    box-shadow: 0 6px 20px rgba(0,0,0,0.5), 0 0 0 1px rgba(255, 210, 26, 0.25);
+    box-shadow: ${badgeGlow};
     display: flex;
     align-items: center;
     gap: 8px;
-    transition: transform 0.15s ease, box-shadow 0.15s ease;
+    transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
     user-select: none;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   `;
     badge.innerHTML = `
     <span style="font-size: 14px;">\u{1F4AC}</span>
     <span style="color: #ffffff; font-weight: 700;">${ytAnns.length} note${ytAnns.length === 1 ? "" : "s"} on this page</span>
-    <span style="background: #ffd21a; color: #000; font-size: 10px; font-weight: 900; padding: 1px 6px; border-radius: 10px;">\u25BC</span>
+    <span style="background: ${arrowBg}; color: ${arrowColor}; font-size: 10px; font-weight: 900; padding: 1px 6px; border-radius: 10px;">\u25BC</span>
   `;
     const menu = document.createElement("div");
     menu.className = "annotated-yt-dropdown-menu";
@@ -568,13 +606,13 @@
     bottom: calc(100% + 10px);
     left: 0;
     background: #0f172a;
-    border: 1.5px solid #ffd21a;
+    border: 1.5px solid ${badgeBorderColor};
     border-radius: 12px;
     padding: 8px;
     display: none;
     flex-direction: column;
     gap: 6px;
-    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 210, 26, 0.2);
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.8), 0 0 16px ${hasFalse ? "rgba(244, 63, 94, 0.35)" : hasVerified ? "rgba(34, 197, 94, 0.35)" : "rgba(255, 210, 26, 0.25)"};
     min-width: 280px;
     max-width: 360px;
     max-height: 400px;
@@ -600,6 +638,27 @@
       const avatarHtml = avatarUrl ? `<img src="${escapeHtml(avatarUrl)}" style="width: 18px; height: 18px; border-radius: 50%; object-fit: cover; flex-shrink: 0;">` : `<div style="width: 18px; height: 18px; border-radius: 50%; background: #ffd21a; color: #000; font-size: 9px; font-weight: 800; display: grid; place-items: center; flex-shrink: 0;">${escapeHtml(
         (authorName || "A")[0].toUpperCase()
       )}</div>`;
+      const verdict = (ann.id && factCheckCache[ann.id] || ann.slug && factCheckCache[ann.slug] || ann?.fact_check_verdict || ann?.verdict || "").toUpperCase();
+      let itemBorder = "rgba(255, 255, 255, 0.12)";
+      let itemHoverBorder = "rgba(255, 210, 26, 0.5)";
+      let itemHoverBg = "rgba(255, 210, 26, 0.12)";
+      let itemVerdictBadge = `<span style="font-size: 9.5px; font-weight: 700; background: rgba(255, 210, 26, 0.12); border: 1px solid rgba(255, 210, 26, 0.35); color: #ffd21a; padding: 2px 7px; border-radius: 4px; white-space: nowrap; display: inline-flex; align-items: center; gap: 3px;">\u26A1 Fact Check</span>`;
+      if (verdict === "VERIFIED") {
+        itemBorder = "rgba(34, 197, 94, 0.45)";
+        itemHoverBorder = "#22c55e";
+        itemHoverBg = "rgba(34, 197, 94, 0.15)";
+        itemVerdictBadge = `<span style="font-size: 9.5px; font-weight: 800; background: rgba(34, 197, 94, 0.2); border: 1px solid #22c55e; color: #4ade80; padding: 2px 7px; border-radius: 4px; white-space: nowrap; display: inline-flex; align-items: center; gap: 3px;">\u2713 Verified</span>`;
+      } else if (verdict === "FALSE" || verdict === "MISLEADING") {
+        itemBorder = "rgba(244, 63, 94, 0.5)";
+        itemHoverBorder = "#f43f5e";
+        itemHoverBg = "rgba(244, 63, 94, 0.15)";
+        itemVerdictBadge = `<span style="font-size: 9.5px; font-weight: 800; background: rgba(244, 63, 94, 0.2); border: 1px solid #f43f5e; color: #fb7185; padding: 2px 7px; border-radius: 4px; white-space: nowrap; display: inline-flex; align-items: center; gap: 3px;">\u2715 False</span>`;
+      } else if (verdict === "CONTEXT_NEEDED") {
+        itemBorder = "rgba(245, 158, 11, 0.45)";
+        itemHoverBorder = "#f59e0b";
+        itemHoverBg = "rgba(245, 158, 11, 0.15)";
+        itemVerdictBadge = `<span style="font-size: 9.5px; font-weight: 800; background: rgba(245, 158, 11, 0.2); border: 1px solid #f59e0b; color: #fbbf24; padding: 2px 7px; border-radius: 4px; white-space: nowrap; display: inline-flex; align-items: center; gap: 3px;">\u26A0\uFE0F Needs Context</span>`;
+      }
       item.style.cssText = `
       display: flex;
       flex-direction: column;
@@ -607,18 +666,18 @@
       padding: 8px 10px;
       border-radius: 8px;
       background: rgba(255, 255, 255, 0.05);
-      border: 1px solid rgba(255, 255, 255, 0.08);
+      border: 1px solid ${itemBorder};
       cursor: pointer;
-      transition: background 0.15s ease, border-color 0.15s ease;
+      transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
       text-align: left;
     `;
       item.addEventListener("mouseenter", () => {
-        item.style.background = "rgba(255, 210, 26, 0.15)";
-        item.style.borderColor = "rgba(255, 210, 26, 0.4)";
+        item.style.background = itemHoverBg;
+        item.style.borderColor = itemHoverBorder;
       });
       item.addEventListener("mouseleave", () => {
         item.style.background = "rgba(255, 255, 255, 0.05)";
-        item.style.borderColor = "rgba(255, 255, 255, 0.08)";
+        item.style.borderColor = itemBorder;
       });
       item.addEventListener("click", (e) => {
         e.stopPropagation();
@@ -631,11 +690,14 @@
       <div style="display: flex; align-items: center; justify-content: space-between; gap: 6px;">
         <div style="display: flex; align-items: center; gap: 6px; overflow: hidden;">
           ${avatarHtml}
-          <strong style="font-size: 11px; color: #ffd21a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(
+          <strong style="font-size: 11px; color: #f8fafc; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(
         authorName
       )}</strong>
         </div>
-        ${intent ? `<span style="font-size: 12px; flex-shrink: 0;">${intent}</span>` : ""}
+        <div style="display: flex; align-items: center; gap: 5px; flex-shrink: 0;">
+          ${itemVerdictBadge}
+          ${intent ? `<span style="font-size: 12px;">${intent}</span>` : ""}
+        </div>
       </div>
       ${tsStr ? `<div style="display: flex; align-items: center; gap: 4px; margin-top: 1px;">
               <span style="background: #ffd21a; color: #000; padding: 2px 7px; border-radius: 10px; font-weight: 800; font-size: 10px; font-family: monospace;">\u23F1\uFE0F ${tsStr}</span>
