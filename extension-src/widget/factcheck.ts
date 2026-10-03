@@ -1,7 +1,7 @@
 // ─── Gemini AI Fact-Checking Module ──────────────────────────────────────────
 
 import { $ } from '../shared/dom';
-import { FACTCHECK_API_URL } from '../shared/config';
+import { FACTCHECK_API_URL, SUPABASE_CONFIG } from '../shared/config';
 import { escapeHtml } from '../shared/utils';
 import { showAuth } from './auth';
 import type { Annotation, FactCheckResult, CurrentUser } from '../types/annotation';
@@ -146,6 +146,33 @@ export function wireFactCheck(
     } catch (_) {}
   }
 
+  // Preload from cloud storage if not cached locally
+  if (!cachedData && (ann.id || ann.slug)) {
+    const keysToTry = [ann.id, ann.slug].filter(Boolean) as string[];
+    for (const k of keysToTry) {
+      fetch(`${SUPABASE_CONFIG.url}/storage/v1/object/public/annotation-media/fc_${k}.json`)
+        .then(async (r) => {
+          if (r.ok) {
+            const data = await r.json();
+            if (data?.verdict && !cachedData) {
+              cachedData = data;
+              try {
+                localStorage.setItem(cacheKey, JSON.stringify(data));
+              } catch (_) {}
+              if (typeof chrome !== 'undefined' && chrome.storage?.local) {
+                const payload: Record<string, string> = {};
+                if (ann.id) payload[`fc_${ann.id}`] = data.verdict;
+                if (ann.slug) payload[`fc_${ann.slug}`] = data.verdict;
+                chrome.storage.local.set(payload);
+              }
+              renderData(data);
+            }
+          }
+        })
+        .catch(() => {});
+    }
+  }
+
   updateBtnState(false);
 
   let hasExecuted = false;
@@ -185,6 +212,30 @@ export function wireFactCheck(
         if (ann.slug) payload[`fc_${ann.slug}`] = data.verdict;
         chrome.storage.local.set(payload);
       }
+
+      // Persist to Supabase cloud storage for all users and extensions
+      try {
+        const payload = JSON.stringify(data);
+        const headers = {
+          apikey: SUPABASE_CONFIG.anonKey,
+          Authorization: `Bearer ${SUPABASE_CONFIG.anonKey}`,
+          'Content-Type': 'application/json',
+        };
+        if (ann.id) {
+          fetch(`${SUPABASE_CONFIG.url}/storage/v1/object/annotation-media/fc_${ann.id}.json`, {
+            method: 'POST',
+            headers,
+            body: payload,
+          }).catch(() => {});
+        }
+        if (ann.slug) {
+          fetch(`${SUPABASE_CONFIG.url}/storage/v1/object/annotation-media/fc_${ann.slug}.json`, {
+            method: 'POST',
+            headers,
+            body: payload,
+          }).catch(() => {});
+        }
+      } catch (_) {}
     } catch (err: unknown) {
       if (ft) {
         ft.textContent = `Fact-check error: ${err instanceof Error ? err.message : String(err)}`;

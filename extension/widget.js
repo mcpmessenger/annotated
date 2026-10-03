@@ -568,6 +568,31 @@
       } catch (_) {
       }
     }
+    if (!cachedData && (ann.id || ann.slug)) {
+      const keysToTry = [ann.id, ann.slug].filter(Boolean);
+      for (const k of keysToTry) {
+        fetch(`${SUPABASE_CONFIG.url}/storage/v1/object/public/annotation-media/fc_${k}.json`).then(async (r) => {
+          if (r.ok) {
+            const data = await r.json();
+            if (data?.verdict && !cachedData) {
+              cachedData = data;
+              try {
+                localStorage.setItem(cacheKey, JSON.stringify(data));
+              } catch (_) {
+              }
+              if (typeof chrome !== "undefined" && chrome.storage?.local) {
+                const payload = {};
+                if (ann.id) payload[`fc_${ann.id}`] = data.verdict;
+                if (ann.slug) payload[`fc_${ann.slug}`] = data.verdict;
+                chrome.storage.local.set(payload);
+              }
+              renderData(data);
+            }
+          }
+        }).catch(() => {
+        });
+      }
+    }
     updateBtnState(false);
     let hasExecuted = false;
     const runFactCheck = async () => {
@@ -604,6 +629,31 @@
           if (ann.id) payload[`fc_${ann.id}`] = data.verdict;
           if (ann.slug) payload[`fc_${ann.slug}`] = data.verdict;
           chrome.storage.local.set(payload);
+        }
+        try {
+          const payload = JSON.stringify(data);
+          const headers = {
+            apikey: SUPABASE_CONFIG.anonKey,
+            Authorization: `Bearer ${SUPABASE_CONFIG.anonKey}`,
+            "Content-Type": "application/json"
+          };
+          if (ann.id) {
+            fetch(`${SUPABASE_CONFIG.url}/storage/v1/object/annotation-media/fc_${ann.id}.json`, {
+              method: "POST",
+              headers,
+              body: payload
+            }).catch(() => {
+            });
+          }
+          if (ann.slug) {
+            fetch(`${SUPABASE_CONFIG.url}/storage/v1/object/annotation-media/fc_${ann.slug}.json`, {
+              method: "POST",
+              headers,
+              body: payload
+            }).catch(() => {
+            });
+          }
+        } catch (_) {
         }
       } catch (err) {
         if (ft) {

@@ -1,2 +1,7 @@
-.annotated-highlight { background: linear-gradient(180deg, transparent 35%, rgba(255, 208, 0, .52) 35%, rgba(255, 208, 0, .52) 92%, transparent 92%); color: inherit; cursor: pointer; }
-.annotated-highlight:hover { background: rgba(255, 208, 0, .8); }
+/* Base highlight styling - colors, backgrounds, and verdicts dynamically applied by highlighter.ts */
+.annotated-highlight {
+  cursor: pointer;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+

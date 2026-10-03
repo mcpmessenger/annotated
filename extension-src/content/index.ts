@@ -5,7 +5,7 @@
 import type { Annotation, UserProfile } from '../types/annotation';
 import { pageKey, extractYouTubeVideoId } from '../shared/utils';
 import { SUPABASE_CONFIG } from '../shared/config';
-import { injectHighlightStyles, renderHighlight, highlightMap, clearAllHighlights } from './highlighter';
+import { injectHighlightStyles, renderHighlight, highlightMap, clearAllHighlights, factCheckCache, updateHighlightVerdict } from './highlighter';
 import { renderYouTubeProgressBarMarkers, renderYouTubeVideoTag } from './youtube';
 import { recordSelection, buildPageInfo } from './selection';
 import { createWidget, openAnnotationInWidget, notifyWidgetOfSelection, setupMessageRouter, ensureWidgetContainer, widgetIframe } from './widget-host';
@@ -87,6 +87,9 @@ export async function loadAnnotations(): Promise<void> {
         } catch (_) {}
       }
 
+      // Fetch cloud-persisted fact check verdicts asynchronously
+      loadFactChecksForAnnotations(state.annotations);
+
       renderAllPending();
       return;
     }
@@ -97,8 +100,50 @@ export async function loadAnnotations(): Promise<void> {
   // 2. Fallback to local storage
   chrome.storage.local.get(currentKey, (data: Record<string, any>) => {
     state.annotations = (data[currentKey] as Annotation[]) || [];
+    loadFactChecksForAnnotations(state.annotations);
     renderAllPending();
   });
+}
+
+export async function loadFactChecksForAnnotations(items: Annotation[]): Promise<void> {
+  if (!Array.isArray(items) || items.length === 0) return;
+  await Promise.allSettled(
+    items.map(async (ann) => {
+      const id = ann.id;
+      const slug = ann.slug;
+      if (!id && !slug) return;
+      if ((id && factCheckCache[id]) || (slug && factCheckCache[slug])) return;
+
+      const keysToTry = [id, slug].filter(Boolean) as string[];
+      for (const k of keysToTry) {
+        try {
+          const fcUrl = `${SUPABASE_CONFIG.url}/storage/v1/object/public/annotation-media/fc_${k}.json`;
+          const res = await fetch(fcUrl);
+          if (res.ok) {
+            const data = await res.json();
+            if (data?.verdict) {
+              const v = String(data.verdict).toUpperCase();
+              if (id) {
+                factCheckCache[id] = v;
+                updateHighlightVerdict(id, v);
+              }
+              if (slug) {
+                factCheckCache[slug] = v;
+                updateHighlightVerdict(slug, v);
+              }
+              if (typeof chrome !== 'undefined' && chrome.storage?.local) {
+                const p: Record<string, string> = {};
+                if (id) p[`fc_${id}`] = v;
+                if (slug) p[`fc_${slug}`] = v;
+                chrome.storage.local.set(p);
+              }
+              break;
+            }
+          }
+        } catch (_) {}
+      }
+    })
+  );
 }
 
 export function renderAllPending(): void {

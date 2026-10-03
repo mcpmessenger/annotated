@@ -49,6 +49,21 @@ export function AnnotationCard({
             setIsFactCheckMinimized(minCached === "true");
             setShowFactCheck(true);
           }
+        } else if (annotation.id) {
+          fetch(`https://dajadbvlldrmgzztdksn.supabase.co/storage/v1/object/public/annotation-media/fc_${annotation.id}.json`)
+            .then((r) => (r.ok ? r.json() : null))
+            .then((data) => {
+              if (data?.verdict) {
+                setFactCheckData(data);
+                setIsFactCheckMinimized(true);
+                setShowFactCheck(true);
+                try {
+                  localStorage.setItem(`annotated_factcheck_${annotation.id}`, JSON.stringify(data));
+                  localStorage.setItem(`annotated_factcheck_minimized_${annotation.id}`, "true");
+                } catch (_) {}
+              }
+            })
+            .catch(() => {});
         }
       } catch (e) {}
     }
@@ -80,6 +95,15 @@ export function AnnotationCard({
         try {
           localStorage.setItem(`annotated_factcheck_${annotation.id}`, JSON.stringify(data));
           localStorage.setItem(`annotated_factcheck_minimized_${annotation.id}`, "false");
+          fetch(`https://dajadbvlldrmgzztdksn.supabase.co/storage/v1/object/annotation-media/fc_${annotation.id}.json`, {
+            method: "POST",
+            headers: {
+              apikey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRhamFkYnZsbGRybWd6enRka3NuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk1ODYwMTcsImV4cCI6MjEwNTE2MjAxN30.ZGteNtShkBErPckuMGX4tWMn0AtgU_THFSI37Wgd-eU",
+              Authorization: "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRhamFkYnZsbGRybWd6enRka3NuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk1ODYwMTcsImV4cCI6MjEwNTE2MjAxN30.ZGteNtShkBErPckuMGX4tWMn0AtgU_THFSI37Wgd-eU",
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(data),
+          }).catch(() => {});
         } catch (err) {}
       }
     } catch (err) {

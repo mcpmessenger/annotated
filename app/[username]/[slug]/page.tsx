@@ -90,6 +90,15 @@ export default function AnnotationPage() {
         try {
           localStorage.setItem(`annotated_factcheck_${ann.id}`, JSON.stringify(data));
           localStorage.setItem(`annotated_factcheck_minimized_${ann.id}`, "false");
+          fetch(`https://dajadbvlldrmgzztdksn.supabase.co/storage/v1/object/annotation-media/fc_${ann.id}.json`, {
+            method: "POST",
+            headers: {
+              apikey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRhamFkYnZsbGRybWd6enRka3NuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk1ODYwMTcsImV4cCI6MjEwNTE2MjAxN30.ZGteNtShkBErPckuMGX4tWMn0AtgU_THFSI37Wgd-eU",
+              Authorization: "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRhamFkYnZsbGRybWd6enRka3NuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk1ODYwMTcsImV4cCI6MjEwNTE2MjAxN30.ZGteNtShkBErPckuMGX4tWMn0AtgU_THFSI37Wgd-eU",
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(data),
+          }).catch(() => {});
         } catch (e) {}
       }
     } catch (err) {
@@ -122,8 +131,24 @@ export default function AnnotationPage() {
             setIsFactCheckMinimized(false);
           }
         } else {
-          // Default open with fact check open!
-          executeFactCheck(annotation);
+          // Check cloud storage first
+          fetch(`https://dajadbvlldrmgzztdksn.supabase.co/storage/v1/object/public/annotation-media/fc_${annotation.id}.json`)
+            .then((r) => (r.ok ? r.json() : null))
+            .then((cloudData) => {
+              if (cloudData?.verdict) {
+                setFactCheckData(cloudData);
+                setIsFactCheckMinimized(false);
+                try {
+                  localStorage.setItem(`annotated_factcheck_${annotation.id}`, JSON.stringify(cloudData));
+                  localStorage.setItem(`annotated_factcheck_minimized_${annotation.id}`, "false");
+                } catch (_) {}
+              } else {
+                executeFactCheck(annotation);
+              }
+            })
+            .catch(() => {
+              executeFactCheck(annotation);
+            });
         }
       } catch (e) {
         executeFactCheck(annotation);

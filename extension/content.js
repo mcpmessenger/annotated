@@ -182,49 +182,57 @@
       border-radius: 3px !important;
       cursor: pointer !important;
       padding: 1px 3px !important;
-      box-shadow: 0 1px 2px rgba(0,0,0,0.12) !important;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.1) !important;
       transition: background-color 0.2s ease, border-color 0.2s ease !important;
       font-weight: 500 !important;
       box-decoration-break: clone !important;
       -webkit-box-decoration-break: clone !important;
+      background-image: none !important;
     }
 
     /* \u{1F7E1} Yellow: Default / Unverified */
-    .annotated-highlight,
-    .annotated-highlight-unverified {
+    .annotated-highlight-unverified,
+    .annotated-highlight:not(.annotated-highlight-verified):not(.annotated-highlight-false) {
       background-color: #fef08a !important;
+      background-image: none !important;
       color: #713f12 !important;
       -webkit-text-fill-color: #713f12 !important;
-      border-bottom: 2.5px solid #eab308 !important;
+      border-bottom: 2px solid #eab308 !important;
     }
-    .annotated-highlight:hover,
-    .annotated-highlight-unverified:hover {
+    .annotated-highlight-unverified:hover,
+    .annotated-highlight:not(.annotated-highlight-verified):not(.annotated-highlight-false):hover {
       background-color: #fde047 !important;
       border-bottom-color: #ca8a04 !important;
     }
 
+    /* \u{1F7E2} Green: Verified */
+    .annotated-highlight-verified,
+    .annotated-highlight.annotated-highlight-verified {
+      background-color: #dcfce7 !important;
+      background-image: none !important;
+      color: #14532d !important;
+      -webkit-text-fill-color: #14532d !important;
+      border-bottom: 2.5px solid #22c55e !important;
+    }
+    .annotated-highlight-verified:hover,
+    .annotated-highlight.annotated-highlight-verified:hover {
+      background-color: #bbf7d0 !important;
+      border-bottom-color: #16a34a !important;
+    }
+
     /* \u{1F534} Red: False / Misleading */
-    .annotated-highlight-false {
+    .annotated-highlight-false,
+    .annotated-highlight.annotated-highlight-false {
       background-color: #fee2e2 !important;
+      background-image: none !important;
       color: #991b1b !important;
       -webkit-text-fill-color: #991b1b !important;
       border-bottom: 2.5px solid #ef4444 !important;
     }
-    .annotated-highlight-false:hover {
+    .annotated-highlight-false:hover,
+    .annotated-highlight.annotated-highlight-false:hover {
       background-color: #fecaca !important;
       border-bottom-color: #dc2626 !important;
-    }
-
-    /* \u{1F7E2} Green: Verified */
-    .annotated-highlight-verified {
-      background-color: #dcfce7 !important;
-      color: #166534 !important;
-      -webkit-text-fill-color: #166534 !important;
-      border-bottom: 2.5px solid #22c55e !important;
-    }
-    .annotated-highlight-verified:hover {
-      background-color: #bbf7d0 !important;
-      border-bottom-color: #16a34a !important;
     }
   `;
     (document.head || document.documentElement).appendChild(style);
@@ -305,6 +313,7 @@
           if (norm(tweetTextEl.textContent).includes(norm(quote))) {
             const mark = document.createElement("span");
             mark.className = getHighlightClass(annotation);
+            mark.style.whiteSpace = "pre-wrap";
             if (annotation.id) mark.setAttribute("data-annotated-highlight", String(annotation.id));
             if (annotation.slug) mark.setAttribute("data-annotated-slug", String(annotation.slug));
             mark.textContent = tweetTextEl.textContent;
@@ -1678,6 +1687,7 @@
           } catch (_) {
           }
         }
+        loadFactChecksForAnnotations(state.annotations);
         renderAllPending();
         return;
       }
@@ -1686,8 +1696,49 @@
     }
     chrome.storage.local.get(currentKey, (data) => {
       state.annotations = data[currentKey] || [];
+      loadFactChecksForAnnotations(state.annotations);
       renderAllPending();
     });
+  }
+  async function loadFactChecksForAnnotations(items) {
+    if (!Array.isArray(items) || items.length === 0) return;
+    await Promise.allSettled(
+      items.map(async (ann) => {
+        const id = ann.id;
+        const slug = ann.slug;
+        if (!id && !slug) return;
+        if (id && factCheckCache[id] || slug && factCheckCache[slug]) return;
+        const keysToTry = [id, slug].filter(Boolean);
+        for (const k of keysToTry) {
+          try {
+            const fcUrl = `${SUPABASE_CONFIG.url}/storage/v1/object/public/annotation-media/fc_${k}.json`;
+            const res = await fetch(fcUrl);
+            if (res.ok) {
+              const data = await res.json();
+              if (data?.verdict) {
+                const v = String(data.verdict).toUpperCase();
+                if (id) {
+                  factCheckCache[id] = v;
+                  updateHighlightVerdict(id, v);
+                }
+                if (slug) {
+                  factCheckCache[slug] = v;
+                  updateHighlightVerdict(slug, v);
+                }
+                if (typeof chrome !== "undefined" && chrome.storage?.local) {
+                  const p = {};
+                  if (id) p[`fc_${id}`] = v;
+                  if (slug) p[`fc_${slug}`] = v;
+                  chrome.storage.local.set(p);
+                }
+                break;
+              }
+            }
+          } catch (_) {
+          }
+        }
+      })
+    );
   }
   function renderAllPending() {
     state.annotations.forEach((ann) => renderHighlight(ann));
