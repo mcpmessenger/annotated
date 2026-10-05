@@ -104,6 +104,34 @@ async function build() {
       }
     }
 
+    // Verify package asset integrity before archiving
+    function verifyPackageIntegrity(dir) {
+      const htmlFiles = ['widget.html', 'offscreen.html'];
+      for (const htmlFile of htmlFiles) {
+        const filePath = path.join(dir, htmlFile);
+        if (!fs.existsSync(filePath)) continue;
+        const content = fs.readFileSync(filePath, 'utf8');
+        const srcMatches = [...content.matchAll(/<(?:script|img)\s+[^>]*src=["']([^"']+)["']/gi)];
+        const linkMatches = [...content.matchAll(/<link\s+[^>]*href=["']([^"']+)["']/gi)];
+        for (const match of [...srcMatches, ...linkMatches]) {
+          const ref = match[1];
+          if (ref.startsWith('http://') || ref.startsWith('https://') || ref.startsWith('//') || ref.startsWith('data:')) continue;
+          const resolved = path.join(dir, ref);
+          if (!fs.existsSync(resolved)) {
+            throw new Error(`Integrity check failed: ${htmlFile} references "${ref}", but it does not exist in ${dir}`);
+          }
+        }
+      }
+      console.log(`✅ Asset integrity verified for ${dir}`);
+    }
+
+    try {
+      verifyPackageIntegrity(desktopDir);
+    } catch (checkErr) {
+      console.error('❌ Package integrity failure:', checkErr.message);
+      process.exit(1);
+    }
+
     // Auto-package into fresh zip files for distribution
     try {
       const { execSync } = await import('node:child_process');
