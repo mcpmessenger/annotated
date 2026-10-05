@@ -1,10 +1,9 @@
--- ─────────────────────────────────────────────────────────────────────────────
--- Annotated — Content moderation (Amazon Appstore / Google Play UGC policy)
+-- =============================================================================
+-- Annotated - Content Moderation (Amazon Appstore / Google Play UGC policy)
 -- Run once in the Supabase SQL Editor. Safe to re-run.
--- ─────────────────────────────────────────────────────────────────────────────
+-- =============================================================================
 
--- 1. Moderation status on annotations (+ comments if the table exists)
---    approved (default) | hidden (auto-hidden pending review) | removed | rejected
+-- 1. Moderation status on annotations
 alter table public.annotations add column if not exists moderation_status text not null default 'approved';
 alter table public.annotations add column if not exists moderation_reason text;
 
@@ -16,7 +15,7 @@ begin
   end if;
 end $$;
 
--- 2. Banned users (managed by moderators via service role only)
+-- 2. Banned users table
 create table if not exists public.banned_users (
   user_id   uuid primary key,
   reason    text,
@@ -28,7 +27,7 @@ create policy "Banned list readable" on public.banned_users for select using (tr
 grant select on public.banned_users to anon, authenticated;
 grant all on public.banned_users to service_role;
 
--- 3. User reports (anyone — signed in or not — can file; only service role can read)
+-- 3. User reports table
 create table if not exists public.content_reports (
   id               uuid primary key default gen_random_uuid(),
   content_type     text not null check (content_type in ('annotation','comment','user')),
@@ -39,7 +38,7 @@ create table if not exists public.content_reports (
   reporter_ip      text,
   reason           text not null,
   details          text,
-  status           text not null default 'pending',  -- pending | actioned | dismissed
+  status           text not null default 'pending',
   created_at       timestamptz default now(),
   resolved_at      timestamptz
 );
@@ -53,7 +52,7 @@ create policy "Service role reads reports" on public.content_reports for select 
 grant insert on public.content_reports to anon, authenticated;
 grant all on public.content_reports to service_role;
 
--- 4. Per-user block list ("hide everything from this user")
+-- 4. Per-user block list
 create table if not exists public.user_blocks (
   blocker_id uuid not null references auth.users(id) on delete cascade,
   blocked_id uuid not null,
@@ -69,9 +68,7 @@ create policy "Own blocks insert" on public.user_blocks for insert with check (a
 create policy "Own blocks delete" on public.user_blocks for delete using (auth.uid() = blocker_id);
 grant select, insert, delete on public.user_blocks to authenticated;
 
--- 5. Enforce visibility at the database level for EVERY client
---    (web, Chrome extension, Android app, Fire TV / Roku feed all read through RLS).
---    RESTRICTIVE policies are AND-ed with the existing permissive read policy.
+-- 5. Restrictive visibility policies
 drop policy if exists "Hide moderated annotations" on public.annotations;
 create policy "Hide moderated annotations" on public.annotations
   as restrictive for select
