@@ -1,16 +1,18 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, Linking } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image, Linking, Alert } from 'react-native';
 import { Colors } from '../theme/colors';
-import { NoteItem } from '../services/supabase';
+import { NoteItem, submitMobileReport } from '../services/supabase';
 import { ReactionBar } from './ReactionBar';
 import { FactCheckCard } from './FactCheckCard';
 
 interface NoteCardProps {
   note: NoteItem;
   onPress?: () => void;
+  onReport?: (noteId: string) => void;
+  onBlock?: (userId?: string) => void;
 }
 
-export const NoteCard: React.FC<NoteCardProps> = ({ note, onPress }) => {
+export const NoteCard: React.FC<NoteCardProps> = ({ note, onPress, onReport, onBlock }) => {
   const hasQuote = Boolean(note.quoteText && note.quoteText.trim().length > 0);
   const hasComment = Boolean(note.commentary && note.commentary.trim().length > 0);
 
@@ -20,6 +22,54 @@ export const NoteCard: React.FC<NoteCardProps> = ({ note, onPress }) => {
         console.warn('Failed to open link:', err);
       });
     }
+  };
+
+  const sendReport = async (reason: string) => {
+    onReport?.(note.id);
+    await submitMobileReport({
+      annotationId: note.id,
+      reason,
+      authorId: note.userId,
+    });
+    Alert.alert(
+      'Report Submitted',
+      'Thank you for keeping our community safe. Content violating our guidelines is investigated and removed within 24 hours.'
+    );
+  };
+
+  const handleReportPress = () => {
+    Alert.alert(
+      'Community Safety & Moderation',
+      'Choose an action for this content or author:',
+      [
+        {
+          text: 'Report Objectionable Content',
+          onPress: () => {
+            Alert.alert(
+              'Select Violation Reason',
+              'What violates our community guidelines?',
+              [
+                { text: 'Minors / Child Safety', onPress: () => sendReport('minors') },
+                { text: 'Sexual / Explicit Content', onPress: () => sendReport('sexual') },
+                { text: 'Violence / Gore / Hate', onPress: () => sendReport('violence') },
+                { text: 'Harassment / Threats', onPress: () => sendReport('harassment') },
+                { text: 'Spam or Misinformation', onPress: () => sendReport('spam') },
+                { text: 'Cancel', style: 'cancel' },
+              ]
+            );
+          },
+        },
+        {
+          text: 'Block This Author',
+          style: 'destructive',
+          onPress: () => {
+            onBlock?.(note.userId);
+            Alert.alert('Author Blocked', 'All content from this author has been hidden from your feed.');
+          },
+        },
+        { text: 'Cancel', style: 'cancel' },
+      ]
+    );
   };
 
   return (
@@ -34,19 +84,30 @@ export const NoteCard: React.FC<NoteCardProps> = ({ note, onPress }) => {
           <Text style={styles.authorText}>{note.author}</Text>
         </View>
 
-        {note.sourceUrl ? (
+        <View style={styles.headerActions}>
+          {note.sourceUrl ? (
+            <TouchableOpacity
+              style={styles.hostBadge}
+              onPress={handleOpenSource}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.hostnameText}>{note.hostname || 'web'} ↗</Text>
+            </TouchableOpacity>
+          ) : (
+            <View style={styles.hostBadge}>
+              <Text style={styles.hostnameText}>{note.hostname || 'web'}</Text>
+            </View>
+          )}
+
           <TouchableOpacity
-            style={styles.hostBadge}
-            onPress={handleOpenSource}
+            style={styles.reportBadge}
+            onPress={handleReportPress}
             activeOpacity={0.7}
+            accessibilityLabel="Report content or block author"
           >
-            <Text style={styles.hostnameText}>{note.hostname || 'web'} ↗</Text>
+            <Text style={styles.reportIcon}>🚩</Text>
           </TouchableOpacity>
-        ) : (
-          <View style={styles.hostBadge}>
-            <Text style={styles.hostnameText}>{note.hostname || 'web'}</Text>
-          </View>
-        )}
+        </View>
       </View>
 
       {/* Video Thumbnail (Clickable to open YouTube/video directly) */}
@@ -126,6 +187,11 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '800',
   },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   hostBadge: {
     backgroundColor: '#0F2840',
     borderColor: Colors.borderHover,
@@ -133,6 +199,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 6,
+  },
+  reportBadge: {
+    backgroundColor: '#1E1E2E',
+    borderColor: 'rgba(239, 68, 68, 0.4)',
+    borderWidth: 1,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  reportIcon: {
+    fontSize: 12,
   },
   hostnameText: {
     color: Colors.cyan,

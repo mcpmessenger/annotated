@@ -78,6 +78,21 @@ export default function SupportPage() {
                   Annotated uses automated contextual analysis powered by Google Gemini AI along with primary source checks. Notes labeled <strong>&ldquo;Verified Accurate&rdquo;</strong> have multi-source primary documentation confirmed, while others highlight omissions or disputed claims.
                 </p>
               </div>
+
+              <div className="p-5 rounded-xl border border-red-500/30 bg-red-500/5">
+                <h3 className="font-bold text-base mb-1 text-[hsl(var(--foreground))]">
+                  How do I report objectionable content or block abusive users?
+                </h3>
+                <p className="text-sm leading-relaxed text-[hsl(var(--text-muted))] mb-2">
+                  We have zero tolerance for objectionable content, harassment, child endangerment, or abusive behavior. In-app reporting and user blocking are built into all our apps:
+                </p>
+                <ul className="text-xs text-[hsl(var(--text-muted))] list-disc pl-5 space-y-1">
+                  <li><strong>On TV (Roku/Fire TV):</strong> Select the <strong>[Report]</strong> button on any clip card to submit an immediate report and hide the card.</li>
+                  <li><strong>On Web:</strong> Click the flag icon on any note or comment card to file a report with categorized reasons and immediately block the author.</li>
+                  <li><strong>On Android:</strong> Tap the flag icon on any note card or detail screen to report objectionable material and block abusive creators.</li>
+                  <li><strong>Direct Email:</strong> You can also email our dedicated moderation inbox at <a href="mailto:magnetarsenti@gmail.com" className="text-sky-400 font-medium hover:underline">magnetarsenti@gmail.com</a>. All reports are acted upon within <strong>24 hours</strong>.</li>
+                </ul>
+              </div>
             </div>
           </section>
 

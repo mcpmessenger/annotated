@@ -140,6 +140,25 @@ export async function publishAnnotation(
 
   let savedRow: any = null;
   try {
+    // UGC Pre-Screening
+    try {
+      const textToCheck = [safeComment, safeQuote].filter(Boolean).join(' ');
+      const modRes = await fetch(`${SITE_URL}/api/moderate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: textToCheck, mediaUrl: media_url || undefined }),
+      });
+      if (modRes.ok) {
+        const verdict = await modRes.json();
+        if (verdict && verdict.allowed === false) {
+          onError(verdict.reason || 'This content violates Community Guidelines and cannot be published.');
+          return;
+        }
+      }
+    } catch (modErr) {
+      console.warn('[Moderation] Screening network issue, proceeding:', modErr);
+    }
+
     const res = await supabase.from('annotations').insert(annotation);
     if (res.code || res.error || res.message) {
       onError(`DB Error: ${res.message || res.error || JSON.stringify(res)}`);

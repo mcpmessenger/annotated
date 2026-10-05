@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { VideoClipTrimmer } from '@/components/VideoClipTrimmer';
 import { Tooltip } from '@/components/Tooltip';
+import { moderateBeforePublish } from '@/lib/moderationClient';
 
 const SIGNATURE_EMOJIS = ['🔥', '🤔', '💡', '💯', '👎'];
 
@@ -112,6 +113,14 @@ function ShareContent() {
       const finalUrl = (youtubeVideoId && clipRange && showVideoTrimmer)
         ? (targetUrl.includes('?') ? `${targetUrl}&t=${clipRange.start}s` : `${targetUrl}?t=${clipRange.start}s`)
         : (targetUrl || window.location.href);
+
+      const textToModerate = [finalComment, finalQuote].filter(Boolean).join(" ");
+      const verdict = await moderateBeforePublish(textToModerate);
+      if (!verdict.allowed) {
+        alert(verdict.reason || "Your note violates our Community Guidelines and cannot be published.");
+        setPublishing(false);
+        return;
+      }
 
       const row = {
         url: finalUrl,

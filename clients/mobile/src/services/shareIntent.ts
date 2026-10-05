@@ -1,4 +1,4 @@
-import { supabase, NoteItem } from './supabase';
+import { supabase, NoteItem, screenContent } from './supabase';
 
 export interface ParsedVideoSource {
   platform: 'youtube' | 'x' | 'web';
@@ -116,6 +116,13 @@ export async function createAnnotation(params: {
 }): Promise<NoteItem | null> {
   const slug = `note-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
   const author = params.authorName || '@mobile_user';
+
+  // Pre-screen UGC for Amazon UGC policy compliance
+  const textToScreen = [params.commentary, params.quoteText].filter(Boolean).join(' ');
+  const verdict = await screenContent(textToScreen);
+  if (!verdict.allowed) {
+    throw new Error(verdict.reason || 'This content violates Community Guidelines and cannot be published.');
+  }
   
   let fcObj = null;
   if (params.factCheckClaim) {

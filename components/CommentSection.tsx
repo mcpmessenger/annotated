@@ -6,6 +6,8 @@ import { useState, useEffect, useRef, useMemo } from "react";
 import { Trash2, Reply, AtSign, Plus, X, Sparkles, CheckCircle2, AlertTriangle, XCircle, ExternalLink } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { Tooltip } from "@/components/Tooltip";
+import { ReportMenu } from "./ReportMenu";
+import { moderateBeforePublish, useBlockedUsers } from "@/lib/moderationClient";
 
 const QUICK_EMOJIS = ["🔥", "🤔", "💡", "💯", "👎"];
 
@@ -58,6 +60,7 @@ export function CommentSection({
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [commentFactChecks, setCommentFactChecks] = useState<Record<string, { loading: boolean; data: any; open: boolean }>>({});
+  const blockedUsers = useBlockedUsers();
 
   useEffect(() => {
     if (annotationId && typeof window !== "undefined") {
@@ -391,6 +394,7 @@ export function CommentSection({
         .from("comments")
         .select("*")
         .eq("annotation_id", annotationId)
+        .or("moderation_status.is.null,moderation_status.eq.approved")
         .order("created_at", { ascending: true });
 
       if (error) {
@@ -492,6 +496,13 @@ export function CommentSection({
       ) {
         recipientsToNotify.push(matchedProfile);
       }
+    }
+
+    // Pre-screen UGC for community guidelines compliance
+    const verdict = await moderateBeforePublish(text);
+    if (!verdict.allowed) {
+      setErrorMsg(verdict.reason || "Your comment violates our Community Guidelines and cannot be posted.");
+      return;
     }
 
     setNewText("");
@@ -603,7 +614,9 @@ export function CommentSection({
       )}
 
       <div className="space-y-4 mb-8">
-        {comments.map((comment) => (
+        {comments
+          .filter((comment) => !comment.user_id || !blockedUsers.has(comment.user_id))
+          .map((comment) => (
           <div
             key={comment.id}
             id={`comment-${comment.id}`}
@@ -632,6 +645,19 @@ export function CommentSection({
                     return isNaN(d.getTime()) ? "" : d.toLocaleString();
                   })()}
                 </span>
+                <ReportMenu
+                  contentType="comment"
+                  contentId={comment.id}
+                  authorId={comment.user_id}
+                  currentUserId={user?.id}
+                  compact
+                  onReported={() => {
+                    setComments((prev) => prev.filter((c) => c.id !== comment.id));
+                  }}
+                  onBlocked={() => {
+                    setComments((prev) => prev.filter((c) => c.user_id !== comment.user_id));
+                  }}
+                />
                 {user && comment.user_id === user.id && (
                   <Tooltip content="Delete comment" position="top">
                     <button

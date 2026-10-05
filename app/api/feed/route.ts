@@ -71,10 +71,11 @@ export async function GET(req: NextRequest) {
     const videoOnly = searchParams.get("video_only") === "true";
     const client = searchParams.get("client") || "web"; // "web" | "roku" | "appletv" | "mobile"
 
-    // Build the query.
+    // Build the query - exclude hidden or removed content
     let query = supabase
       .from("annotations")
       .select("*")
+      .or("moderation_status.is.null,moderation_status.eq.approved")
       .order("created_at", { ascending: false })
       .range(offset, offset + limit - 1);
 

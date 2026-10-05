@@ -36,6 +36,16 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({
     loadFeed();
   };
 
+  const handleReportNote = (noteId: string) => {
+    setNotes((prev) => prev.filter((n) => n.id !== noteId));
+  };
+
+  const handleBlockAuthor = (authorId?: string) => {
+    if (authorId) {
+      setNotes((prev) => prev.filter((n) => n.userId !== authorId));
+    }
+  };
+
   return (
     <View style={styles.container}>
       <Header onScanPress={onOpenScanner} />
@@ -50,7 +60,12 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({
           data={notes}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
-            <NoteCard note={item} onPress={() => onSelectNote(item)} />
+            <NoteCard
+              note={item}
+              onPress={() => onSelectNote(item)}
+              onReport={handleReportNote}
+              onBlock={handleBlockAuthor}
+            />
           )}
           refreshControl={
             <RefreshControl

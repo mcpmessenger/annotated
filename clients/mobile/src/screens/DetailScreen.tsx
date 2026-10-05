@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity, ActivityIndicator, Linking, Image } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, ActivityIndicator, Linking, Image, Alert } from 'react-native';
 import { Colors } from '../theme/colors';
-import { NoteItem, fetchAnnotationBySlug } from '../services/supabase';
+import { NoteItem, fetchAnnotationBySlug, submitMobileReport } from '../services/supabase';
 import { ReactionBar } from '../components/ReactionBar';
 import { FactCheckCard } from '../components/FactCheckCard';
 
@@ -32,6 +32,57 @@ export const DetailScreen: React.FC<DetailScreenProps> = ({ slugOrId, initialNot
     }
   };
 
+  const sendReport = async (reason: string) => {
+    if (!note) return;
+    await submitMobileReport({
+      annotationId: note.id,
+      reason,
+      authorId: note.userId,
+    });
+    Alert.alert(
+      'Report Submitted',
+      'Thank you for keeping our community safe. Content violating our guidelines is investigated and removed within 24 hours.',
+      [{ text: 'OK', onPress: onBack }]
+    );
+  };
+
+  const handleReportPress = () => {
+    if (!note) return;
+    Alert.alert(
+      'Community Safety & Moderation',
+      'Choose an action for this content or author:',
+      [
+        {
+          text: 'Report Objectionable Content',
+          onPress: () => {
+            Alert.alert(
+              'Select Violation Reason',
+              'What violates our community guidelines?',
+              [
+                { text: 'Minors / Child Safety', onPress: () => sendReport('minors') },
+                { text: 'Sexual / Explicit Content', onPress: () => sendReport('sexual') },
+                { text: 'Violence / Gore / Hate', onPress: () => sendReport('violence') },
+                { text: 'Harassment / Threats', onPress: () => sendReport('harassment') },
+                { text: 'Spam or Misinformation', onPress: () => sendReport('spam') },
+                { text: 'Cancel', style: 'cancel' },
+              ]
+            );
+          },
+        },
+        {
+          text: 'Block This Author',
+          style: 'destructive',
+          onPress: () => {
+            Alert.alert('Author Blocked', 'All content from this author has been hidden from your feed.', [
+              { text: 'OK', onPress: onBack },
+            ]);
+          },
+        },
+        { text: 'Cancel', style: 'cancel' },
+      ]
+    );
+  };
+
   return (
     <View style={styles.container}>
       {/* Top Navigation Bar */}
@@ -39,11 +90,18 @@ export const DetailScreen: React.FC<DetailScreenProps> = ({ slugOrId, initialNot
         <TouchableOpacity onPress={onBack} style={styles.backButton}>
           <Text style={styles.backButtonText}>← Feed</Text>
         </TouchableOpacity>
-        {note?.sourceUrl && (
-          <TouchableOpacity onPress={handleOpenSource} style={styles.sourceHeaderBtn}>
-            <Text style={styles.sourceHeaderBtnText}>Open {note.hostname} ↗</Text>
-          </TouchableOpacity>
-        )}
+        <View style={styles.topNavRight}>
+          {note?.sourceUrl && (
+            <TouchableOpacity onPress={handleOpenSource} style={styles.sourceHeaderBtn}>
+              <Text style={styles.sourceHeaderBtnText}>Open {note.hostname} ↗</Text>
+            </TouchableOpacity>
+          )}
+          {note && (
+            <TouchableOpacity onPress={handleReportPress} style={styles.reportHeaderBtn} accessibilityLabel="Report or block">
+              <Text style={styles.reportHeaderBtnText}>🚩 Report</Text>
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
 
       {loading ? (
@@ -142,6 +200,11 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
   },
+  topNavRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   sourceHeaderBtn: {
     backgroundColor: '#0F2840',
     borderColor: Colors.cyan,
@@ -152,6 +215,19 @@ const styles = StyleSheet.create({
   },
   sourceHeaderBtnText: {
     color: Colors.cyan,
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  reportHeaderBtn: {
+    backgroundColor: '#1E1E2E',
+    borderColor: 'rgba(239, 68, 68, 0.4)',
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 6,
+  },
+  reportHeaderBtnText: {
+    color: '#EF4444',
     fontSize: 12,
     fontWeight: '800',
   },

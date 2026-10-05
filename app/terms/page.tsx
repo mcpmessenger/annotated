@@ -67,17 +67,40 @@ export default function TermsPage() {
             </ul>
           </section>
 
-          <section className="mb-10">
-            <h2 className="text-2xl font-bold mb-4">5. Acceptable Use & Conduct</h2>
+          <section className="mb-10 border border-red-500/30 rounded-xl p-6 bg-red-500/5">
+            <h2 className="text-2xl font-bold mb-4 text-[hsl(var(--foreground))]">5. User-Generated Content (UGC) Policy & Community Guidelines</h2>
             <p className="text-base text-[hsl(var(--foreground))] mb-3">
-              You agree not to use the Service to:
+              Annotated strictly enforces a safe and respectful environment across all platforms (Web, Chrome Extension, Android, and Roku/Fire TV). We maintain zero tolerance for objectionable, offensive, or abusive content and bad actors.
             </p>
-            <ul className="space-y-2 text-base text-[hsl(var(--foreground))]">
-              <li>Harass, threaten, defame, or abuse other users or third parties.</li>
-              <li>Post content that violates copyright, trademark, privacy, or publicity rights.</li>
-              <li>Distribute spam, automated bots, malicious scripts, or deceptive links.</li>
-              <li>Interfere with or disrupt the normal operation of our web, mobile, or TV streaming services.</li>
+            <h3 className="text-lg font-bold mt-4 mb-2 text-[hsl(var(--foreground))]">Prohibited Content</h3>
+            <p className="text-sm text-[hsl(var(--foreground))] mb-2">You may not submit, post, stream, or share content that contains or promotes:</p>
+            <ul className="space-y-1.5 text-sm text-[hsl(var(--foreground))] list-disc pl-5 mb-4">
+              <li><strong>Child sexual exploitation and abuse (CSAM) or any endangerment of minors</strong> (zero tolerance; reported immediately to law enforcement/NCMEC).</li>
+              <li><strong>Pornography, sexually explicit material, or non-consensual sexual content.</strong></li>
+              <li><strong>Graphic violence, severe injury, gore, or suicide/self-harm encouragement.</strong></li>
+              <li><strong>Hate speech, discrimination, harassment, threats, bullying, or stalking.</strong></li>
+              <li><strong>Illegal activities, weapon trafficking, illicit drugs, or cyberattacks.</strong></li>
+              <li><strong>Deceptive scams, phishing, spam, or malicious links.</strong></li>
             </ul>
+
+            <h3 className="text-lg font-bold mt-4 mb-2 text-[hsl(var(--foreground))]">Automated Pre-Screening & Moderation</h3>
+            <p className="text-sm text-[hsl(var(--foreground))] mb-3">
+              All user-submitted content is filtered through automated pre-screening checks (including local regex rules and Google Gemini AI moderation heuristics) before or upon publishing. Content flagged for severe policy violations is blocked automatically.
+            </p>
+
+            <h3 className="text-lg font-bold mt-4 mb-2 text-[hsl(var(--foreground))]">In-App Reporting & Blocking Mechanisms</h3>
+            <p className="text-sm text-[hsl(var(--foreground))] mb-3">
+              Every client application (Web, Android app, Chrome Extension, and Roku TV Channel) provides user-accessible mechanisms to:
+            </p>
+            <ul className="space-y-1.5 text-sm text-[hsl(var(--foreground))] list-disc pl-5 mb-4">
+              <li><strong>Report Content:</strong> Tap or click the flag/report button on any annotation, comment, or TV card to instantly submit an objectionable content report specifying the reason.</li>
+              <li><strong>Block Abusive Users:</strong> Block authors immediately to permanently hide all existing and future content posted by that author from your view.</li>
+            </ul>
+
+            <h3 className="text-lg font-bold mt-4 mb-2 text-[hsl(var(--foreground))]">24-Hour Review & Removal Commitment</h3>
+            <p className="text-sm text-[hsl(var(--foreground))]">
+              Annotated investigates all user reports within <strong>24 hours</strong>. Content reported for severe violations is immediately auto-hidden pending administrative audit. Content found in violation of our guidelines will be permanently deleted, and the offending author account will be terminated and banned. To submit an expedited report or appeal a moderation action, contact <a href="mailto:magnetarsenti@gmail.com" className="text-[hsl(var(--accent))] font-medium hover:underline">magnetarsenti@gmail.com</a>.
+            </p>
           </section>
 
           <section className="mb-10">

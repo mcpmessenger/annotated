@@ -8,6 +8,8 @@ import { Annotation } from "@/lib/types";
 import { ReactionRow } from "./ReactionRow";
 import { FollowButton } from "./FollowButton";
 import { Tooltip } from "@/components/Tooltip";
+import { ReportMenu } from "./ReportMenu";
+import { useBlockedUsers } from "@/lib/moderationClient";
 
 export function AnnotationCard({
   annotation,
@@ -20,6 +22,8 @@ export function AnnotationCard({
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isDeleted, setIsDeleted] = useState(false);
+  const [isHidden, setIsHidden] = useState(false);
+  const blockedUsers = useBlockedUsers();
   const [commentCount, setCommentCount] = useState<number | null>(null);
   const [showFactCheck, setShowFactCheck] = useState(false);
   const [factCheckLoading, setFactCheckLoading] = useState(false);
@@ -186,7 +190,8 @@ export function AnnotationCard({
 
   const isOwner = !!(currentUserId && annotation.userId === currentUserId);
 
-  if (isDeleted) return null;
+  if (isDeleted || isHidden) return null;
+  if (annotation.userId && blockedUsers.has(annotation.userId)) return null;
 
   const handleDelete = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -666,6 +671,15 @@ export function AnnotationCard({
               </button>
             </Tooltip>
           )}
+
+          <ReportMenu
+            contentType="annotation"
+            contentId={annotation.id}
+            authorId={annotation.userId || null}
+            currentUserId={currentUserId}
+            onReported={() => setIsHidden(true)}
+            onBlocked={() => setIsHidden(true)}
+          />
 
           <Tooltip content="File a DMCA / Fair Use dispute for this content" position="top">
             <Link

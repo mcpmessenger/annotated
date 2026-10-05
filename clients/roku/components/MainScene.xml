@@ -150,7 +150,7 @@
         <Label id="lblDown" text="0" font="font:SmallBoldSystemFont" color="0xCBD5E1FF" translation="[125, 12]" />
       </Rectangle>
       <Rectangle id="bgClaim" width="240" height="40" color="0x334155AA" translation="[1440, 0]">
-        <Label id="lblClaim" text="File Claim" font="font:SmallBoldSystemFont" color="0xCBD5E1FF" translation="[0, 12]" width="240" horizAlign="center" />
+        <Label id="lblClaim" text="Report" font="font:SmallBoldSystemFont" color="0xCBD5E1FF" translation="[0, 12]" width="240" horizAlign="center" />
       </Rectangle>
     </Group>
 
@@ -159,6 +159,15 @@
       <Rectangle width="1920" height="8" color="0x1E293B88" />
       <Rectangle id="progressFill" width="0" height="8" color="0x38BDF8FF" />
     </Group>
+
+    <!-- Report Toast Banner -->
+    <Group id="reportToast" translation="[660, 480]" visible="false">
+      <Rectangle width="600" height="120" color="0x0F172AEF">
+        <Rectangle width="600" height="4" color="0xEF4444FF" />
+        <Label id="reportToastText" text="Reported &amp; hidden for review" font="font:MediumBoldSystemFont" color="0xF8FAFCFF" width="560" horizAlign="center" translation="[20, 45]" />
+      </Rectangle>
+    </Group>
+    <Timer id="reportToastTimer" duration="2" repeat="false" />
 
     
 

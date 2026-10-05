@@ -14,6 +14,7 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
 export interface NoteItem {
   id: string;
   slug?: string;
+  userId?: string;
   author: string;
   avatarUrl?: string;
   hostname: string;
@@ -58,6 +59,7 @@ export async function fetchAnnotationsFeed(): Promise<NoteItem[]> {
   const { data, error } = await supabase
     .from('annotations')
     .select('*')
+    .or('moderation_status.is.null,moderation_status.eq.approved')
     .order('created_at', { ascending: false })
     .limit(30);
 
@@ -90,6 +92,7 @@ export async function fetchAnnotationsFeed(): Promise<NoteItem[]> {
     return {
       id: d.id,
       slug: d.slug,
+      userId: d.user_id,
       author,
       avatarUrl: prof.avatar_url,
       hostname,
@@ -121,6 +124,7 @@ export async function fetchAnnotationBySlug(slugOrId: string): Promise<NoteItem 
   return {
     id: data.id,
     slug: data.slug,
+    userId: data.user_id,
     author: data.user_display_name || '@annotated',
     hostname: data.hostname || 'source',
     sourceUrl: data.url,
@@ -134,4 +138,50 @@ export async function fetchAnnotationBySlug(slugOrId: string): Promise<NoteItem 
     fact_check: data.fact_check,
     createdAt: data.created_at,
   };
+}
+
+/** Pre-screen content via /api/moderate endpoint before publishing */
+export async function screenContent(text: string, mediaUrl?: string): Promise<{ allowed: boolean; reason?: string }> {
+  try {
+    const res = await fetch('https://annotated-repo.vercel.app/api/moderate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text, mediaUrl }),
+    });
+    if (!res.ok) return { allowed: true };
+    const data = await res.json();
+    return { allowed: data.allowed !== false, reason: data.reason };
+  } catch {
+    return { allowed: true };
+  }
+}
+
+/** Submit a UGC report from mobile */
+export async function submitMobileReport(params: {
+  annotationId: string;
+  reason: string;
+  details?: string;
+  authorId?: string;
+}): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const res = await fetch('https://annotated-repo.vercel.app/api/report', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contentType: 'annotation',
+        contentId: params.annotationId,
+        reportedUserId: params.authorId,
+        reason: params.reason,
+        details: params.details || 'Reported from Android mobile app',
+        client: 'mobile',
+      }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      return { ok: false, error: data?.error || 'Failed to submit report' };
+    }
+    return { ok: true };
+  } catch (err: any) {
+    return { ok: false, error: err.message || 'Network error submitting report' };
+  }
 }

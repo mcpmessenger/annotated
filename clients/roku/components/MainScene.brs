@@ -122,6 +122,11 @@ sub init()
     m.lblIdea = m.top.findNode("lblIdea")
     m.lblHundred = m.top.findNode("lblHundred")
     m.lblDown = m.top.findNode("lblDown")
+    m.reportToast = m.top.findNode("reportToast")
+    m.reportToastTimer = m.top.findNode("reportToastTimer")
+    if m.reportToastTimer <> invalid
+        m.reportToastTimer.observeField("fire", "onHideReportToast")
+    end if
 
     m.autoAdvanceDuration = 15  ' seconds to hold text/billboard posts
     m.videoDuration = 90        ' max seconds for video posts
@@ -1186,10 +1191,28 @@ function onKeyEvent(key as String, press as Boolean) as Boolean
             handled = true
         else if key = "OK" or key = "Select"
             if m.focusedEmojiIndex = 6
-                if m.uiState = m.STATE_BUBBLE_OPEN
-                    setUIState(m.STATE_PLAYBACK)
-                else
-                    setUIState(m.STATE_BUBBLE_OPEN)
+                ' Report objectionable content and skip immediately
+                if m.annotations <> invalid and m.currentPlayingCardIndex >= 0 and m.currentPlayingCardIndex < m.annotations.count()
+                    item = m.annotations[m.currentPlayingCardIndex]
+                    if item <> invalid and item.id <> invalid
+                        print "[MainScene] Filing UGC report for annotation: "; item.id
+                        reportTask = createObject("roSGNode", "PostReportTask")
+                        if reportTask <> invalid
+                            reportTask.annotationId = item.id
+                            reportTask.reason = "offensive"
+                            reportTask.details = "Flagged via TV remote"
+                            reportTask.control = "RUN"
+                        end if
+                    end if
+                end if
+
+                ' Show confirmation toast
+                if m.reportToast <> invalid then m.reportToast.visible = true
+                if m.reportToastTimer <> invalid then m.reportToastTimer.control = "start"
+
+                ' Advance immediately past the reported content
+                if m.annotations <> invalid and m.annotations.count() > 0
+                    playAnnotationVideo(m.currentPlayingCardIndex + 1)
                 end if
                 handled = true
             else if m.focusedEmojiIndex = 0
@@ -1297,3 +1320,8 @@ sub onFactCheckResult(event as Object)
         end if
     end if
 end sub
+
+sub onHideReportToast()
+    if m.reportToast <> invalid then m.reportToast.visible = false
+end sub
+

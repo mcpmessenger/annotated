@@ -93,6 +93,57 @@ export async function showAnnotationDetail(
     }
   }
 
+  // Report button (visible for other users' content)
+  const reportBtn = $('#detailReportBtn') as HTMLButtonElement | null;
+  if (reportBtn) {
+    if (!isAuthor && ann.id) {
+      reportBtn.classList.remove('hidden');
+      reportBtn.onclick = async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const choice = prompt(
+          'Report Objectionable Content or Violation:\n1: Involves Minors / Child Safety\n2: Sexual or Explicit\n3: Graphic Violence or Hate\n4: Harassment or Threats\n5: Spam or Misinformation\nEnter number (1-5):',
+          '5'
+        );
+        if (!choice) return;
+        const mapping: Record<string, string> = {
+          '1': 'minors',
+          '2': 'sexual',
+          '3': 'violence',
+          '4': 'harassment',
+          '5': 'spam',
+        };
+        const reason = mapping[choice.trim()] || 'other';
+
+        try {
+          reportBtn.disabled = true;
+          await fetch(`${SITE_URL}/api/report`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contentType: 'annotation',
+              contentId: ann.id,
+              reportedUserId: ann.user_id,
+              reason,
+              details: 'Reported via Chrome Extension',
+              client: 'extension',
+            }),
+          });
+          alert('Report submitted. This content has been flagged for 24-hour review and hidden from your view.');
+          onBackToComposer();
+          if (onDeleted) onDeleted();
+        } catch (err) {
+          alert('Could not submit report. Please try again.');
+        } finally {
+          reportBtn.disabled = false;
+        }
+      };
+    } else {
+      reportBtn.classList.add('hidden');
+      reportBtn.onclick = null;
+    }
+  }
+
   // Quote
   const qEl = $('#detailQuote');
   if (qEl) qEl.textContent = ann.quote || ann.quote_text || 'Annotation';
