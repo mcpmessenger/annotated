@@ -71,6 +71,8 @@ export async function POST(req: NextRequest) {
       isVideoClip = false,
       videoCaptions = "",
       mediaUrl = null,
+      mediaBase64 = null,
+      mediaMimeType = null,
     } = body;
 
     const trimmedQuote = (quote || "").trim();
@@ -99,7 +101,7 @@ export async function POST(req: NextRequest) {
           sourceUrl.includes("vimeo.com") ||
           sourceUrl.includes("tiktok.com")));
 
-    if (!hasGenuineQuote && !isVideo && !mediaUrl && !trimmedCommentary) {
+    if (!hasGenuineQuote && !isVideo && !mediaUrl && !mediaBase64 && !trimmedCommentary) {
       return NextResponse.json(
         { error: "Please highlight text or attach a video clip to fact check." },
         { status: 400, headers: CORS_HEADERS }
@@ -123,6 +125,22 @@ export async function POST(req: NextRequest) {
         : "Annotated clip segment";
 
     if (geminiKey) {
+      let inlineData = mediaBase64;
+      let inlineMime = mediaMimeType || "video/webm";
+
+      if (!inlineData && mediaUrl && typeof mediaUrl === "string") {
+        try {
+          const fetchRes = await fetch(mediaUrl);
+          if (fetchRes.ok) {
+            const buf = await fetchRes.arrayBuffer();
+            if (buf.byteLength < 12 * 1024 * 1024) {
+              inlineData = Buffer.from(buf).toString("base64");
+              inlineMime = fetchRes.headers.get("content-type") || inlineMime;
+            }
+          }
+        } catch (_) {}
+      }
+
       let promptTarget = "";
 
       if (isVideo) {
@@ -131,23 +149,25 @@ Type: Specific Video Clip Segment (${videoTimeRange})
 Source Video: "${sourceTitle || "Online Video"}"
 Video URL: ${sourceUrl}
 Clip Timestamp: ${videoTimeRange}
+${inlineData ? "Attached Video Clip: The user recorded and provided the exact audio/video of this clip. Listen to the speech and view the clip carefully to identify the actual statements made.\n" : ""}
 ${videoCaptions ? `Spoken Dialogue / Captions in this clip: "${videoCaptions}"\n` : ""}
 ${hasGenuineQuote ? `Highlighted Excerpt from clip: "${trimmedQuote}"\n` : ""}
 ${trimmedCommentary ? `Annotation Note / Claim for this clip: "${trimmedCommentary}"\n` : ""}
 
-CRITICAL STRICT RULES - DO NOT VERIFY THE ENTIRE VIDEO:
-1. DO NOT evaluate or verify the entire video, documentary, or overall event!
-2. DO NOT verify whether the video title exists, whether the video is real, or whether the full video/channel is authentic.
-3. You are strictly, exclusively verifying the specific annotated moment / clip segment: ${videoTimeRange}.
-4. If a specific factual claim is spoken or asserted during this clip segment (e.g. statistics, historical assertion, scientific claim, alleged statement or quote), verify whether that specific claim is true, false, misleading, or requires context.
-5. If the clip contains opinion, banter, or unverified assertions that lack empirical backing, return "CONTEXT_NEEDED" or "FALSE" as appropriate.
-6. HEADLINE RULE: In your headline, state the verdict specifically about the clip's claim or segment (e.g., "Clip at ${formatTs(timeStart) || "segment"}: Claim that [...] is false/verified"), NEVER a general confirmation of the whole video or video title.`;
+CRITICAL STRICT RULES - EXCLUSIVELY EVALUATE THIS SPECIFIC VIDEO:
+1. FOCUS EXCLUSIVELY ON THIS VIDEO: You are verifying "${sourceTitle}".
+2. DO NOT confuse this video with any other video, show, or unrelated topic.
+3. NEVER fabricate or hallucinate dialogue from an unrelated video or subject.
+4. If this is a comedy or satire program (e.g. Saturday Night Live / Weekend Update) or political commentary, recognize the comedic/satirical context, distinguish jokes from factual claims, and evaluate any underlying factual claims made about the subject matter.
+5. You are strictly verifying the specific annotated moment / clip segment: ${videoTimeRange}.
+6. HEADLINE RULE: In your headline, state the verdict specifically about the clip's claim or segment (e.g., "Clip at ${formatTs(timeStart) || "segment"}: [...]"), NEVER reviewing the whole channel or an unrelated video.`;
       } else {
         const targetExcerpt = hasGenuineQuote ? trimmedQuote : trimmedCommentary;
         promptTarget = `TARGET TO FACT-CHECK:
 Type: Specific Annotated Web Excerpt / Highlighted Text
 Source Webpage: "${sourceTitle || "Online Page"}"
 Source URL: ${sourceUrl}
+${inlineData ? "Attached Image/Media: The user has attached an image or screenshot for this annotation.\n" : ""}
 Highlighted Excerpt: "${targetExcerpt}"
 ${trimmedCommentary && hasGenuineQuote ? `Annotation Note / Context: "${trimmedCommentary}"\n` : ""}
 
@@ -182,6 +202,17 @@ Respond ONLY with a valid JSON object matching this schema (do not add markdown 
         "gemini-flash-latest"
       ];
 
+      const parts: any[] = [];
+      if (inlineData) {
+        parts.push({
+          inlineData: {
+            mimeType: inlineMime,
+            data: inlineData,
+          },
+        });
+      }
+      parts.push({ text: prompt });
+
       for (const model of candidateModels) {
         try {
           const geminiRes = await fetch(
@@ -190,7 +221,7 @@ Respond ONLY with a valid JSON object matching this schema (do not add markdown 
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
-                contents: [{ parts: [{ text: prompt }] }],
+                contents: [{ parts }],
               }),
             }
           );

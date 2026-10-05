@@ -256,6 +256,19 @@ export function triggerComposerFactCheck(
   }
   onResize(getComposerHeight());
 
+function blobToBase64(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const dataUrl = reader.result as string;
+      const base64 = dataUrl.split(',')[1] || '';
+      resolve(base64);
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
   if (factCheckDebounce) clearTimeout(factCheckDebounce);
   factCheckDebounce = setTimeout(async () => {
     try {
@@ -268,6 +281,15 @@ export function triggerComposerFactCheck(
         effectiveQuote = undefined;
       }
 
+      let clipBase64: string | null = null;
+      let clipMimeType: string | null = null;
+      if (composerState.videoClipBlob && composerState.videoClipBlob.size < 12 * 1024 * 1024) {
+        try {
+          clipBase64 = await blobToBase64(composerState.videoClipBlob);
+          clipMimeType = composerState.videoClipBlob.type || 'video/webm';
+        } catch (_) {}
+      }
+
       const data = await callFactCheckApi({
         quote: effectiveQuote,
         commentary: comment || undefined,
@@ -277,8 +299,10 @@ export function triggerComposerFactCheck(
         videoStartTs: startTs,
         videoEndTs: endTs,
         isVideoClip: hasVideoClip || isVideo,
-        videoCaptions: pageCtx.video_captions || undefined,
+        videoCaptions: clipBase64 ? undefined : (pageCtx.video_captions || undefined),
         mediaUrl: composerState.mediaDataUrl ?? null,
+        mediaBase64: clipBase64,
+        mediaMimeType: clipMimeType,
       });
 
       if (composerFactCheckBadge) {

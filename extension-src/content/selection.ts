@@ -74,13 +74,17 @@ export function getMediaDuration(): number | null {
 export function getActiveVideoCaptions(startSeconds?: number | null, endSeconds?: number | null): string {
   // 1. Check HTML5 video text tracks for cues within the clip window
   const v = getActiveVideoElement();
+  const vState = getActiveVideoState();
+  const tStart = startSeconds != null ? startSeconds : (vState.currentTime > 0 ? Math.max(0, vState.currentTime - 2) : null);
+  const tEnd = endSeconds != null ? endSeconds : (tStart != null ? tStart + 15 : null);
+
   if (v && v.textTracks) {
-    const sStart = startSeconds != null ? Math.max(0, startSeconds - 2) : null;
-    const sEnd = startSeconds != null ? (endSeconds != null ? endSeconds + 2 : startSeconds + 17) : null;
+    const sStart = tStart != null ? Math.max(0, tStart - 2) : null;
+    const sEnd = tEnd != null ? tEnd + 2 : null;
 
     for (let i = 0; i < v.textTracks.length; i++) {
       const track = v.textTracks[i];
-      // If time window specified, scan all cues on track
+      // If time window specified, scan cues on track
       if (sStart != null && sEnd != null && track.cues && track.cues.length > 0) {
         const cueTexts: string[] = [];
         for (let j = 0; j < track.cues.length; j++) {
@@ -108,22 +112,42 @@ export function getActiveVideoCaptions(startSeconds?: number | null, endSeconds?
     }
   }
 
-  // 2. Check YouTube transcript segments if open on page
-  const transcriptSegments = Array.from(document.querySelectorAll('ytd-transcript-segment-renderer'));
-  if (transcriptSegments.length > 0) {
-    const texts: string[] = [];
-    transcriptSegments.forEach((seg) => {
-      const textEl = seg.querySelector('.segment-text');
-      if (textEl && textEl.textContent) texts.push(textEl.textContent.trim());
-    });
-    if (texts.length > 0) return texts.slice(0, 5).join(' ');
-  }
-
-  // 3. Check YouTube captions currently on screen
+  // 2. Check YouTube captions currently on screen (most direct & accurate for current playback)
   const ytSegments = Array.from(document.querySelectorAll('.ytp-caption-segment, .caption-visual-line'));
   if (ytSegments.length > 0) {
     const text = ytSegments.map((s) => s.textContent?.trim()).filter(Boolean).join(' ');
     if (text) return text;
+  }
+
+  // 3. Check YouTube transcript segments ONLY if the transcript panel is actively open and visible
+  const transcriptPanel = document.querySelector(
+    'ytd-engagement-panel-section-list-renderer[target-id="engagement-panel-searchable-transcript"]:not([visibility="ENGAGEMENT_PANEL_VISIBILITY_HIDDEN"]), #panels ytd-transcript-renderer'
+  );
+  if (transcriptPanel && tStart != null && tEnd != null) {
+    const segments = Array.from(transcriptPanel.querySelectorAll('ytd-transcript-segment-renderer'));
+    const matchedTexts: string[] = [];
+    for (const seg of segments) {
+      const tsEl = seg.querySelector('.segment-timestamp');
+      const textEl = seg.querySelector('.segment-text');
+      if (!textEl || !textEl.textContent) continue;
+
+      const tsStr = (tsEl?.textContent || '').trim();
+      const parts = tsStr.split(':').map((x) => parseInt(x, 10));
+      let sec: number | null = null;
+      if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
+        sec = parts[0] * 60 + parts[1];
+      } else if (parts.length === 3 && !isNaN(parts[0]) && !isNaN(parts[1]) && !isNaN(parts[2])) {
+        sec = parts[0] * 3600 + parts[1] * 60 + parts[2];
+      }
+
+      // Only include segments strictly within the specified clip window
+      if (sec != null && sec >= tStart - 2 && sec <= tEnd + 2) {
+        matchedTexts.push(textEl.textContent.trim());
+      }
+    }
+    if (matchedTexts.length > 0) {
+      return matchedTexts.join(' ');
+    }
   }
 
   return '';

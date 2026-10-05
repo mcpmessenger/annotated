@@ -997,6 +997,18 @@
       }
     }
     onResize(getComposerHeight());
+    function blobToBase64(blob) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const dataUrl = reader.result;
+          const base64 = dataUrl.split(",")[1] || "";
+          resolve(base64);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+    }
     if (factCheckDebounce) clearTimeout(factCheckDebounce);
     factCheckDebounce = setTimeout(async () => {
       try {
@@ -1005,6 +1017,15 @@
         let effectiveQuote = quote ? quote.trim() : void 0;
         if (effectiveQuote && pageCtx.title && effectiveQuote.toLowerCase() === pageCtx.title.trim().toLowerCase()) {
           effectiveQuote = void 0;
+        }
+        let clipBase64 = null;
+        let clipMimeType = null;
+        if (composerState.videoClipBlob && composerState.videoClipBlob.size < 12 * 1024 * 1024) {
+          try {
+            clipBase64 = await blobToBase64(composerState.videoClipBlob);
+            clipMimeType = composerState.videoClipBlob.type || "video/webm";
+          } catch (_) {
+          }
         }
         const data = await callFactCheckApi({
           quote: effectiveQuote,
@@ -1015,8 +1036,10 @@
           videoStartTs: startTs,
           videoEndTs: endTs,
           isVideoClip: hasVideoClip || isVideo,
-          videoCaptions: pageCtx.video_captions || void 0,
-          mediaUrl: composerState.mediaDataUrl ?? null
+          videoCaptions: clipBase64 ? void 0 : pageCtx.video_captions || void 0,
+          mediaUrl: composerState.mediaDataUrl ?? null,
+          mediaBase64: clipBase64,
+          mediaMimeType: clipMimeType
         });
         if (composerFactCheckBadge) {
           composerFactCheckBadge.textContent = (data.verdict || "ANALYZED").replace("_", " ");

@@ -17,6 +17,8 @@ export interface FactCheckRequestPayload {
   isVideoClip?: boolean;
   videoCaptions?: string;
   mediaUrl?: string | null;
+  mediaBase64?: string | null;
+  mediaMimeType?: string | null;
 }
 
 export async function callFactCheckApi(payload: FactCheckRequestPayload): Promise<FactCheckResult> {
