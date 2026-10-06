@@ -32,4 +32,8 @@ ROKU_PACKAGING_CREDENTIALS.md
 ffmpeg.exe
 media_cache/
 out/
-*.md
+!README.md
+!CHANGELOG.md
+!AGENTS.md
+!CLAUDE.md
+
