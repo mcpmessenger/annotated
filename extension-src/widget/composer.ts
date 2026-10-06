@@ -4,7 +4,7 @@ import { $, $$ } from '../shared/dom';
 import { formatSeconds, parseFormattedTime, escapeHtml } from '../shared/utils';
 import { publishAnnotation } from './publish';
 import { callFactCheckApi } from './factcheck';
-import type { CurrentUser, PageContext } from '../types/annotation';
+import type { CurrentUser, PageContext, FactCheckResult } from '../types/annotation';
 
 export interface ComposerState {
   quote: string;
@@ -17,6 +17,7 @@ export interface ComposerState {
   videoEndTs: number | null;
   recordedAudioBlob: Blob | null;
   currentMediaTimestamp: number | null;
+  factCheckResult: FactCheckResult | null;
 }
 
 export const composerState: ComposerState = {
@@ -30,6 +31,7 @@ export const composerState: ComposerState = {
   videoEndTs: null,
   recordedAudioBlob: null,
   currentMediaTimestamp: null,
+  factCheckResult: null,
 };
 
 let moduleGetPage: (() => PageContext) | null = null;
@@ -304,6 +306,8 @@ function blobToBase64(blob: Blob): Promise<string> {
         mediaBase64: clipBase64,
         mediaMimeType: clipMimeType,
       });
+
+      composerState.factCheckResult = data;
 
       if (composerFactCheckBadge) {
         composerFactCheckBadge.textContent = (data.verdict || 'ANALYZED').replace('_', ' ');
@@ -1143,6 +1147,7 @@ export function initComposer(
       currentMediaTimestamp: composerState.currentMediaTimestamp,
       page: getPage(),
       currentUser: user,
+      factCheck: composerState.factCheckResult,
     };
 
     await publishAnnotation(
@@ -1163,6 +1168,7 @@ export function initComposer(
         });
         composerState.intent = null;
         composerState.currentMediaTimestamp = null;
+        composerState.factCheckResult = null;
         publishBtn.textContent = 'Publish';
         updatePublishButton();
         if (statusEl) {

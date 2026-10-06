@@ -1,12 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
 
 export const runtime = "nodejs";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type, Authorization",
 };
+
+const supabaseUrl =
+  process.env.NEXT_PUBLIC_SUPABASE_URL || "https://dajadbvlldrmgzztdksn.supabase.co";
+const supabaseKey =
+  process.env.SUPABASE_SERVICE_ROLE_KEY ||
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRhamFkYnZsbGRybWd6enRka3NuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk1ODYwMTcsImV4cCI6MjEwNTE2MjAxN30.ZGteNtShkBErPckuMGX4tWMn0AtgU_THFSI37Wgd-eU";
+
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 export async function OPTIONS() {
   return new NextResponse(null, { status: 204, headers: CORS_HEADERS });
@@ -57,10 +67,155 @@ function extractTimestampRangeFromContext(
   return { start: null, end: null };
 }
 
+// Helper to query existing fact check from DB or Supabase storage
+async function getPersistedFactCheck(id?: string | null, slug?: string | null) {
+  if (!id && !slug) return null;
+
+  // 1. Try querying public.fact_checks table
+  try {
+    const query = supabase.from("fact_checks").select("*");
+    if (id && slug) {
+      query.or(`annotation_id.eq.${id},annotation_slug.eq.${slug}`);
+    } else if (id) {
+      query.eq("annotation_id", id);
+    } else if (slug) {
+      query.eq("annotation_slug", slug);
+    }
+    const { data, error } = await query.order("updated_at", { ascending: false }).limit(1).maybeSingle();
+    if (!error && data && data.verdict) {
+      return {
+        verdict: data.verdict,
+        headline: data.headline,
+        explanation: data.explanation,
+        confidence: data.confidence,
+        timestampAnalysis: data.timestamp_analysis,
+        sources: data.sources || [],
+        rechecked: data.rechecked || false,
+        cached: true,
+      };
+    }
+  } catch (_) {}
+
+  // 2. Fallback to Supabase Storage public JSON
+  const keysToTry = [id, slug].filter(Boolean) as string[];
+  for (const k of keysToTry) {
+    try {
+      const res = await fetch(`${supabaseUrl}/storage/v1/object/public/annotation-media/fc_${k}.json`, {
+        cache: "no-store",
+      });
+      if (res.ok) {
+        const json = await res.json();
+        if (json && json.verdict) {
+          return {
+            ...json,
+            cached: true,
+          };
+        }
+      }
+    } catch (_) {}
+  }
+
+  return null;
+}
+
+// Helper to save fact check to DB and Supabase storage
+async function persistFactCheckData(params: {
+  annotationId?: string | null;
+  slug?: string | null;
+  sourceUrl?: string | null;
+  claimText?: string | null;
+  verdictData: any;
+  userId?: string | null;
+  isRecheck?: boolean;
+}) {
+  const { annotationId, slug, sourceUrl, claimText, verdictData, userId, isRecheck } = params;
+  if (!annotationId && !slug) return;
+
+  const row = {
+    annotation_id: annotationId || null,
+    annotation_slug: slug || null,
+    target_url: sourceUrl || null,
+    claim_text: claimText ? claimText.slice(0, 1000) : null,
+    verdict: verdictData.verdict,
+    headline: verdictData.headline || "",
+    explanation: verdictData.explanation || "",
+    confidence: verdictData.confidence || "HIGH",
+    timestamp_analysis: verdictData.timestampAnalysis || null,
+    sources: verdictData.sources || [],
+    rechecked: !!isRecheck,
+    checked_by: userId || null,
+    updated_at: new Date().toISOString(),
+  };
+
+  // Try DB upsert
+  try {
+    await supabase.from("fact_checks").upsert(row, {
+      onConflict: annotationId ? "annotation_id" : "annotation_slug",
+    });
+  } catch (err) {
+    console.warn("[FactCheck] DB upsert notice:", err);
+  }
+
+  // Try Storage file upload
+  try {
+    const payload = JSON.stringify({
+      ...verdictData,
+      rechecked: !!isRecheck,
+      updated_at: row.updated_at,
+    });
+    const headers: Record<string, string> = {
+      apikey: supabaseKey,
+      Authorization: `Bearer ${supabaseKey}`,
+      "Content-Type": "application/json",
+      "x-upsert": "true",
+    };
+    if (annotationId) {
+      await fetch(`${supabaseUrl}/storage/v1/object/annotation-media/fc_${annotationId}.json`, {
+        method: "POST",
+        headers,
+        body: payload,
+      });
+    }
+    if (slug) {
+      await fetch(`${supabaseUrl}/storage/v1/object/annotation-media/fc_${slug}.json`, {
+        method: "POST",
+        headers,
+        body: payload,
+      });
+    }
+  } catch (err) {
+    console.warn("[FactCheck] Storage upload notice:", err);
+  }
+}
+
+// GET /api/ai/factcheck?id=...&slug=...
+export async function GET(req: NextRequest) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const id = searchParams.get("id");
+    const slug = searchParams.get("slug");
+
+    if (!id && !slug) {
+      return NextResponse.json({ error: "Missing id or slug" }, { status: 400, headers: CORS_HEADERS });
+    }
+
+    const cached = await getPersistedFactCheck(id, slug);
+    if (cached) {
+      return NextResponse.json(cached, { headers: CORS_HEADERS });
+    }
+
+    return NextResponse.json({ cached: false }, { status: 404, headers: CORS_HEADERS });
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message || "Failed to fetch fact check" }, { status: 500, headers: CORS_HEADERS });
+  }
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const {
+      annotationId = null,
+      slug = null,
       quote = "",
       commentary = "",
       sourceUrl = "",
@@ -73,7 +228,32 @@ export async function POST(req: NextRequest) {
       mediaUrl = null,
       mediaBase64 = null,
       mediaMimeType = null,
+      forceRecheck = false,
+      userId = null,
+      factCheck = null,
     } = body;
+
+    // Direct save from composer publishing
+    if (factCheck && (annotationId || slug)) {
+      await persistFactCheckData({
+        annotationId,
+        slug,
+        sourceUrl,
+        claimText: quote || commentary,
+        verdictData: factCheck,
+        userId,
+        isRecheck: false,
+      });
+      return NextResponse.json({ saved: true, ...factCheck }, { headers: CORS_HEADERS });
+    }
+
+    // Cache check: Avoid double work on Gemini endpoint if already verified and not forcing recheck
+    if (!forceRecheck && (annotationId || slug)) {
+      const existing = await getPersistedFactCheck(annotationId, slug);
+      if (existing) {
+        return NextResponse.json(existing, { headers: CORS_HEADERS });
+      }
+    }
 
     const trimmedQuote = (quote || "").trim();
     const trimmedTitle = (sourceTitle || "").trim();
@@ -123,6 +303,8 @@ export async function POST(req: NextRequest) {
         : timeStart != null
         ? `${formatTs(timeStart)} (${timeStart}s)`
         : "Annotated clip segment";
+
+    let verdictResult: any = null;
 
     if (geminiKey) {
       let inlineData = mediaBase64;
@@ -231,7 +413,6 @@ Respond ONLY with a valid JSON object matching this schema (do not add markdown 
             const partWithText = gData?.candidates?.[0]?.content?.parts?.find((p: any) => p.text && !p.thought);
             let rawText = partWithText?.text || gData?.candidates?.[0]?.content?.parts?.[0]?.text || "";
 
-            // Strip markdown code fences if present (```json ... ```)
             rawText = rawText.replace(/```(?:json)?/gi, "").replace(/```/g, "").trim();
 
             const jsonStart = rawText.indexOf("{");
@@ -242,7 +423,8 @@ Respond ONLY with a valid JSON object matching this schema (do not add markdown 
 
             const parsed = JSON.parse(rawText);
             parsed.geminiConfigured = true;
-            return NextResponse.json(parsed, { headers: CORS_HEADERS });
+            verdictResult = parsed;
+            break;
           } else {
             const errText = await geminiRes.text();
             console.warn(`[Gemini FactCheck] Model ${model} returned non-OK:`, geminiRes.status, errText);
@@ -254,30 +436,46 @@ Respond ONLY with a valid JSON object matching this schema (do not add markdown 
     }
 
     // Fallback heuristic response if API call fails or no API key
-    let headline = "";
-    let explanation = "";
+    if (!verdictResult) {
+      let headline = "";
+      let explanation = "";
 
-    if (isVideo) {
-      headline = `Clip at ${videoTimeRange}: Fact check for annotated claim`;
-      explanation = `Evaluating the specific statement or demonstration in this video clip (${videoTimeRange}). Verification focuses exclusively on the annotated excerpt rather than the entire video.`;
-    } else {
-      const excerpt = hasGenuineQuote ? trimmedQuote : trimmedCommentary || "Highlighted excerpt";
-      const snippet = excerpt.length > 60 ? `${excerpt.slice(0, 57)}...` : excerpt;
-      headline = `Fact check for excerpt: "${snippet}"`;
-      explanation = `Evaluating the factual accuracy of the specific highlighted statement from ${sourceTitle || "the page"}. Verification is strictly scoped to this excerpt.`;
+      if (isVideo) {
+        headline = `Clip at ${videoTimeRange}: Fact check for annotated claim`;
+        explanation = `Evaluating the specific statement or demonstration in this video clip (${videoTimeRange}). Verification focuses exclusively on the annotated excerpt rather than the entire video.`;
+      } else {
+        const excerpt = hasGenuineQuote ? trimmedQuote : trimmedCommentary || "Highlighted excerpt";
+        const snippet = excerpt.length > 60 ? `${excerpt.slice(0, 57)}...` : excerpt;
+        headline = `Fact check for excerpt: "${snippet}"`;
+        explanation = `Evaluating the factual accuracy of the specific highlighted statement from ${sourceTitle || "the page"}. Verification is strictly scoped to this excerpt.`;
+      }
+
+      verdictResult = {
+        verdict: "CONTEXT_NEEDED",
+        headline,
+        explanation,
+        confidence: "MEDIUM",
+        timestampAnalysis: isVideo ? `Anchored at video clip range ${videoTimeRange}.` : "N/A",
+        sources: sourceUrl ? [{ title: sourceTitle || "Source Link", url: sourceUrl }] : [],
+        geminiConfigured: !!geminiKey,
+      };
     }
 
-    const fallbackVerdict = {
-      verdict: "CONTEXT_NEEDED",
-      headline,
-      explanation,
-      confidence: "MEDIUM",
-      timestampAnalysis: isVideo ? `Anchored at video clip range ${videoTimeRange}.` : "N/A",
-      sources: sourceUrl ? [{ title: sourceTitle || "Source Link", url: sourceUrl }] : [],
-      geminiConfigured: !!geminiKey,
-    };
+    // Persist result so subsequent requests from website or extension reuse it
+    await persistFactCheckData({
+      annotationId,
+      slug,
+      sourceUrl,
+      claimText: trimmedQuote || trimmedCommentary,
+      verdictData: verdictResult,
+      userId,
+      isRecheck: !!forceRecheck,
+    });
 
-    return NextResponse.json(fallbackVerdict, { headers: CORS_HEADERS });
+    verdictResult.rechecked = !!forceRecheck;
+    verdictResult.cached = false;
+
+    return NextResponse.json(verdictResult, { headers: CORS_HEADERS });
   } catch (error: any) {
     return NextResponse.json(
       { error: error.message || "Failed to execute fact check" },

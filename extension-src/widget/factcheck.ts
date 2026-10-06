@@ -7,6 +7,8 @@ import { showAuth } from './auth';
 import type { Annotation, FactCheckResult, CurrentUser } from '../types/annotation';
 
 export interface FactCheckRequestPayload {
+  annotationId?: string;
+  slug?: string;
   quote?: string;
   commentary?: string;
   sourceUrl?: string;
@@ -19,6 +21,8 @@ export interface FactCheckRequestPayload {
   mediaUrl?: string | null;
   mediaBase64?: string | null;
   mediaMimeType?: string | null;
+  forceRecheck?: boolean;
+  userId?: string | null;
 }
 
 export async function callFactCheckApi(payload: FactCheckRequestPayload): Promise<FactCheckResult> {
@@ -87,6 +91,7 @@ export function wireFactCheck(
   const ft = $('#detailFactCheckText');
   const fbadge = $('#detailFactCheckBadge');
   const closeBtn = $('#detailFactCheckCloseBtn');
+  const recheckBtn = $('#detailFactCheckRecheckBtn');
 
   const hasMedia = !!(ann.media_url || ann.audio_url);
 
@@ -95,17 +100,17 @@ export function wireFactCheck(
       const verdict = (cachedData?.verdict || '').toUpperCase();
       if (verdict === 'VERIFIED') {
         factBtn.innerHTML = '<span style="color:#22c55e; font-weight:800;">✓</span> <span style="font-size:10.5px; font-weight:700; color:#15803d;">Verified</span>';
-        factBtn.setAttribute('data-tooltip', isOpen ? 'Hide Fact Check details' : 'Show Fact Check details');
+        factBtn.setAttribute('data-tooltip', isOpen ? 'Hide Fact Check details' : 'View Fact Check details');
         factBtn.style.background = 'rgba(34, 197, 94, 0.12)';
         factBtn.style.borderColor = '#22c55e';
       } else if (verdict === 'FALSE' || verdict === 'MISLEADING') {
         factBtn.innerHTML = '<span style="color:#ef4444; font-weight:800;">✕</span> <span style="font-size:10.5px; font-weight:700; color:#b91c1c;">False</span>';
-        factBtn.setAttribute('data-tooltip', isOpen ? 'Hide Fact Check details' : 'Show Fact Check details');
+        factBtn.setAttribute('data-tooltip', isOpen ? 'Hide Fact Check details' : 'View Fact Check details');
         factBtn.style.background = 'rgba(239, 68, 68, 0.12)';
         factBtn.style.borderColor = '#ef4444';
       } else if (verdict === 'CONTEXT_NEEDED') {
         factBtn.innerHTML = '<span style="color:#eab308; font-weight:800;">⚠️</span> <span style="font-size:10.5px; font-weight:700; color:#a16207;">Context</span>';
-        factBtn.setAttribute('data-tooltip', isOpen ? 'Hide Fact Check details' : 'Show Fact Check details');
+        factBtn.setAttribute('data-tooltip', isOpen ? 'Hide Fact Check details' : 'View Fact Check details');
         factBtn.style.background = 'rgba(234, 179, 8, 0.12)';
         factBtn.style.borderColor = '#eab308';
       } else {
@@ -175,44 +180,43 @@ export function wireFactCheck(
     updateBtnState(false);
   }
 
-  // Preload from cloud storage if not cached locally
+  // Preload from server API and cloud storage if not cached locally
   if (!cachedData && (ann.id || ann.slug)) {
-    const keysToTry = [ann.id, ann.slug].filter(Boolean) as string[];
-    for (const k of keysToTry) {
-      fetch(`${SUPABASE_CONFIG.url}/storage/v1/object/public/annotation-media/fc_${k}.json`)
-        .then(async (r) => {
-          if (r.ok) {
-            const data = await r.json();
-            if (data?.verdict && !cachedData) {
-              cachedData = data;
-              try {
-                localStorage.setItem(cacheKey, JSON.stringify(data));
-              } catch (_) {}
-              if (typeof chrome !== 'undefined' && chrome.storage?.local) {
-                const payload: Record<string, string> = {};
-                if (ann.id) payload[`fc_${ann.id}`] = data.verdict;
-                if (ann.slug) payload[`fc_${ann.slug}`] = data.verdict;
-                chrome.storage.local.set(payload);
-              }
-              renderData(data, true);
+    const fetchId = ann.id || '';
+    const fetchSlug = ann.slug || '';
+    fetch(`${FACTCHECK_API_URL}?id=${fetchId}&slug=${fetchSlug}`)
+      .then(async (r) => {
+        if (r.ok) {
+          const data = await r.json();
+          if (data?.verdict && !cachedData) {
+            cachedData = data;
+            try {
+              localStorage.setItem(cacheKey, JSON.stringify(data));
+            } catch (_) {}
+            if (typeof chrome !== 'undefined' && chrome.storage?.local) {
+              const payload: Record<string, string> = {};
+              if (ann.id) payload[`fc_${ann.id}`] = data.verdict;
+              if (ann.slug) payload[`fc_${ann.slug}`] = data.verdict;
+              chrome.storage.local.set(payload);
             }
+            renderData(data, true);
           }
-        })
-        .catch(() => {});
-    }
+        }
+      })
+      .catch(() => {});
   }
 
-  let hasExecuted = false;
-  const runFactCheck = async () => {
-    if (cachedData) {
+  let isExecuting = false;
+  const runFactCheck = async (forceRecheck = false) => {
+    if (!forceRecheck && cachedData) {
       renderData(cachedData);
       return;
     }
-    if (hasExecuted) return;
-    hasExecuted = true;
+    if (isExecuting) return;
+    isExecuting = true;
 
     if (fbadge) {
-      fbadge.textContent = 'ANALYZING';
+      fbadge.textContent = forceRecheck ? 'RECHECKING' : 'ANALYZING';
       fbadge.style.color = 'var(--muted)';
     }
     if (ft) ft.textContent = 'Analyzing claim and context with Google Gemini...';
@@ -239,7 +243,11 @@ export function wireFactCheck(
         effectiveQuote = '';
       }
 
+      const user = getUser ? getUser() : null;
+
       const data = await callFactCheckApi({
+        annotationId: ann.id,
+        slug: ann.slug,
         quote: effectiveQuote || undefined,
         commentary: commentToUse || undefined,
         sourceUrl: urlToUse,
@@ -250,7 +258,10 @@ export function wireFactCheck(
         isVideoClip: isVideo,
         videoCaptions: ann.video_captions || undefined,
         mediaUrl: ann.media_url,
+        forceRecheck: forceRecheck,
+        userId: user?.id,
       });
+
       cachedData = data;
       renderData(data);
       if (typeof window !== 'undefined' && (ann.id || ann.slug)) {
@@ -264,30 +275,6 @@ export function wireFactCheck(
         if (ann.slug) payload[`fc_${ann.slug}`] = data.verdict;
         chrome.storage.local.set(payload);
       }
-
-      // Persist to Supabase cloud storage for all users and extensions
-      try {
-        const payload = JSON.stringify(data);
-        const headers = {
-          apikey: SUPABASE_CONFIG.anonKey,
-          Authorization: `Bearer ${SUPABASE_CONFIG.anonKey}`,
-          'Content-Type': 'application/json',
-        };
-        if (ann.id) {
-          fetch(`${SUPABASE_CONFIG.url}/storage/v1/object/annotation-media/fc_${ann.id}.json`, {
-            method: 'POST',
-            headers,
-            body: payload,
-          }).catch(() => {});
-        }
-        if (ann.slug) {
-          fetch(`${SUPABASE_CONFIG.url}/storage/v1/object/annotation-media/fc_${ann.slug}.json`, {
-            method: 'POST',
-            headers,
-            body: payload,
-          }).catch(() => {});
-        }
-      } catch (_) {}
     } catch (err: unknown) {
       if (ft) {
         ft.textContent = `Fact-check error: ${err instanceof Error ? err.message : String(err)}`;
@@ -296,10 +283,12 @@ export function wireFactCheck(
         fbadge.textContent = 'NOTICE';
         fbadge.style.color = '#eab308';
       }
+    } finally {
+      isExecuting = false;
     }
   };
 
-  // Toggle button click (⚡)
+  // Toggle button click (⚡ or Verified)
   if (factBtn) {
     factBtn.onclick = (e) => {
       e.stopPropagation();
@@ -318,8 +307,21 @@ export function wireFactCheck(
         }
         fb.style.display = 'block';
         updateBtnState(true);
-        runFactCheck();
+        runFactCheck(false);
       }
+    };
+  }
+
+  // Recheck button click (🔄)
+  if (recheckBtn) {
+    recheckBtn.onclick = (e) => {
+      e.stopPropagation();
+      const user = getUser ? getUser() : null;
+      if (!user) {
+        showAuth('Sign in with Google to re-verify this claim with Gemini AI.');
+        return;
+      }
+      runFactCheck(true);
     };
   }
 

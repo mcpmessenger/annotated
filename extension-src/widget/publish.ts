@@ -2,9 +2,9 @@
 
 import { $ } from '../shared/dom';
 import { supabase } from '../shared/supabase';
-import { SUPABASE_CONFIG, SITE_URL } from '../shared/config';
+import { SUPABASE_CONFIG, SITE_URL, FACTCHECK_API_URL } from '../shared/config';
 import { pageKey } from '../shared/utils';
-import type { Annotation, CurrentUser, PageContext } from '../types/annotation';
+import type { Annotation, CurrentUser, PageContext, FactCheckResult } from '../types/annotation';
 
 export interface PublishPayload {
   comment: string;
@@ -20,6 +20,7 @@ export interface PublishPayload {
   currentMediaTimestamp: number | null;
   page: PageContext;
   currentUser: CurrentUser;
+  factCheck?: FactCheckResult | null;
 }
 
 export async function publishAnnotation(
@@ -177,6 +178,35 @@ export async function publishAnnotation(
   const realId = savedRow?.id || crypto.randomUUID();
   const realSlug = savedRow?.slug || realId;
   const localAnnotation: Annotation = { ...annotation, id: realId, slug: realSlug };
+
+  // If this annotation was fact-checked in composer, persist to backend and local storage
+  if (payload.factCheck) {
+    const fcData = payload.factCheck;
+    fetch(FACTCHECK_API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        annotationId: realId,
+        slug: realSlug,
+        factCheck: fcData,
+        sourceUrl: publishUrl,
+        quote: safeQuote,
+        commentary: safeComment,
+        userId: payload.currentUser.id,
+      }),
+    }).catch(() => {});
+
+    try {
+      localStorage.setItem(`annotated_fc_${realId}`, JSON.stringify(fcData));
+      localStorage.setItem(`annotated_fc_${realSlug}`, JSON.stringify(fcData));
+      if (typeof chrome !== 'undefined' && chrome.storage?.local && fcData.verdict) {
+        chrome.storage.local.set({
+          [`fc_${realId}`]: fcData.verdict,
+          [`fc_${realSlug}`]: fcData.verdict,
+        });
+      }
+    } catch (_) {}
+  }
 
   // Save to local storage
   const key = pageKey(publishUrl);

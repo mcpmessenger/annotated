@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { MessageSquare, Trash2, Sparkles, Share2, CheckCircle2, AlertTriangle, XCircle, Info, ExternalLink, ChevronDown, ChevronUp } from "lucide-react";
+import { MessageSquare, Trash2, Sparkles, Share2, CheckCircle2, AlertTriangle, XCircle, Info, ExternalLink, ChevronDown, ChevronUp, RefreshCw } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { Annotation } from "@/lib/types";
 import { ReactionRow } from "./ReactionRow";
@@ -53,8 +53,10 @@ export function AnnotationCard({
             setIsFactCheckMinimized(minCached === "true");
             setShowFactCheck(true);
           }
-        } else if (annotation.id) {
-          fetch(`https://dajadbvlldrmgzztdksn.supabase.co/storage/v1/object/public/annotation-media/fc_${annotation.id}.json`)
+        } else if (annotation.id || annotation.slug) {
+          const fetchId = annotation.id || "";
+          const fetchSlug = annotation.slug || "";
+          fetch(`/api/ai/factcheck?id=${fetchId}&slug=${fetchSlug}`)
             .then((r) => (r.ok ? r.json() : null))
             .then((data) => {
               if (data?.verdict) {
@@ -71,11 +73,9 @@ export function AnnotationCard({
         }
       } catch (e) {}
     }
-  }, [annotation?.id]);
+  }, [annotation?.id, annotation?.slug]);
 
-
-
-  const executeFactCheck = async (e?: React.MouseEvent) => {
+  const executeFactCheck = async (e?: React.MouseEvent, forceRecheck = false) => {
     if (e) e.stopPropagation();
     setShowFactCheck(true);
     setIsFactCheckMinimized(false);
@@ -100,12 +100,16 @@ export function AnnotationCard({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          annotationId: annotation.id,
+          slug: annotation.slug,
           quote: quoteToUse || undefined,
           commentary: commentToUse || undefined,
           sourceUrl: urlToUse,
           sourceTitle: annotation.sourceTitle,
           mediaUrl: annotation.media_url,
           isVideoClip: isVideo,
+          forceRecheck: forceRecheck,
+          userId: currentUserId || undefined,
         }),
       });
       const data = await res.json();
@@ -114,15 +118,6 @@ export function AnnotationCard({
         try {
           localStorage.setItem(`annotated_factcheck_${annotation.id}`, JSON.stringify(data));
           localStorage.setItem(`annotated_factcheck_minimized_${annotation.id}`, "false");
-          fetch(`https://dajadbvlldrmgzztdksn.supabase.co/storage/v1/object/annotation-media/fc_${annotation.id}.json`, {
-            method: "POST",
-            headers: {
-              apikey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRhamFkYnZsbGRybWd6enRka3NuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk1ODYwMTcsImV4cCI6MjEwNTE2MjAxN30.ZGteNtShkBErPckuMGX4tWMn0AtgU_THFSI37Wgd-eU",
-              Authorization: "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRhamFkYnZsbGRybWd6enRka3NuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk1ODYwMTcsImV4cCI6MjEwNTE2MjAxN30.ZGteNtShkBErPckuMGX4tWMn0AtgU_THFSI37Wgd-eU",
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify(data),
-          }).catch(() => {});
         } catch (err) {}
       }
     } catch (err) {
@@ -163,6 +158,21 @@ export function AnnotationCard({
     }
 
     executeFactCheck(e);
+  };
+
+  const handleRecheck = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!currentUserId) {
+      if (confirm("Sign in with Google to re-verify this claim with Gemini AI?")) {
+        await supabase.auth.signInWithOAuth({
+          provider: "google",
+          options: { redirectTo: window.location.href }
+        });
+      }
+      return;
+    }
+
+    executeFactCheck(e, true);
   };
 
   useEffect(() => {
@@ -550,6 +560,18 @@ export function AnnotationCard({
                     </span>
                   )}
 
+                  <Tooltip content={currentUserId ? "Re-run fact check with Google Gemini" : "Sign in to re-verify this claim"} position="top">
+                    <button
+                      type="button"
+                      onClick={handleRecheck}
+                      disabled={factCheckLoading}
+                      className="text-[hsl(var(--text-muted))] hover:text-[hsl(var(--foreground))] text-xs font-semibold px-2 py-0.5 rounded border border-[hsl(var(--border))] hover:bg-[hsl(var(--border))] transition-colors cursor-pointer flex items-center gap-1"
+                    >
+                      <RefreshCw size={11} className={factCheckLoading ? "animate-spin" : ""} />
+                      <span>Recheck</span>
+                    </button>
+                  </Tooltip>
+
                   <Tooltip content="Minimize Fact Check" position="top">
                     <button
                       type="button"
@@ -613,8 +635,8 @@ export function AnnotationCard({
                 ? "Analyzing with Gemini AI..."
                 : factCheckData
                 ? isFactCheckMinimized
-                  ? "Show Fact Check"
-                  : "Hide Fact Check"
+                  ? "View Fact Check details"
+                  : "Hide Fact Check details"
                 : "Fact Check with Gemini AI"
             }
             position="top"
@@ -627,17 +649,29 @@ export function AnnotationCard({
                   ? "border-emerald-500/50 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20"
                   : factCheckData?.verdict === "FALSE" || factCheckData?.verdict === "MISLEADING"
                   ? "border-red-500/50 text-red-600 dark:text-red-400 bg-red-500/10 hover:bg-red-500/20"
-                  : "border-amber-500/50 text-amber-600 dark:text-amber-400 bg-amber-500/10 hover:bg-amber-500/20"
+                  : factCheckData
+                  ? "border-amber-500/50 text-amber-600 dark:text-amber-400 bg-amber-500/10 hover:bg-amber-500/20"
+                  : "border-[hsl(var(--border))] text-[hsl(var(--text-muted))] hover:text-[hsl(var(--foreground))] hover:border-[hsl(var(--foreground))]"
               }`}
             >
-              <span className="text-xs leading-none">⚡</span>
+              <span className="text-xs leading-none">
+                {factCheckData?.verdict === "VERIFIED"
+                  ? "✓"
+                  : factCheckData?.verdict === "FALSE" || factCheckData?.verdict === "MISLEADING"
+                  ? "✕"
+                  : factCheckData
+                  ? "⚠️"
+                  : "⚡"}
+              </span>
               <span className="hidden sm:inline">
                 {factCheckLoading
                   ? "Analyzing..."
                   : factCheckData
                   ? isFactCheckMinimized
-                    ? "Show Fact Check"
-                    : "Hide Fact Check"
+                    ? factCheckData.verdict === "VERIFIED"
+                      ? "Verified (View)"
+                      : `${factCheckData.verdict.replace("_", " ")} (View)`
+                    : "Hide Details"
                   : "Fact Check"}
               </span>
             </button>

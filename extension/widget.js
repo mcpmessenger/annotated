@@ -495,6 +495,34 @@
     const realId = savedRow?.id || crypto.randomUUID();
     const realSlug = savedRow?.slug || realId;
     const localAnnotation = { ...annotation, id: realId, slug: realSlug };
+    if (payload.factCheck) {
+      const fcData = payload.factCheck;
+      fetch(FACTCHECK_API_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          annotationId: realId,
+          slug: realSlug,
+          factCheck: fcData,
+          sourceUrl: publishUrl,
+          quote: safeQuote,
+          commentary: safeComment,
+          userId: payload.currentUser.id
+        })
+      }).catch(() => {
+      });
+      try {
+        localStorage.setItem(`annotated_fc_${realId}`, JSON.stringify(fcData));
+        localStorage.setItem(`annotated_fc_${realSlug}`, JSON.stringify(fcData));
+        if (typeof chrome !== "undefined" && chrome.storage?.local && fcData.verdict) {
+          chrome.storage.local.set({
+            [`fc_${realId}`]: fcData.verdict,
+            [`fc_${realSlug}`]: fcData.verdict
+          });
+        }
+      } catch (_) {
+      }
+    }
     const key = pageKey(publishUrl);
     chrome.storage.local.get(key, (data) => {
       const items = [...data[key] || [], localAnnotation];
@@ -564,23 +592,24 @@
     const ft = $("#detailFactCheckText");
     const fbadge = $("#detailFactCheckBadge");
     const closeBtn = $("#detailFactCheckCloseBtn");
+    const recheckBtn = $("#detailFactCheckRecheckBtn");
     const hasMedia = !!(ann.media_url || ann.audio_url);
     const updateBtnState = (isOpen) => {
       if (factBtn) {
         const verdict = (cachedData?.verdict || "").toUpperCase();
         if (verdict === "VERIFIED") {
           factBtn.innerHTML = '<span style="color:#22c55e; font-weight:800;">\u2713</span> <span style="font-size:10.5px; font-weight:700; color:#15803d;">Verified</span>';
-          factBtn.setAttribute("data-tooltip", isOpen ? "Hide Fact Check details" : "Show Fact Check details");
+          factBtn.setAttribute("data-tooltip", isOpen ? "Hide Fact Check details" : "View Fact Check details");
           factBtn.style.background = "rgba(34, 197, 94, 0.12)";
           factBtn.style.borderColor = "#22c55e";
         } else if (verdict === "FALSE" || verdict === "MISLEADING") {
           factBtn.innerHTML = '<span style="color:#ef4444; font-weight:800;">\u2715</span> <span style="font-size:10.5px; font-weight:700; color:#b91c1c;">False</span>';
-          factBtn.setAttribute("data-tooltip", isOpen ? "Hide Fact Check details" : "Show Fact Check details");
+          factBtn.setAttribute("data-tooltip", isOpen ? "Hide Fact Check details" : "View Fact Check details");
           factBtn.style.background = "rgba(239, 68, 68, 0.12)";
           factBtn.style.borderColor = "#ef4444";
         } else if (verdict === "CONTEXT_NEEDED") {
           factBtn.innerHTML = '<span style="color:#eab308; font-weight:800;">\u26A0\uFE0F</span> <span style="font-size:10.5px; font-weight:700; color:#a16207;">Context</span>';
-          factBtn.setAttribute("data-tooltip", isOpen ? "Hide Fact Check details" : "Show Fact Check details");
+          factBtn.setAttribute("data-tooltip", isOpen ? "Hide Fact Check details" : "View Fact Check details");
           factBtn.style.background = "rgba(234, 179, 8, 0.12)";
           factBtn.style.borderColor = "#eab308";
         } else {
@@ -642,40 +671,39 @@
       updateBtnState(false);
     }
     if (!cachedData && (ann.id || ann.slug)) {
-      const keysToTry = [ann.id, ann.slug].filter(Boolean);
-      for (const k of keysToTry) {
-        fetch(`${SUPABASE_CONFIG.url}/storage/v1/object/public/annotation-media/fc_${k}.json`).then(async (r) => {
-          if (r.ok) {
-            const data = await r.json();
-            if (data?.verdict && !cachedData) {
-              cachedData = data;
-              try {
-                localStorage.setItem(cacheKey, JSON.stringify(data));
-              } catch (_) {
-              }
-              if (typeof chrome !== "undefined" && chrome.storage?.local) {
-                const payload = {};
-                if (ann.id) payload[`fc_${ann.id}`] = data.verdict;
-                if (ann.slug) payload[`fc_${ann.slug}`] = data.verdict;
-                chrome.storage.local.set(payload);
-              }
-              renderData(data, true);
+      const fetchId = ann.id || "";
+      const fetchSlug = ann.slug || "";
+      fetch(`${FACTCHECK_API_URL}?id=${fetchId}&slug=${fetchSlug}`).then(async (r) => {
+        if (r.ok) {
+          const data = await r.json();
+          if (data?.verdict && !cachedData) {
+            cachedData = data;
+            try {
+              localStorage.setItem(cacheKey, JSON.stringify(data));
+            } catch (_) {
             }
+            if (typeof chrome !== "undefined" && chrome.storage?.local) {
+              const payload = {};
+              if (ann.id) payload[`fc_${ann.id}`] = data.verdict;
+              if (ann.slug) payload[`fc_${ann.slug}`] = data.verdict;
+              chrome.storage.local.set(payload);
+            }
+            renderData(data, true);
           }
-        }).catch(() => {
-        });
-      }
+        }
+      }).catch(() => {
+      });
     }
-    let hasExecuted = false;
-    const runFactCheck = async () => {
-      if (cachedData) {
+    let isExecuting = false;
+    const runFactCheck = async (forceRecheck = false) => {
+      if (!forceRecheck && cachedData) {
         renderData(cachedData);
         return;
       }
-      if (hasExecuted) return;
-      hasExecuted = true;
+      if (isExecuting) return;
+      isExecuting = true;
       if (fbadge) {
-        fbadge.textContent = "ANALYZING";
+        fbadge.textContent = forceRecheck ? "RECHECKING" : "ANALYZING";
         fbadge.style.color = "var(--muted)";
       }
       if (ft) ft.textContent = "Analyzing claim and context with Google Gemini...";
@@ -695,7 +723,10 @@
         if (effectiveQuote && effectiveQuote.toLowerCase().startsWith("video clip (")) {
           effectiveQuote = "";
         }
+        const user = getUser ? getUser() : null;
         const data = await callFactCheckApi({
+          annotationId: ann.id,
+          slug: ann.slug,
           quote: effectiveQuote || void 0,
           commentary: commentToUse || void 0,
           sourceUrl: urlToUse,
@@ -705,7 +736,9 @@
           videoEndTs: endTs,
           isVideoClip: isVideo,
           videoCaptions: ann.video_captions || void 0,
-          mediaUrl: ann.media_url
+          mediaUrl: ann.media_url,
+          forceRecheck,
+          userId: user?.id
         });
         cachedData = data;
         renderData(data);
@@ -721,31 +754,6 @@
           if (ann.slug) payload[`fc_${ann.slug}`] = data.verdict;
           chrome.storage.local.set(payload);
         }
-        try {
-          const payload = JSON.stringify(data);
-          const headers = {
-            apikey: SUPABASE_CONFIG.anonKey,
-            Authorization: `Bearer ${SUPABASE_CONFIG.anonKey}`,
-            "Content-Type": "application/json"
-          };
-          if (ann.id) {
-            fetch(`${SUPABASE_CONFIG.url}/storage/v1/object/annotation-media/fc_${ann.id}.json`, {
-              method: "POST",
-              headers,
-              body: payload
-            }).catch(() => {
-            });
-          }
-          if (ann.slug) {
-            fetch(`${SUPABASE_CONFIG.url}/storage/v1/object/annotation-media/fc_${ann.slug}.json`, {
-              method: "POST",
-              headers,
-              body: payload
-            }).catch(() => {
-            });
-          }
-        } catch (_) {
-        }
       } catch (err) {
         if (ft) {
           ft.textContent = `Fact-check error: ${err instanceof Error ? err.message : String(err)}`;
@@ -754,6 +762,8 @@
           fbadge.textContent = "NOTICE";
           fbadge.style.color = "#eab308";
         }
+      } finally {
+        isExecuting = false;
       }
     };
     if (factBtn) {
@@ -774,8 +784,19 @@
           }
           fb.style.display = "block";
           updateBtnState(true);
-          runFactCheck();
+          runFactCheck(false);
         }
+      };
+    }
+    if (recheckBtn) {
+      recheckBtn.onclick = (e) => {
+        e.stopPropagation();
+        const user = getUser ? getUser() : null;
+        if (!user) {
+          showAuth("Sign in with Google to re-verify this claim with Gemini AI.");
+          return;
+        }
+        runFactCheck(true);
       };
     }
     if (closeBtn) {
@@ -798,7 +819,8 @@
     videoStartTs: null,
     videoEndTs: null,
     recordedAudioBlob: null,
-    currentMediaTimestamp: null
+    currentMediaTimestamp: null,
+    factCheckResult: null
   };
   var moduleGetPage = null;
   var moduleOnResize = null;
@@ -1041,6 +1063,7 @@
           mediaBase64: clipBase64,
           mediaMimeType: clipMimeType
         });
+        composerState.factCheckResult = data;
         if (composerFactCheckBadge) {
           composerFactCheckBadge.textContent = (data.verdict || "ANALYZED").replace("_", " ");
           composerFactCheckBadge.style.color = data.verdict === "VERIFIED" ? "#22c55e" : data.verdict === "MISLEADING" || data.verdict === "FALSE" ? "#ef4444" : "#eab308";
@@ -1731,7 +1754,8 @@
         recordedAudioBlob: composerState.recordedAudioBlob,
         currentMediaTimestamp: composerState.currentMediaTimestamp,
         page: getPage(),
-        currentUser: user
+        currentUser: user,
+        factCheck: composerState.factCheckResult
       };
       await publishAnnotation(
         payload,
@@ -1751,6 +1775,7 @@
           });
           composerState.intent = null;
           composerState.currentMediaTimestamp = null;
+          composerState.factCheckResult = null;
           publishBtn.textContent = "Publish";
           updatePublishButton();
           if (statusEl) {
