@@ -37,6 +37,17 @@ export class SupabaseClient {
     return this.headers(extra);
   }
 
+  public async ensureFreshToken(): Promise<string | null> {
+    try {
+      const session = await this.restoreSession();
+      if (session?.access_token) {
+        this.token = session.access_token;
+        return this.token;
+      }
+    } catch (_) {}
+    return this.token;
+  }
+
   public from(table: string) {
     const base = `${this.url}/rest/v1/${table}`;
     return {
@@ -71,12 +82,30 @@ export class SupabaseClient {
         execute: () =>
           fetch(`${base}?select=${cols}`, { headers: this.headers() }).then((r) => r.json()),
       }),
-      insert: (data: unknown) =>
-        fetch(base, {
+      insert: async (data: unknown) => {
+        await this.ensureFreshToken();
+        let res = await fetch(base, {
           method: 'POST',
           headers: this.headers({ Prefer: 'return=representation' }),
           body: JSON.stringify(data),
-        }).then((r) => r.json()),
+        }).then((r) => r.json());
+
+        const isJwtErr =
+          res &&
+          (res.code === 'PGRST303' ||
+            (res.message && String(res.message).toLowerCase().includes('jwt expired')));
+        if (isJwtErr) {
+          const fresh = await this.restoreSession();
+          if (fresh?.access_token) {
+            res = await fetch(base, {
+              method: 'POST',
+              headers: this.headers({ Prefer: 'return=representation' }),
+              body: JSON.stringify(data),
+            }).then((r) => r.json());
+          }
+        }
+        return res;
+      },
       delete: () => ({
         eq: (col: string, val: string | number) => ({
           execute: () =>
@@ -102,7 +131,8 @@ export class SupabaseClient {
   }
 
   public async uploadMedia(dataUrl: string, fileName: string): Promise<string> {
-    if (!this.token) throw new Error('Not authenticated');
+    await this.ensureFreshToken();
+    if (!this.token) throw new Error('Not authenticated. Please sign in to upload media.');
 
     const [header, base64] = dataUrl.split(',');
     const mimeMatch = header.match(/:(.*?);/);

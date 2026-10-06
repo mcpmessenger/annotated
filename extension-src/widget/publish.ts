@@ -162,6 +162,16 @@ export async function publishAnnotation(
 
     const res = await supabase.from('annotations').insert(annotation);
     if (res.code || res.error || res.message) {
+      const errStr = String(res.message || res.error || '');
+      const isAuthErr =
+        String(res.code) === 'PGRST303' ||
+        errStr.toLowerCase().includes('jwt') ||
+        errStr.toLowerCase().includes('expired') ||
+        errStr.toLowerCase().includes('unauthorized');
+      if (isAuthErr) {
+        onError('Your login session has expired. Please sign in again to publish.');
+        return;
+      }
       onError(`DB Error: ${res.message || res.error || JSON.stringify(res)}`);
       return;
     }

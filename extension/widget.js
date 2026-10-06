@@ -1,16 +1,43 @@
 "use strict";
 (() => {
+  var __defProp = Object.defineProperty;
+  var __getOwnPropNames = Object.getOwnPropertyNames;
+  var __esm = (fn, res, err) => function __init() {
+    if (err) throw err[0];
+    try {
+      return fn && (res = (0, fn[__getOwnPropNames(fn)[0]])(fn = 0)), res;
+    } catch (e) {
+      throw err = [e], e;
+    }
+  };
+  var __export = (target, all) => {
+    for (var name in all)
+      __defProp(target, name, { get: all[name], enumerable: true });
+  };
+
   // extension-src/shared/dom.ts
-  var $ = (sel, root = document) => root.querySelector(sel);
-  var $$ = (sel, root = document) => root.querySelectorAll(sel);
+  var $, $$;
+  var init_dom = __esm({
+    "extension-src/shared/dom.ts"() {
+      "use strict";
+      $ = (sel, root = document) => root.querySelector(sel);
+      $$ = (sel, root = document) => root.querySelectorAll(sel);
+    }
+  });
 
   // extension-src/shared/config.ts
-  var SUPABASE_CONFIG = {
-    url: "https://dajadbvlldrmgzztdksn.supabase.co",
-    anonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRhamFkYnZsbGRybWd6enRka3NuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk1ODYwMTcsImV4cCI6MjEwNTE2MjAxN30.ZGteNtShkBErPckuMGX4tWMn0AtgU_THFSI37Wgd-eU"
-  };
-  var SITE_URL = "https://annotated-repo.vercel.app";
-  var FACTCHECK_API_URL = `${SITE_URL}/api/ai/factcheck`;
+  var SUPABASE_CONFIG, SITE_URL, FACTCHECK_API_URL;
+  var init_config = __esm({
+    "extension-src/shared/config.ts"() {
+      "use strict";
+      SUPABASE_CONFIG = {
+        url: "https://dajadbvlldrmgzztdksn.supabase.co",
+        anonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRhamFkYnZsbGRybWd6enRka3NuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk1ODYwMTcsImV4cCI6MjEwNTE2MjAxN30.ZGteNtShkBErPckuMGX4tWMn0AtgU_THFSI37Wgd-eU"
+      };
+      SITE_URL = "https://annotated-repo.vercel.app";
+      FACTCHECK_API_URL = `${SITE_URL}/api/ai/factcheck`;
+    }
+  });
 
   // extension-src/shared/utils.ts
   function escapeHtml(v) {
@@ -184,7 +211,6 @@
       if (callback) callback(void 0);
     }
   }
-  var memStorage = {};
   function getLocalFallback(key) {
     try {
       if (typeof localStorage !== "undefined") {
@@ -300,215 +326,257 @@
     } catch (_) {
     }
   }
+  var memStorage;
+  var init_utils = __esm({
+    "extension-src/shared/utils.ts"() {
+      "use strict";
+      memStorage = {};
+    }
+  });
 
   // extension-src/shared/supabase.ts
-  var SupabaseClient = class {
-    constructor(url = SUPABASE_CONFIG.url, key = SUPABASE_CONFIG.anonKey) {
-      this.token = null;
-      this.url = url;
-      this.key = key;
-    }
-    headers(extra = {}) {
-      return {
-        "Content-Type": "application/json",
-        apikey: this.key,
-        Authorization: `Bearer ${this.token || this.key}`,
-        ...extra
-      };
-    }
-    async getAuthHeaders(extra = {}) {
-      try {
-        if (!this.token) {
-          await this.restoreSession();
+  var SupabaseClient, supabase;
+  var init_supabase = __esm({
+    "extension-src/shared/supabase.ts"() {
+      "use strict";
+      init_config();
+      init_utils();
+      SupabaseClient = class {
+        constructor(url = SUPABASE_CONFIG.url, key = SUPABASE_CONFIG.anonKey) {
+          this.token = null;
+          this.url = url;
+          this.key = key;
         }
-      } catch (_) {
-      }
-      return this.headers(extra);
-    }
-    from(table) {
-      const base = `${this.url}/rest/v1/${table}`;
-      return {
-        select: (cols = "*") => ({
-          eq: (col, val) => ({
-            order: (ord, opts = {}) => fetch(
-              `${base}?select=${cols}&${col}=eq.${encodeURIComponent(val)}&order=${ord}${opts.ascending === false ? ".desc" : ""}`,
-              { headers: this.headers({ Prefer: "return=representation" }) }
-            ).then((r) => r.json()),
-            execute: () => fetch(`${base}?select=${cols}&${col}=eq.${encodeURIComponent(val)}`, {
-              headers: this.headers()
-            }).then((r) => r.json())
-          }),
-          ilike: (col, pattern) => ({
-            execute: () => fetch(`${base}?select=${cols}&${col}=ilike.${encodeURIComponent(pattern)}`, {
-              headers: this.headers()
-            }).then((r) => r.json())
-          }),
-          order: (ord, opts = {}) => ({
-            limit: (n) => ({
-              execute: () => fetch(`${base}?select=${cols}&order=${ord}${opts.ascending === false ? ".desc" : ""}&limit=${n}`, {
-                headers: this.headers()
-              }).then((r) => r.json())
-            })
-          }),
-          execute: () => fetch(`${base}?select=${cols}`, { headers: this.headers() }).then((r) => r.json())
-        }),
-        insert: (data) => fetch(base, {
-          method: "POST",
-          headers: this.headers({ Prefer: "return=representation" }),
-          body: JSON.stringify(data)
-        }).then((r) => r.json()),
-        delete: () => ({
-          eq: (col, val) => ({
-            execute: () => fetch(`${base}?${col}=eq.${encodeURIComponent(val)}`, {
-              method: "DELETE",
-              headers: this.headers()
-            }).then((r) => r.json())
-          })
-        }),
-        update: (data) => ({
-          eq: (col, val) => ({
-            eq: (col2, val2) => ({
-              execute: () => fetch(`${base}?${col}=eq.${encodeURIComponent(val)}&${col2}=eq.${encodeURIComponent(String(val2))}`, {
-                method: "PATCH",
+        headers(extra = {}) {
+          return {
+            "Content-Type": "application/json",
+            apikey: this.key,
+            Authorization: `Bearer ${this.token || this.key}`,
+            ...extra
+          };
+        }
+        async getAuthHeaders(extra = {}) {
+          try {
+            if (!this.token) {
+              await this.restoreSession();
+            }
+          } catch (_) {
+          }
+          return this.headers(extra);
+        }
+        async ensureFreshToken() {
+          try {
+            const session = await this.restoreSession();
+            if (session?.access_token) {
+              this.token = session.access_token;
+              return this.token;
+            }
+          } catch (_) {
+          }
+          return this.token;
+        }
+        from(table) {
+          const base = `${this.url}/rest/v1/${table}`;
+          return {
+            select: (cols = "*") => ({
+              eq: (col, val) => ({
+                order: (ord, opts = {}) => fetch(
+                  `${base}?select=${cols}&${col}=eq.${encodeURIComponent(val)}&order=${ord}${opts.ascending === false ? ".desc" : ""}`,
+                  { headers: this.headers({ Prefer: "return=representation" }) }
+                ).then((r) => r.json()),
+                execute: () => fetch(`${base}?select=${cols}&${col}=eq.${encodeURIComponent(val)}`, {
+                  headers: this.headers()
+                }).then((r) => r.json())
+              }),
+              ilike: (col, pattern) => ({
+                execute: () => fetch(`${base}?select=${cols}&${col}=ilike.${encodeURIComponent(pattern)}`, {
+                  headers: this.headers()
+                }).then((r) => r.json())
+              }),
+              order: (ord, opts = {}) => ({
+                limit: (n) => ({
+                  execute: () => fetch(`${base}?select=${cols}&order=${ord}${opts.ascending === false ? ".desc" : ""}&limit=${n}`, {
+                    headers: this.headers()
+                  }).then((r) => r.json())
+                })
+              }),
+              execute: () => fetch(`${base}?select=${cols}`, { headers: this.headers() }).then((r) => r.json())
+            }),
+            insert: async (data) => {
+              await this.ensureFreshToken();
+              let res = await fetch(base, {
+                method: "POST",
                 headers: this.headers({ Prefer: "return=representation" }),
                 body: JSON.stringify(data)
-              }).then((r) => r.json())
-            })
-          })
-        })
-      };
-    }
-    async uploadMedia(dataUrl, fileName) {
-      if (!this.token) throw new Error("Not authenticated");
-      const [header, base64] = dataUrl.split(",");
-      const mimeMatch = header.match(/:(.*?);/);
-      const mimeType = mimeMatch ? mimeMatch[1] : "application/octet-stream";
-      const binary = atob(base64);
-      const bytes = new Uint8Array(binary.length);
-      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-      const blob = new Blob([bytes], { type: mimeType });
-      const safeName = fileName.replace(/[^a-zA-Z0-9._-]/g, "_");
-      const path = `${Date.now()}_${safeName}`;
-      const res = await fetch(`${this.url}/storage/v1/object/annotation-media/${path}`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${this.token}`,
-          "Content-Type": mimeType,
-          "x-upsert": "false"
-        },
-        body: blob
-      });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.message || `Upload failed (${res.status})`);
-      }
-      return `${this.url}/storage/v1/object/public/annotation-media/${path}`;
-    }
-    async signInWithGoogle() {
-      return new Promise((resolve, reject) => {
-        const redirectUrl = chrome.identity.getRedirectURL();
-        const authUrl = `${this.url}/auth/v1/authorize?provider=google&redirect_to=${encodeURIComponent(redirectUrl)}`;
-        chrome.identity.launchWebAuthFlow({ url: authUrl, interactive: true }, async (responseUrl) => {
-          if (chrome.runtime.lastError || !responseUrl) {
-            const msg = chrome.runtime.lastError?.message || "Auth cancelled";
-            reject(msg);
-            return;
-          }
-          try {
-            const url = new URL(responseUrl);
-            const params = new URLSearchParams(url.hash ? url.hash.slice(1) : url.search.slice(1));
-            const access_token = params.get("access_token");
-            const refresh_token = params.get("refresh_token") || void 0;
-            const expires_in = parseInt(params.get("expires_in") || "3600", 10);
-            const error = params.get("error_description") || params.get("error");
-            if (error) {
-              reject(error);
-              return;
-            }
-            if (!access_token) {
-              reject("No token returned.");
-              return;
-            }
-            const session = {
-              access_token,
-              refresh_token,
-              expires_at: Math.floor(Date.now() / 1e3) + expires_in
-            };
-            this.token = access_token;
-            await safeStorageSet({ supabase_session: session });
-            resolve(session);
-          } catch (err) {
-            reject(err instanceof Error ? err.message : String(err));
-          }
-        });
-      });
-    }
-    async signInWithTwitter() {
-      throw new Error("Twitter sign-in is coming soon.");
-    }
-    async signOut() {
-      if (this.token) {
-        await fetch(`${this.url}/auth/v1/logout`, {
-          method: "POST",
-          headers: this.headers()
-        }).catch(() => {
-        });
-      }
-      this.token = null;
-      await safeStorageRemove("supabase_session");
-    }
-    async restoreSession() {
-      try {
-        const data = await safeStorageGet("supabase_session");
-        const session = data.supabase_session;
-        if (session?.access_token) {
-          const issuedAt = session.expires_at || 0;
-          if (Date.now() / 1e3 < issuedAt) {
-            this.token = session.access_token;
-            return session;
-          }
-          if (session.refresh_token) {
-            try {
-              const res = await fetch(`${this.url}/auth/v1/token?grant_type=refresh_token`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json", apikey: this.key },
-                body: JSON.stringify({ refresh_token: session.refresh_token })
-              });
-              const fresh = await res.json();
-              if (fresh.access_token) {
-                this.token = fresh.access_token;
-                await safeStorageSet({ supabase_session: fresh });
-                return fresh;
+              }).then((r) => r.json());
+              const isJwtErr = res && (res.code === "PGRST303" || res.message && String(res.message).toLowerCase().includes("jwt expired"));
+              if (isJwtErr) {
+                const fresh = await this.restoreSession();
+                if (fresh?.access_token) {
+                  res = await fetch(base, {
+                    method: "POST",
+                    headers: this.headers({ Prefer: "return=representation" }),
+                    body: JSON.stringify(data)
+                  }).then((r) => r.json());
+                }
               }
-            } catch (_) {
-            }
+              return res;
+            },
+            delete: () => ({
+              eq: (col, val) => ({
+                execute: () => fetch(`${base}?${col}=eq.${encodeURIComponent(val)}`, {
+                  method: "DELETE",
+                  headers: this.headers()
+                }).then((r) => r.json())
+              })
+            }),
+            update: (data) => ({
+              eq: (col, val) => ({
+                eq: (col2, val2) => ({
+                  execute: () => fetch(`${base}?${col}=eq.${encodeURIComponent(val)}&${col2}=eq.${encodeURIComponent(String(val2))}`, {
+                    method: "PATCH",
+                    headers: this.headers({ Prefer: "return=representation" }),
+                    body: JSON.stringify(data)
+                  }).then((r) => r.json())
+                })
+              })
+            })
+          };
+        }
+        async uploadMedia(dataUrl, fileName) {
+          await this.ensureFreshToken();
+          if (!this.token) throw new Error("Not authenticated. Please sign in to upload media.");
+          const [header, base64] = dataUrl.split(",");
+          const mimeMatch = header.match(/:(.*?);/);
+          const mimeType = mimeMatch ? mimeMatch[1] : "application/octet-stream";
+          const binary = atob(base64);
+          const bytes = new Uint8Array(binary.length);
+          for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+          const blob = new Blob([bytes], { type: mimeType });
+          const safeName = fileName.replace(/[^a-zA-Z0-9._-]/g, "_");
+          const path = `${Date.now()}_${safeName}`;
+          const res = await fetch(`${this.url}/storage/v1/object/annotation-media/${path}`, {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${this.token}`,
+              "Content-Type": mimeType,
+              "x-upsert": "false"
+            },
+            body: blob
+          });
+          if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.message || `Upload failed (${res.status})`);
           }
+          return `${this.url}/storage/v1/object/public/annotation-media/${path}`;
+        }
+        async signInWithGoogle() {
+          return new Promise((resolve, reject) => {
+            const redirectUrl = chrome.identity.getRedirectURL();
+            const authUrl = `${this.url}/auth/v1/authorize?provider=google&redirect_to=${encodeURIComponent(redirectUrl)}`;
+            chrome.identity.launchWebAuthFlow({ url: authUrl, interactive: true }, async (responseUrl) => {
+              if (chrome.runtime.lastError || !responseUrl) {
+                const msg = chrome.runtime.lastError?.message || "Auth cancelled";
+                reject(msg);
+                return;
+              }
+              try {
+                const url = new URL(responseUrl);
+                const params = new URLSearchParams(url.hash ? url.hash.slice(1) : url.search.slice(1));
+                const access_token = params.get("access_token");
+                const refresh_token = params.get("refresh_token") || void 0;
+                const expires_in = parseInt(params.get("expires_in") || "3600", 10);
+                const error = params.get("error_description") || params.get("error");
+                if (error) {
+                  reject(error);
+                  return;
+                }
+                if (!access_token) {
+                  reject("No token returned.");
+                  return;
+                }
+                const session = {
+                  access_token,
+                  refresh_token,
+                  expires_at: Math.floor(Date.now() / 1e3) + expires_in
+                };
+                this.token = access_token;
+                await safeStorageSet({ supabase_session: session });
+                resolve(session);
+              } catch (err) {
+                reject(err instanceof Error ? err.message : String(err));
+              }
+            });
+          });
+        }
+        async signInWithTwitter() {
+          throw new Error("Twitter sign-in is coming soon.");
+        }
+        async signOut() {
+          if (this.token) {
+            await fetch(`${this.url}/auth/v1/logout`, {
+              method: "POST",
+              headers: this.headers()
+            }).catch(() => {
+            });
+          }
+          this.token = null;
           await safeStorageRemove("supabase_session");
         }
-      } catch (_) {
-      }
-      return null;
+        async restoreSession() {
+          try {
+            const data = await safeStorageGet("supabase_session");
+            const session = data.supabase_session;
+            if (session?.access_token) {
+              const issuedAt = session.expires_at || 0;
+              if (Date.now() / 1e3 < issuedAt) {
+                this.token = session.access_token;
+                return session;
+              }
+              if (session.refresh_token) {
+                try {
+                  const res = await fetch(`${this.url}/auth/v1/token?grant_type=refresh_token`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json", apikey: this.key },
+                    body: JSON.stringify({ refresh_token: session.refresh_token })
+                  });
+                  const fresh = await res.json();
+                  if (fresh.access_token) {
+                    this.token = fresh.access_token;
+                    await safeStorageSet({ supabase_session: fresh });
+                    return fresh;
+                  }
+                } catch (_) {
+                }
+              }
+              await safeStorageRemove("supabase_session");
+            }
+          } catch (_) {
+          }
+          return null;
+        }
+        userFromSession(session) {
+          if (!session?.access_token) return null;
+          try {
+            const payload = JSON.parse(atob(session.access_token.split(".")[1]));
+            const meta = payload.user_metadata || {};
+            const twitterHandle = meta.user_name || meta.preferred_username || meta.screen_name;
+            const displayName = meta.full_name || meta.name || twitterHandle || payload.email?.split("@")[0] || "You";
+            const email = payload.email || (twitterHandle ? `${twitterHandle}@x.com` : void 0);
+            return {
+              id: payload.sub,
+              email,
+              name: displayName,
+              avatar: meta.avatar_url || meta.picture || void 0
+            };
+          } catch (_) {
+            return null;
+          }
+        }
+      };
+      supabase = new SupabaseClient();
     }
-    userFromSession(session) {
-      if (!session?.access_token) return null;
-      try {
-        const payload = JSON.parse(atob(session.access_token.split(".")[1]));
-        const meta = payload.user_metadata || {};
-        const twitterHandle = meta.user_name || meta.preferred_username || meta.screen_name;
-        const displayName = meta.full_name || meta.name || twitterHandle || payload.email?.split("@")[0] || "You";
-        const email = payload.email || (twitterHandle ? `${twitterHandle}@x.com` : void 0);
-        return {
-          id: payload.sub,
-          email,
-          name: displayName,
-          avatar: meta.avatar_url || meta.picture || void 0
-        };
-      } catch (_) {
-        return null;
-      }
-    }
-  };
-  var supabase = new SupabaseClient();
+  });
 
   // extension-src/widget/publish.ts
   async function publishAnnotation(payload, onProgress, onSuccess, onError) {
@@ -625,6 +693,12 @@
       }
       const res = await supabase.from("annotations").insert(annotation);
       if (res.code || res.error || res.message) {
+        const errStr = String(res.message || res.error || "");
+        const isAuthErr = String(res.code) === "PGRST303" || errStr.toLowerCase().includes("jwt") || errStr.toLowerCase().includes("expired") || errStr.toLowerCase().includes("unauthorized");
+        if (isAuthErr) {
+          onError("Your login session has expired. Please sign in again to publish.");
+          return;
+        }
         onError(`DB Error: ${res.message || res.error || JSON.stringify(res)}`);
         return;
       }
@@ -695,6 +769,14 @@
     } catch (_) {
     }
   }
+  var init_publish = __esm({
+    "extension-src/widget/publish.ts"() {
+      "use strict";
+      init_supabase();
+      init_config();
+      init_utils();
+    }
+  });
 
   // extension-src/widget/factcheck.ts
   async function callFactCheckApi(payload) {
@@ -954,36 +1036,17 @@
       };
     }
   }
+  var init_factcheck = __esm({
+    "extension-src/widget/factcheck.ts"() {
+      "use strict";
+      init_dom();
+      init_config();
+      init_utils();
+      init_auth();
+    }
+  });
 
   // extension-src/widget/composer.ts
-  var composerState = {
-    quote: "",
-    intent: null,
-    mediaDataUrl: null,
-    mediaType: null,
-    mediaFileName: null,
-    videoClipBlob: null,
-    videoStartTs: null,
-    videoEndTs: null,
-    recordedAudioBlob: null,
-    currentMediaTimestamp: null,
-    factCheckResult: null
-  };
-  var moduleGetPage = null;
-  var moduleOnResize = null;
-  var factCheckDebounce = null;
-  var hostVideoDuration = 90;
-  var videoTotalDuration = 90;
-  var videoCurrentPlayhead = 0;
-  var isGrabbingClip = false;
-  var isPreviewLooping = false;
-  var trimStart = 0;
-  var trimEnd = 90;
-  var grabTimerInterval = null;
-  var grabElapsedSeconds = 0;
-  var grabTargetDuration = 90;
-  var shouldSnapStartOnNextState = false;
-  var isLiveRecording = false;
   function stopGrabTimer() {
     if (grabTimerInterval) {
       clearInterval(grabTimerInterval);
@@ -1011,7 +1074,6 @@
     if (grabIcon) grabIcon.textContent = "\u2702\uFE0F";
     if (grabLabel) grabLabel.textContent = composerState.videoClipBlob ? "Re-grab" : "Grab Range";
   }
-  var savingFallbackTimer = null;
   function stopActiveRecording() {
     stopGrabTimer();
     isGrabbingClip = false;
@@ -1959,17 +2021,74 @@
           publishBtn.disabled = false;
           publishBtn.textContent = "Publish";
           if (statusEl) {
-            statusEl.textContent = err;
-            setTimeout(() => {
-              if (statusEl.textContent === err) statusEl.textContent = "";
-            }, 5e3);
+            const isAuthErr = err.toLowerCase().includes("jwt") || err.toLowerCase().includes("expired") || err.toLowerCase().includes("unauthorized") || err.toLowerCase().includes("not authenticated");
+            if (isAuthErr) {
+              statusEl.textContent = "Session expired. Please sign in to publish.";
+              setTimeout(() => {
+                Promise.resolve().then(() => (init_auth(), auth_exports)).then(({ showAuth: showAuth2 }) => {
+                  showAuth2("Your session expired. Please sign in to publish your note.");
+                });
+              }, 800);
+            } else {
+              statusEl.textContent = err;
+              setTimeout(() => {
+                if (statusEl.textContent === err) statusEl.textContent = "";
+              }, 5e3);
+            }
           }
         }
       );
     });
   }
+  var composerState, moduleGetPage, moduleOnResize, factCheckDebounce, hostVideoDuration, videoTotalDuration, videoCurrentPlayhead, isGrabbingClip, isPreviewLooping, trimStart, trimEnd, grabTimerInterval, grabElapsedSeconds, grabTargetDuration, shouldSnapStartOnNextState, isLiveRecording, savingFallbackTimer;
+  var init_composer = __esm({
+    "extension-src/widget/composer.ts"() {
+      "use strict";
+      init_dom();
+      init_utils();
+      init_publish();
+      init_factcheck();
+      composerState = {
+        quote: "",
+        intent: null,
+        mediaDataUrl: null,
+        mediaType: null,
+        mediaFileName: null,
+        videoClipBlob: null,
+        videoStartTs: null,
+        videoEndTs: null,
+        recordedAudioBlob: null,
+        currentMediaTimestamp: null,
+        factCheckResult: null
+      };
+      moduleGetPage = null;
+      moduleOnResize = null;
+      factCheckDebounce = null;
+      hostVideoDuration = 90;
+      videoTotalDuration = 90;
+      videoCurrentPlayhead = 0;
+      isGrabbingClip = false;
+      isPreviewLooping = false;
+      trimStart = 0;
+      trimEnd = 90;
+      grabTimerInterval = null;
+      grabElapsedSeconds = 0;
+      grabTargetDuration = 90;
+      shouldSnapStartOnNextState = false;
+      isLiveRecording = false;
+      savingFallbackTimer = null;
+    }
+  });
 
   // extension-src/widget/auth.ts
+  var auth_exports = {};
+  __export(auth_exports, {
+    hideAuth: () => hideAuth,
+    initAuthHandlers: () => initAuthHandlers,
+    loadUserProfileStats: () => loadUserProfileStats,
+    showApp: () => showApp,
+    showAuth: () => showAuth
+  });
   function showAuth(promptMsg) {
     const authDesc = $("#authDescText");
     if (authDesc && promptMsg) {
@@ -2110,8 +2229,29 @@
       }
     });
   }
+  var init_auth = __esm({
+    "extension-src/widget/auth.ts"() {
+      "use strict";
+      init_dom();
+      init_supabase();
+      init_utils();
+      init_config();
+      init_composer();
+    }
+  });
+
+  // extension-src/widget/index.ts
+  init_dom();
+  init_supabase();
+  init_utils();
+  init_auth();
+  init_composer();
 
   // extension-src/widget/feed.ts
+  init_dom();
+  init_supabase();
+  init_utils();
+  init_config();
   function renderFeed(items, page2, currentUser2, onAnnotationDeleted) {
     const currentVId = extractYouTubeVideoId(page2.url);
     const filteredItems = Array.isArray(items) ? items.filter((a) => {
@@ -2244,7 +2384,19 @@
     });
   }
 
+  // extension-src/widget/detail.ts
+  init_dom();
+  init_config();
+  init_supabase();
+  init_utils();
+  init_factcheck();
+
   // extension-src/widget/comments.ts
+  init_dom();
+  init_config();
+  init_supabase();
+  init_utils();
+  init_auth();
   var currentDetailAnnotationId = null;
   var isCommentDictating = false;
   var baseCommentReply = "";
@@ -2966,6 +3118,10 @@
   }
 
   // extension-src/widget/notifications.ts
+  init_dom();
+  init_supabase();
+  init_utils();
+  init_config();
   var notifPanelOpen = false;
   async function loadNotifications(currentUser2) {
     if (!currentUser2?.id) return;
@@ -3062,6 +3218,9 @@
   }
 
   // extension-src/widget/ui-controls.ts
+  init_dom();
+  init_utils();
+  init_config();
   function setTheme(theme) {
     document.documentElement.dataset.theme = theme;
     safeStorageSet({ theme });

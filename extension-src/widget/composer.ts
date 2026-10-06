@@ -1206,10 +1206,24 @@ export function initComposer(
         publishBtn.disabled = false;
         publishBtn.textContent = 'Publish';
         if (statusEl) {
-          statusEl.textContent = err;
-          setTimeout(() => {
-            if (statusEl.textContent === err) statusEl.textContent = '';
-          }, 5000);
+          const isAuthErr =
+            err.toLowerCase().includes('jwt') ||
+            err.toLowerCase().includes('expired') ||
+            err.toLowerCase().includes('unauthorized') ||
+            err.toLowerCase().includes('not authenticated');
+          if (isAuthErr) {
+            statusEl.textContent = 'Session expired. Please sign in to publish.';
+            setTimeout(() => {
+              import('./auth').then(({ showAuth }) => {
+                showAuth('Your session expired. Please sign in to publish your note.');
+              });
+            }, 800);
+          } else {
+            statusEl.textContent = err;
+            setTimeout(() => {
+              if (statusEl.textContent === err) statusEl.textContent = '';
+            }, 5000);
+          }
         }
       }
     );
