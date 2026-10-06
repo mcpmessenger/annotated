@@ -4,6 +4,13 @@ All notable changes to the **Annotated** platform (Chrome Extension and Web Appl
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.3.7] - 2026-10-06
+
+### Fixed
+- **Video Media Recheck Guard**: Resolved HTTP 400 (`INVALID_ARGUMENT`) errors triggered when sending video MIME types (`video/mp4`, `video/webm`) via Gemini's `inlineData` REST payload. Fact-checking now evaluates clip contextual transcripts and metadata cleanly, with automatic fallback retry if media calls fail.
+- **Fact-Check Recheck Auth Session Verification**: Resolved issue where clicking "Recheck" on cached annotations falsely redirected authenticated users to the login screen. Validates active sessions dynamically across runtime getter closures, widget UI state, and Supabase client token storage.
+- **Anti-Hallucination & Temporal Safeguards**: Hardened Gemini fact-checking prompt against claiming post-cutoff events are "deepfakes" or "synthetic fabrications", sanitizing ungrounded models to provide objective verification context.
+
 ---
 
 ## [2.3.6] - 2026-10-06
