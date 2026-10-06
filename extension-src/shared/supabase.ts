@@ -255,9 +255,44 @@ export class SupabaseClient {
   }
 
   public userFromSession(session?: SupabaseSession | null): CurrentUser | null {
-    if (!session?.access_token) return null;
+    if (!session) return null;
+
+    // Direct user object if already on session
+    if ((session as any).user) {
+      const u = (session as any).user;
+      const meta = u.user_metadata || {};
+      const twitterHandle = meta.user_name || meta.preferred_username || meta.screen_name;
+      const displayName = meta.full_name || meta.name || twitterHandle || u.email?.split('@')[0] || 'You';
+      return {
+        id: u.id,
+        email: u.email || (twitterHandle ? `${twitterHandle}@x.com` : undefined),
+        name: displayName,
+        avatar: meta.avatar_url || meta.picture || undefined,
+      };
+    }
+
+    if (!session.access_token) return null;
     try {
-      const payload = JSON.parse(atob(session.access_token.split('.')[1]));
+      const parts = session.access_token.split('.');
+      if (parts.length < 2) return null;
+      let base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+      while (base64.length % 4 !== 0) {
+        base64 += '=';
+      }
+      let payload: any = null;
+      try {
+        const decoded = decodeURIComponent(
+          atob(base64)
+            .split('')
+            .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+            .join('')
+        );
+        payload = JSON.parse(decoded);
+      } catch (_) {
+        payload = JSON.parse(atob(base64));
+      }
+
+      if (!payload || !payload.sub) return null;
       const meta = payload.user_metadata || {};
       const twitterHandle = meta.user_name || meta.preferred_username || meta.screen_name;
       const displayName = meta.full_name || meta.name || twitterHandle || payload.email?.split('@')[0] || 'You';
@@ -271,6 +306,27 @@ export class SupabaseClient {
     } catch (_) {
       return null;
     }
+  }
+
+  public async getActiveUser(): Promise<CurrentUser | null> {
+    try {
+      const session = await this.restoreSession();
+      if (session) {
+        const u = this.userFromSession(session);
+        if (u) return u;
+      }
+    } catch (_) {}
+
+    try {
+      const data = await safeStorageGet('supabase_session');
+      const s = data.supabase_session as SupabaseSession | undefined;
+      if (s) {
+        const u = this.userFromSession(s);
+        if (u) return u;
+      }
+    } catch (_) {}
+
+    return null;
   }
 }
 

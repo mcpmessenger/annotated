@@ -22,6 +22,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - **Cross-Video Navigation Guard**: Added `sourceVideoKey` tracking during video capture. If YouTube SPA navigates to an unrelated video mid-capture, stale recordings are cleanly aborted rather than attached to the new video.
 - **Video Clip Saving Hang**: Eliminated UI freezes where the "Save Clip" button remained stuck on "Saving..." by adding safety timeout fallbacks to MediaRecorder stream finalization.
 - **Extension Context Invalidation Guard**: Added comprehensive guards to `safeSendRuntimeMessage` and storage calls to suppress `Extension context invalidated` errors when the extension updates or service workers recycle.
+- **Fact-Check Recheck Auth Validation**: Fixed bug where clicking "Recheck" incorrectly opened the login screen for already authenticated users by validating session state dynamically across all sources (getter closure, widget UI user menu, and Supabase storage) and repairing base64url padding decoding in JWT parsing.
 - **Package Integrity Verification**: Added pre-archive verification ensuring all script and asset references in `widget.html` and `offscreen.html` are strictly validated before generating release zips.
 
 ---

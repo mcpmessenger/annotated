@@ -314,7 +314,17 @@ export async function showAnnotationDetail(
   wireDetailReactions(ann.id || ann.slug || '', activeUser);
 
   // Wire Fact Check (defaults to open with hide toggle)
-  wireFactCheck(ann, ann.title || 'Page', ann.url || location.href, onResize, () => activeUser);
+  const resolveActiveUser = () => {
+    if (activeUser) return activeUser;
+    const userMenuWrap = $('#userMenuWrap');
+    const isUiLoggedIn = userMenuWrap && !userMenuWrap.classList.contains('hidden');
+    if (isUiLoggedIn) {
+      const profileName = $('#profileName')?.textContent || 'User';
+      return { id: 'active-user', name: profileName };
+    }
+    return null;
+  };
+  wireFactCheck(ann, ann.title || 'Page', ann.url || location.href, onResize, resolveActiveUser);
 
   // Wire Comments
   if (ann.id || ann.slug) loadWidgetComments(ann.id || ann.slug || '', activeUser);

@@ -556,9 +556,37 @@
           return null;
         }
         userFromSession(session) {
-          if (!session?.access_token) return null;
+          if (!session) return null;
+          if (session.user) {
+            const u = session.user;
+            const meta = u.user_metadata || {};
+            const twitterHandle = meta.user_name || meta.preferred_username || meta.screen_name;
+            const displayName = meta.full_name || meta.name || twitterHandle || u.email?.split("@")[0] || "You";
+            return {
+              id: u.id,
+              email: u.email || (twitterHandle ? `${twitterHandle}@x.com` : void 0),
+              name: displayName,
+              avatar: meta.avatar_url || meta.picture || void 0
+            };
+          }
+          if (!session.access_token) return null;
           try {
-            const payload = JSON.parse(atob(session.access_token.split(".")[1]));
+            const parts = session.access_token.split(".");
+            if (parts.length < 2) return null;
+            let base64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+            while (base64.length % 4 !== 0) {
+              base64 += "=";
+            }
+            let payload = null;
+            try {
+              const decoded = decodeURIComponent(
+                atob(base64).split("").map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2)).join("")
+              );
+              payload = JSON.parse(decoded);
+            } catch (_) {
+              payload = JSON.parse(atob(base64));
+            }
+            if (!payload || !payload.sub) return null;
             const meta = payload.user_metadata || {};
             const twitterHandle = meta.user_name || meta.preferred_username || meta.screen_name;
             const displayName = meta.full_name || meta.name || twitterHandle || payload.email?.split("@")[0] || "You";
@@ -572,6 +600,26 @@
           } catch (_) {
             return null;
           }
+        }
+        async getActiveUser() {
+          try {
+            const session = await this.restoreSession();
+            if (session) {
+              const u = this.userFromSession(session);
+              if (u) return u;
+            }
+          } catch (_) {
+          }
+          try {
+            const data = await safeStorageGet("supabase_session");
+            const s = data.supabase_session;
+            if (s) {
+              const u = this.userFromSession(s);
+              if (u) return u;
+            }
+          } catch (_) {
+          }
+          return null;
         }
       };
       supabase = new SupabaseClient();
@@ -995,8 +1043,23 @@
         isExecuting = false;
       }
     };
+    const checkUserIsAuthenticated = async () => {
+      let u = getUser ? getUser() : null;
+      if (u) return u;
+      const userMenuWrap = $("#userMenuWrap");
+      if (userMenuWrap && !userMenuWrap.classList.contains("hidden")) {
+        const profileName = $("#profileName")?.textContent || "User";
+        return { id: "active-user", name: profileName };
+      }
+      try {
+        u = await supabase.getActiveUser();
+        if (u) return u;
+      } catch (_) {
+      }
+      return null;
+    };
     if (factBtn) {
-      factBtn.onclick = (e) => {
+      factBtn.onclick = async (e) => {
         e.stopPropagation();
         if (!fb) return;
         const isCurrentlyOpen = fb.style.display !== "none";
@@ -1005,7 +1068,7 @@
           updateBtnState(false);
         } else {
           if (!cachedData) {
-            const user = getUser ? getUser() : null;
+            const user = await checkUserIsAuthenticated();
             if (!user) {
               showAuth("Sign in with Google to run an AI fact check on this annotation.");
               return;
@@ -1018,9 +1081,9 @@
       };
     }
     if (recheckBtn) {
-      recheckBtn.onclick = (e) => {
+      recheckBtn.onclick = async (e) => {
         e.stopPropagation();
-        const user = getUser ? getUser() : null;
+        const user = await checkUserIsAuthenticated();
         if (!user) {
           showAuth("Sign in with Google to re-verify this claim with Gemini AI.");
           return;
@@ -1042,6 +1105,7 @@
       init_dom();
       init_config();
       init_utils();
+      init_supabase();
       init_auth();
     }
   });
@@ -2993,7 +3057,17 @@
       };
     }
     wireDetailReactions(ann.id || ann.slug || "", activeUser);
-    wireFactCheck(ann, ann.title || "Page", ann.url || location.href, onResize, () => activeUser);
+    const resolveActiveUser = () => {
+      if (activeUser) return activeUser;
+      const userMenuWrap = $("#userMenuWrap");
+      const isUiLoggedIn = userMenuWrap && !userMenuWrap.classList.contains("hidden");
+      if (isUiLoggedIn) {
+        const profileName = $("#profileName")?.textContent || "User";
+        return { id: "active-user", name: profileName };
+      }
+      return null;
+    };
+    wireFactCheck(ann, ann.title || "Page", ann.url || location.href, onResize, resolveActiveUser);
     if (ann.id || ann.slug) loadWidgetComments(ann.id || ann.slug || "", activeUser);
     const hasMedia = !!(ann.media_url || ann.audio_url);
     onResize(hasMedia ? 630 : 550);

@@ -3,6 +3,7 @@
 import { $ } from '../shared/dom';
 import { FACTCHECK_API_URL, SUPABASE_CONFIG } from '../shared/config';
 import { escapeHtml, extractTimestampRange, safeStorageSet } from '../shared/utils';
+import { supabase } from '../shared/supabase';
 import { showAuth } from './auth';
 import type { Annotation, FactCheckResult, CurrentUser } from '../types/annotation';
 
@@ -287,8 +288,28 @@ export function wireFactCheck(
   };
 
   // Toggle button click (⚡ or Verified)
+  const checkUserIsAuthenticated = async (): Promise<CurrentUser | null> => {
+    let u = getUser ? getUser() : null;
+    if (u) return u;
+
+    // Check UI DOM: if userMenuWrap is visible, user is logged in
+    const userMenuWrap = $('#userMenuWrap');
+    if (userMenuWrap && !userMenuWrap.classList.contains('hidden')) {
+      const profileName = $('#profileName')?.textContent || 'User';
+      return { id: 'active-user', name: profileName };
+    }
+
+    // Check Supabase client and storage
+    try {
+      u = await supabase.getActiveUser();
+      if (u) return u;
+    } catch (_) {}
+
+    return null;
+  };
+
   if (factBtn) {
-    factBtn.onclick = (e) => {
+    factBtn.onclick = async (e) => {
       e.stopPropagation();
       if (!fb) return;
       const isCurrentlyOpen = fb.style.display !== 'none';
@@ -297,7 +318,7 @@ export function wireFactCheck(
         updateBtnState(false);
       } else {
         if (!cachedData) {
-          const user = getUser ? getUser() : null;
+          const user = await checkUserIsAuthenticated();
           if (!user) {
             showAuth('Sign in with Google to run an AI fact check on this annotation.');
             return;
@@ -312,9 +333,9 @@ export function wireFactCheck(
 
   // Recheck button click (🔄)
   if (recheckBtn) {
-    recheckBtn.onclick = (e) => {
+    recheckBtn.onclick = async (e) => {
       e.stopPropagation();
-      const user = getUser ? getUser() : null;
+      const user = await checkUserIsAuthenticated();
       if (!user) {
         showAuth('Sign in with Google to re-verify this claim with Gemini AI.');
         return;
