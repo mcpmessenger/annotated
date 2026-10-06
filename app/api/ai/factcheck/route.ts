@@ -388,6 +388,9 @@ Respond ONLY with a valid JSON object matching this schema (do not add markdown 
   ]
 }`;
 
+      const isVideoMedia = inlineMime.startsWith("video/");
+      const canUseInlineMedia = Boolean(inlineData && !isVideoMedia);
+
       // Newest first — older models have earlier knowledge cutoffs and are far more likely to call recent real events "fake"
       const candidateModels = [
         "gemini-3.5-flash",
@@ -396,18 +399,18 @@ Respond ONLY with a valid JSON object matching this schema (do not add markdown 
         "gemini-flash-latest",
       ];
 
-      const parts: any[] = [];
-      if (inlineData) {
-        parts.push({
-          inlineData: {
-            mimeType: inlineMime,
-            data: inlineData,
-          },
-        });
-      }
-      parts.push({ text: prompt });
+      const callModel = async (model: string, grounded: boolean, includeMedia: boolean) => {
+        const parts: any[] = [];
+        if (includeMedia && canUseInlineMedia && inlineData) {
+          parts.push({
+            inlineData: {
+              mimeType: inlineMime,
+              data: inlineData,
+            },
+          });
+        }
+        parts.push({ text: prompt });
 
-      const callModel = async (model: string, grounded: boolean) => {
         const reqBody: any = { contents: [{ parts }] };
         if (grounded) reqBody.tools = [{ google_search: {} }];
         return fetch(
@@ -422,58 +425,68 @@ Respond ONLY with a valid JSON object matching this schema (do not add markdown 
 
       outer: for (const model of candidateModels) {
         for (const grounded of [true, false]) {
-          try {
-            const geminiRes = await callModel(model, grounded);
+          const mediaOptions = canUseInlineMedia ? [true, false] : [false];
+          for (const includeMedia of mediaOptions) {
+            try {
+              const geminiRes = await callModel(model, grounded, includeMedia);
 
-            if (!geminiRes.ok) {
-              const errText = await geminiRes.text();
-              console.warn(`[Gemini FactCheck] Model ${model} (grounded=${grounded}) returned non-OK:`, geminiRes.status, errText);
-              // 404 = model missing → skip ungrounded retry and move to next model
-              if (geminiRes.status === 404) break;
-              continue;
+              if (!geminiRes.ok) {
+                const errText = await geminiRes.text();
+                console.warn(`[Gemini FactCheck] Model ${model} (grounded=${grounded}, media=${includeMedia}) returned non-OK:`, geminiRes.status, errText);
+                // 404 = model missing → skip and move to next model
+                if (geminiRes.status === 404) break;
+                continue;
+              }
+
+              const gData = await geminiRes.json();
+              const cand = gData?.candidates?.[0];
+              const textParts = (cand?.content?.parts || []).filter((p: any) => p.text && !p.thought);
+              let rawText = textParts.map((p: any) => p.text).join("") || "";
+
+              rawText = rawText.replace(/```(?:json)?/gi, "").replace(/```/g, "").trim();
+
+              const jsonStart = rawText.indexOf("{");
+              const jsonEnd = rawText.lastIndexOf("}");
+              if (jsonStart !== -1 && jsonEnd !== -1) {
+                rawText = rawText.substring(jsonStart, jsonEnd + 1);
+              }
+
+              const parsed = JSON.parse(rawText);
+
+              // Prefer real URLs from search grounding over model-written ones
+              const groundingChunks: any[] = cand?.groundingMetadata?.groundingChunks || [];
+              const groundedSources = groundingChunks
+                .map((c: any) => c?.web)
+                .filter((w: any) => w?.uri)
+                .map((w: any) => ({ title: w.title || w.uri, url: w.uri }));
+              if (groundedSources.length > 0) {
+                const seen = new Set<string>();
+                parsed.sources = [...groundedSources, ...(Array.isArray(parsed.sources) ? parsed.sources : [])]
+                  .filter((s: any) => s?.url && !seen.has(s.url) && seen.add(s.url))
+                  .slice(0, 6);
+              }
+
+              // Ungrounded verdicts can't safely claim FALSE about possibly-recent events
+              if (!grounded) {
+                if (parsed.verdict === "FALSE") {
+                  parsed.verdict = "CONTEXT_NEEDED";
+                  parsed.confidence = "LOW";
+                }
+                if (parsed.headline && /fabricat|deepfake|never happened|simulat/i.test(parsed.headline)) {
+                  parsed.headline = `Clip at ${videoTimeRange}: Context on claims in "${sourceTitle || 'Video'}"`;
+                  parsed.verdict = "CONTEXT_NEEDED";
+                  parsed.confidence = "LOW";
+                }
+              }
+
+              parsed.grounded = grounded && groundedSources.length > 0;
+              parsed.model = model;
+              parsed.geminiConfigured = true;
+              verdictResult = parsed;
+              break outer;
+            } catch (err) {
+              console.warn(`[Gemini FactCheck] Model ${model} (grounded=${grounded}, media=${includeMedia}) failed:`, err);
             }
-
-            const gData = await geminiRes.json();
-            const cand = gData?.candidates?.[0];
-            const textParts = (cand?.content?.parts || []).filter((p: any) => p.text && !p.thought);
-            let rawText = textParts.map((p: any) => p.text).join("") || "";
-
-            rawText = rawText.replace(/```(?:json)?/gi, "").replace(/```/g, "").trim();
-
-            const jsonStart = rawText.indexOf("{");
-            const jsonEnd = rawText.lastIndexOf("}");
-            if (jsonStart !== -1 && jsonEnd !== -1) {
-              rawText = rawText.substring(jsonStart, jsonEnd + 1);
-            }
-
-            const parsed = JSON.parse(rawText);
-
-            // Prefer real URLs from search grounding over model-written ones
-            const groundingChunks: any[] = cand?.groundingMetadata?.groundingChunks || [];
-            const groundedSources = groundingChunks
-              .map((c: any) => c?.web)
-              .filter((w: any) => w?.uri)
-              .map((w: any) => ({ title: w.title || w.uri, url: w.uri }));
-            if (groundedSources.length > 0) {
-              const seen = new Set<string>();
-              parsed.sources = [...groundedSources, ...(Array.isArray(parsed.sources) ? parsed.sources : [])]
-                .filter((s: any) => s?.url && !seen.has(s.url) && seen.add(s.url))
-                .slice(0, 6);
-            }
-
-            // Ungrounded verdicts can't safely claim FALSE about possibly-recent events
-            if (!grounded && parsed.verdict === "FALSE") {
-              parsed.verdict = "CONTEXT_NEEDED";
-              parsed.confidence = "LOW";
-            }
-
-            parsed.grounded = grounded && groundedSources.length > 0;
-            parsed.model = model;
-            parsed.geminiConfigured = true;
-            verdictResult = parsed;
-            break outer;
-          } catch (err) {
-            console.warn(`[Gemini FactCheck] Model ${model} (grounded=${grounded}) failed:`, err);
           }
         }
       }
