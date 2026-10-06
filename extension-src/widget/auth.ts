@@ -2,7 +2,7 @@
 
 import { $ } from '../shared/dom';
 import { supabase } from '../shared/supabase';
-import { initials, openExternalUrl } from '../shared/utils';
+import { initials, openExternalUrl, safeStorageGet } from '../shared/utils';
 import { SITE_URL } from '../shared/config';
 import { composerState, setQuote } from './composer';
 import type { CurrentUser } from '../types/annotation';
@@ -164,13 +164,14 @@ export function initAuthHandlers(
   });
 
   // Profile link
-  $('#profileBtn')?.addEventListener('click', () => {
-    chrome.storage.local.get('supabase_session', (data: Record<string, any>) => {
+  $('#profileBtn')?.addEventListener('click', async () => {
+    try {
+      const data = await safeStorageGet('supabase_session');
       const u = supabase.userFromSession(data.supabase_session);
       if (u?.email) {
         const username = u.email.split('@')[0];
         openExternalUrl(`${SITE_URL}/u/${username}`);
       }
-    });
+    } catch (_) {}
   });
 }

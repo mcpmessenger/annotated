@@ -2,7 +2,7 @@
 
 import { $ } from '../shared/dom';
 import { FACTCHECK_API_URL, SUPABASE_CONFIG } from '../shared/config';
-import { escapeHtml, extractTimestampRange } from '../shared/utils';
+import { escapeHtml, extractTimestampRange, safeStorageSet } from '../shared/utils';
 import { showAuth } from './auth';
 import type { Annotation, FactCheckResult, CurrentUser } from '../types/annotation';
 
@@ -162,11 +162,11 @@ export function wireFactCheck(
       const stored = localStorage.getItem(cacheKey);
       if (stored) {
         cachedData = JSON.parse(stored);
-        if (cachedData?.verdict && typeof chrome !== 'undefined' && chrome.storage?.local) {
+        if (cachedData?.verdict) {
           const payload: Record<string, string> = {};
           if (ann.id) payload[`fc_${ann.id}`] = cachedData.verdict;
           if (ann.slug) payload[`fc_${ann.slug}`] = cachedData.verdict;
-          chrome.storage.local.set(payload);
+          safeStorageSet(payload);
         }
       }
     } catch (_) {}
@@ -193,12 +193,10 @@ export function wireFactCheck(
             try {
               localStorage.setItem(cacheKey, JSON.stringify(data));
             } catch (_) {}
-            if (typeof chrome !== 'undefined' && chrome.storage?.local) {
-              const payload: Record<string, string> = {};
-              if (ann.id) payload[`fc_${ann.id}`] = data.verdict;
-              if (ann.slug) payload[`fc_${ann.slug}`] = data.verdict;
-              chrome.storage.local.set(payload);
-            }
+            const payload: Record<string, string> = {};
+            if (ann.id) payload[`fc_${ann.id}`] = data.verdict;
+            if (ann.slug) payload[`fc_${ann.slug}`] = data.verdict;
+            safeStorageSet(payload);
             renderData(data, true);
           }
         }
@@ -269,11 +267,11 @@ export function wireFactCheck(
           localStorage.setItem(cacheKey, JSON.stringify(data));
         } catch (_) {}
       }
-      if (typeof chrome !== 'undefined' && chrome.storage?.local && data?.verdict) {
+      if (data?.verdict) {
         const payload: Record<string, string> = {};
         if (ann.id) payload[`fc_${ann.id}`] = data.verdict;
         if (ann.slug) payload[`fc_${ann.slug}`] = data.verdict;
-        chrome.storage.local.set(payload);
+        safeStorageSet(payload);
       }
     } catch (err: unknown) {
       if (ft) {

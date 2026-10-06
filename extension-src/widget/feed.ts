@@ -2,7 +2,7 @@
 
 import { $ } from '../shared/dom';
 import { supabase } from '../shared/supabase';
-import { escapeHtml, extractTimestamp, formatSeconds, openExternalUrl, pageKey, extractYouTubeVideoId } from '../shared/utils';
+import { escapeHtml, extractTimestamp, formatSeconds, openExternalUrl, pageKey, extractYouTubeVideoId, safeStorageGet, safeStorageSet } from '../shared/utils';
 import { SITE_URL, SUPABASE_CONFIG } from '../shared/config';
 import type { Annotation, CurrentUser, PageContext } from '../types/annotation';
 
@@ -140,10 +140,9 @@ export function renderFeed(
 
       try {
         const key = pageKey(page.url);
-        chrome.storage.local.get(key, (data: Record<string, any>) => {
-          const stored = ((data[key] as Annotation[]) || []).filter((a: Annotation) => String(a.id) !== String(ann.id));
-          chrome.storage.local.set({ [key]: stored }, () => {});
-        });
+        const data = await safeStorageGet(key);
+        const stored = ((data[key] as Annotation[]) || []).filter((a: Annotation) => String(a.id) !== String(ann.id));
+        await safeStorageSet({ [key]: stored });
       } catch (_) {}
 
       try {
@@ -192,8 +191,10 @@ export async function loadFeedFromSupabase(
 
   // Fallback to local storage
   const key = pageKey(cleanUrl);
-  chrome.storage.local.get(key, (data: Record<string, any>) => {
+  safeStorageGet(key).then((data) => {
     const localItems: Annotation[] = (data[key] as Annotation[]) || [];
     renderFeed(localItems, page, currentUser, onDeleted);
+  }).catch(() => {
+    renderFeed([], page, currentUser, onDeleted);
   });
 }

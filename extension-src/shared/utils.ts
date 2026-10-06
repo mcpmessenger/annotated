@@ -202,3 +202,134 @@ export function safeSendRuntimeMessage(message: any, callback?: (response: any) 
     if (callback) callback(undefined);
   }
 }
+
+const memStorage: Record<string, any> = {};
+
+function getLocalFallback(key: string): any {
+  try {
+    if (typeof localStorage !== 'undefined') {
+      const v = localStorage.getItem(`ann_${key}`);
+      return v ? JSON.parse(v) : undefined;
+    }
+  } catch (_) {}
+  return memStorage[key];
+}
+
+function setLocalFallback(key: string, val: any): void {
+  memStorage[key] = val;
+  try {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(`ann_${key}`, JSON.stringify(val));
+    }
+  } catch (_) {}
+}
+
+function removeLocalFallback(key: string): void {
+  delete memStorage[key];
+  try {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.removeItem(`ann_${key}`);
+    }
+  } catch (_) {}
+}
+
+function getAllLocalFallback(): Record<string, any> {
+  const res: Record<string, any> = { ...memStorage };
+  try {
+    if (typeof localStorage !== 'undefined') {
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && k.startsWith('ann_')) {
+          const rawKey = k.slice(4);
+          const v = localStorage.getItem(k);
+          if (v) {
+            try {
+              res[rawKey] = JSON.parse(v);
+            } catch (_) {
+              res[rawKey] = v;
+            }
+          }
+        }
+      }
+    }
+  } catch (_) {}
+  return res;
+}
+
+export async function safeStorageGet(key: string | null): Promise<Record<string, any>> {
+  try {
+    if (
+      typeof chrome !== 'undefined' &&
+      chrome?.storage?.local &&
+      typeof chrome.storage.local.get === 'function'
+    ) {
+      return await new Promise<Record<string, any>>((resolve) => {
+        try {
+          chrome.storage.local.get(key, (items) => {
+            if (chrome.runtime?.lastError) {
+              resolve(key ? { [key]: getLocalFallback(key) } : getAllLocalFallback());
+              return;
+            }
+            resolve(items || {});
+          });
+        } catch (_) {
+          resolve(key ? { [key]: getLocalFallback(key) } : getAllLocalFallback());
+        }
+      });
+    }
+  } catch (_) {}
+  return key ? { [key]: getLocalFallback(key) } : getAllLocalFallback();
+}
+
+export async function safeStorageSet(items: Record<string, any>): Promise<void> {
+  for (const [k, v] of Object.entries(items)) {
+    setLocalFallback(k, v);
+  }
+  try {
+    if (
+      typeof chrome !== 'undefined' &&
+      chrome?.storage?.local &&
+      typeof chrome.storage.local.set === 'function'
+    ) {
+      await new Promise<void>((resolve) => {
+        try {
+          chrome.storage.local.set(items, () => {
+            if (chrome.runtime?.lastError) {
+              // ignore
+            }
+            resolve();
+          });
+        } catch (_) {
+          resolve();
+        }
+      });
+    }
+  } catch (_) {}
+}
+
+export async function safeStorageRemove(key: string | string[]): Promise<void> {
+  const keys = Array.isArray(key) ? key : [key];
+  for (const k of keys) {
+    removeLocalFallback(k);
+  }
+  try {
+    if (
+      typeof chrome !== 'undefined' &&
+      chrome?.storage?.local &&
+      typeof chrome.storage.local.remove === 'function'
+    ) {
+      await new Promise<void>((resolve) => {
+        try {
+          chrome.storage.local.remove(key, () => {
+            if (chrome.runtime?.lastError) {
+              // ignore
+            }
+            resolve();
+          });
+        } catch (_) {
+          resolve();
+        }
+      });
+    }
+  } catch (_) {}
+}

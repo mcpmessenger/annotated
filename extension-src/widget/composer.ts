@@ -82,6 +82,8 @@ export function stopGrabTimer(): void {
   if (grabLabel) grabLabel.textContent = composerState.videoClipBlob ? 'Re-grab' : 'Grab Range';
 }
 
+let savingFallbackTimer: any = null;
+
 export function stopActiveRecording(): void {
   stopGrabTimer();
   isGrabbingClip = false;
@@ -102,6 +104,33 @@ export function stopActiveRecording(): void {
 
   window.parent.postMessage({ type: 'STOP_VIDEO' }, '*');
   safeSendRuntimeMessage({ type: 'stopVideo' });
+
+  if (savingFallbackTimer) clearTimeout(savingFallbackTimer);
+  savingFallbackTimer = setTimeout(() => {
+    if (recLabel && recLabel.textContent === 'Saving...') {
+      recLabel.textContent = 'Re-record';
+      if (recIcon) recIcon.textContent = '🔴';
+      const recBtn = $('#recordNowBtn') as HTMLButtonElement | null;
+      if (recBtn) recBtn.disabled = false;
+    }
+    if (grabLabel && grabLabel.textContent === 'Saving...') {
+      grabLabel.textContent = 'Re-grab Range';
+      if (grabIcon) grabIcon.textContent = '✂️';
+      const grabBtn = $('#grabClipBtn') as HTMLButtonElement | null;
+      if (grabBtn) grabBtn.disabled = false;
+    }
+    if (clipVideoBtn) {
+      clipVideoBtn.innerText = '🎥';
+      clipVideoBtn.classList.remove('recording');
+    }
+    const statusEl = $('#status');
+    if (statusEl && !composerState.videoClipBlob) {
+      statusEl.textContent = 'Video grab taking longer than expected. You can try again.';
+      setTimeout(() => {
+        if (statusEl.textContent?.includes('Video grab taking longer')) statusEl.textContent = '';
+      }, 4000);
+    }
+  }, 6000);
 }
 
 export function startGrabTimer(targetDuration: number, isLive: boolean = false): void {
@@ -165,17 +194,7 @@ export function startGrabTimer(targetDuration: number, isLive: boolean = false):
     }
 
     if (grabElapsedSeconds >= grabTargetDuration) {
-      if (isLive) {
-        if (recLabel) recLabel.textContent = 'Processing clip...';
-        if (recIcon) recIcon.textContent = '⏳';
-      } else {
-        if (grabLabel) grabLabel.textContent = 'Processing clip...';
-        if (grabIcon) grabIcon.textContent = '⏳';
-      }
-      if (recBtn) recBtn.classList.remove('recording');
-      if (grabBtn) grabBtn.classList.remove('recording');
-      clearInterval(grabTimerInterval);
-      grabTimerInterval = null;
+      stopActiveRecording();
     }
   }, 1000);
 }
@@ -584,6 +603,10 @@ export function openVideoTrimmer(onResize: (height: number) => void): void {
 }
 
 export function handleVideoCaptured(data: any, onResize: (height: number) => void): void {
+  if (savingFallbackTimer) {
+    clearTimeout(savingFallbackTimer);
+    savingFallbackTimer = null;
+  }
   stopGrabTimer();
   isGrabbingClip = false;
   const clipBtn = $('#clipVideoBtn');
@@ -657,6 +680,10 @@ export function handleVideoCaptured(data: any, onResize: (height: number) => voi
 }
 
 export function clearVideo(onResize: (height: number) => void): void {
+  if (savingFallbackTimer) {
+    clearTimeout(savingFallbackTimer);
+    savingFallbackTimer = null;
+  }
   stopGrabTimer();
   composerState.videoClipBlob = null;
   composerState.videoStartTs = null;

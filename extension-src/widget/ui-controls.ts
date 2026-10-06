@@ -1,12 +1,12 @@
 // ─── Widget UI Controls & Theming ─────────────────────────────────────────────
 
 import { $, $$ } from '../shared/dom';
-import { openExternalUrl } from '../shared/utils';
+import { openExternalUrl, safeStorageSet } from '../shared/utils';
 import { SITE_URL } from '../shared/config';
 
 export function setTheme(theme: 'light' | 'dark'): void {
   document.documentElement.dataset.theme = theme;
-  chrome.storage.local.set({ theme });
+  safeStorageSet({ theme });
   const themeBtn = $('#themeBtn');
   if (!themeBtn) return;
 

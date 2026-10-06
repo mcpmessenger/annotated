@@ -1366,6 +1366,7 @@
   var activeVideoEl = null;
   var activeAnimFrameId = null;
   var isRecordingVideo = false;
+  var stopRequested = false;
   var pendingSendResponse = null;
   async function startOffscreenSpeakerBridge(audioStream) {
     try {
@@ -1426,11 +1427,16 @@
     }
   }
   function stopRecordingNow() {
-    if (isRecordingVideo && activeVideoRecorder && activeVideoRecorder.state !== "inactive") {
+    stopRequested = true;
+    if (activeVideoRecorder && activeVideoRecorder.state !== "inactive") {
       try {
         activeVideoRecorder.stop();
       } catch (_) {
       }
+    } else if (isRecordingVideo && pendingSendResponse) {
+      isRecordingVideo = false;
+      pendingSendResponse({ error: "Video capture stopped before media was ready" });
+      pendingSendResponse = null;
     }
   }
   async function capture240pVideoClip(durationSeconds = 90, sendResponse, startTsParam, endTsParam, isLiveRecord) {
@@ -1474,6 +1480,7 @@
       durationSeconds = 90;
     }
     isRecordingVideo = true;
+    stopRequested = false;
     pendingSendResponse = sendResponse;
     activeVideoEl = videoEl;
     const startTs = isLiveRecord ? Math.floor(videoEl.currentTime || 0) : startTsParam != null ? startTsParam : Math.floor(videoEl.currentTime || 0);
@@ -1493,38 +1500,49 @@
     let finalStream = canvasStream;
     let audioContext = null;
     try {
-      const tabStreamId = await new Promise((resolve) => {
-        try {
-          if (typeof chrome !== "undefined" && chrome?.runtime && typeof chrome.runtime.sendMessage === "function") {
-            chrome.runtime.sendMessage({ type: "getTabAudioStreamId" }, (res) => {
-              if (chrome.runtime?.lastError) {
-                resolve(null);
-                return;
-              }
-              resolve(res?.streamId || null);
-            });
-          } else {
+      const tabStreamId = await Promise.race([
+        new Promise((resolve) => {
+          try {
+            if (typeof chrome !== "undefined" && chrome?.runtime && typeof chrome.runtime.sendMessage === "function") {
+              chrome.runtime.sendMessage({ type: "getTabAudioStreamId" }, (res) => {
+                if (chrome.runtime?.lastError) {
+                  resolve(null);
+                  return;
+                }
+                resolve(res?.streamId || null);
+              });
+            } else {
+              resolve(null);
+            }
+          } catch (_) {
             resolve(null);
           }
+        }),
+        new Promise((r) => setTimeout(() => r(null), 1200))
+      ]);
+      if (tabStreamId && !stopRequested) {
+        try {
+          const streamPromise = navigator.mediaDevices.getUserMedia({
+            audio: {
+              mandatory: {
+                chromeMediaSource: "tab",
+                chromeMediaSourceId: tabStreamId
+              }
+            },
+            video: false
+          });
+          const timeoutPromise = new Promise((r) => setTimeout(() => r(null), 1500));
+          const resStream = await Promise.race([streamPromise, timeoutPromise]);
+          if (resStream && !stopRequested) {
+            activeAudioStream = resStream;
+            activeSpeakerBridge = await startOffscreenSpeakerBridge(activeAudioStream);
+            finalStream = new MediaStream([
+              ...canvasStream.getVideoTracks(),
+              ...activeAudioStream.getAudioTracks()
+            ]);
+          }
         } catch (_) {
-          resolve(null);
         }
-      });
-      if (tabStreamId) {
-        activeAudioStream = await navigator.mediaDevices.getUserMedia({
-          audio: {
-            mandatory: {
-              chromeMediaSource: "tab",
-              chromeMediaSourceId: tabStreamId
-            }
-          },
-          video: false
-        });
-        activeSpeakerBridge = await startOffscreenSpeakerBridge(activeAudioStream);
-        finalStream = new MediaStream([
-          ...canvasStream.getVideoTracks(),
-          ...activeAudioStream.getAudioTracks()
-        ]);
       }
     } catch (err) {
       if (!(err instanceof Error && err.message?.includes("context invalidated"))) {
@@ -1545,6 +1563,21 @@
         ]);
       } catch (_) {
       }
+    }
+    if (stopRequested) {
+      isRecordingVideo = false;
+      if (activeAnimFrameId) cancelAnimationFrame(activeAnimFrameId);
+      stopOffscreenSpeakerBridge();
+      if (activeAudioStream) {
+        activeAudioStream.getTracks().forEach((t) => t.stop());
+        activeAudioStream = null;
+      }
+      if (canvasStream) canvasStream.getTracks().forEach((t) => t.stop());
+      if (pendingSendResponse) {
+        pendingSendResponse({ error: "Video capture stopped" });
+        pendingSendResponse = null;
+      }
+      return;
     }
     activeRecordStream = finalStream;
     const chunks = [];
@@ -1583,46 +1616,82 @@
       activeVideoRecorder.ondataavailable = (e) => {
         if (e.data && e.data.size > 0) chunks.push(e.data);
       };
+      activeVideoRecorder.onerror = (e) => {
+        console.warn("[Annotated Video] MediaRecorder error:", e);
+        stopRecordingNow();
+      };
       activeVideoRecorder.onstop = () => {
-        isRecordingVideo = false;
-        if (activeAnimFrameId) cancelAnimationFrame(activeAnimFrameId);
-        stopOffscreenSpeakerBridge();
-        if (activeAudioStream) {
-          activeAudioStream.getTracks().forEach((t) => t.stop());
-          activeAudioStream = null;
-        }
-        if (canvasStream) canvasStream.getTracks().forEach((t) => t.stop());
-        if (audioContext) audioContext.close().catch(() => {
-        });
-        const endTs = endTsParam != null && !isLiveRecord ? endTsParam : Math.max(startTs + 1, Math.floor(videoEl.currentTime || startTs + 1));
-        const outputMime = isMp4 ? "video/mp4" : "video/webm";
-        const rawBlob = new Blob(chunks, { type: outputMime });
-        const durationMs = Math.max(1e3, (endTs - startTs) * 1e3);
-        const finishWithBlob = (blob) => {
-          const reader = new FileReader();
-          reader.onloadend = () => {
-            if (pendingSendResponse) {
-              pendingSendResponse({
-                dataUrl: reader.result,
-                duration: Math.max(1, endTs - startTs),
-                startTs,
-                endTs,
-                mimeType: blob.type || outputMime
-              });
-              pendingSendResponse = null;
-            }
-          };
-          reader.readAsDataURL(blob);
-        };
-        if (!isMp4 && window.ysFixWebmDuration) {
-          window.ysFixWebmDuration(rawBlob, durationMs, (fixedBlob) => {
-            finishWithBlob(fixedBlob);
+        try {
+          isRecordingVideo = false;
+          if (activeAnimFrameId) cancelAnimationFrame(activeAnimFrameId);
+          stopOffscreenSpeakerBridge();
+          if (activeAudioStream) {
+            activeAudioStream.getTracks().forEach((t) => t.stop());
+            activeAudioStream = null;
+          }
+          if (canvasStream) canvasStream.getTracks().forEach((t) => t.stop());
+          if (audioContext) audioContext.close().catch(() => {
           });
-        } else {
-          finishWithBlob(rawBlob);
+          const endTs = endTsParam != null && !isLiveRecord ? endTsParam : Math.max(startTs + 1, Math.floor(videoEl.currentTime || startTs + 1));
+          const outputMime = isMp4 ? "video/mp4" : "video/webm";
+          const rawBlob = new Blob(chunks, { type: outputMime });
+          const durationMs = Math.max(1e3, (endTs - startTs) * 1e3);
+          let hasFinished = false;
+          const finishWithBlob = (blob) => {
+            if (hasFinished) return;
+            hasFinished = true;
+            const reader = new FileReader();
+            reader.onloadend = () => {
+              if (pendingSendResponse) {
+                pendingSendResponse({
+                  dataUrl: reader.result,
+                  duration: Math.max(1, endTs - startTs),
+                  startTs,
+                  endTs,
+                  mimeType: blob.type || outputMime
+                });
+                pendingSendResponse = null;
+              }
+            };
+            reader.onerror = () => {
+              if (pendingSendResponse) {
+                pendingSendResponse({ error: "Failed to read recorded video blob" });
+                pendingSendResponse = null;
+              }
+            };
+            reader.readAsDataURL(blob);
+          };
+          const hardTimeout = setTimeout(() => {
+            if (!hasFinished) {
+              finishWithBlob(rawBlob);
+            }
+          }, 1200);
+          if (!isMp4 && typeof window.ysFixWebmDuration === "function") {
+            try {
+              window.ysFixWebmDuration(rawBlob, durationMs, (fixedBlob) => {
+                clearTimeout(hardTimeout);
+                finishWithBlob(fixedBlob || rawBlob);
+              });
+            } catch (_) {
+              clearTimeout(hardTimeout);
+              finishWithBlob(rawBlob);
+            }
+          } else {
+            clearTimeout(hardTimeout);
+            finishWithBlob(rawBlob);
+          }
+        } catch (err) {
+          if (pendingSendResponse) {
+            pendingSendResponse({ error: err instanceof Error ? err.message : String(err) });
+            pendingSendResponse = null;
+          }
         }
       };
       activeVideoRecorder.start(500);
+      if (stopRequested) {
+        stopRecordingNow();
+        return;
+      }
       setTimeout(() => {
         if (isRecordingVideo && activeVideoRecorder && activeVideoRecorder.state !== "inactive") {
           stopRecordingNow();
@@ -1631,6 +1700,7 @@
     } catch (err) {
       isRecordingVideo = false;
       sendResponse({ error: err instanceof Error ? err.message : String(err) });
+      pendingSendResponse = null;
     }
   }
 
@@ -1838,11 +1908,15 @@
             }, "*");
           }
           break;
-        case "CAPTURE_VIDEO":
+        case "CAPTURE_VIDEO": {
+          const replyWindow = event.source || widgetIframe?.contentWindow;
           capture240pVideoClip(
             data.duration || 90,
             (res) => {
-              if (widgetIframe?.contentWindow) {
+              if (replyWindow) {
+                replyWindow.postMessage({ type: "VIDEO_CAPTURED", ...res }, "*");
+              }
+              if (widgetIframe?.contentWindow && widgetIframe.contentWindow !== replyWindow) {
                 widgetIframe.contentWindow.postMessage({ type: "VIDEO_CAPTURED", ...res }, "*");
               }
             },
@@ -1851,6 +1925,7 @@
             data.isLiveRecord
           );
           break;
+        }
         case "STOP_VIDEO":
           stopRecordingNow();
           break;

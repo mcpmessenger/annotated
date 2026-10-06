@@ -2,7 +2,7 @@
 
 import { $ } from '../shared/dom';
 import { supabase } from '../shared/supabase';
-import { pageKey, formatSeconds } from '../shared/utils';
+import { pageKey, formatSeconds, safeStorageGet } from '../shared/utils';
 import type { CurrentUser, PageContext, Annotation } from '../types/annotation';
 import { showAuth, showApp, initAuthHandlers, loadUserProfileStats } from './auth';
 import {
@@ -163,10 +163,10 @@ function setupParentMessageListener(): void {
 
 async function boot(): Promise<void> {
   // 1. Initialize UI theme & control buttons
-  chrome.storage.local.get('theme', (data: Record<string, any>) => {
+  safeStorageGet('theme').then((data) => {
     const t = data.theme === 'dark' ? 'dark' : 'light';
     setTheme(t);
-  });
+  }).catch(() => {});
   initUiControls();
   setupParentMessageListener();
 

@@ -3,7 +3,7 @@
 import { $ } from '../shared/dom';
 import { supabase } from '../shared/supabase';
 import { SUPABASE_CONFIG, SITE_URL, FACTCHECK_API_URL } from '../shared/config';
-import { pageKey } from '../shared/utils';
+import { pageKey, safeStorageGet, safeStorageSet } from '../shared/utils';
 import type { Annotation, CurrentUser, PageContext, FactCheckResult } from '../types/annotation';
 
 export interface PublishPayload {
@@ -199,8 +199,8 @@ export async function publishAnnotation(
     try {
       localStorage.setItem(`annotated_fc_${realId}`, JSON.stringify(fcData));
       localStorage.setItem(`annotated_fc_${realSlug}`, JSON.stringify(fcData));
-      if (typeof chrome !== 'undefined' && chrome.storage?.local && fcData.verdict) {
-        chrome.storage.local.set({
+      if (fcData.verdict) {
+        await safeStorageSet({
           [`fc_${realId}`]: fcData.verdict,
           [`fc_${realSlug}`]: fcData.verdict,
         });
@@ -210,16 +210,12 @@ export async function publishAnnotation(
 
   // Save to local storage
   const key = pageKey(publishUrl);
-  if (typeof chrome !== 'undefined' && chrome?.storage?.local) {
-    chrome.storage.local.get(key, (data: Record<string, any>) => {
-      const items = [...((data[key] as Annotation[]) || []), localAnnotation];
-      chrome.storage.local.set({ [key]: items }, () => {
-        onSuccess(localAnnotation);
-      });
-    });
-  } else {
-    onSuccess(localAnnotation);
-  }
+  try {
+    const data = await safeStorageGet(key);
+    const items = [...((data[key] as Annotation[]) || []), localAnnotation];
+    await safeStorageSet({ [key]: items });
+  } catch (_) {}
+  onSuccess(localAnnotation);
 
   // Notify content script
   try {

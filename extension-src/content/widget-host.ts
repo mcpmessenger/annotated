@@ -243,11 +243,15 @@ export function setupMessageRouter(onReloadAnnotations: () => void): void {
         }
         break;
 
-      case 'CAPTURE_VIDEO':
+      case 'CAPTURE_VIDEO': {
+        const replyWindow = (event.source as WindowProxy) || widgetIframe?.contentWindow;
         capture240pVideoClip(
           data.duration || 90,
           (res: any) => {
-            if (widgetIframe?.contentWindow) {
+            if (replyWindow) {
+              replyWindow.postMessage({ type: 'VIDEO_CAPTURED', ...res }, '*');
+            }
+            if (widgetIframe?.contentWindow && widgetIframe.contentWindow !== replyWindow) {
               widgetIframe.contentWindow.postMessage({ type: 'VIDEO_CAPTURED', ...res }, '*');
             }
           },
@@ -256,6 +260,7 @@ export function setupMessageRouter(onReloadAnnotations: () => void): void {
           data.isLiveRecord
         );
         break;
+      }
 
       case 'STOP_VIDEO':
         stopRecordingNow();

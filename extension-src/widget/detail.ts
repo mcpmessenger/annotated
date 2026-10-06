@@ -1,7 +1,7 @@
 import { $ } from '../shared/dom';
 import { SITE_URL, SUPABASE_CONFIG } from '../shared/config';
 import { supabase } from '../shared/supabase';
-import { escapeHtml, formatSeconds, extractTimestamp, openExternalUrl, initials, pageKey } from '../shared/utils';
+import { escapeHtml, formatSeconds, extractTimestamp, openExternalUrl, initials, pageKey, safeStorageGet, safeStorageSet } from '../shared/utils';
 import { wireFactCheck } from './factcheck';
 import { loadWidgetComments } from './comments';
 import type { Annotation, CurrentUser, UserProfile } from '../types/annotation';
@@ -70,12 +70,11 @@ export async function showAnnotationDetail(
 
         try {
           const key = pageKey(ann.url || location.href);
-          chrome.storage.local.get(key, (data: Record<string, any>) => {
-            const stored = ((data[key] as Annotation[]) || []).filter(
-              (a: Annotation) => String(a.id) !== String(ann.id)
-            );
-            chrome.storage.local.set({ [key]: stored }, () => {});
-          });
+          const data = await safeStorageGet(key);
+          const stored = ((data[key] as Annotation[]) || []).filter(
+            (a: Annotation) => String(a.id) !== String(ann.id)
+          );
+          await safeStorageSet({ [key]: stored });
         } catch (_) {}
 
         try {

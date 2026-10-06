@@ -1,6 +1,7 @@
 // ─── Typed Supabase Client ──────────────────────────────────────────────────
 import { SUPABASE_CONFIG } from './config';
 import type { CurrentUser } from '../types/annotation';
+import { safeStorageGet, safeStorageSet, safeStorageRemove } from './utils';
 
 export interface SupabaseSession {
   access_token: string;
@@ -28,9 +29,11 @@ export class SupabaseClient {
   }
 
   public async getAuthHeaders(extra: Record<string, string> = {}): Promise<Record<string, string>> {
-    if (!this.token) {
-      await this.restoreSession();
-    }
+    try {
+      if (!this.token) {
+        await this.restoreSession();
+      }
+    } catch (_) {}
     return this.headers(extra);
   }
 
@@ -165,7 +168,7 @@ export class SupabaseClient {
             expires_at: Math.floor(Date.now() / 1000) + expires_in,
           };
           this.token = access_token;
-          await chrome.storage.local.set({ supabase_session: session });
+          await safeStorageSet({ supabase_session: session });
           resolve(session);
         } catch (err: unknown) {
           reject(err instanceof Error ? err.message : String(err));
@@ -187,35 +190,37 @@ export class SupabaseClient {
       }).catch(() => {});
     }
     this.token = null;
-    await chrome.storage.local.remove('supabase_session');
+    await safeStorageRemove('supabase_session');
   }
 
   public async restoreSession(): Promise<SupabaseSession | null> {
-    const data = await chrome.storage.local.get('supabase_session');
-    const session = data.supabase_session as SupabaseSession | undefined;
-    if (session?.access_token) {
-      const issuedAt = session.expires_at || 0;
-      if (Date.now() / 1000 < issuedAt) {
-        this.token = session.access_token;
-        return session;
+    try {
+      const data = await safeStorageGet('supabase_session');
+      const session = data.supabase_session as SupabaseSession | undefined;
+      if (session?.access_token) {
+        const issuedAt = session.expires_at || 0;
+        if (Date.now() / 1000 < issuedAt) {
+          this.token = session.access_token;
+          return session;
+        }
+        if (session.refresh_token) {
+          try {
+            const res = await fetch(`${this.url}/auth/v1/token?grant_type=refresh_token`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', apikey: this.key },
+              body: JSON.stringify({ refresh_token: session.refresh_token }),
+            });
+            const fresh = await res.json();
+            if (fresh.access_token) {
+              this.token = fresh.access_token;
+              await safeStorageSet({ supabase_session: fresh });
+              return fresh;
+            }
+          } catch (_) {}
+        }
+        await safeStorageRemove('supabase_session');
       }
-      if (session.refresh_token) {
-        try {
-          const res = await fetch(`${this.url}/auth/v1/token?grant_type=refresh_token`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', apikey: this.key },
-            body: JSON.stringify({ refresh_token: session.refresh_token }),
-          });
-          const fresh = await res.json();
-          if (fresh.access_token) {
-            this.token = fresh.access_token;
-            await chrome.storage.local.set({ supabase_session: fresh });
-            return fresh;
-          }
-        } catch (_) {}
-      }
-      await chrome.storage.local.remove('supabase_session');
-    }
+    } catch (_) {}
     return null;
   }
 
