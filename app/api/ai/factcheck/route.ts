@@ -360,15 +360,27 @@ CRITICAL STRICT RULES - DO NOT VERIFY THE ENTIRE WEBPAGE:
 4. HEADLINE RULE: Summarize the verdict on the specific highlighted claim, NEVER reviewing the entire webpage, site, or publisher.`;
       }
 
+      const todayStr = new Date().toISOString().slice(0, 10);
+
       const prompt = `You are a real-time fact-checking intelligence system for the web annotation layer "Annotated".
 
+TODAY'S DATE: ${todayStr}. Your training data has a cutoff that is likely BEFORE today. Many real events, interviews, product launches, legal cases and news stories exist that you have never seen.
+
 ${promptTarget}
+
+EVIDENCE & VERDICT RULES (MANDATORY):
+1. Use the Google Search tool to look up the claim, the people involved, and the source video/article BEFORE deciding. Base your verdict on what current search results show, not on memory.
+2. NEVER label something FALSE, fabricated, fake, deepfake, or AI-generated merely because you don't recognize it or it postdates your training data. Unfamiliar ≠ false.
+3. If reputable outlets (e.g. AP, Reuters, BBC, CNN, NYT, WSJ, Washington Post, Forbes, Bloomberg, NPR, The Guardian, official government / company sources) report the event or claim, treat it as corroborated. Do NOT dismiss their reporting as fabricated.
+4. Only return FALSE when you have specific contradicting evidence from reliable sources, and cite those sources. Only allege manipulation / deepfake when there is concrete, cited evidence of manipulation (e.g. a published debunk), never from intuition.
+5. If you cannot find enough evidence either way, return CONTEXT_NEEDED with confidence LOW and say what could not be confirmed — do not guess.
+6. Every URL in "sources" must be a real page you found via search. Do not invent URLs.
 
 Respond ONLY with a valid JSON object matching this schema (do not add markdown code fences or explanatory text outside the JSON):
 {
   "verdict": "VERIFIED" | "MISLEADING" | "FALSE" | "CONTEXT_NEEDED",
   "headline": "Brief 1-sentence verdict on the specific clip claim or highlighted excerpt",
-  "explanation": "2-3 sentences explaining why based on scientific or journalistic evidence",
+  "explanation": "2-3 sentences explaining why, referencing the evidence found",
   "confidence": "HIGH" | "MEDIUM" | "LOW",
   "timestampAnalysis": "${isVideo ? `Context for clip segment ${videoTimeRange}` : "N/A"}",
   "sources": [
@@ -376,12 +388,12 @@ Respond ONLY with a valid JSON object matching this schema (do not add markdown 
   ]
 }`;
 
+      // Newest first — older models have earlier knowledge cutoffs and are far more likely to call recent real events "fake"
       const candidateModels = [
+        "gemini-3.5-flash",
+        "gemini-flash-latest",
         "gemini-2.5-flash",
         "gemini-2.0-flash",
-        "gemini-1.5-flash",
-        "gemini-3.5-flash",
-        "gemini-flash-latest"
       ];
 
       const parts: any[] = [];
@@ -395,23 +407,36 @@ Respond ONLY with a valid JSON object matching this schema (do not add markdown 
       }
       parts.push({ text: prompt });
 
-      for (const model of candidateModels) {
-        try {
-          const geminiRes = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiKey}`,
-            {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                contents: [{ parts }],
-              }),
-            }
-          );
+      const callModel = async (model: string, grounded: boolean) => {
+        const reqBody: any = { contents: [{ parts }] };
+        if (grounded) reqBody.tools = [{ google_search: {} }];
+        return fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiKey}`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(reqBody),
+          }
+        );
+      };
 
-          if (geminiRes.ok) {
+      outer: for (const model of candidateModels) {
+        for (const grounded of [true, false]) {
+          try {
+            const geminiRes = await callModel(model, grounded);
+
+            if (!geminiRes.ok) {
+              const errText = await geminiRes.text();
+              console.warn(`[Gemini FactCheck] Model ${model} (grounded=${grounded}) returned non-OK:`, geminiRes.status, errText);
+              // 404 = model missing → skip ungrounded retry and move to next model
+              if (geminiRes.status === 404) break;
+              continue;
+            }
+
             const gData = await geminiRes.json();
-            const partWithText = gData?.candidates?.[0]?.content?.parts?.find((p: any) => p.text && !p.thought);
-            let rawText = partWithText?.text || gData?.candidates?.[0]?.content?.parts?.[0]?.text || "";
+            const cand = gData?.candidates?.[0];
+            const textParts = (cand?.content?.parts || []).filter((p: any) => p.text && !p.thought);
+            let rawText = textParts.map((p: any) => p.text).join("") || "";
 
             rawText = rawText.replace(/```(?:json)?/gi, "").replace(/```/g, "").trim();
 
@@ -422,15 +447,34 @@ Respond ONLY with a valid JSON object matching this schema (do not add markdown 
             }
 
             const parsed = JSON.parse(rawText);
+
+            // Prefer real URLs from search grounding over model-written ones
+            const groundingChunks: any[] = cand?.groundingMetadata?.groundingChunks || [];
+            const groundedSources = groundingChunks
+              .map((c: any) => c?.web)
+              .filter((w: any) => w?.uri)
+              .map((w: any) => ({ title: w.title || w.uri, url: w.uri }));
+            if (groundedSources.length > 0) {
+              const seen = new Set<string>();
+              parsed.sources = [...groundedSources, ...(Array.isArray(parsed.sources) ? parsed.sources : [])]
+                .filter((s: any) => s?.url && !seen.has(s.url) && seen.add(s.url))
+                .slice(0, 6);
+            }
+
+            // Ungrounded verdicts can't safely claim FALSE about possibly-recent events
+            if (!grounded && parsed.verdict === "FALSE") {
+              parsed.verdict = "CONTEXT_NEEDED";
+              parsed.confidence = "LOW";
+            }
+
+            parsed.grounded = grounded && groundedSources.length > 0;
+            parsed.model = model;
             parsed.geminiConfigured = true;
             verdictResult = parsed;
-            break;
-          } else {
-            const errText = await geminiRes.text();
-            console.warn(`[Gemini FactCheck] Model ${model} returned non-OK:`, geminiRes.status, errText);
+            break outer;
+          } catch (err) {
+            console.warn(`[Gemini FactCheck] Model ${model} (grounded=${grounded}) failed:`, err);
           }
-        } catch (err) {
-          console.warn(`[Gemini FactCheck] Model ${model} failed:`, err);
         }
       }
     }

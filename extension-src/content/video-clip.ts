@@ -1,5 +1,18 @@
 import { getActiveVideoElement } from './selection';
 
+function getVideoKey(): string {
+  try {
+    const u = new URL(location.href);
+    if (u.hostname.includes('youtube.com')) {
+      const shorts = u.pathname.match(/^\/shorts\/([^/?#]+)/);
+      return u.searchParams.get('v') || (shorts ? shorts[1] : u.pathname);
+    }
+    return u.origin + u.pathname;
+  } catch (_) {
+    return location.href;
+  }
+}
+
 declare global {
   interface Window {
     ysFixWebmDuration?: (blob: Blob, duration: number, callback: (fixedBlob: Blob) => void) => void;
@@ -142,6 +155,7 @@ export async function capture240pVideoClip(
   stopRequested = false;
   pendingSendResponse = sendResponse;
   activeVideoEl = videoEl;
+  const sourceVideoKey = getVideoKey();
   const startTs = isLiveRecord ? Math.floor(videoEl.currentTime || 0) : (startTsParam != null ? startTsParam : Math.floor(videoEl.currentTime || 0));
 
   const canvas = document.createElement('canvas');
@@ -303,6 +317,14 @@ export async function capture240pVideoClip(
         }
         if (canvasStream) canvasStream.getTracks().forEach((t) => t.stop());
         if (audioContext) audioContext.close().catch(() => {});
+
+        if (getVideoKey() !== sourceVideoKey) {
+          if (pendingSendResponse) {
+            pendingSendResponse({ error: 'Page switched to a different video during recording — clip discarded. Please re-record.' });
+            pendingSendResponse = null;
+          }
+          return;
+        }
 
         const endTs = endTsParam != null && !isLiveRecord ? endTsParam : Math.max(startTs + 1, Math.floor(videoEl.currentTime || startTs + 1));
         const outputMime = isMp4 ? 'video/mp4' : 'video/webm';

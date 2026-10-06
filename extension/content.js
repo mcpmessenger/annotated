@@ -817,15 +817,35 @@
   var lastKnownSelection = null;
   var lastKnownRect = null;
   var lastKnownElement = null;
+  var PREVIEW_PLAYER_SELECTOR = "#inline-preview-player, ytd-video-preview, #video-preview, ytd-thumbnail, ytd-rich-grid-media, ytd-moving-thumbnail-renderer, ytd-reel-video-renderer:not([is-active])";
+  function isPreviewVideo(v) {
+    try {
+      return !!v.closest(PREVIEW_PLAYER_SELECTOR);
+    } catch (_) {
+      return false;
+    }
+  }
+  function isVisibleVideo(v) {
+    const r = v.getBoundingClientRect();
+    return r.width > 80 && r.height > 45;
+  }
   function getActiveVideoElement() {
-    const yt = document.querySelector("video.html5-main-video, .html5-video-player video");
-    if (yt && (yt.duration > 0 || yt.currentTime > 0 || !yt.paused)) return yt;
-    const allVideos = Array.from(document.querySelectorAll("video"));
-    const playing = allVideos.find((v) => !v.paused && !v.ended && v.currentTime > 0);
+    if (location.hostname.includes("youtube.com")) {
+      const main = document.querySelector("#movie_player video.html5-main-video, #movie_player video");
+      if (main && !isPreviewVideo(main)) return main;
+    }
+    const allVideos = Array.from(document.querySelectorAll("video")).filter(
+      (v) => !isPreviewVideo(v)
+    );
+    const playing = allVideos.find((v) => !v.paused && !v.ended && v.currentTime > 0 && isVisibleVideo(v));
     if (playing) return playing;
-    const valid = allVideos.filter((v) => v.duration > 0 || v.currentTime > 0);
+    const valid = allVideos.filter((v) => (v.duration > 0 || v.currentTime > 0) && isVisibleVideo(v));
     if (valid.length > 0) {
-      valid.sort((a, b) => b.videoWidth * b.videoHeight - a.videoWidth * a.videoHeight);
+      valid.sort((a, b) => {
+        const ra = a.getBoundingClientRect();
+        const rb = b.getBoundingClientRect();
+        return rb.width * rb.height - ra.width * ra.height;
+      });
       return valid[0];
     }
     return allVideos[0] || null;
@@ -1359,6 +1379,18 @@
   }
 
   // extension-src/content/video-clip.ts
+  function getVideoKey() {
+    try {
+      const u = new URL(location.href);
+      if (u.hostname.includes("youtube.com")) {
+        const shorts = u.pathname.match(/^\/shorts\/([^/?#]+)/);
+        return u.searchParams.get("v") || (shorts ? shorts[1] : u.pathname);
+      }
+      return u.origin + u.pathname;
+    } catch (_) {
+      return location.href;
+    }
+  }
   var activeVideoRecorder = null;
   var activeRecordStream = null;
   var activeAudioStream = null;
@@ -1483,6 +1515,7 @@
     stopRequested = false;
     pendingSendResponse = sendResponse;
     activeVideoEl = videoEl;
+    const sourceVideoKey = getVideoKey();
     const startTs = isLiveRecord ? Math.floor(videoEl.currentTime || 0) : startTsParam != null ? startTsParam : Math.floor(videoEl.currentTime || 0);
     const canvas = document.createElement("canvas");
     canvas.width = 426;
@@ -1632,6 +1665,13 @@
           if (canvasStream) canvasStream.getTracks().forEach((t) => t.stop());
           if (audioContext) audioContext.close().catch(() => {
           });
+          if (getVideoKey() !== sourceVideoKey) {
+            if (pendingSendResponse) {
+              pendingSendResponse({ error: "Page switched to a different video during recording \u2014 clip discarded. Please re-record." });
+              pendingSendResponse = null;
+            }
+            return;
+          }
           const endTs = endTsParam != null && !isLiveRecord ? endTsParam : Math.max(startTs + 1, Math.floor(videoEl.currentTime || startTs + 1));
           const outputMime = isMp4 ? "video/mp4" : "video/webm";
           const rawBlob = new Blob(chunks, { type: outputMime });

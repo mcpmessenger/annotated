@@ -17,20 +17,45 @@ export let lastKnownSelection: string | null = null;
 export let lastKnownRect: DOMRect | null = null;
 export let lastKnownElement: Element | null = null;
 
-export function getActiveVideoElement(): HTMLVideoElement | null {
-  // 1. YouTube primary player video
-  const yt = document.querySelector('video.html5-main-video, .html5-video-player video') as HTMLVideoElement | null;
-  if (yt && (yt.duration > 0 || yt.currentTime > 0 || !yt.paused)) return yt;
+const PREVIEW_PLAYER_SELECTOR =
+  '#inline-preview-player, ytd-video-preview, #video-preview, ytd-thumbnail, ytd-rich-grid-media, ytd-moving-thumbnail-renderer, ytd-reel-video-renderer:not([is-active])';
 
-  // 2. Any currently playing video
-  const allVideos = Array.from(document.querySelectorAll('video')) as HTMLVideoElement[];
-  const playing = allVideos.find((v) => !v.paused && !v.ended && v.currentTime > 0);
+function isPreviewVideo(v: HTMLVideoElement): boolean {
+  try {
+    return !!v.closest(PREVIEW_PLAYER_SELECTOR);
+  } catch (_) {
+    return false;
+  }
+}
+
+function isVisibleVideo(v: HTMLVideoElement): boolean {
+  const r = v.getBoundingClientRect();
+  return r.width > 80 && r.height > 45;
+}
+
+export function getActiveVideoElement(): HTMLVideoElement | null {
+  // 1. YouTube: always use the main watch-page player, never hover previews in the sidebar/feed
+  if (location.hostname.includes('youtube.com')) {
+    const main = document.querySelector('#movie_player video.html5-main-video, #movie_player video') as HTMLVideoElement | null;
+    if (main && !isPreviewVideo(main)) return main;
+  }
+
+  const allVideos = (Array.from(document.querySelectorAll('video')) as HTMLVideoElement[]).filter(
+    (v) => !isPreviewVideo(v)
+  );
+
+  // 2. Any currently playing, visible video
+  const playing = allVideos.find((v) => !v.paused && !v.ended && v.currentTime > 0 && isVisibleVideo(v));
   if (playing) return playing;
 
   // 3. Largest visible video with duration > 0
-  const valid = allVideos.filter((v) => v.duration > 0 || v.currentTime > 0);
+  const valid = allVideos.filter((v) => (v.duration > 0 || v.currentTime > 0) && isVisibleVideo(v));
   if (valid.length > 0) {
-    valid.sort((a, b) => (b.videoWidth * b.videoHeight) - (a.videoWidth * a.videoHeight));
+    valid.sort((a, b) => {
+      const ra = a.getBoundingClientRect();
+      const rb = b.getBoundingClientRect();
+      return rb.width * rb.height - ra.width * ra.height;
+    });
     return valid[0];
   }
 
