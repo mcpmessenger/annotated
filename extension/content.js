@@ -1022,9 +1022,14 @@
     }
     const payload = buildPageInfo();
     try {
-      chrome.storage.local.set({ pendingSelection: { ...payload, timestamp: Date.now() } });
-      chrome.runtime.sendMessage({ type: "selection", ...payload }).catch(() => {
-      });
+      if (typeof chrome !== "undefined" && chrome?.storage?.local) {
+        chrome.storage.local.set({ pendingSelection: { ...payload, timestamp: Date.now() } });
+      }
+      if (typeof chrome !== "undefined" && chrome?.runtime && typeof chrome.runtime.sendMessage === "function") {
+        const p = chrome.runtime.sendMessage({ type: "selection", ...payload });
+        if (p && typeof p.catch === "function") p.catch(() => {
+        });
+      }
     } catch (_) {
     }
     if (onSelectionRecorded) {
@@ -1154,38 +1159,46 @@
         return;
       }
       setTimeout(() => {
-        chrome.runtime.sendMessage({ type: "CAPTURE_SCREENSHOT" }, (response) => {
-          if (!response?.dataUrl) {
-            if (onError) onError("Failed to capture screen image");
-            return;
+        if (typeof chrome !== "undefined" && chrome?.runtime && typeof chrome.runtime.sendMessage === "function") {
+          try {
+            chrome.runtime.sendMessage({ type: "CAPTURE_SCREENSHOT" }, (response) => {
+              if (!response?.dataUrl) {
+                if (onError) onError("Failed to capture screen image");
+                return;
+              }
+              const dpr = window.devicePixelRatio || 1;
+              const img = new Image();
+              img.onload = () => {
+                const canvas = document.createElement("canvas");
+                canvas.width = Math.round(cropW * dpr);
+                canvas.height = Math.round(cropH * dpr);
+                const ctx = canvas.getContext("2d");
+                if (!ctx) return;
+                ctx.drawImage(
+                  img,
+                  Math.round(cropX * dpr),
+                  Math.round(cropY * dpr),
+                  Math.round(cropW * dpr),
+                  Math.round(cropH * dpr),
+                  0,
+                  0,
+                  Math.round(cropW * dpr),
+                  Math.round(cropH * dpr)
+                );
+                const croppedDataUrl = canvas.toDataURL("image/png");
+                onCaptured(croppedDataUrl);
+              };
+              img.onerror = () => {
+                if (onError) onError("Failed to process captured image");
+              };
+              img.src = response.dataUrl;
+            });
+          } catch (err) {
+            if (onError) onError("Failed to send screenshot capture request");
           }
-          const dpr = window.devicePixelRatio || 1;
-          const img = new Image();
-          img.onload = () => {
-            const canvas = document.createElement("canvas");
-            canvas.width = Math.round(cropW * dpr);
-            canvas.height = Math.round(cropH * dpr);
-            const ctx = canvas.getContext("2d");
-            if (!ctx) return;
-            ctx.drawImage(
-              img,
-              Math.round(cropX * dpr),
-              Math.round(cropY * dpr),
-              Math.round(cropW * dpr),
-              Math.round(cropH * dpr),
-              0,
-              0,
-              Math.round(cropW * dpr),
-              Math.round(cropH * dpr)
-            );
-            const croppedDataUrl = canvas.toDataURL("image/png");
-            onCaptured(croppedDataUrl);
-          };
-          img.onerror = () => {
-            if (onError) onError("Failed to process captured image");
-          };
-          img.src = response.dataUrl;
-        });
+        } else {
+          if (onError) onError("Extension context unavailable");
+        }
       }, 60);
     });
     document.documentElement.appendChild(overlay);
@@ -1204,8 +1217,11 @@
       widgetIframe2.contentWindow.postMessage(eventData, "*");
     }
     try {
-      chrome.runtime.sendMessage(eventData).catch(() => {
-      });
+      if (typeof chrome !== "undefined" && chrome?.runtime && typeof chrome.runtime.sendMessage === "function") {
+        const p = chrome.runtime.sendMessage(eventData);
+        if (p && typeof p.catch === "function") p.catch(() => {
+        });
+      }
     } catch (_) {
     }
   }
@@ -1353,12 +1369,18 @@
       audioStream.getAudioTracks().forEach((track) => pc.addTrack(track, audioStream));
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
-      await chrome.runtime.sendMessage({ type: "ENSURE_OFFSCREEN" });
+      if (typeof chrome !== "undefined" && chrome?.runtime?.sendMessage) {
+        await chrome.runtime.sendMessage({ type: "ENSURE_OFFSCREEN" });
+      }
       const answer = await new Promise((resolve) => {
-        chrome.runtime.sendMessage(
-          { type: "OFFSCREEN_START_AUDIO_BRIDGE", sdp: offer.sdp },
-          (res) => resolve(res)
-        );
+        if (typeof chrome !== "undefined" && chrome?.runtime?.sendMessage) {
+          chrome.runtime.sendMessage(
+            { type: "OFFSCREEN_START_AUDIO_BRIDGE", sdp: offer.sdp },
+            (res) => resolve(res)
+          );
+        } else {
+          resolve(null);
+        }
       });
       if (answer?.sdp) {
         await pc.setRemoteDescription(new RTCSessionDescription({ type: "answer", sdp: answer.sdp }));
@@ -1377,8 +1399,14 @@
       }
       activeSpeakerBridge = null;
     }
-    chrome.runtime.sendMessage({ type: "OFFSCREEN_STOP_AUDIO_BRIDGE" }).catch(() => {
-    });
+    try {
+      if (typeof chrome !== "undefined" && chrome?.runtime?.sendMessage) {
+        const p = chrome.runtime.sendMessage({ type: "OFFSCREEN_STOP_AUDIO_BRIDGE" });
+        if (p && typeof p.catch === "function") p.catch(() => {
+        });
+      }
+    } catch (_) {
+    }
   }
   function stopRecordingNow() {
     if (isRecordingVideo && activeVideoRecorder && activeVideoRecorder.state !== "inactive") {
@@ -1449,9 +1477,13 @@
     let audioContext = null;
     try {
       const tabStreamId = await new Promise((resolve) => {
-        chrome.runtime.sendMessage({ type: "getTabAudioStreamId" }, (res) => {
-          resolve(res?.streamId || null);
-        });
+        if (typeof chrome !== "undefined" && chrome?.runtime?.sendMessage) {
+          chrome.runtime.sendMessage({ type: "getTabAudioStreamId" }, (res) => {
+            resolve(res?.streamId || null);
+          });
+        } else {
+          resolve(null);
+        }
       });
       if (tabStreamId) {
         activeAudioStream = await navigator.mediaDevices.getUserMedia({
@@ -1817,7 +1849,17 @@
         case "OPEN_TAB":
         case "OPEN_URL":
           if (data.url) {
-            chrome.runtime.sendMessage({ type: "openTab", url: data.url });
+            try {
+              if (typeof chrome !== "undefined" && chrome?.runtime && typeof chrome.runtime.sendMessage === "function") {
+                const p = chrome.runtime.sendMessage({ type: "openTab", url: data.url });
+                if (p && typeof p.catch === "function") p.catch(() => {
+                });
+              } else {
+                window.open(data.url, "_blank", "noopener,noreferrer");
+              }
+            } catch (_) {
+              window.open(data.url, "_blank", "noopener,noreferrer");
+            }
           }
           break;
         case "TAKE_SCREENSHOT":

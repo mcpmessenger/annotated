@@ -79,8 +79,12 @@
         return true;
       }
       if (message.type === "selection") {
-        chrome.runtime.sendMessage(message).catch(() => {
-        });
+        try {
+          const p = chrome.runtime.sendMessage(message);
+          if (p && typeof p.catch === "function") p.catch(() => {
+          });
+        } catch (_) {
+        }
         sendResponse({ ok: true });
         return true;
       }
@@ -99,6 +103,17 @@
             }
           });
         });
+        return true;
+      }
+      if (message.type === "captureVideo" || message.type === "stopVideo") {
+        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+          const tab = tabs?.[0];
+          if (tab?.id) {
+            chrome.tabs.sendMessage(tab.id, message).catch(() => {
+            });
+          }
+        });
+        sendResponse({ ok: true });
         return true;
       }
     }

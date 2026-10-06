@@ -364,6 +364,25 @@
     } catch (_) {
     }
   }
+  function safeSendRuntimeMessage(message, callback) {
+    try {
+      if (typeof chrome !== "undefined" && chrome?.runtime && typeof chrome.runtime.sendMessage === "function") {
+        if (callback) {
+          chrome.runtime.sendMessage(message, callback);
+        } else {
+          const p = chrome.runtime.sendMessage(message);
+          if (p && typeof p.catch === "function") {
+            p.catch(() => {
+            });
+          }
+        }
+      } else if (callback) {
+        callback(void 0);
+      }
+    } catch (_) {
+      if (callback) callback(void 0);
+    }
+  }
 
   // extension-src/widget/publish.ts
   async function publishAnnotation(payload, onProgress, onSuccess, onError) {
@@ -524,15 +543,22 @@
       }
     }
     const key = pageKey(publishUrl);
-    chrome.storage.local.get(key, (data) => {
-      const items = [...data[key] || [], localAnnotation];
-      chrome.storage.local.set({ [key]: items }, () => {
-        onSuccess(localAnnotation);
+    if (typeof chrome !== "undefined" && chrome?.storage?.local) {
+      chrome.storage.local.get(key, (data) => {
+        const items = [...data[key] || [], localAnnotation];
+        chrome.storage.local.set({ [key]: items }, () => {
+          onSuccess(localAnnotation);
+        });
       });
-    });
+    } else {
+      onSuccess(localAnnotation);
+    }
     try {
-      chrome.runtime.sendMessage({ type: "saveAnnotation", annotation: localAnnotation }).catch(() => {
-      });
+      if (typeof chrome !== "undefined" && chrome?.runtime && typeof chrome.runtime.sendMessage === "function") {
+        const p = chrome.runtime.sendMessage({ type: "saveAnnotation", annotation: localAnnotation });
+        if (p && typeof p.catch === "function") p.catch(() => {
+        });
+      }
     } catch (_) {
     }
     try {
@@ -881,8 +907,7 @@
     const grabIcon = $("#grabClipBtnIcon");
     if (grabIcon) grabIcon.textContent = "\u23F3";
     window.parent.postMessage({ type: "STOP_VIDEO" }, "*");
-    chrome.runtime.sendMessage({ type: "stopVideo" }).catch(() => {
-    });
+    safeSendRuntimeMessage({ type: "stopVideo" });
   }
   function startGrabTimer(targetDuration, isLive = false) {
     stopGrabTimer();
@@ -1428,7 +1453,7 @@
         if (window.parent !== window) {
           window.parent.postMessage({ type: "TAKE_SCREENSHOT" }, "*");
         } else {
-          chrome.runtime.sendMessage({ type: "CAPTURE_SCREENSHOT" }, (response) => {
+          safeSendRuntimeMessage({ type: "CAPTURE_SCREENSHOT" }, (response) => {
             if (response?.dataUrl) {
               setMedia(response.dataUrl, "image", `screenshot_${Date.now()}.png`, onResize);
             }
@@ -1491,13 +1516,12 @@
         },
         "*"
       );
-      chrome.runtime.sendMessage({
+      safeSendRuntimeMessage({
         type: "captureVideo",
         duration: dur,
         startTs: currentStart,
         endTs: trimEnd,
         isLiveRecord: true
-      }).catch(() => {
       });
     });
     const grabClipBtn = $("#grabClipBtn");
@@ -1524,13 +1548,12 @@
         },
         "*"
       );
-      chrome.runtime.sendMessage({
+      safeSendRuntimeMessage({
         type: "captureVideo",
         duration: dur,
         startTs: trimStart,
         endTs: trimEnd,
         isLiveRecord: false
-      }).catch(() => {
       });
     });
     const sliderStart = $("#trimStartSlider");

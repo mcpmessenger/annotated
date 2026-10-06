@@ -287,7 +287,16 @@ export function setupMessageRouter(onReloadAnnotations: () => void): void {
       case 'OPEN_TAB':
       case 'OPEN_URL':
         if (data.url) {
-          chrome.runtime.sendMessage({ type: 'openTab', url: data.url });
+          try {
+            if (typeof chrome !== 'undefined' && chrome?.runtime && typeof chrome.runtime.sendMessage === 'function') {
+              const p = chrome.runtime.sendMessage({ type: 'openTab', url: data.url });
+              if (p && typeof p.catch === 'function') p.catch(() => {});
+            } else {
+              window.open(data.url, '_blank', 'noopener,noreferrer');
+            }
+          } catch (_) {
+            window.open(data.url, '_blank', 'noopener,noreferrer');
+          }
         }
         break;
 

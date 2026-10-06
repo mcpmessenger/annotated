@@ -94,7 +94,10 @@ chrome.runtime.onMessage.addListener(
 
     // 4. Relay selection updates
     if (message.type === 'selection') {
-      chrome.runtime.sendMessage(message).catch(() => {});
+      try {
+        const p = chrome.runtime.sendMessage(message);
+        if (p && typeof p.catch === 'function') p.catch(() => {});
+      } catch (_) {}
       sendResponse({ ok: true });
       return true;
     }
@@ -115,6 +118,18 @@ chrome.runtime.onMessage.addListener(
           }
         });
       });
+      return true;
+    }
+
+    // 6. Video capture/stop relay to active tab
+    if (message.type === 'captureVideo' || message.type === 'stopVideo') {
+      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        const tab = tabs?.[0];
+        if (tab?.id) {
+          chrome.tabs.sendMessage(tab.id, message).catch(() => {});
+        }
+      });
+      sendResponse({ ok: true });
       return true;
     }
   }

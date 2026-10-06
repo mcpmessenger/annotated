@@ -23,7 +23,10 @@ export function sendDictationEvent(
     widgetIframe.contentWindow.postMessage(eventData, '*');
   }
   try {
-    chrome.runtime.sendMessage(eventData).catch(() => {});
+    if (typeof chrome !== 'undefined' && chrome?.runtime && typeof chrome.runtime.sendMessage === 'function') {
+      const p = chrome.runtime.sendMessage(eventData);
+      if (p && typeof p.catch === 'function') p.catch(() => {});
+    }
   } catch (_) {}
 }
 

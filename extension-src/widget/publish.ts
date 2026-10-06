@@ -210,16 +210,23 @@ export async function publishAnnotation(
 
   // Save to local storage
   const key = pageKey(publishUrl);
-  chrome.storage.local.get(key, (data: Record<string, any>) => {
-    const items = [...((data[key] as Annotation[]) || []), localAnnotation];
-    chrome.storage.local.set({ [key]: items }, () => {
-      onSuccess(localAnnotation);
+  if (typeof chrome !== 'undefined' && chrome?.storage?.local) {
+    chrome.storage.local.get(key, (data: Record<string, any>) => {
+      const items = [...((data[key] as Annotation[]) || []), localAnnotation];
+      chrome.storage.local.set({ [key]: items }, () => {
+        onSuccess(localAnnotation);
+      });
     });
-  });
+  } else {
+    onSuccess(localAnnotation);
+  }
 
   // Notify content script
   try {
-    chrome.runtime.sendMessage({ type: 'saveAnnotation', annotation: localAnnotation }).catch(() => {});
+    if (typeof chrome !== 'undefined' && chrome?.runtime && typeof chrome.runtime.sendMessage === 'function') {
+      const p = chrome.runtime.sendMessage({ type: 'saveAnnotation', annotation: localAnnotation });
+      if (p && typeof p.catch === 'function') p.catch(() => {});
+    }
   } catch (_) {}
   try {
     window.parent.postMessage({ type: 'SAVE_ANNOTATION', annotation: localAnnotation }, '*');

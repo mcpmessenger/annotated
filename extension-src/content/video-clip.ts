@@ -22,13 +22,19 @@ export async function startOffscreenSpeakerBridge(audioStream: MediaStream): Pro
     const offer = await pc.createOffer();
     await pc.setLocalDescription(offer);
 
-    await chrome.runtime.sendMessage({ type: 'ENSURE_OFFSCREEN' });
+    if (typeof chrome !== 'undefined' && chrome?.runtime?.sendMessage) {
+      await chrome.runtime.sendMessage({ type: 'ENSURE_OFFSCREEN' });
+    }
 
     const answer = await new Promise<any>((resolve) => {
-      chrome.runtime.sendMessage(
-        { type: 'OFFSCREEN_START_AUDIO_BRIDGE', sdp: offer.sdp },
-        (res) => resolve(res)
-      );
+      if (typeof chrome !== 'undefined' && chrome?.runtime?.sendMessage) {
+        chrome.runtime.sendMessage(
+          { type: 'OFFSCREEN_START_AUDIO_BRIDGE', sdp: offer.sdp },
+          (res) => resolve(res)
+        );
+      } else {
+        resolve(null);
+      }
     });
 
     if (answer?.sdp) {
@@ -48,7 +54,12 @@ export function stopOffscreenSpeakerBridge(): void {
     } catch (_) {}
     activeSpeakerBridge = null;
   }
-  chrome.runtime.sendMessage({ type: 'OFFSCREEN_STOP_AUDIO_BRIDGE' }).catch(() => {});
+  try {
+    if (typeof chrome !== 'undefined' && chrome?.runtime?.sendMessage) {
+      const p = chrome.runtime.sendMessage({ type: 'OFFSCREEN_STOP_AUDIO_BRIDGE' });
+      if (p && typeof p.catch === 'function') p.catch(() => {});
+    }
+  } catch (_) {}
 }
 
 export function stopRecordingNow(): void {
@@ -132,9 +143,13 @@ export async function capture240pVideoClip(
 
   try {
     const tabStreamId = await new Promise<string | null>((resolve) => {
-      chrome.runtime.sendMessage({ type: 'getTabAudioStreamId' }, (res) => {
-        resolve(res?.streamId || null);
-      });
+      if (typeof chrome !== 'undefined' && chrome?.runtime?.sendMessage) {
+        chrome.runtime.sendMessage({ type: 'getTabAudioStreamId' }, (res) => {
+          resolve(res?.streamId || null);
+        });
+      } else {
+        resolve(null);
+      }
     });
 
     if (tabStreamId) {

@@ -178,3 +178,22 @@ export function openExternalUrl(url?: string | null): void {
     window.open(url, '_blank', 'noopener,noreferrer');
   } catch (_) {}
 }
+
+export function safeSendRuntimeMessage(message: any, callback?: (response: any) => void): void {
+  try {
+    if (typeof chrome !== 'undefined' && chrome?.runtime && typeof chrome.runtime.sendMessage === 'function') {
+      if (callback) {
+        chrome.runtime.sendMessage(message, callback);
+      } else {
+        const p = chrome.runtime.sendMessage(message);
+        if (p && typeof p.catch === 'function') {
+          p.catch(() => {});
+        }
+      }
+    } else if (callback) {
+      callback(undefined);
+    }
+  } catch (_) {
+    if (callback) callback(undefined);
+  }
+}

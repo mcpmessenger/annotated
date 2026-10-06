@@ -1,7 +1,7 @@
 // ─── Annotation Composer Module ──────────────────────────────────────────────
 
 import { $, $$ } from '../shared/dom';
-import { formatSeconds, parseFormattedTime, escapeHtml } from '../shared/utils';
+import { formatSeconds, parseFormattedTime, escapeHtml, safeSendRuntimeMessage } from '../shared/utils';
 import { publishAnnotation } from './publish';
 import { callFactCheckApi } from './factcheck';
 import type { CurrentUser, PageContext, FactCheckResult } from '../types/annotation';
@@ -101,7 +101,7 @@ export function stopActiveRecording(): void {
   if (grabIcon) grabIcon.textContent = '⏳';
 
   window.parent.postMessage({ type: 'STOP_VIDEO' }, '*');
-  chrome.runtime.sendMessage({ type: 'stopVideo' }).catch(() => {});
+  safeSendRuntimeMessage({ type: 'stopVideo' });
 }
 
 export function startGrabTimer(targetDuration: number, isLive: boolean = false): void {
@@ -768,7 +768,7 @@ export function initComposer(
       if (window.parent !== window) {
         window.parent.postMessage({ type: 'TAKE_SCREENSHOT' }, '*');
       } else {
-        chrome.runtime.sendMessage({ type: 'CAPTURE_SCREENSHOT' }, (response) => {
+        safeSendRuntimeMessage({ type: 'CAPTURE_SCREENSHOT' }, (response) => {
           if (response?.dataUrl) {
             setMedia(response.dataUrl, 'image', `screenshot_${Date.now()}.png`, onResize);
           }
@@ -845,15 +845,13 @@ export function initComposer(
       },
       '*'
     );
-    chrome.runtime
-      .sendMessage({
-        type: 'captureVideo',
-        duration: dur,
-        startTs: currentStart,
-        endTs: trimEnd,
-        isLiveRecord: true,
-      })
-      .catch(() => {});
+    safeSendRuntimeMessage({
+      type: 'captureVideo',
+      duration: dur,
+      startTs: currentStart,
+      endTs: trimEnd,
+      isLiveRecord: true,
+    });
   });
 
   // Grab Clip Action Button (Range capture)
@@ -884,15 +882,13 @@ export function initComposer(
       },
       '*'
     );
-    chrome.runtime
-      .sendMessage({
-        type: 'captureVideo',
-        duration: dur,
-        startTs: trimStart,
-        endTs: trimEnd,
-        isLiveRecord: false,
-      })
-      .catch(() => {});
+    safeSendRuntimeMessage({
+      type: 'captureVideo',
+      duration: dur,
+      startTs: trimStart,
+      endTs: trimEnd,
+      isLiveRecord: false,
+    });
   });
 
   // Dual Range Sliders

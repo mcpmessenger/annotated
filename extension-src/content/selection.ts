@@ -263,8 +263,13 @@ export function recordSelection(onSelectionRecorded?: (payload: PageInfoPayload)
 
   const payload = buildPageInfo();
   try {
-    chrome.storage.local.set({ pendingSelection: { ...payload, timestamp: Date.now() } });
-    chrome.runtime.sendMessage({ type: 'selection', ...payload }).catch(() => {});
+    if (typeof chrome !== 'undefined' && chrome?.storage?.local) {
+      chrome.storage.local.set({ pendingSelection: { ...payload, timestamp: Date.now() } });
+    }
+    if (typeof chrome !== 'undefined' && chrome?.runtime && typeof chrome.runtime.sendMessage === 'function') {
+      const p = chrome.runtime.sendMessage({ type: 'selection', ...payload });
+      if (p && typeof p.catch === 'function') p.catch(() => {});
+    }
   } catch (_) {}
 
   if (onSelectionRecorded) {
