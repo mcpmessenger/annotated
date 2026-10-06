@@ -391,9 +391,9 @@ Respond ONLY with a valid JSON object matching this schema (do not add markdown 
       // Newest first — older models have earlier knowledge cutoffs and are far more likely to call recent real events "fake"
       const candidateModels = [
         "gemini-3.5-flash",
+        "gemini-3.8-flash",
+        "gemini-3.1-flash-lite",
         "gemini-flash-latest",
-        "gemini-2.5-flash",
-        "gemini-2.0-flash",
       ];
 
       const parts: any[] = [];
