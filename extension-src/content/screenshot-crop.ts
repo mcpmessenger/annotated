@@ -151,6 +151,10 @@ export function startCropScreenshot(
       if (typeof chrome !== 'undefined' && chrome?.runtime && typeof chrome.runtime.sendMessage === 'function') {
         try {
           chrome.runtime.sendMessage({ type: 'CAPTURE_SCREENSHOT' }, (response) => {
+            if (chrome.runtime?.lastError) {
+              if (onError) onError('Failed to capture screen image');
+              return;
+            }
             if (!response?.dataUrl) {
               if (onError) onError('Failed to capture screen image');
               return;

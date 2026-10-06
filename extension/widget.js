@@ -368,7 +368,11 @@
     try {
       if (typeof chrome !== "undefined" && chrome?.runtime && typeof chrome.runtime.sendMessage === "function") {
         if (callback) {
-          chrome.runtime.sendMessage(message, callback);
+          chrome.runtime.sendMessage(message, (res) => {
+            if (chrome.runtime?.lastError) {
+            }
+            callback(res);
+          });
         } else {
           const p = chrome.runtime.sendMessage(message);
           if (p && typeof p.catch === "function") {

@@ -22,17 +22,28 @@ export async function startOffscreenSpeakerBridge(audioStream: MediaStream): Pro
     const offer = await pc.createOffer();
     await pc.setLocalDescription(offer);
 
-    if (typeof chrome !== 'undefined' && chrome?.runtime?.sendMessage) {
-      await chrome.runtime.sendMessage({ type: 'ENSURE_OFFSCREEN' });
-    }
+    try {
+      if (typeof chrome !== 'undefined' && chrome?.runtime && typeof chrome.runtime.sendMessage === 'function') {
+        await chrome.runtime.sendMessage({ type: 'ENSURE_OFFSCREEN' });
+      }
+    } catch (_) {}
 
     const answer = await new Promise<any>((resolve) => {
-      if (typeof chrome !== 'undefined' && chrome?.runtime?.sendMessage) {
-        chrome.runtime.sendMessage(
-          { type: 'OFFSCREEN_START_AUDIO_BRIDGE', sdp: offer.sdp },
-          (res) => resolve(res)
-        );
-      } else {
+      try {
+        if (typeof chrome !== 'undefined' && chrome?.runtime && typeof chrome.runtime.sendMessage === 'function') {
+          chrome.runtime.sendMessage(
+            { type: 'OFFSCREEN_START_AUDIO_BRIDGE', sdp: offer.sdp },
+            (res) => {
+              if (chrome.runtime?.lastError) {
+                // Silently swallow context invalidation
+              }
+              resolve(res);
+            }
+          );
+        } else {
+          resolve(null);
+        }
+      } catch (_) {
         resolve(null);
       }
     });
@@ -42,7 +53,10 @@ export async function startOffscreenSpeakerBridge(audioStream: MediaStream): Pro
       return pc;
     }
   } catch (err) {
-    console.warn('[Annotated Bridge] Speaker bridge failed:', err);
+    // Only warn if not extension context invalidated
+    if (!(err instanceof Error && err.message?.includes('context invalidated'))) {
+      console.debug('[Annotated Bridge] Speaker bridge note:', err);
+    }
   }
   return null;
 }
@@ -143,11 +157,19 @@ export async function capture240pVideoClip(
 
   try {
     const tabStreamId = await new Promise<string | null>((resolve) => {
-      if (typeof chrome !== 'undefined' && chrome?.runtime?.sendMessage) {
-        chrome.runtime.sendMessage({ type: 'getTabAudioStreamId' }, (res) => {
-          resolve(res?.streamId || null);
-        });
-      } else {
+      try {
+        if (typeof chrome !== 'undefined' && chrome?.runtime && typeof chrome.runtime.sendMessage === 'function') {
+          chrome.runtime.sendMessage({ type: 'getTabAudioStreamId' }, (res) => {
+            if (chrome.runtime?.lastError) {
+              resolve(null);
+              return;
+            }
+            resolve(res?.streamId || null);
+          });
+        } else {
+          resolve(null);
+        }
+      } catch (_) {
         resolve(null);
       }
     });
@@ -170,7 +192,9 @@ export async function capture240pVideoClip(
       ]);
     }
   } catch (err) {
-    console.warn('[Annotated Video] Tab audio capture fallback:', err);
+    if (!(err instanceof Error && err.message?.includes('context invalidated'))) {
+      console.debug('[Annotated Video] Tab audio capture fallback note:', err);
+    }
     try {
       audioContext = new AudioContext();
       const osc = audioContext.createOscillator();
