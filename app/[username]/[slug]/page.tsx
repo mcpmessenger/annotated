@@ -75,15 +75,37 @@ export default function AnnotationPage() {
     try {
       const urlToUse = ann.sourceUrl || "";
       const commentToUse = (ann.commentary || "").trim();
+      const rawQuote = (ann.quoteText || "").trim();
+      const combinedText = `${commentToUse} ${rawQuote} ${ann.sourceTitle || ""}`;
+
+      const rangeMatch = combinedText.match(/(?:\[|\(|\b)(?:⏱️\s*|Clip at\s*)?(\d+):(\d+)(?::(\d+))?\s*-\s*(\d+):(\d+)(?::(\d+))?(?:\]|\)|\b)/i);
+      let startTs: number | null = null;
+      let endTs: number | null = null;
+      if (rangeMatch) {
+        let s1 = parseInt(rangeMatch[1], 10) * 60 + parseInt(rangeMatch[2], 10);
+        if (rangeMatch[3]) s1 = parseInt(rangeMatch[1], 10) * 3600 + parseInt(rangeMatch[2], 10) * 60 + parseInt(rangeMatch[3], 10);
+        let s2 = parseInt(rangeMatch[4], 10) * 60 + parseInt(rangeMatch[5], 10);
+        if (rangeMatch[6]) s2 = parseInt(rangeMatch[4], 10) * 3600 + parseInt(rangeMatch[5], 10) * 60 + parseInt(rangeMatch[6], 10);
+        startTs = s1;
+        endTs = Math.max(s1 + 5, s2);
+      } else {
+        const secMatch = combinedText.match(/(?:\[|\(|\b)(\d+)\s*s?\s*-\s*(\d+)\s*s(?:\]|\)|\b)/i);
+        if (secMatch) {
+          startTs = parseInt(secMatch[1], 10);
+          endTs = Math.max(startTs + 5, parseInt(secMatch[2], 10));
+        } else if (ann.media_timestamp != null) {
+          startTs = ann.media_timestamp;
+          endTs = startTs + 15;
+        }
+      }
+
       const isVideo =
         ann.media_type === "video" ||
+        startTs != null ||
         (urlToUse && (urlToUse.includes("youtube.com") || urlToUse.includes("youtu.be") || urlToUse.includes("vimeo.com") || urlToUse.includes("tiktok.com")));
 
-      let quoteToUse = (ann.quoteText || "").trim();
+      let quoteToUse = rawQuote;
       if (quoteToUse && ann.sourceTitle && quoteToUse.toLowerCase() === ann.sourceTitle.trim().toLowerCase()) {
-        quoteToUse = "";
-      }
-      if (quoteToUse && quoteToUse.toLowerCase().startsWith("video clip (")) {
         quoteToUse = "";
       }
 
@@ -91,10 +113,15 @@ export default function AnnotationPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          annotationId: ann.id,
+          slug: ann.slug,
           quote: quoteToUse || undefined,
           commentary: commentToUse || undefined,
           sourceUrl: urlToUse,
           sourceTitle: ann.sourceTitle || "",
+          timestamp: startTs,
+          videoStartTs: startTs,
+          videoEndTs: endTs,
           mediaUrl: ann.media_url || null,
           isVideoClip: isVideo,
         }),

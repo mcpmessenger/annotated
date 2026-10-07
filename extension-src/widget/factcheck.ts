@@ -27,12 +27,16 @@ export interface FactCheckRequestPayload {
 }
 
 export async function callFactCheckApi(payload: FactCheckRequestPayload): Promise<FactCheckResult> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 16000);
   try {
     const res = await fetch(FACTCHECK_API_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
+      signal: controller.signal,
     });
+    clearTimeout(timeoutId);
     if (res.ok) {
       return (await res.json()) as FactCheckResult;
     }
@@ -41,7 +45,9 @@ export async function callFactCheckApi(payload: FactCheckRequestPayload): Promis
       const errJson = JSON.parse(errText);
       if (errJson.verdict) return errJson;
     } catch (_) {}
-  } catch (_) {}
+  } catch (_) {
+    clearTimeout(timeoutId);
+  }
 
   // Graceful client fallback so user never sees server-down or legacy error notices
   const quote = (payload.quote || '').trim();
@@ -223,7 +229,9 @@ export function wireFactCheck(
     try {
       const urlToUse = ann.url || pageUrl;
       const commentToUse = (ann.comment || ann.commentary || '').trim();
-      const range = extractTimestampRange(urlToUse, commentToUse);
+      const rawQuote = (ann.quote || ann.quote_text || '').trim();
+      const combinedContext = `${commentToUse} ${rawQuote} ${ann.title || ''}`;
+      const range = extractTimestampRange(urlToUse, combinedContext);
       const isVideo = Boolean(
         ann.media_type === 'video' ||
         ann.media_timestamp != null ||
@@ -234,11 +242,8 @@ export function wireFactCheck(
       const startTs = range?.start ?? ann.media_timestamp ?? null;
       const endTs = range?.end ?? (startTs != null ? startTs + 15 : null);
 
-      let effectiveQuote = (ann.quote || ann.quote_text || '').trim();
+      let effectiveQuote = rawQuote;
       if (effectiveQuote && ann.title && effectiveQuote.toLowerCase() === ann.title.trim().toLowerCase()) {
-        effectiveQuote = '';
-      }
-      if (effectiveQuote && effectiveQuote.toLowerCase().startsWith('video clip (')) {
         effectiveQuote = '';
       }
 
@@ -284,6 +289,15 @@ export function wireFactCheck(
       }
     } finally {
       isExecuting = false;
+      if (fbadge && (fbadge.textContent === 'RECHECKING' || fbadge.textContent === 'ANALYZING')) {
+        if (cachedData?.verdict) {
+          fbadge.textContent = (cachedData.verdict || 'CHECKED').replace('_', ' ');
+          fbadge.style.color = cachedData.verdict === 'VERIFIED' ? '#22c55e' : cachedData.verdict === 'MISLEADING' || cachedData.verdict === 'FALSE' ? '#ef4444' : '#eab308';
+        } else {
+          fbadge.textContent = 'CHECK';
+          fbadge.style.color = 'var(--muted)';
+        }
+      }
     }
   };
 

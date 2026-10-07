@@ -46,7 +46,7 @@
         return parseInt(val, 10);
       }
     }
-    const commentMatch = String(comment || "").match(/\[(?:⏱️\s*)?(\d+):(\d+)(?::(\d+))?\]/);
+    const commentMatch = String(comment || "").match(/(?:\[|\(|\b)(?:⏱️\s*)?(\d+):(\d+)(?::(\d+))?(?:\]|\)|\b)/);
     if (commentMatch) {
       if (commentMatch[3]) {
         return parseInt(commentMatch[1], 10) * 3600 + parseInt(commentMatch[2], 10) * 60 + parseInt(commentMatch[3], 10);
@@ -59,7 +59,7 @@
     const urlStr = String(url || "");
     const commentStr = String(comment || "");
     const rangeCommentMatch = commentStr.match(
-      /\[(?:⏱️\s*)?(\d+):(\d+)(?::(\d+))?\s*-\s*(\d+):(\d+)(?::(\d+))?\]/
+      /(?:\[|\(|\b)(?:⏱️\s*|Clip at\s*)?(\d+):(\d+)(?::(\d+))?\s*-\s*(\d+):(\d+)(?::(\d+))?(?:\]|\)|\b)/i
     );
     if (rangeCommentMatch) {
       let s1 = parseInt(rangeCommentMatch[1], 10) * 60 + parseInt(rangeCommentMatch[2], 10);
@@ -70,6 +70,12 @@
       if (rangeCommentMatch[6]) {
         s2 = parseInt(rangeCommentMatch[4], 10) * 3600 + parseInt(rangeCommentMatch[5], 10) * 60 + parseInt(rangeCommentMatch[6], 10);
       }
+      return { start: s1, end: Math.max(s1 + 5, s2) };
+    }
+    const secRangeMatch = commentStr.match(/(?:\[|\(|\b)(\d+)\s*s?\s*-\s*(\d+)\s*s(?:\]|\)|\b)/i);
+    if (secRangeMatch) {
+      const s1 = parseInt(secRangeMatch[1], 10);
+      const s2 = parseInt(secRangeMatch[2], 10);
       return { start: s1, end: Math.max(s1 + 5, s2) };
     }
     const urlRangeMatch = urlStr.match(/[?&#]t=(\d+)(?:s)?-(\d+)(?:s)?/i);

@@ -89,8 +89,8 @@ export function extractTimestamp(url?: string | null, comment?: string | null): 
     }
   }
 
-  // 2. Comment bracketed timestamp: [⏱️ 01:24], [01:24], or [1:02:24]
-  const commentMatch = String(comment || '').match(/\[(?:⏱️\s*)?(\d+):(\d+)(?::(\d+))?\]/);
+  // 2. Comment bracketed or parenthesized timestamp: [01:24], (01:24), ⏱️ 01:24, or 1:02:24
+  const commentMatch = String(comment || '').match(/(?:\[|\(|\b)(?:⏱️\s*)?(\d+):(\d+)(?::(\d+))?(?:\]|\)|\b)/);
   if (commentMatch) {
     if (commentMatch[3]) {
       return parseInt(commentMatch[1], 10) * 3600 + parseInt(commentMatch[2], 10) * 60 + parseInt(commentMatch[3], 10);
@@ -107,9 +107,9 @@ export function extractTimestampRange(
   const urlStr = String(url || '');
   const commentStr = String(comment || '');
 
-  // Range in comment: [01:24 - 01:40] or [⏱️ 01:24 - 01:40]
+  // 1. Range in comment/quote: [01:24 - 01:40], (00:02 - 01:07), or Clip at 00:02 - 01:07
   const rangeCommentMatch = commentStr.match(
-    /\[(?:⏱️\s*)?(\d+):(\d+)(?::(\d+))?\s*-\s*(\d+):(\d+)(?::(\d+))?\]/
+    /(?:\[|\(|\b)(?:⏱️\s*|Clip at\s*)?(\d+):(\d+)(?::(\d+))?\s*-\s*(\d+):(\d+)(?::(\d+))?(?:\]|\)|\b)/i
   );
   if (rangeCommentMatch) {
     let s1 = parseInt(rangeCommentMatch[1], 10) * 60 + parseInt(rangeCommentMatch[2], 10);
@@ -125,7 +125,15 @@ export function extractTimestampRange(
     return { start: s1, end: Math.max(s1 + 5, s2) };
   }
 
-  // Range in URL: t=84s-100s or t=84-100
+  // 2. Seconds range in comment/quote: (2s - 67s) or [2s - 67s] or 2s - 67s
+  const secRangeMatch = commentStr.match(/(?:\[|\(|\b)(\d+)\s*s?\s*-\s*(\d+)\s*s(?:\]|\)|\b)/i);
+  if (secRangeMatch) {
+    const s1 = parseInt(secRangeMatch[1], 10);
+    const s2 = parseInt(secRangeMatch[2], 10);
+    return { start: s1, end: Math.max(s1 + 5, s2) };
+  }
+
+  // 3. Range in URL: t=84s-100s or t=84-100
   const urlRangeMatch = urlStr.match(/[?&#]t=(\d+)(?:s)?-(\d+)(?:s)?/i);
   if (urlRangeMatch) {
     const s1 = parseInt(urlRangeMatch[1], 10);
@@ -133,7 +141,7 @@ export function extractTimestampRange(
     return { start: s1, end: Math.max(s1 + 5, s2) };
   }
 
-  // Fallback to single timestamp
+  // 4. Fallback to single timestamp
   const startTs = extractTimestamp(url, comment);
   if (startTs != null && startTs >= 0) {
     return { start: startTs, end: startTs + 15 };

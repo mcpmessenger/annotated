@@ -29,9 +29,9 @@ function extractTimestampRangeFromContext(
   const urlStr = String(url || "");
   const textStr = String(text || "");
 
-  // Range in text: [01:24 - 01:40] or [⏱️ 01:24 - 01:40]
+  // 1. Range in text: [01:24 - 01:40], (00:02 - 01:07), Clip at 00:02 - 01:07, or 00:02 - 01:07
   const rangeMatch = textStr.match(
-    /\[(?:⏱️\s*)?(\d+):(\d+)(?::(\d+))?\s*-\s*(\d+):(\d+)(?::(\d+))?\]/
+    /(?:\[|\(|\b)(?:⏱️\s*|Clip at\s*)?(\d+):(\d+)(?::(\d+))?\s*-\s*(\d+):(\d+)(?::(\d+))?(?:\]|\)|\b)/i
   );
   if (rangeMatch) {
     let s1 = parseInt(rangeMatch[1], 10) * 60 + parseInt(rangeMatch[2], 10);
@@ -41,15 +41,23 @@ function extractTimestampRangeFromContext(
     return { start: s1, end: Math.max(s1 + 5, s2) };
   }
 
-  // Single timestamp in text: [01:24]
-  const singleMatch = textStr.match(/\[(?:⏱️\s*)?(\d+):(\d+)(?::(\d+))?\]/);
+  // 2. Seconds range in text: (2s - 67s) or [2s - 67s] or 2s - 67s
+  const secRangeMatch = textStr.match(/(?:\[|\(|\b)(\d+)\s*s?\s*-\s*(\d+)\s*s(?:\]|\)|\b)/i);
+  if (secRangeMatch) {
+    const s1 = parseInt(secRangeMatch[1], 10);
+    const s2 = parseInt(secRangeMatch[2], 10);
+    return { start: s1, end: Math.max(s1 + 5, s2) };
+  }
+
+  // 3. Single timestamp in text: [01:24] or (01:24) or ⏱️ 01:24
+  const singleMatch = textStr.match(/(?:\[|\(|\b)(?:⏱️\s*)?(\d+):(\d+)(?::(\d+))?(?:\]|\)|\b)/i);
   if (singleMatch) {
     let s1 = parseInt(singleMatch[1], 10) * 60 + parseInt(singleMatch[2], 10);
     if (singleMatch[3]) s1 = parseInt(singleMatch[1], 10) * 3600 + parseInt(singleMatch[2], 10) * 60 + parseInt(singleMatch[3], 10);
     return { start: s1, end: s1 + 15 };
   }
 
-  // Range in URL: t=84s-100s or t=84-100
+  // 4. Range in URL: t=84s-100s or t=84-100
   const urlRangeMatch = urlStr.match(/[?&#]t=(\d+)(?:s)?-(\d+)(?:s)?/i);
   if (urlRangeMatch) {
     const s1 = parseInt(urlRangeMatch[1], 10);
@@ -57,7 +65,7 @@ function extractTimestampRangeFromContext(
     return { start: s1, end: Math.max(s1 + 5, s2) };
   }
 
-  // Single in URL: t=84s or t=84
+  // 5. Single in URL: t=84s or t=84
   const urlSingleMatch = urlStr.match(/[?&#]t=(\d+)(?:s)?/i);
   if (urlSingleMatch) {
     const s = parseInt(urlSingleMatch[1], 10);
@@ -268,7 +276,8 @@ export async function POST(req: NextRequest) {
     const hasGenuineQuote = trimmedQuote.length > 0 && !isTitleEcho && !isPlaceholderClipQuote;
 
     // Detect timestamps if not explicitly supplied
-    const extractedTimes = extractTimestampRangeFromContext(sourceUrl, trimmedCommentary || trimmedQuote);
+    const combinedSearchText = `${trimmedCommentary} ${trimmedQuote} ${trimmedTitle}`;
+    const extractedTimes = extractTimestampRangeFromContext(sourceUrl, combinedSearchText);
     const timeStart = videoStartTs ?? timestamp ?? extractedTimes.start;
     const timeEnd = videoEndTs ?? (timeStart != null ? extractedTimes.end ?? timeStart + 15 : null);
 
@@ -310,7 +319,14 @@ export async function POST(req: NextRequest) {
       let inlineData = mediaBase64;
       let inlineMime = mediaMimeType || "video/webm";
 
-      if (!inlineData && mediaUrl && typeof mediaUrl === "string") {
+      const isKnownVideo = Boolean(
+        isVideo ||
+        (mediaUrl && (mediaUrl.includes(".webm") || mediaUrl.includes(".mp4"))) ||
+        (mediaMimeType && mediaMimeType.startsWith("video/"))
+      );
+
+      // Do NOT fetch large video arrayBuffers into memory — Gemini REST rejects video inlineData with HTTP 400 anyway
+      if (!inlineData && mediaUrl && typeof mediaUrl === "string" && !isKnownVideo) {
         try {
           const fetchRes = await fetch(mediaUrl);
           if (fetchRes.ok) {
@@ -392,12 +408,12 @@ Respond ONLY with a valid JSON object matching this schema (do not add markdown 
       const isVideoMedia = inlineMime.startsWith("video/");
       const canUseInlineMedia = Boolean(inlineData && !isVideoMedia);
 
-      // Newest first — older models have earlier knowledge cutoffs and are far more likely to call recent real events "fake"
+      // Fast, verified models first to ensure sub-2-second response time and avoid timeouts
       const candidateModels = [
-        "gemini-3.5-flash",
-        "gemini-3.8-flash",
         "gemini-3.1-flash-lite",
+        "gemini-2.5-flash",
         "gemini-flash-latest",
+        "gemini-3.5-flash",
       ];
 
       const callModel = async (model: string, grounded: boolean, includeMedia: boolean) => {

@@ -17,6 +17,7 @@ export interface Annotation {
   media_url?: string | null;
   audio_url?: string | null;
   media_type?: string | null;
+  media_timestamp?: number | null;
   avatar_url?: string | null;
 }
 
