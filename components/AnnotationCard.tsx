@@ -277,9 +277,9 @@ export function AnnotationCard({
     }
   };
 
-  // Only show "See more" if the quote or commentary is genuinely long (> 240 chars)
-  const isLongQuote = annotation.quoteText.length > 240;
-  const isLongCommentary = annotation.commentary.length > 240;
+  // Doubled context window for text: only show "See more" if quote or commentary exceeds 480 chars
+  const isLongQuote = annotation.quoteText.length > 480;
+  const isLongCommentary = annotation.commentary.length > 480;
   const showToggle = isLongQuote || isLongCommentary;
 
   return (
@@ -296,14 +296,12 @@ export function AnnotationCard({
           <div>
             <div className="flex items-center gap-2">
               <h3 className="font-bold text-lg group-hover:text-[hsl(var(--accent))] transition-colors line-clamp-1">
-                <a
-                  href={annotation.sourceUrl || detailLink}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                <Link
+                  href={detailLink}
                   className="before:absolute before:inset-0"
                 >
                   {annotation.title}
-                </a>
+                </Link>
               </h3>
               {annotation.intent && (() => {
                 const tagColors: Record<string, { color: string; icon: string }> = {
@@ -393,7 +391,7 @@ export function AnnotationCard({
                 </span>
               </Tooltip>
             </div>
-            <p className={`text-sm italic text-[hsl(var(--text-muted))] whitespace-pre-wrap ${!isExpanded ? 'line-clamp-3' : ''}`}>
+            <p className={`text-sm italic text-[hsl(var(--text-muted))] whitespace-pre-wrap ${!isExpanded ? 'line-clamp-6' : ''}`}>
               &ldquo;{annotation.quoteText}&rdquo;
             </p>
             
@@ -444,7 +442,7 @@ export function AnnotationCard({
 
       {/* Commentary */}
       <div className="mb-4">
-        <p className={`text-base text-[hsl(var(--foreground))] whitespace-pre-wrap ${!isExpanded ? 'line-clamp-3' : ''}`}>
+        <p className={`text-base text-[hsl(var(--foreground))] whitespace-pre-wrap ${!isExpanded ? 'line-clamp-6' : ''}`}>
           {annotation.commentary}
         </p>
 
