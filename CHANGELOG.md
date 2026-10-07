@@ -4,6 +4,20 @@ All notable changes to the **Annotated** platform (Chrome Extension and Web Appl
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.3.8] - 2026-10-07
+
+### Added
+- **Clearly Visible "File a Claim" Compliance Action**: Added a prominent amber balance-scale button (`[ ⚖️ File a Claim ]`) across all public annotation pages (`/[username]/[slug]`), Roku/Mobile pass pages (`/n/[slug]`), feed cards, and the Chrome extension detail toolbar, directly connecting to the DMCA / Fair Use dispute intake portal.
+- **Doubled Text & Tweet Reading Window**: Doubled feed card text line clamping from 3 to 6 lines (`line-clamp-6`) and expanded the truncation threshold from 240 to 480 characters, allowing tweets and key excerpts to be read in full directly on the feed.
+- **Internal Discussion Routing**: Reconfigured feed cards to navigate internally to the conversation and community notes page (`detailLink`), keeping visitors engaged on Annotated while preserving separate direct links to original external sources.
+
+### Fixed
+- **Extension Recheck Hang Guard**: Added an `AbortController` timeout (16s) to extension fact-check API requests and ensured the widget badge resets cleanly from `RECHECKING` in all network or error scenarios.
+- **Clip-Level Fact-Checking**: Enhanced timestamp range parsing across the extension, web cards, and API to recognize all clip interval formats (including `Clip at 00:02 - 01:07`, `(2s - 67s)`, and parenthesized time ranges). The website now passes exact `videoStartTs` and `videoEndTs` parameters so AI evaluations focus strictly on the annotated clip excerpt rather than reviewing the full video.
+- **Serverless Performance Optimization**: Bypassed redundant multi-megabyte video buffer downloads in serverless functions and optimized candidate model prioritization (`gemini-3.1-flash-lite` first) to guarantee sub-2-second fact-checking responses.
+
+---
+
 ## [2.3.7] - 2026-10-06
 
 ### Fixed
