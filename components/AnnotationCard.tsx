@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { MessageSquare, Trash2, Sparkles, Share2, CheckCircle2, AlertTriangle, XCircle, Info, ExternalLink, ChevronDown, ChevronUp, RefreshCw } from "lucide-react";
+import { MessageSquare, Trash2, Sparkles, Share2, CheckCircle2, AlertTriangle, XCircle, Info, ExternalLink, ChevronDown, ChevronUp, RefreshCw, Scale } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { Annotation } from "@/lib/types";
 import { ReactionRow } from "./ReactionRow";
@@ -719,9 +719,10 @@ export function AnnotationCard({
             <Link
               href={`/dmca?annotation_id=${annotation.id}&url=${encodeURIComponent(annotation.sourceUrl || "")}`}
               onClick={(e) => e.stopPropagation()}
-              className="text-xs text-[hsl(var(--text-muted))] hover:text-[hsl(var(--foreground))] transition-colors font-medium hidden sm:inline"
+              className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-600 dark:text-amber-400 hover:bg-amber-500/10 px-2 py-1 rounded transition-colors"
             >
-              Dispute
+              <Scale size={12} />
+              <span>Claim</span>
             </Link>
           </Tooltip>
 

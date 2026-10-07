@@ -143,6 +143,24 @@ export async function showAnnotationDetail(
     }
   }
 
+  // Claim / Fair Use Dispute button
+  const claimBtn = $('#detailClaimBtn') as HTMLButtonElement | null;
+  if (claimBtn) {
+    if (ann.id) {
+      claimBtn.classList.remove('hidden');
+      claimBtn.onclick = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const targetUrl = ann.url || window.location.href;
+        const claimUrl = `${SITE_URL}/dmca?annotation_id=${encodeURIComponent(String(ann.id))}&url=${encodeURIComponent(targetUrl)}`;
+        window.open(claimUrl, '_blank');
+      };
+    } else {
+      claimBtn.classList.add('hidden');
+      claimBtn.onclick = null;
+    }
+  }
+
   // Quote
   const qEl = $('#detailQuote');
   if (qEl) qEl.textContent = ann.quote || ann.quote_text || 'Annotation';

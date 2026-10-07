@@ -10,7 +10,8 @@ import {
   CheckCircle2,
   Tv,
   Globe,
-  MessageSquare
+  MessageSquare,
+  Scale
 } from "lucide-react";
 import Link from "next/link";
 import { Header } from "@/components/Header";
@@ -261,6 +262,14 @@ export default function MobilePassPage() {
                 <MessageSquare className="w-3.5 h-3.5 text-sky-400" />
                 <span>Join Full Discussion & Community Notes</span>
                 <ArrowRight className="w-3.5 h-3.5" />
+              </Link>
+
+              <Link
+                href={`/dmca?annotation_id=${annotation.id}&url=${encodeURIComponent(annotation.sourceUrl || "")}`}
+                className="w-full py-2.5 px-4 rounded-xl border border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 text-xs font-semibold text-amber-500 dark:text-amber-400 flex items-center justify-center gap-2 transition-colors"
+              >
+                <Scale className="w-3.5 h-3.5" />
+                <span>File a Claim (Dispute Fair Use)</span>
               </Link>
             </div>
           </div>

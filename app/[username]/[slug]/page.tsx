@@ -10,7 +10,8 @@ import {
   AlertTriangle, 
   ExternalLink, 
   ChevronDown, 
-  ChevronUp 
+  ChevronUp,
+  Scale 
 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import Link from "next/link";
@@ -671,6 +672,15 @@ export default function AnnotationPage() {
                 >
                   {copied ? "Copied!" : "Copy Link"}
                 </button>
+                <Tooltip content="File a DMCA takedown notice or dispute fair use for this content" position="top">
+                  <Link
+                    href={`/dmca?annotation_id=${annotation.id}&url=${encodeURIComponent(annotation.sourceUrl || annotation.url || "")}`}
+                    className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded text-sm font-semibold border border-amber-500/40 text-amber-600 dark:text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 transition-colors text-center w-full sm:w-auto"
+                  >
+                    <Scale className="w-4 h-4 shrink-0" />
+                    <span>File a Claim</span>
+                  </Link>
+                </Tooltip>
                 <a
                   href={annotation.sourceUrl}
                   target="_blank"
@@ -682,13 +692,17 @@ export default function AnnotationPage() {
               </div>
             </div>
 
-            <div className="mt-4 text-right">
-              <Tooltip content="File a DMCA / Fair Use dispute for this content" position="top">
+            <div className="mt-4 flex flex-col sm:flex-row items-center justify-between gap-2 pt-2 border-t border-[hsl(var(--border))]/50">
+              <span className="text-[11px] text-[hsl(var(--text-muted))]">
+                Notice: Annotations are user-generated commentary protected under Fair Use doctrines.
+              </span>
+              <Tooltip content="Submit a formal DMCA claim or fair use dispute" position="top">
                 <Link
-                  href={`/dmca?annotation_id=${annotation.id}&url=${encodeURIComponent(annotation.url || "")}`}
-                  className="text-xs text-[hsl(var(--text-muted))] hover:text-[hsl(var(--foreground))] transition-colors font-medium"
+                  href={`/dmca?annotation_id=${annotation.id}&url=${encodeURIComponent(annotation.sourceUrl || annotation.url || "")}`}
+                  className="inline-flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400 hover:underline font-semibold"
                 >
-                  File a claim (Dispute Fair Use)
+                  <Scale className="w-3.5 h-3.5" />
+                  <span>Dispute Fair Use / DMCA Notice</span>
                 </Link>
               </Tooltip>
             </div>
