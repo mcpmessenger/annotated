@@ -2460,6 +2460,10 @@
       }
       if (message.type === "openWidget") {
         const info = buildPageInfo();
+        if (message.selectedText) {
+          info.quote = message.selectedText;
+          info.selectedText = message.selectedText;
+        }
         notifyWidgetOfSelection(info);
         sendResponse({ ok: true });
         return true;
@@ -2478,8 +2482,10 @@
     const onYouTubeNavigation = () => {
       setTimeout(() => {
         loadAnnotations();
-        const info = buildPageInfo();
-        notifyWidgetOfSelection(info);
+        if (widgetIframe && widgetIframe.style.display !== "none" && widgetIframe.contentWindow) {
+          const info = buildPageInfo();
+          widgetIframe.contentWindow.postMessage({ type: "PAGE_INFO_RESPONSE", ...info }, "*");
+        }
       }, 400);
     };
     window.addEventListener("yt-navigate-finish", onYouTubeNavigation);

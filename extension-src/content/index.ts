@@ -299,6 +299,10 @@ function init(): void {
 
     if (message.type === 'openWidget') {
       const info = buildPageInfo();
+      if ((message as any).selectedText) {
+        info.quote = (message as any).selectedText;
+        info.selectedText = (message as any).selectedText;
+      }
       notifyWidgetOfSelection(info);
       sendResponse({ ok: true });
       return true;
@@ -321,8 +325,11 @@ function init(): void {
   const onYouTubeNavigation = () => {
     setTimeout(() => {
       loadAnnotations();
-      const info = buildPageInfo();
-      notifyWidgetOfSelection(info);
+      // Only refresh page context if widget is ALREADY open; do not auto-popup on video load
+      if (widgetIframe && widgetIframe.style.display !== 'none' && widgetIframe.contentWindow) {
+        const info = buildPageInfo();
+        widgetIframe.contentWindow.postMessage({ type: 'PAGE_INFO_RESPONSE', ...info }, '*');
+      }
     }, 400);
   };
 

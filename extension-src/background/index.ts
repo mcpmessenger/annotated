@@ -135,7 +135,7 @@ chrome.runtime.onMessage.addListener(
   }
 );
 
-// --- Action Button ---
+// --- Action Button (Toolbar / Menu Bar Click) ---
 chrome.action.onClicked.addListener(async (tab) => {
   if (!tab?.id) return;
   if (
@@ -173,3 +173,62 @@ chrome.action.onClicked.addListener(async (tab) => {
     }
   }
 });
+
+// --- Context Menus (Right-Click) ---
+function setupContextMenus(): void {
+  if (!chrome.contextMenus) return;
+  chrome.contextMenus.removeAll(() => {
+    chrome.contextMenus.create({
+      id: 'annotated_open',
+      title: 'Open Annotated',
+      contexts: ['page', 'video', 'frame', 'image'],
+    });
+    chrome.contextMenus.create({
+      id: 'annotated_selection',
+      title: 'Annotate "%s"',
+      contexts: ['selection'],
+    });
+  });
+}
+
+chrome.runtime.onInstalled.addListener(() => {
+  setupContextMenus();
+});
+
+// Setup on worker startup
+setupContextMenus();
+
+chrome.contextMenus.onClicked.addListener(async (info, tab) => {
+  if (!tab?.id) return;
+  const selectedText = info.selectionText || undefined;
+  try {
+    await chrome.tabs.sendMessage(tab.id, {
+      type: 'openWidget',
+      selectedText,
+    });
+  } catch (_) {
+    try {
+      if (chrome.scripting) {
+        await chrome.scripting.executeScript({
+          target: { tabId: tab.id },
+          files: ['fix-webm-duration.js', 'content.js'],
+        });
+        await chrome.scripting.insertCSS({
+          target: { tabId: tab.id },
+          files: ['content.css'],
+        });
+        setTimeout(() => {
+          if (tab.id) {
+            chrome.tabs.sendMessage(tab.id, {
+              type: 'openWidget',
+              selectedText,
+            }).catch(() => {});
+          }
+        }, 120);
+      }
+    } catch (err) {
+      console.warn('[Annotated ContextMenu] Fallback injection error:', err);
+    }
+  }
+});
+
