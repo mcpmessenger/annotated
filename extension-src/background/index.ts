@@ -177,16 +177,26 @@ chrome.action.onClicked.addListener(async (tab) => {
 // --- Context Menus (Right-Click) ---
 function setupContextMenus(): void {
   if (!chrome.contextMenus) return;
-  chrome.contextMenus.removeAll(() => {
-    chrome.contextMenus.create({
-      id: 'annotated_open',
-      title: 'Open Annotated',
-      contexts: ['page', 'video', 'frame', 'image'],
-    });
-    chrome.contextMenus.create({
-      id: 'annotated_selection',
-      title: 'Annotate "%s"',
-      contexts: ['selection'],
+  chrome.storage.sync.get(['openOnHighlight'], (syncRes) => {
+    const isChecked = syncRes?.openOnHighlight !== false; // default true
+    chrome.contextMenus.removeAll(() => {
+      chrome.contextMenus.create({
+        id: 'annotated_open',
+        title: 'Open Annotated',
+        contexts: ['page', 'video', 'frame', 'image'],
+      });
+      chrome.contextMenus.create({
+        id: 'annotated_selection',
+        title: 'Annotate "%s"',
+        contexts: ['selection'],
+      });
+      chrome.contextMenus.create({
+        id: 'annotated_toggle_open_on_highlight',
+        title: 'Auto-open on text selection',
+        type: 'checkbox',
+        checked: isChecked,
+        contexts: ['all'],
+      });
     });
   });
 }
@@ -198,7 +208,31 @@ chrome.runtime.onInstalled.addListener(() => {
 // Setup on worker startup
 setupContextMenus();
 
+// Listen for storage changes to sync context menu checkbox state
+chrome.storage.onChanged.addListener((changes, areaName) => {
+  if ((areaName === 'sync' || areaName === 'local') && changes.openOnHighlight) {
+    const nextVal = changes.openOnHighlight.newValue !== false;
+    try {
+      chrome.contextMenus.update('annotated_toggle_open_on_highlight', {
+        checked: nextVal,
+      }, () => {
+        if (chrome.runtime.lastError) {
+          // Ignore if menu item not present yet
+        }
+      });
+    } catch (_) {}
+  }
+});
+
 chrome.contextMenus.onClicked.addListener(async (info, tab) => {
+  // Handle Toggle Checkbox
+  if (info.menuItemId === 'annotated_toggle_open_on_highlight') {
+    const nextChecked = Boolean(info.checked);
+    chrome.storage.sync.set({ openOnHighlight: nextChecked });
+    chrome.storage.local.set({ openOnHighlight: nextChecked });
+    return;
+  }
+
   if (!tab?.id) return;
   const selectedText = info.selectionText || undefined;
   try {

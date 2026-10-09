@@ -11,6 +11,24 @@
     <div class="brand" id="brandLogo" style="cursor: pointer;" data-tooltip="Open Annotated Website"><img src="assets/icon-32.png" width="20" height="20" style="vertical-align: middle; margin-right: 4px;"><span>annotated<span class="dot">.</span></span></div>
     <div class="top-actions">
       <button id="themeBtn" class="icon-btn theme-btn" data-tooltip="Toggle theme"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"></path></svg></button>
+      <div id="settingsMenuWrap" class="settings-menu-wrap" style="position: relative;">
+        <button id="settingsBtn" class="icon-btn" data-tooltip="Preferences"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg></button>
+        <div id="settingsDropdown" class="user-dropdown settings-dropdown hidden">
+          <div class="dropdown-header" style="padding: 10px 14px 8px 14px;">
+            <strong style="font-size: 13px;">Preferences</strong>
+          </div>
+          <div class="dropdown-item dropdown-toggle-item" id="prefOpenOnHighlightRow" style="cursor: pointer;">
+            <div style="display: flex; flex-direction: column; max-width: 160px; line-height: 1.25;">
+              <span style="font-weight: 500; font-size: 12px;">Open on Highlight</span>
+              <span class="muted" style="font-size: 10px;">Auto-open when selecting text</span>
+            </div>
+            <label class="annotated-switch" style="pointer-events: none;">
+              <input type="checkbox" id="settingsOpenOnHighlightToggle" checked>
+              <span class="annotated-slider"></span>
+            </label>
+          </div>
+        </div>
+      </div>
       <button id="topSignInBtn" class="avatar top-avatar signin-avatar-btn" data-tooltip="Sign in" style="display: none; cursor: pointer; border: 1.5px solid var(--line); background: var(--soft); align-items: center; justify-content: center; padding: 0;">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" style="color: var(--muted); opacity: 0.85;"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
       </button>
@@ -34,6 +52,16 @@
             </div>
           </div>
           <button id="profileBtn" class="dropdown-item"><span>My profile</span><span class="dropdown-arrow">&#8599;</span></button>
+          <div class="dropdown-item dropdown-toggle-item" id="userOpenOnHighlightRow" style="cursor: pointer;">
+            <div style="display: flex; flex-direction: column; max-width: 160px; line-height: 1.25;">
+              <span style="font-weight: 500; font-size: 12px;">Open on Highlight</span>
+              <span class="muted" style="font-size: 10px;">Auto-open when selecting text</span>
+            </div>
+            <label class="annotated-switch" style="pointer-events: none;">
+              <input type="checkbox" id="userOpenOnHighlightToggle" checked>
+              <span class="annotated-slider"></span>
+            </label>
+          </div>
           <button id="signOutBtn" class="dropdown-item text-red"><span>Sign out</span><span class="dropdown-icon">&#8618;</span></button>
         </div>
       </div>

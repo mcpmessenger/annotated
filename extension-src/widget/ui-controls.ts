@@ -95,4 +95,96 @@ export function initUiControls(): void {
       }
     });
   }
+
+  // Settings dropdown menu
+  const settingsMenuWrap = $('#settingsMenuWrap');
+  const settingsBtn = $('#settingsBtn');
+  const settingsDropdown = $('#settingsDropdown');
+  let settingsHideTimeout: any = null;
+
+  if (settingsMenuWrap && settingsDropdown) {
+    settingsMenuWrap.addEventListener('mouseenter', () => {
+      if (settingsHideTimeout) clearTimeout(settingsHideTimeout);
+      settingsDropdown.classList.remove('hidden');
+    });
+
+    settingsMenuWrap.addEventListener('mouseleave', () => {
+      if (settingsHideTimeout) clearTimeout(settingsHideTimeout);
+      settingsHideTimeout = setTimeout(() => {
+        settingsDropdown.classList.add('hidden');
+      }, 240);
+    });
+
+    settingsBtn?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      settingsDropdown.classList.toggle('hidden');
+    });
+
+    document.addEventListener('click', (e) => {
+      if (!settingsMenuWrap.contains(e.target as Node)) {
+        settingsDropdown.classList.add('hidden');
+      }
+    });
+  }
+
+  // Open on Highlight toggle preference management
+  const userToggle = $('#userOpenOnHighlightToggle') as HTMLInputElement | null;
+  const prefToggle = $('#settingsOpenOnHighlightToggle') as HTMLInputElement | null;
+  const userRow = $('#userOpenOnHighlightRow');
+  const prefRow = $('#prefOpenOnHighlightRow');
+
+  const updateToggleUI = (enabled: boolean) => {
+    if (userToggle) userToggle.checked = enabled;
+    if (prefToggle) prefToggle.checked = enabled;
+  };
+
+  const setOpenOnHighlightPref = (enabled: boolean) => {
+    updateToggleUI(enabled);
+    safeStorageSet({ openOnHighlight: enabled });
+    if (typeof chrome !== 'undefined' && chrome.storage?.sync) {
+      chrome.storage.sync.set({ openOnHighlight: enabled });
+    }
+  };
+
+  // Initial read
+  if (typeof chrome !== 'undefined' && chrome.storage?.sync) {
+    chrome.storage.sync.get(['openOnHighlight'], (res) => {
+      const isEnabled = res?.openOnHighlight !== false;
+      updateToggleUI(isEnabled);
+    });
+  } else if (typeof chrome !== 'undefined' && chrome.storage?.local) {
+    chrome.storage.local.get(['openOnHighlight'], (res) => {
+      const isEnabled = res?.openOnHighlight !== false;
+      updateToggleUI(isEnabled);
+    });
+  }
+
+  // Event handlers
+  userToggle?.addEventListener('change', (e) => {
+    setOpenOnHighlightPref((e.target as HTMLInputElement).checked);
+  });
+  prefToggle?.addEventListener('change', (e) => {
+    setOpenOnHighlightPref((e.target as HTMLInputElement).checked);
+  });
+  userRow?.addEventListener('click', (e) => {
+    if (e.target !== userToggle) {
+      const next = !(userToggle ? userToggle.checked : true);
+      setOpenOnHighlightPref(next);
+    }
+  });
+  prefRow?.addEventListener('click', (e) => {
+    if (e.target !== prefToggle) {
+      const next = !(prefToggle ? prefToggle.checked : true);
+      setOpenOnHighlightPref(next);
+    }
+  });
+
+  // Listen for storage changes from context menu or other tabs
+  if (typeof chrome !== 'undefined' && chrome.storage?.onChanged) {
+    chrome.storage.onChanged.addListener((changes, areaName) => {
+      if ((areaName === 'sync' || areaName === 'local') && changes.openOnHighlight) {
+        updateToggleUI(changes.openOnHighlight.newValue !== false);
+      }
+    });
+  }
 }

@@ -13,7 +13,7 @@ setOnVerdictChange((id, v) => {
   updateYouTubeVerdict(id, v);
 });
 import { recordSelection, buildPageInfo } from './selection';
-import { createWidget, openAnnotationInWidget, notifyWidgetOfSelection, setupMessageRouter, ensureWidgetContainer, widgetIframe } from './widget-host';
+import { createWidget, openAnnotationInWidget, notifyWidgetOfSelection, updateWidgetSelectionIfOpen, setupMessageRouter, ensureWidgetContainer, widgetIframe } from './widget-host';
 import { setupHighlightTooltip } from './tooltip';
 
 const state: {
@@ -204,9 +204,29 @@ function init(): void {
   const handleSelection = () => {
     setTimeout(() => {
       recordSelection((payload) => {
-        // If selection exists, ensure widget is created and receives the highlighted quote
         if (payload.quote) {
-          notifyWidgetOfSelection(payload);
+          const isWidgetOpen = Boolean(widgetIframe && widgetIframe.style.display !== 'none');
+          if (typeof chrome !== 'undefined' && chrome.storage?.sync) {
+            chrome.storage.sync.get(['openOnHighlight'], (syncRes) => {
+              const shouldOpen = syncRes?.openOnHighlight !== false; // default true
+              if (shouldOpen) {
+                notifyWidgetOfSelection(payload);
+              } else if (isWidgetOpen) {
+                updateWidgetSelectionIfOpen(payload);
+              }
+            });
+          } else if (typeof chrome !== 'undefined' && chrome.storage?.local) {
+            chrome.storage.local.get(['openOnHighlight'], (localRes) => {
+              const shouldOpen = localRes?.openOnHighlight !== false; // default true
+              if (shouldOpen) {
+                notifyWidgetOfSelection(payload);
+              } else if (isWidgetOpen) {
+                updateWidgetSelectionIfOpen(payload);
+              }
+            });
+          } else {
+            notifyWidgetOfSelection(payload);
+          }
         }
       });
     }, 25);

@@ -175,6 +175,12 @@ export function notifyWidgetOfSelection(payload: { quote?: string; selectedText?
   setTimeout(send, 400);
 }
 
+export function updateWidgetSelectionIfOpen(payload: { quote?: string; selectedText?: string; title?: string; url?: string; hostname?: string; media_timestamp?: number | null }): void {
+  if (widgetIframe && widgetIframe.style.display !== 'none' && widgetIframe.contentWindow) {
+    widgetIframe.contentWindow.postMessage({ type: 'PAGE_INFO_RESPONSE', ...payload }, '*');
+  }
+}
+
 export function setupMessageRouter(onReloadAnnotations: () => void): void {
   window.addEventListener('message', (event) => {
     const data = event.data as PostMessage | undefined;

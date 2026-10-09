@@ -154,16 +154,26 @@
   });
   function setupContextMenus() {
     if (!chrome.contextMenus) return;
-    chrome.contextMenus.removeAll(() => {
-      chrome.contextMenus.create({
-        id: "annotated_open",
-        title: "Open Annotated",
-        contexts: ["page", "video", "frame", "image"]
-      });
-      chrome.contextMenus.create({
-        id: "annotated_selection",
-        title: 'Annotate "%s"',
-        contexts: ["selection"]
+    chrome.storage.sync.get(["openOnHighlight"], (syncRes) => {
+      const isChecked = syncRes?.openOnHighlight !== false;
+      chrome.contextMenus.removeAll(() => {
+        chrome.contextMenus.create({
+          id: "annotated_open",
+          title: "Open Annotated",
+          contexts: ["page", "video", "frame", "image"]
+        });
+        chrome.contextMenus.create({
+          id: "annotated_selection",
+          title: 'Annotate "%s"',
+          contexts: ["selection"]
+        });
+        chrome.contextMenus.create({
+          id: "annotated_toggle_open_on_highlight",
+          title: "Auto-open on text selection",
+          type: "checkbox",
+          checked: isChecked,
+          contexts: ["all"]
+        });
       });
     });
   }
@@ -171,7 +181,27 @@
     setupContextMenus();
   });
   setupContextMenus();
+  chrome.storage.onChanged.addListener((changes, areaName) => {
+    if ((areaName === "sync" || areaName === "local") && changes.openOnHighlight) {
+      const nextVal = changes.openOnHighlight.newValue !== false;
+      try {
+        chrome.contextMenus.update("annotated_toggle_open_on_highlight", {
+          checked: nextVal
+        }, () => {
+          if (chrome.runtime.lastError) {
+          }
+        });
+      } catch (_) {
+      }
+    }
+  });
   chrome.contextMenus.onClicked.addListener(async (info, tab) => {
+    if (info.menuItemId === "annotated_toggle_open_on_highlight") {
+      const nextChecked = Boolean(info.checked);
+      chrome.storage.sync.set({ openOnHighlight: nextChecked });
+      chrome.storage.local.set({ openOnHighlight: nextChecked });
+      return;
+    }
     if (!tab?.id) return;
     const selectedText = info.selectionText || void 0;
     try {

@@ -1940,6 +1940,11 @@
     setTimeout(send, 200);
     setTimeout(send, 400);
   }
+  function updateWidgetSelectionIfOpen(payload) {
+    if (widgetIframe && widgetIframe.style.display !== "none" && widgetIframe.contentWindow) {
+      widgetIframe.contentWindow.postMessage({ type: "PAGE_INFO_RESPONSE", ...payload }, "*");
+    }
+  }
   function setupMessageRouter(onReloadAnnotations) {
     window.addEventListener("message", (event) => {
       const data = event.data;
@@ -2423,7 +2428,28 @@
       setTimeout(() => {
         recordSelection((payload) => {
           if (payload.quote) {
-            notifyWidgetOfSelection(payload);
+            const isWidgetOpen = Boolean(widgetIframe && widgetIframe.style.display !== "none");
+            if (typeof chrome !== "undefined" && chrome.storage?.sync) {
+              chrome.storage.sync.get(["openOnHighlight"], (syncRes) => {
+                const shouldOpen = syncRes?.openOnHighlight !== false;
+                if (shouldOpen) {
+                  notifyWidgetOfSelection(payload);
+                } else if (isWidgetOpen) {
+                  updateWidgetSelectionIfOpen(payload);
+                }
+              });
+            } else if (typeof chrome !== "undefined" && chrome.storage?.local) {
+              chrome.storage.local.get(["openOnHighlight"], (localRes) => {
+                const shouldOpen = localRes?.openOnHighlight !== false;
+                if (shouldOpen) {
+                  notifyWidgetOfSelection(payload);
+                } else if (isWidgetOpen) {
+                  updateWidgetSelectionIfOpen(payload);
+                }
+              });
+            } else {
+              notifyWidgetOfSelection(payload);
+            }
           }
         });
       }, 25);

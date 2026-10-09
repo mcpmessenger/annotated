@@ -1276,3 +1276,65 @@ body {
 .snd-record.recording .snd-dot { background: #fff; }
 
 /* ═══════════════════════════════════════════════════════════════════════ */
+/* ─── Preference Switch & Settings Dropdown ──────────────────────────── */
+.dropdown-toggle-item {
+  user-select: none;
+  border-top: 1px solid var(--line, #eaeaea);
+  border-bottom: 1px solid var(--line, #eaeaea);
+  margin: 4px 0;
+  padding: 8px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+[data-theme="dark"] .dropdown-toggle-item {
+  border-color: rgba(255,255,255,0.08);
+}
+.settings-dropdown {
+  width: 220px;
+  top: 36px;
+  right: -2px;
+}
+.annotated-switch {
+  position: relative;
+  display: inline-block;
+  width: 32px;
+  height: 18px;
+  flex-shrink: 0;
+  margin-left: 10px;
+}
+.annotated-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+.annotated-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: var(--line, #cbd5e1);
+  transition: 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  border-radius: 20px;
+}
+.annotated-slider:before {
+  position: absolute;
+  content: "";
+  height: 12px;
+  width: 12px;
+  left: 3px;
+  bottom: 3px;
+  background-color: #fff;
+  transition: 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  border-radius: 50%;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.35);
+}
+.annotated-switch input:checked + .annotated-slider {
+  background-color: var(--yellow-dark, #ffd21a);
+}
+.annotated-switch input:checked + .annotated-slider:before {
+  transform: translateX(14px);
+  background-color: #16212b;
+}
