@@ -22,6 +22,7 @@ import { CommentSection } from "@/components/CommentSection";
 import { ReactionRow } from "@/components/ReactionRow";
 import { FollowButton } from "@/components/FollowButton";
 import { Tooltip } from "@/components/Tooltip";
+import { extractYouTubeVideoId, extractTimestampRange, formatSeconds } from "@/lib/utils";
 
 export default function AnnotationPage() {
   const params = useParams();
@@ -482,18 +483,71 @@ export default function AnnotationPage() {
             );
           })()}
 
-          {/* Media */}
-          {annotation.media_url && (
-            <section className="mb-8">
-              <div className="rounded-lg overflow-hidden border border-[hsl(var(--border))] bg-black relative shadow-sm">
-                {(annotation.media_type === "video" || annotation.media_url.includes('.webm') || annotation.media_url.includes('.mp4')) ? (
-                  <video src={annotation.media_url} controls playsInline className="w-full max-h-[600px] object-contain" />
-                ) : (
-                  <img src={annotation.media_url} alt="Attached media" className="w-full max-h-[600px] object-contain" />
-                )}
-              </div>
-            </section>
-          )}
+          {/* Media or YouTube Clip Player */}
+          {(() => {
+            if (annotation.media_url) {
+              const isVideo =
+                annotation.media_type === "video" ||
+                annotation.media_url.includes(".webm") ||
+                annotation.media_url.includes(".mp4");
+              return (
+                <section className="mb-8">
+                  <div className="rounded-xl overflow-hidden border border-[hsl(var(--border))] bg-black relative shadow-sm">
+                    {isVideo ? (
+                      <video src={annotation.media_url} controls playsInline className="w-full max-h-[600px] object-contain" />
+                    ) : (
+                      <img src={annotation.media_url} alt="Attached media" className="w-full max-h-[600px] object-contain" />
+                    )}
+                  </div>
+                </section>
+              );
+            }
+
+            const ytId = extractYouTubeVideoId(annotation.sourceUrl);
+            if (ytId) {
+              const tsRange = extractTimestampRange(
+                annotation.sourceUrl,
+                `${annotation.commentary || ""} ${annotation.quoteText || ""}`
+              );
+              const startTs = tsRange?.start ?? annotation.media_timestamp ?? null;
+              const endTs = tsRange?.end;
+              const embedUrl = `https://www.youtube.com/embed/${ytId}?start=${startTs ?? 0}${
+                endTs ? `&end=${endTs}` : ""
+              }&autoplay=0&rel=0`;
+
+              return (
+                <section className="mb-8">
+                  <div className="rounded-xl overflow-hidden border border-[hsl(var(--border))] bg-black relative shadow-md">
+                    <div className="bg-[hsl(var(--card))] px-4 py-2.5 border-b border-[hsl(var(--border))] flex items-center justify-between text-xs">
+                      <span className="font-bold flex items-center gap-2 text-[hsl(var(--foreground))]">
+                        <span className="text-red-500 font-black">▶</span> Video Excerpt
+                      </span>
+                      {tsRange ? (
+                        <span className="px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-600 dark:text-amber-400 font-mono font-bold text-xs border border-amber-500/30">
+                          ⏱️ {formatSeconds(tsRange.start)} - {formatSeconds(tsRange.end)}
+                        </span>
+                      ) : startTs != null && startTs > 0 ? (
+                        <span className="px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-600 dark:text-amber-400 font-mono font-bold text-xs border border-amber-500/30">
+                          ⏱️ {formatSeconds(startTs)}
+                        </span>
+                      ) : null}
+                    </div>
+                    <div className="aspect-video w-full bg-black">
+                      <iframe
+                        src={embedUrl}
+                        title={annotation.title || "YouTube Video Clip"}
+                        className="w-full h-full border-0"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowFullScreen
+                      />
+                    </div>
+                  </div>
+                </section>
+              );
+            }
+
+            return null;
+          })()}
 
           {/* Reactions and Quick Fact Check Trigger */}
           <div className="mb-6 flex flex-wrap items-center justify-between gap-4">

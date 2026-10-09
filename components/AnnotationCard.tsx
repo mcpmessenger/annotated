@@ -10,6 +10,7 @@ import { FollowButton } from "./FollowButton";
 import { Tooltip } from "@/components/Tooltip";
 import { ReportMenu } from "./ReportMenu";
 import { useBlockedUsers } from "@/lib/moderationClient";
+import { extractYouTubeVideoId, extractTimestampRange, formatSeconds } from "@/lib/utils";
 
 export function AnnotationCard({
   annotation,
@@ -456,15 +457,68 @@ export function AnnotationCard({
         );
       })()}
       
-      {annotation.media_url && (
-        <div className="my-4 rounded overflow-hidden border border-[hsl(var(--border))] bg-black relative z-20">
-          {(annotation.media_type === "video" || annotation.media_url.includes('.webm') || annotation.media_url.includes('.mp4')) ? (
-            <video src={annotation.media_url} controls className="w-full max-h-64 object-contain" />
-          ) : (
-            <img src={annotation.media_url} alt="Attached media" className="w-full max-h-64 object-contain" />
-          )}
-        </div>
-      )}
+      {/* Direct Media or YouTube Clip Player */}
+      {(() => {
+        if (annotation.media_url) {
+          const isVideo =
+            annotation.media_type === "video" ||
+            annotation.media_url.includes(".webm") ||
+            annotation.media_url.includes(".mp4");
+          return (
+            <div className="my-4 rounded-xl overflow-hidden border border-[hsl(var(--border))] bg-black relative z-20 shadow-sm">
+              {isVideo ? (
+                <video src={annotation.media_url} controls playsInline className="w-full max-h-72 object-contain" />
+              ) : (
+                <img src={annotation.media_url} alt="Attached media" className="w-full max-h-72 object-contain" />
+              )}
+            </div>
+          );
+        }
+
+        // If no direct media file, check if source is a YouTube video with timestamp/clip
+        const ytId = extractYouTubeVideoId(annotation.sourceUrl);
+        if (ytId) {
+          const tsRange = extractTimestampRange(
+            annotation.sourceUrl,
+            `${annotation.commentary || ""} ${annotation.quoteText || ""}`
+          );
+          const startTs = tsRange?.start ?? annotation.media_timestamp ?? null;
+          const endTs = tsRange?.end;
+          const embedUrl = `https://www.youtube.com/embed/${ytId}?start=${startTs ?? 0}${
+            endTs ? `&end=${endTs}` : ""
+          }&autoplay=0&rel=0`;
+
+          return (
+            <div className="my-4 rounded-xl overflow-hidden border border-[hsl(var(--border))] bg-black relative z-20 shadow-sm">
+              <div className="bg-[hsl(var(--card))] px-3.5 py-2 border-b border-[hsl(var(--border))] flex items-center justify-between text-xs">
+                <span className="font-bold flex items-center gap-1.5 text-[hsl(var(--foreground))]">
+                  <span className="text-red-500 font-black">▶</span> Video Excerpt
+                </span>
+                {tsRange ? (
+                  <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-600 dark:text-amber-400 font-mono font-bold text-[11px] border border-amber-500/30">
+                    ⏱️ {formatSeconds(tsRange.start)} - {formatSeconds(tsRange.end)}
+                  </span>
+                ) : startTs != null && startTs > 0 ? (
+                  <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-600 dark:text-amber-400 font-mono font-bold text-[11px] border border-amber-500/30">
+                    ⏱️ {formatSeconds(startTs)}
+                  </span>
+                ) : null}
+              </div>
+              <div className="aspect-video w-full bg-black">
+                <iframe
+                  src={embedUrl}
+                  title={annotation.title || "YouTube Video Clip"}
+                  className="w-full h-full border-0"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                />
+              </div>
+            </div>
+          );
+        }
+
+        return null;
+      })()}
 
       {/* Commentary */}
       <div className="mb-4">
