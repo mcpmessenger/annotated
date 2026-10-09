@@ -151,13 +151,20 @@ export function createWidget(): HTMLIFrameElement {
 
 export function openAnnotationInWidget(annotation: Annotation): void {
   const iframe = createWidget();
+  iframe.style.display = 'block';
   const sendView = () => {
-    if (iframe.contentWindow) {
-      iframe.contentWindow.postMessage({ type: 'VIEW_ANNOTATION', annotation }, '*');
-    }
+    try {
+      if (iframe && iframe.contentWindow) {
+        iframe.contentWindow.postMessage({ type: 'VIEW_ANNOTATION', annotation }, '*');
+      }
+    } catch (_) {}
   };
   sendView();
+  setTimeout(sendView, 40);
   setTimeout(sendView, 120);
+  setTimeout(sendView, 250);
+  setTimeout(sendView, 500);
+  setTimeout(sendView, 850);
 }
 
 export function notifyWidgetOfSelection(payload: { quote?: string; selectedText?: string; title?: string; url?: string; hostname?: string; media_timestamp?: number | null }): void {

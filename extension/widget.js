@@ -2835,6 +2835,8 @@
       } catch (_) {
       }
     }
+    $("#authScreen")?.classList.add("hidden");
+    $("#mainApp")?.classList.remove("hidden");
     $("#composerSection")?.classList.add("hidden");
     const detailCard = $("#annotationDetailCard");
     if (!detailCard) return;
@@ -3480,6 +3482,8 @@
 
   // extension-src/widget/index.ts
   var currentUser = null;
+  var isViewingDetail = false;
+  var activeDetailAnnotation = null;
   var page = {
     title: "Current page",
     url: "",
@@ -3505,6 +3509,8 @@
       switch (data.type) {
         case "VIEW_ANNOTATION":
           if (data.annotation) {
+            isViewingDetail = true;
+            activeDetailAnnotation = data.annotation;
             (async () => {
               if (!currentUser) {
                 const session = await supabase.restoreSession();
@@ -3515,7 +3521,11 @@
               showAnnotationDetail(
                 data.annotation,
                 currentUser,
-                () => showComposer(resizeWidget),
+                () => {
+                  isViewingDetail = false;
+                  activeDetailAnnotation = null;
+                  showComposer(resizeWidget);
+                },
                 resizeWidget,
                 () => refreshAll()
               );
@@ -3546,8 +3556,8 @@
           if (pageHost) pageHost.textContent = page.hostname.replace(/^www\./, "");
           if (prevUrl && data.url && prevUrl !== data.url) {
             setQuote("");
-            const commentEl2 = $("#comment");
-            if (commentEl2) commentEl2.value = "";
+            const commentEl = $("#comment");
+            if (commentEl) commentEl.value = "";
             const preview = $("#videoPreviewEl");
             if (preview) preview.src = "";
             composerState.videoClipBlob = null;
@@ -3555,7 +3565,7 @@
             composerState.videoEndTs = null;
             $("#videoTrimmerBox")?.classList.add("hidden");
           }
-          if (data.quote || data.selectedText) {
+          if (!isViewingDetail && (data.quote || data.selectedText)) {
             const q = (data.quote || data.selectedText || "").trim();
             if (q) {
               setQuote(q);
@@ -3575,20 +3585,32 @@
           handleVideoCaptured(data, resizeWidget);
           break;
         case "DICTATION_RESULT":
-          const commentEl = $("#comment");
-          if (commentEl) {
-            const text = data.text !== void 0 ? data.text : `${data.finalTranscript || ""} ${data.interimTranscript || ""}`;
-            commentEl.value = text;
-            updatePublishButton();
+          if (isCommentDictating) {
+            const cInput = $("#widgetCommentInput");
+            if (cInput) {
+              const text = data.text !== void 0 ? data.text : `${data.finalTranscript || ""} ${data.interimTranscript || ""}`;
+              cInput.value = `${baseCommentReply ? baseCommentReply + " " : ""}${text}`.trim();
+            }
+          } else {
+            const commentEl = $("#comment");
+            if (commentEl) {
+              const text = data.text !== void 0 ? data.text : `${data.finalTranscript || ""} ${data.interimTranscript || ""}`;
+              commentEl.value = text;
+              updatePublishButton();
+            }
           }
           break;
         case "DICTATION_ENDED":
           const dBtn = $("#dictateBtn");
           if (dBtn) dBtn.classList.remove("recording");
+          const cMicBtn = $("#widgetCommentMicBtn");
+          if (cMicBtn) cMicBtn.classList.remove("recording");
           break;
         case "DICTATION_ERROR":
           const errBtn = $("#dictateBtn");
           if (errBtn) errBtn.classList.remove("recording");
+          const errCMic = $("#widgetCommentMicBtn");
+          if (errCMic) errCMic.classList.remove("recording");
           const st = $("#status");
           if (st) {
             st.textContent = data.error || "Dictation failed";
@@ -3648,8 +3670,23 @@
         currentUser = user;
         showApp(user, () => {
           refreshAll();
-          resizeWidget(getComposerHeight());
+          if (!isViewingDetail) {
+            resizeWidget(getComposerHeight());
+          }
         });
+        if (isViewingDetail && activeDetailAnnotation) {
+          showAnnotationDetail(
+            activeDetailAnnotation,
+            currentUser,
+            () => {
+              isViewingDetail = false;
+              activeDetailAnnotation = null;
+              showComposer(resizeWidget);
+            },
+            resizeWidget,
+            () => refreshAll()
+          );
+        }
         return;
       }
     }
@@ -3659,7 +3696,21 @@
     $("#userMenuWrap")?.classList.add("hidden");
     $("#authScreen")?.classList.add("hidden");
     $("#mainApp")?.classList.remove("hidden");
-    showComposer(resizeWidget);
+    if (!isViewingDetail) {
+      showComposer(resizeWidget);
+    } else if (activeDetailAnnotation) {
+      showAnnotationDetail(
+        activeDetailAnnotation,
+        null,
+        () => {
+          isViewingDetail = false;
+          activeDetailAnnotation = null;
+          showComposer(resizeWidget);
+        },
+        resizeWidget,
+        () => refreshAll()
+      );
+    }
   }
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", boot);

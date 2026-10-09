@@ -23,6 +23,8 @@ export async function showAnnotationDetail(
     } catch (_) {}
   }
 
+  $('#authScreen')?.classList.add('hidden');
+  $('#mainApp')?.classList.remove('hidden');
   $('#composerSection')?.classList.add('hidden');
   const detailCard = $('#annotationDetailCard');
   if (!detailCard) return;

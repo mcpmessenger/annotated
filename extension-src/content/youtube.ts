@@ -422,6 +422,9 @@ export function renderYouTubeVideoTag(
     item.addEventListener('click', (e) => {
       e.stopPropagation();
       e.preventDefault();
+      if (prof && !ann.author_profile) {
+        ann.author_profile = prof;
+      }
       if (startSec != null) onSeek(startSec);
       onOpenAnnotation(ann);
       menu.style.display = 'none';
@@ -477,6 +480,8 @@ export function renderYouTubeVideoTag(
     // If click was inside the menu, let item handler deal with it
     if ((e.target as HTMLElement).closest('.annotated-yt-dropdown-menu')) return;
     if (ytAnns[0]) {
+      const p = ytAnns[0].user_id ? profiles[ytAnns[0].user_id] : undefined;
+      if (p && !ytAnns[0].author_profile) ytAnns[0].author_profile = p;
       const range = extractTimestampRange(ytAnns[0].url, ytAnns[0].comment || ytAnns[0].commentary);
       if (range) onSeek(range.start);
       onOpenAnnotation(ytAnns[0]);

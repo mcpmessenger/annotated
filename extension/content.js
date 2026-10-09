@@ -703,6 +703,9 @@
       item.addEventListener("click", (e) => {
         e.stopPropagation();
         e.preventDefault();
+        if (prof && !ann.author_profile) {
+          ann.author_profile = prof;
+        }
         if (startSec != null) onSeek(startSec);
         onOpenAnnotation(ann);
         menu.style.display = "none";
@@ -745,6 +748,8 @@
     badge.addEventListener("click", (e) => {
       if (e.target.closest(".annotated-yt-dropdown-menu")) return;
       if (ytAnns[0]) {
+        const p = ytAnns[0].user_id ? profiles[ytAnns[0].user_id] : void 0;
+        if (p && !ytAnns[0].author_profile) ytAnns[0].author_profile = p;
         const range = extractTimestampRange(ytAnns[0].url, ytAnns[0].comment || ytAnns[0].commentary);
         if (range) onSeek(range.start);
         onOpenAnnotation(ytAnns[0]);
@@ -1917,13 +1922,21 @@
   }
   function openAnnotationInWidget(annotation) {
     const iframe = createWidget();
+    iframe.style.display = "block";
     const sendView = () => {
-      if (iframe.contentWindow) {
-        iframe.contentWindow.postMessage({ type: "VIEW_ANNOTATION", annotation }, "*");
+      try {
+        if (iframe && iframe.contentWindow) {
+          iframe.contentWindow.postMessage({ type: "VIEW_ANNOTATION", annotation }, "*");
+        }
+      } catch (_) {
       }
     };
     sendView();
+    setTimeout(sendView, 40);
     setTimeout(sendView, 120);
+    setTimeout(sendView, 250);
+    setTimeout(sendView, 500);
+    setTimeout(sendView, 850);
   }
   function notifyWidgetOfSelection(payload) {
     const iframe = createWidget();

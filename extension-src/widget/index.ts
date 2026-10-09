@@ -18,11 +18,14 @@ import {
 } from './composer';
 import { renderFeed, loadFeedFromSupabase } from './feed';
 import { showAnnotationDetail } from './detail';
-import { initCommentForm } from './comments';
+import { initCommentForm, isCommentDictating, baseCommentReply } from './comments';
 import { initNotifications, loadNotifications } from './notifications';
 import { initUiControls, setTheme } from './ui-controls';
 
 let currentUser: CurrentUser | null = null;
+let isViewingDetail = false;
+let activeDetailAnnotation: Annotation | null = null;
+
 let page: PageContext = {
   title: 'Current page',
   url: '',
@@ -53,6 +56,8 @@ function setupParentMessageListener(): void {
     switch (data.type) {
       case 'VIEW_ANNOTATION':
         if (data.annotation) {
+          isViewingDetail = true;
+          activeDetailAnnotation = data.annotation;
           (async () => {
             if (!currentUser) {
               const session = await supabase.restoreSession();
@@ -63,7 +68,11 @@ function setupParentMessageListener(): void {
             showAnnotationDetail(
               data.annotation,
               currentUser,
-              () => showComposer(resizeWidget),
+              () => {
+                isViewingDetail = false;
+                activeDetailAnnotation = null;
+                showComposer(resizeWidget);
+              },
               resizeWidget,
               () => refreshAll()
             );
@@ -108,7 +117,7 @@ function setupParentMessageListener(): void {
           $('#videoTrimmerBox')?.classList.add('hidden');
         }
 
-        if (data.quote || data.selectedText) {
+        if (!isViewingDetail && (data.quote || data.selectedText)) {
           const q = (data.quote || data.selectedText || '').trim();
           if (q) {
             setQuote(q);
@@ -131,22 +140,34 @@ function setupParentMessageListener(): void {
         break;
 
       case 'DICTATION_RESULT':
-        const commentEl = $('#comment') as HTMLTextAreaElement | null;
-        if (commentEl) {
-          const text = data.text !== undefined ? data.text : `${data.finalTranscript || ''} ${data.interimTranscript || ''}`;
-          commentEl.value = text;
-          updatePublishButton();
+        if (isCommentDictating) {
+          const cInput = $('#widgetCommentInput') as HTMLTextAreaElement | null;
+          if (cInput) {
+            const text = data.text !== undefined ? data.text : `${data.finalTranscript || ''} ${data.interimTranscript || ''}`;
+            cInput.value = `${baseCommentReply ? baseCommentReply + ' ' : ''}${text}`.trim();
+          }
+        } else {
+          const commentEl = $('#comment') as HTMLTextAreaElement | null;
+          if (commentEl) {
+            const text = data.text !== undefined ? data.text : `${data.finalTranscript || ''} ${data.interimTranscript || ''}`;
+            commentEl.value = text;
+            updatePublishButton();
+          }
         }
         break;
 
       case 'DICTATION_ENDED':
         const dBtn = $('#dictateBtn');
         if (dBtn) dBtn.classList.remove('recording');
+        const cMicBtn = $('#widgetCommentMicBtn');
+        if (cMicBtn) cMicBtn.classList.remove('recording');
         break;
 
       case 'DICTATION_ERROR':
         const errBtn = $('#dictateBtn');
         if (errBtn) errBtn.classList.remove('recording');
+        const errCMic = $('#widgetCommentMicBtn');
+        if (errCMic) errCMic.classList.remove('recording');
         const st = $('#status');
         if (st) {
           st.textContent = data.error || 'Dictation failed';
@@ -218,8 +239,23 @@ async function boot(): Promise<void> {
       currentUser = user;
       showApp(user, () => {
         refreshAll();
-        resizeWidget(getComposerHeight());
+        if (!isViewingDetail) {
+          resizeWidget(getComposerHeight());
+        }
       });
+      if (isViewingDetail && activeDetailAnnotation) {
+        showAnnotationDetail(
+          activeDetailAnnotation,
+          currentUser,
+          () => {
+            isViewingDetail = false;
+            activeDetailAnnotation = null;
+            showComposer(resizeWidget);
+          },
+          resizeWidget,
+          () => refreshAll()
+        );
+      }
       return;
     }
   }
@@ -231,7 +267,21 @@ async function boot(): Promise<void> {
   $('#userMenuWrap')?.classList.add('hidden');
   $('#authScreen')?.classList.add('hidden');
   $('#mainApp')?.classList.remove('hidden');
-  showComposer(resizeWidget);
+  if (!isViewingDetail) {
+    showComposer(resizeWidget);
+  } else if (activeDetailAnnotation) {
+    showAnnotationDetail(
+      activeDetailAnnotation,
+      null,
+      () => {
+        isViewingDetail = false;
+        activeDetailAnnotation = null;
+        showComposer(resizeWidget);
+      },
+      resizeWidget,
+      () => refreshAll()
+    );
+  }
 }
 
 if (document.readyState === 'loading') {
