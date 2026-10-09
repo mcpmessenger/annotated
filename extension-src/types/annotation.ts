@@ -18,6 +18,7 @@ export interface Annotation {
   audio_url?: string;
   media_timestamp?: number | null;
   video_captions?: string;
+  video_chapter?: string;
   created_at?: string;
   username?: string;
   user_name?: string;
@@ -62,6 +63,7 @@ export interface PageContext {
   url: string;
   hostname: string;
   video_captions?: string;
+  video_chapter?: string;
 }
 
 export interface FactCheckResult {

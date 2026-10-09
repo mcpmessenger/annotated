@@ -11,6 +11,7 @@ export interface PageInfoPayload {
   media_timestamp: number | null;
   media_duration?: number | null;
   video_captions?: string;
+  video_chapter?: string;
 }
 
 export let lastKnownSelection: string | null = null;
@@ -94,6 +95,52 @@ export function getActiveVideoState(): { currentTime: number; duration: number; 
 export function getMediaDuration(): number | null {
   const state = getActiveVideoState();
   return state.duration > 0 ? state.duration : null;
+}
+
+function parseClockToSeconds(str: string): number | null {
+  const parts = str.trim().split(':').map((x) => parseInt(x, 10));
+  if (parts.some((p) => isNaN(p))) return null;
+  if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+  if (parts.length === 2) return parts[0] * 60 + parts[1];
+  return null;
+}
+
+/**
+ * Returns the YouTube chapter title that covers `atSeconds`.
+ * Long podcasts cover many topics, so the chapter is a far better topic signal than the video title.
+ */
+export function getVideoChapterAt(atSeconds?: number | null): string {
+  try {
+    if (atSeconds != null) {
+      const items = Array.from(document.querySelectorAll('ytd-macro-markers-list-item-renderer'));
+      const chapters: { start: number; title: string }[] = [];
+      const seen = new Set<string>();
+      for (const it of items) {
+        const timeText = it.querySelector('#time')?.textContent || '';
+        const title = (it.querySelector('h4')?.textContent || it.querySelector('#details')?.textContent || '').trim();
+        const start = parseClockToSeconds(timeText);
+        if (start == null || !title) continue;
+        const key = `${start}|${title}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        chapters.push({ start, title });
+      }
+      if (chapters.length > 0) {
+        chapters.sort((a, b) => a.start - b.start);
+        let match: string | null = null;
+        for (const c of chapters) {
+          if (c.start <= atSeconds) match = c.title;
+          else break;
+        }
+        if (match) return match;
+      }
+    }
+    // Fallback: chapter label in the player controls (reflects current playhead)
+    const label = document.querySelector('.ytp-chapter-title-content')?.textContent?.trim();
+    return label || '';
+  } catch (_) {
+    return '';
+  }
 }
 
 export function getActiveVideoCaptions(startSeconds?: number | null, endSeconds?: number | null): string {
@@ -265,6 +312,7 @@ export function buildPageInfo(): PageInfoPayload {
     media_timestamp: mediaTs,
     media_duration: getMediaDuration(),
     video_captions: getActiveVideoCaptions(mediaTs, mediaTs != null ? mediaTs + 15 : null) || undefined,
+    video_chapter: getVideoChapterAt(mediaTs) || undefined,
   };
 }
 

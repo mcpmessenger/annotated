@@ -3,7 +3,7 @@
 import { $, $$ } from '../shared/dom';
 import { formatSeconds, parseFormattedTime, escapeHtml, safeSendRuntimeMessage } from '../shared/utils';
 import { publishAnnotation } from './publish';
-import { callFactCheckApi } from './factcheck';
+import { callFactCheckApi, GEMINI_DISCLAIMER_HTML } from './factcheck';
 import type { CurrentUser, PageContext, FactCheckResult } from '../types/annotation';
 
 export interface ComposerState {
@@ -18,6 +18,7 @@ export interface ComposerState {
   recordedAudioBlob: Blob | null;
   currentMediaTimestamp: number | null;
   videoCaptions: string | null;
+  videoChapter: string | null;
   factCheckResult: FactCheckResult | null;
 }
 
@@ -33,6 +34,7 @@ export const composerState: ComposerState = {
   recordedAudioBlob: null,
   currentMediaTimestamp: null,
   videoCaptions: null,
+  videoChapter: null,
   factCheckResult: null,
 };
 
@@ -306,7 +308,8 @@ function blobToBase64(blob: Blob): Promise<string> {
 
       let clipBase64: string | null = null;
       let clipMimeType: string | null = null;
-      if (composerState.videoClipBlob && composerState.videoClipBlob.size < 12 * 1024 * 1024) {
+      // Vercel serverless request bodies cap at ~4.5 MB; base64 inflates ~33%, so keep raw clip under ~3 MB
+      if (composerState.videoClipBlob && composerState.videoClipBlob.size < 3 * 1024 * 1024) {
         try {
           clipBase64 = await blobToBase64(composerState.videoClipBlob);
           clipMimeType = composerState.videoClipBlob.type || 'video/webm';
@@ -323,6 +326,7 @@ function blobToBase64(blob: Blob): Promise<string> {
         videoEndTs: endTs,
         isVideoClip: hasVideoClip || isVideo,
         videoCaptions: composerState.videoCaptions || pageCtx.video_captions || undefined,
+        videoChapter: composerState.videoChapter || pageCtx.video_chapter || undefined,
         mediaUrl: composerState.mediaDataUrl ?? null,
         mediaBase64: clipBase64,
         mediaMimeType: clipMimeType,
@@ -340,7 +344,7 @@ function blobToBase64(blob: Blob): Promise<string> {
             : '#eab308';
       }
       if (composerFactCheckText) {
-        composerFactCheckText.innerHTML = `<strong>${escapeHtml(data.headline || '')}</strong><br><span style="font-size:10px; color:var(--muted);">${escapeHtml(data.explanation || '')}</span>`;
+        composerFactCheckText.innerHTML = `<strong>${escapeHtml(data.headline || '')}</strong><br><span style="font-size:10px; color:var(--muted);">${escapeHtml(data.explanation || '')}</span>${GEMINI_DISCLAIMER_HTML}`;
       }
       onResize(getComposerHeight());
     } catch (err: unknown) {
@@ -663,6 +667,7 @@ export function handleVideoCaptured(data: any, onResize: (height: number) => voi
         if (data.startTs != null) composerState.videoStartTs = data.startTs;
         if (data.endTs != null) composerState.videoEndTs = data.endTs;
         if (data.captions) composerState.videoCaptions = data.captions;
+        if (data.chapter) composerState.videoChapter = data.chapter;
 
         const preview = $('#videoPreviewEl') as HTMLVideoElement | null;
         if (preview) {
@@ -692,6 +697,7 @@ export function clearVideo(onResize: (height: number) => void): void {
   composerState.videoStartTs = null;
   composerState.videoEndTs = null;
   composerState.videoCaptions = null;
+  composerState.videoChapter = null;
   isGrabbingClip = false;
 
   const videoTrimmerBox = $('#videoTrimmerBox');

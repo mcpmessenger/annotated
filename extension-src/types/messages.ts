@@ -104,6 +104,7 @@ export interface PageInfoResponseMessage {
   media_timestamp?: number | null;
   media_duration?: number | null;
   video_captions?: string;
+  video_chapter?: string;
 }
 
 export interface VideoStateResponseMessage {

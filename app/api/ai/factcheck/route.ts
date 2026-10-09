@@ -233,6 +233,7 @@ export async function POST(req: NextRequest) {
       videoEndTs = null,
       isVideoClip = false,
       videoCaptions = "",
+      videoChapter = "",
       mediaUrl = null,
       mediaBase64 = null,
       mediaMimeType = null,
@@ -301,9 +302,14 @@ export async function POST(req: NextRequest) {
 
     const formatTs = (s: number | null) => {
       if (s == null) return null;
-      const m = Math.floor(s / 60);
-      const sec = s % 60;
-      return `${String(m).padStart(2, "0")}:${String(sec).padStart(2, "0")}`;
+      const totalSec = Math.floor(s);
+      const hrs = Math.floor(totalSec / 3600);
+      const mins = Math.floor((totalSec % 3600) / 60);
+      const sec = totalSec % 60;
+      if (hrs > 0) {
+        return `${hrs}:${String(mins).padStart(2, "0")}:${String(sec).padStart(2, "0")}`;
+      }
+      return `${String(mins).padStart(2, "0")}:${String(sec).padStart(2, "0")}`;
     };
 
     const videoTimeRange =
@@ -344,21 +350,23 @@ export async function POST(req: NextRequest) {
       if (isVideo) {
         promptTarget = `TARGET TO FACT-CHECK:
 Type: Specific Video Clip Segment (${videoTimeRange})
-Source Video: "${sourceTitle || "Online Video"}"
+Source Video Title: "${sourceTitle || "Online Video"}"
 Video URL: ${sourceUrl}
 Clip Timestamp: ${videoTimeRange}
+${videoChapter ? `Current Video Chapter / Section: "${videoChapter}"\n` : ""}
 ${inlineData ? "Attached Video Clip: The user recorded and provided the exact audio/video of this clip. Listen to the speech and view the clip carefully to identify the actual statements made.\n" : ""}
 ${videoCaptions ? `*** SPOKEN DIALOGUE / TRANSCRIPT IN THIS EXACT CLIP (${videoTimeRange}) ***:\n"${videoCaptions}"\nIMPORTANT: The above quotes the exact words spoken in this segment. Base your evaluation directly on these statements.\n` : ""}
 ${hasGenuineQuote ? `Highlighted Excerpt from clip: "${trimmedQuote}"\n` : ""}
 ${trimmedCommentary ? `Annotation Note / Claim for this clip: "${trimmedCommentary}"\n` : ""}
 
-CRITICAL STRICT RULES - EXCLUSIVELY EVALUATE THIS SPECIFIC VIDEO:
+CRITICAL STRICT RULES - EXCLUSIVELY EVALUATE THIS SPECIFIC VIDEO & CLIP SEGMENT:
 1. FOCUS EXCLUSIVELY ON THIS VIDEO: You are verifying "${sourceTitle}".
-2. DO NOT confuse this video with any other video, show, or unrelated topic.
-3. NEVER fabricate or hallucinate dialogue from an unrelated video or subject.
-4. If this is a comedy or satire program (e.g. Saturday Night Live / Weekend Update) or political commentary, recognize the comedic/satirical context, distinguish jokes from factual claims, and evaluate any underlying factual claims made about the subject matter.
-5. You are strictly verifying the specific annotated moment / clip segment: ${videoTimeRange}.
-6. HEADLINE RULE: In your headline, state the verdict specifically about the clip's claim or segment (e.g., "Clip at ${formatTs(timeStart) || "segment"}: [...]"), NEVER reviewing the whole channel or an unrelated video.`;
+2. MULTI-TOPIC VIDEO / PODCAST RULE: Long videos, podcasts, and news shows discuss multiple completely different topics across different chapters (e.g. Claude AI, Anthropic, Sam Altman, Tesla, Elon Musk, robotics, economy). NEVER assume that a person or quote mentioned in the video title (e.g. Sam Altman) was discussed in this specific clip unless the dialogue or claim for this timestamp specifically covers them.
+3. If this clip is under chapter "${videoChapter || "current section"}" or discusses a different topic (e.g. Tesla, Anthropic, compute, hardware), evaluate ONLY what is discussed in this segment. DO NOT attribute quotes from other guests or other segments to this clip.
+4. NEVER fabricate or hallucinate dialogue from an unrelated video or subject.
+5. If this is a comedy or satire program (e.g. Saturday Night Live / Weekend Update) or political commentary, recognize the comedic/satirical context, distinguish jokes from factual claims, and evaluate any underlying factual claims made about the subject matter.
+6. You are strictly verifying the specific annotated moment / clip segment: ${videoTimeRange}.
+7. HEADLINE RULE: In your headline, state the verdict specifically about the clip's claim or segment (e.g., "Clip at ${formatTs(timeStart) || "segment"}: [...]"), NEVER reviewing the whole channel or an unrelated video.`;
       } else {
         const targetExcerpt = hasGenuineQuote ? trimmedQuote : trimmedCommentary;
         promptTarget = `TARGET TO FACT-CHECK:

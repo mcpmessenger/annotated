@@ -3,7 +3,7 @@
 import { $ } from '../shared/dom';
 import { supabase } from '../shared/supabase';
 import { SUPABASE_CONFIG, SITE_URL, FACTCHECK_API_URL } from '../shared/config';
-import { pageKey, safeStorageGet, safeStorageSet } from '../shared/utils';
+import { pageKey, safeStorageGet, safeStorageSet, formatSeconds } from '../shared/utils';
 import type { Annotation, CurrentUser, PageContext, FactCheckResult } from '../types/annotation';
 
 export interface PublishPayload {
@@ -108,12 +108,7 @@ export async function publishAnnotation(
 
   // Inject video timestamps into comment if range exists
   if (payload.videoStartTs != null && payload.videoEndTs != null) {
-    const fmt = (ts: number) => {
-      const m = Math.floor(ts / 60);
-      const s = Math.floor(ts % 60);
-      return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-    };
-    safeComment += `\n\n[⏱️ ${fmt(payload.videoStartTs)} - ${fmt(payload.videoEndTs)}]`;
+    safeComment += `\n\n[⏱️ ${formatSeconds(payload.videoStartTs)} - ${formatSeconds(payload.videoEndTs)}]`;
   }
 
   let publishUrl = payload.page.url || location.href;

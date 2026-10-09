@@ -1,4 +1,4 @@
-import { getActiveVideoElement, getActiveVideoCaptions } from './selection';
+import { getActiveVideoElement, getActiveVideoCaptions, getVideoChapterAt } from './selection';
 
 function getVideoKey(): string {
   try {
@@ -157,6 +157,7 @@ export async function capture240pVideoClip(
   activeVideoEl = videoEl;
   const sourceVideoKey = getVideoKey();
   const startTs = isLiveRecord ? Math.floor(videoEl.currentTime || 0) : (startTsParam != null ? startTsParam : Math.floor(videoEl.currentTime || 0));
+  const clipChapter = getVideoChapterAt(startTs);
 
   const canvas = document.createElement('canvas');
   canvas.width = 426;
@@ -350,6 +351,7 @@ export async function capture240pVideoClip(
                 endTs,
                 mimeType: blob.type || outputMime,
                 captions: clipCaptions,
+                chapter: clipChapter || undefined,
               });
               pendingSendResponse = null;
             }

@@ -885,6 +885,45 @@
     const state2 = getActiveVideoState();
     return state2.duration > 0 ? state2.duration : null;
   }
+  function parseClockToSeconds(str) {
+    const parts = str.trim().split(":").map((x) => parseInt(x, 10));
+    if (parts.some((p) => isNaN(p))) return null;
+    if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+    if (parts.length === 2) return parts[0] * 60 + parts[1];
+    return null;
+  }
+  function getVideoChapterAt(atSeconds) {
+    try {
+      if (atSeconds != null) {
+        const items = Array.from(document.querySelectorAll("ytd-macro-markers-list-item-renderer"));
+        const chapters = [];
+        const seen = /* @__PURE__ */ new Set();
+        for (const it of items) {
+          const timeText = it.querySelector("#time")?.textContent || "";
+          const title = (it.querySelector("h4")?.textContent || it.querySelector("#details")?.textContent || "").trim();
+          const start = parseClockToSeconds(timeText);
+          if (start == null || !title) continue;
+          const key = `${start}|${title}`;
+          if (seen.has(key)) continue;
+          seen.add(key);
+          chapters.push({ start, title });
+        }
+        if (chapters.length > 0) {
+          chapters.sort((a, b) => a.start - b.start);
+          let match = null;
+          for (const c of chapters) {
+            if (c.start <= atSeconds) match = c.title;
+            else break;
+          }
+          if (match) return match;
+        }
+      }
+      const label = document.querySelector(".ytp-chapter-title-content")?.textContent?.trim();
+      return label || "";
+    } catch (_) {
+      return "";
+    }
+  }
   function getActiveVideoCaptions(startSeconds, endSeconds) {
     const v = getActiveVideoElement();
     const vState = getActiveVideoState();
@@ -1028,7 +1067,8 @@
       quote: sel,
       media_timestamp: mediaTs,
       media_duration: getMediaDuration(),
-      video_captions: getActiveVideoCaptions(mediaTs, mediaTs != null ? mediaTs + 15 : null) || void 0
+      video_captions: getActiveVideoCaptions(mediaTs, mediaTs != null ? mediaTs + 15 : null) || void 0,
+      video_chapter: getVideoChapterAt(mediaTs) || void 0
     };
   }
   function recordSelection(onSelectionRecorded) {
@@ -1520,6 +1560,7 @@
     activeVideoEl = videoEl;
     const sourceVideoKey = getVideoKey();
     const startTs = isLiveRecord ? Math.floor(videoEl.currentTime || 0) : startTsParam != null ? startTsParam : Math.floor(videoEl.currentTime || 0);
+    const clipChapter = getVideoChapterAt(startTs);
     const canvas = document.createElement("canvas");
     canvas.width = 426;
     canvas.height = 240;
@@ -1697,7 +1738,8 @@
                   startTs,
                   endTs,
                   mimeType: blob.type || outputMime,
-                  captions: clipCaptions
+                  captions: clipCaptions,
+                  chapter: clipChapter || void 0
                 });
                 pendingSendResponse = null;
               }
