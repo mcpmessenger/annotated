@@ -202,6 +202,7 @@ export async function publishAnnotation(
         sourceUrl: publishUrl,
         quote: safeQuote,
         commentary: safeComment,
+        videoCaptions: payload.page.video_captions || undefined,
         userId: payload.currentUser.id,
       }),
     }).catch(() => {});

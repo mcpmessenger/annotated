@@ -17,6 +17,7 @@ export interface ComposerState {
   videoEndTs: number | null;
   recordedAudioBlob: Blob | null;
   currentMediaTimestamp: number | null;
+  videoCaptions: string | null;
   factCheckResult: FactCheckResult | null;
 }
 
@@ -31,6 +32,7 @@ export const composerState: ComposerState = {
   videoEndTs: null,
   recordedAudioBlob: null,
   currentMediaTimestamp: null,
+  videoCaptions: null,
   factCheckResult: null,
 };
 
@@ -320,7 +322,7 @@ function blobToBase64(blob: Blob): Promise<string> {
         videoStartTs: startTs,
         videoEndTs: endTs,
         isVideoClip: hasVideoClip || isVideo,
-        videoCaptions: clipBase64 ? undefined : (pageCtx.video_captions || undefined),
+        videoCaptions: composerState.videoCaptions || pageCtx.video_captions || undefined,
         mediaUrl: composerState.mediaDataUrl ?? null,
         mediaBase64: clipBase64,
         mediaMimeType: clipMimeType,
@@ -660,6 +662,7 @@ export function handleVideoCaptured(data: any, onResize: (height: number) => voi
         composerState.videoClipBlob = blob;
         if (data.startTs != null) composerState.videoStartTs = data.startTs;
         if (data.endTs != null) composerState.videoEndTs = data.endTs;
+        if (data.captions) composerState.videoCaptions = data.captions;
 
         const preview = $('#videoPreviewEl') as HTMLVideoElement | null;
         if (preview) {
@@ -688,6 +691,7 @@ export function clearVideo(onResize: (height: number) => void): void {
   composerState.videoClipBlob = null;
   composerState.videoStartTs = null;
   composerState.videoEndTs = null;
+  composerState.videoCaptions = null;
   isGrabbingClip = false;
 
   const videoTrimmerBox = $('#videoTrimmerBox');

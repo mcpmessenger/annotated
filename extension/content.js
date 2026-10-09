@@ -924,11 +924,8 @@
       const text = ytSegments.map((s) => s.textContent?.trim()).filter(Boolean).join(" ");
       if (text) return text;
     }
-    const transcriptPanel = document.querySelector(
-      'ytd-engagement-panel-section-list-renderer[target-id="engagement-panel-searchable-transcript"]:not([visibility="ENGAGEMENT_PANEL_VISIBILITY_HIDDEN"]), #panels ytd-transcript-renderer'
-    );
-    if (transcriptPanel && tStart != null && tEnd != null) {
-      const segments = Array.from(transcriptPanel.querySelectorAll("ytd-transcript-segment-renderer"));
+    const segments = Array.from(document.querySelectorAll("ytd-transcript-segment-renderer"));
+    if (segments.length > 0 && tStart != null && tEnd != null) {
       const matchedTexts = [];
       for (const seg of segments) {
         const tsEl = seg.querySelector(".segment-timestamp");
@@ -1031,7 +1028,7 @@
       quote: sel,
       media_timestamp: mediaTs,
       media_duration: getMediaDuration(),
-      video_captions: getActiveVideoCaptions() || void 0
+      video_captions: getActiveVideoCaptions(mediaTs, mediaTs != null ? mediaTs + 15 : null) || void 0
     };
   }
   function recordSelection(onSelectionRecorded) {
@@ -1689,12 +1686,18 @@
             const reader = new FileReader();
             reader.onloadend = () => {
               if (pendingSendResponse) {
+                let clipCaptions = void 0;
+                try {
+                  clipCaptions = getActiveVideoCaptions(startTs, endTs) || void 0;
+                } catch (_) {
+                }
                 pendingSendResponse({
                   dataUrl: reader.result,
                   duration: Math.max(1, endTs - startTs),
                   startTs,
                   endTs,
-                  mimeType: blob.type || outputMime
+                  mimeType: blob.type || outputMime,
+                  captions: clipCaptions
                 });
                 pendingSendResponse = null;
               }

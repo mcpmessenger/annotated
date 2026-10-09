@@ -1,4 +1,4 @@
-import { getActiveVideoElement } from './selection';
+import { getActiveVideoElement, getActiveVideoCaptions } from './selection';
 
 function getVideoKey(): string {
   try {
@@ -338,12 +338,18 @@ export async function capture240pVideoClip(
           const reader = new FileReader();
           reader.onloadend = () => {
             if (pendingSendResponse) {
+              let clipCaptions: string | undefined = undefined;
+              try {
+                clipCaptions = getActiveVideoCaptions(startTs, endTs) || undefined;
+              } catch (_) {}
+
               pendingSendResponse({
                 dataUrl: reader.result,
                 duration: Math.max(1, endTs - startTs),
                 startTs,
                 endTs,
                 mimeType: blob.type || outputMime,
+                captions: clipCaptions,
               });
               pendingSendResponse = null;
             }

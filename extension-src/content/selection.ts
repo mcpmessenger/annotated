@@ -144,12 +144,9 @@ export function getActiveVideoCaptions(startSeconds?: number | null, endSeconds?
     if (text) return text;
   }
 
-  // 3. Check YouTube transcript segments ONLY if the transcript panel is actively open and visible
-  const transcriptPanel = document.querySelector(
-    'ytd-engagement-panel-section-list-renderer[target-id="engagement-panel-searchable-transcript"]:not([visibility="ENGAGEMENT_PANEL_VISIBILITY_HIDDEN"]), #panels ytd-transcript-renderer'
-  );
-  if (transcriptPanel && tStart != null && tEnd != null) {
-    const segments = Array.from(transcriptPanel.querySelectorAll('ytd-transcript-segment-renderer'));
+  // 3. Check YouTube transcript segments wherever they appear in the DOM (even if panel is collapsed or hidden)
+  const segments = Array.from(document.querySelectorAll('ytd-transcript-segment-renderer'));
+  if (segments.length > 0 && tStart != null && tEnd != null) {
     const matchedTexts: string[] = [];
     for (const seg of segments) {
       const tsEl = seg.querySelector('.segment-timestamp');
@@ -165,7 +162,7 @@ export function getActiveVideoCaptions(startSeconds?: number | null, endSeconds?
         sec = parts[0] * 3600 + parts[1] * 60 + parts[2];
       }
 
-      // Only include segments strictly within the specified clip window
+      // Include segments strictly within the specified clip window
       if (sec != null && sec >= tStart - 2 && sec <= tEnd + 2) {
         matchedTexts.push(textEl.textContent.trim());
       }
@@ -267,7 +264,7 @@ export function buildPageInfo(): PageInfoPayload {
     quote: sel,
     media_timestamp: mediaTs,
     media_duration: getMediaDuration(),
-    video_captions: getActiveVideoCaptions() || undefined,
+    video_captions: getActiveVideoCaptions(mediaTs, mediaTs != null ? mediaTs + 15 : null) || undefined,
   };
 }
 

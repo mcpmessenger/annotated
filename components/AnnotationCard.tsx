@@ -133,6 +133,7 @@ export function AnnotationCard({
           videoEndTs: endTs,
           mediaUrl: annotation.media_url,
           isVideoClip: isVideo,
+          videoCaptions: (annotation as any).video_captions || undefined,
           forceRecheck: forceRecheck,
           userId: currentUserId || undefined,
         }),

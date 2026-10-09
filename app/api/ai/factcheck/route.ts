@@ -348,7 +348,7 @@ Source Video: "${sourceTitle || "Online Video"}"
 Video URL: ${sourceUrl}
 Clip Timestamp: ${videoTimeRange}
 ${inlineData ? "Attached Video Clip: The user recorded and provided the exact audio/video of this clip. Listen to the speech and view the clip carefully to identify the actual statements made.\n" : ""}
-${videoCaptions ? `Spoken Dialogue / Captions in this clip: "${videoCaptions}"\n` : ""}
+${videoCaptions ? `*** SPOKEN DIALOGUE / TRANSCRIPT IN THIS EXACT CLIP (${videoTimeRange}) ***:\n"${videoCaptions}"\nIMPORTANT: The above quotes the exact words spoken in this segment. Base your evaluation directly on these statements.\n` : ""}
 ${hasGenuineQuote ? `Highlighted Excerpt from clip: "${trimmedQuote}"\n` : ""}
 ${trimmedCommentary ? `Annotation Note / Claim for this clip: "${trimmedCommentary}"\n` : ""}
 
@@ -392,6 +392,7 @@ EVIDENCE & VERDICT RULES (MANDATORY):
 5. Only return FALSE when you have specific contradicting evidence from reliable sources, and cite those sources. Only allege manipulation when there is concrete, cited evidence of manipulation (e.g. a published debunk), never from intuition or training cutoff.
 6. If you cannot find enough evidence either way, return CONTEXT_NEEDED with confidence LOW and explain the factual context of what the speakers are addressing — do not guess or claim it is a fake.
 7. Every URL in "sources" must be a real page. Do not invent URLs.
+8. STRICT CLAIM & TIMESTAMP INTEGRITY: Evaluate the specific assertion or topic stated in the user's note/excerpt ("${trimmedCommentary || trimmedQuote}"). DO NOT hallucinate or substitute unrelated discussions from other timestamps in this video (such as intros, outros, or unrelated debates). If dialogue transcript is provided above, verify whether the spoken words corroborate or challenge the user's claim. If no transcript is provided, evaluate the substantive validity of the user's assertion in the context of the video's subject matter without asserting that this clip discussed unrelated topics.
 
 Respond ONLY with a valid JSON object matching this schema (do not add markdown code fences or explanatory text outside the JSON):
 {

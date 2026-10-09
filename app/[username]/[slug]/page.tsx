@@ -124,6 +124,7 @@ export default function AnnotationPage() {
           videoEndTs: endTs,
           mediaUrl: ann.media_url || null,
           isVideoClip: isVideo,
+          videoCaptions: (ann as any).video_captions || undefined,
         }),
       });
 

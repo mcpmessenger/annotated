@@ -780,6 +780,7 @@
           sourceUrl: publishUrl,
           quote: safeQuote,
           commentary: safeComment,
+          videoCaptions: payload.page.video_captions || void 0,
           userId: payload.currentUser.id
         })
       }).catch(() => {
@@ -1366,7 +1367,7 @@
           videoStartTs: startTs,
           videoEndTs: endTs,
           isVideoClip: hasVideoClip || isVideo,
-          videoCaptions: clipBase64 ? void 0 : pageCtx.video_captions || void 0,
+          videoCaptions: composerState.videoCaptions || pageCtx.video_captions || void 0,
           mediaUrl: composerState.mediaDataUrl ?? null,
           mediaBase64: clipBase64,
           mediaMimeType: clipMimeType
@@ -1633,6 +1634,7 @@
         composerState.videoClipBlob = blob;
         if (data.startTs != null) composerState.videoStartTs = data.startTs;
         if (data.endTs != null) composerState.videoEndTs = data.endTs;
+        if (data.captions) composerState.videoCaptions = data.captions;
         const preview = $("#videoPreviewEl");
         if (preview) {
           preview.src = URL.createObjectURL(blob);
@@ -1657,6 +1659,7 @@
     composerState.videoClipBlob = null;
     composerState.videoStartTs = null;
     composerState.videoEndTs = null;
+    composerState.videoCaptions = null;
     isGrabbingClip = false;
     const videoTrimmerBox = $("#videoTrimmerBox");
     const videoPreviewEl = $("#videoPreviewEl");
@@ -2142,6 +2145,7 @@
         videoEndTs: null,
         recordedAudioBlob: null,
         currentMediaTimestamp: null,
+        videoCaptions: null,
         factCheckResult: null
       };
       moduleGetPage = null;
