@@ -64,6 +64,7 @@ export function ensureWidgetContainer(): { container: HTMLElement; shadow: Shado
 }
 
 let hasUserDragged = false;
+export let pendingViewAnnotation: Annotation | null = null;
 
 export function positionWidget(iframe: HTMLIFrameElement): void {
   // Always anchor in top right corner like a standard sidebar
@@ -108,6 +109,20 @@ export function createWidget(): HTMLIFrameElement {
     background: transparent;
   `;
 
+  // When iframe finishes loading, immediately send any pending annotation to view
+  widgetIframe.addEventListener('load', () => {
+    if (pendingViewAnnotation && widgetIframe?.contentWindow) {
+      const targetAnn = pendingViewAnnotation;
+      [30, 100, 250, 500, 800].forEach((delay) => {
+        setTimeout(() => {
+          if (widgetIframe?.contentWindow) {
+            widgetIframe.contentWindow.postMessage({ type: 'VIEW_ANNOTATION', annotation: targetAnn }, '*');
+          }
+        }, delay);
+      });
+    }
+  });
+
   shadow.appendChild(widgetIframe);
   positionWidget(widgetIframe);
   startVideoTracker();
@@ -150,6 +165,7 @@ export function createWidget(): HTMLIFrameElement {
 }
 
 export function openAnnotationInWidget(annotation: Annotation): void {
+  pendingViewAnnotation = annotation;
   const iframe = createWidget();
   iframe.style.display = 'block';
   const sendView = () => {
@@ -213,7 +229,9 @@ export function setupMessageRouter(onReloadAnnotations: () => void): void {
         break;
 
       case 'CLOSE_WIDGET':
-        if (widgetIframe) {
+      case 'BACK_TO_COMPOSER':
+        pendingViewAnnotation = null;
+        if (data.type === 'CLOSE_WIDGET' && widgetIframe) {
           widgetIframe.style.display = 'none';
           hasUserDragged = false;
           positionWidget(widgetIframe);
@@ -242,6 +260,19 @@ export function setupMessageRouter(onReloadAnnotations: () => void): void {
 
       case 'STOP_DICTATION':
         stopDictation(widgetIframe);
+        break;
+
+      case 'WIDGET_READY':
+        if (pendingViewAnnotation && widgetIframe?.contentWindow) {
+          const targetAnn = pendingViewAnnotation;
+          [30, 100, 250, 500].forEach((delay) => {
+            setTimeout(() => {
+              if (widgetIframe?.contentWindow) {
+                widgetIframe.contentWindow.postMessage({ type: 'VIEW_ANNOTATION', annotation: targetAnn }, '*');
+              }
+            }, delay);
+          });
+        }
         break;
 
       case 'GET_VIDEO_STATE':
@@ -283,6 +314,16 @@ export function setupMessageRouter(onReloadAnnotations: () => void): void {
         if (widgetIframe?.contentWindow) {
           const info = buildPageInfo();
           widgetIframe.contentWindow.postMessage({ type: 'PAGE_INFO_RESPONSE', ...info }, '*');
+          if (pendingViewAnnotation) {
+            const targetAnn = pendingViewAnnotation;
+            [40, 120, 280, 600].forEach((delay) => {
+              setTimeout(() => {
+                if (widgetIframe?.contentWindow) {
+                  widgetIframe.contentWindow.postMessage({ type: 'VIEW_ANNOTATION', annotation: targetAnn }, '*');
+                }
+              }, delay);
+            });
+          }
         }
         break;
 

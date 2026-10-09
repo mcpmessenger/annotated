@@ -3524,6 +3524,10 @@
                 () => {
                   isViewingDetail = false;
                   activeDetailAnnotation = null;
+                  try {
+                    window.parent.postMessage({ type: "BACK_TO_COMPOSER" }, "*");
+                  } catch (_) {
+                  }
                   showComposer(resizeWidget);
                 },
                 resizeWidget,
@@ -3681,11 +3685,19 @@
             () => {
               isViewingDetail = false;
               activeDetailAnnotation = null;
+              try {
+                window.parent.postMessage({ type: "BACK_TO_COMPOSER" }, "*");
+              } catch (_) {
+              }
               showComposer(resizeWidget);
             },
             resizeWidget,
             () => refreshAll()
           );
+        }
+        try {
+          window.parent.postMessage({ type: "WIDGET_READY" }, "*");
+        } catch (_) {
         }
         return;
       }
@@ -3705,11 +3717,19 @@
         () => {
           isViewingDetail = false;
           activeDetailAnnotation = null;
+          try {
+            window.parent.postMessage({ type: "BACK_TO_COMPOSER" }, "*");
+          } catch (_) {
+          }
           showComposer(resizeWidget);
         },
         resizeWidget,
         () => refreshAll()
       );
+    }
+    try {
+      window.parent.postMessage({ type: "WIDGET_READY" }, "*");
+    } catch (_) {
     }
   }
   if (document.readyState === "loading") {

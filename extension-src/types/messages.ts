@@ -92,6 +92,14 @@ export interface StartScreenshotSelectionMessage {
   type: 'START_SCREENSHOT_SELECTION';
 }
 
+export interface WidgetReadyMessage {
+  type: 'WIDGET_READY';
+}
+
+export interface BackToComposerMessage {
+  type: 'BACK_TO_COMPOSER';
+}
+
 // ─── Content → Widget (postMessage to iframe) ─────────────────────────────────
 
 export interface PageInfoResponseMessage {
@@ -259,7 +267,9 @@ export type WidgetToContentMessage =
   | OpenTabMessage
   | OpenUrlMessage
   | TakeScreenshotMessage
-  | StartScreenshotSelectionMessage;
+  | StartScreenshotSelectionMessage
+  | WidgetReadyMessage
+  | BackToComposerMessage;
 
 /** Messages sent from content script to widget iframe via postMessage */
 export type ContentToWidgetMessage =
