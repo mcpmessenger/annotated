@@ -34,6 +34,9 @@ export default function TermsPage() {
                 <strong>Web Platform:</strong> Provides discovery, sharing, community discussion, and profile management for public annotations.
               </li>
               <li>
+                <strong>Amazon Fire TV &amp; Connected TV Clients:</strong> Delivers lean-back 10-foot streaming of community-curated video clips with live synchronized community notes, interactive emotes, mobile handoff QR passes, and in-app content reporting and moderation.
+              </li>
+              <li>
                 <strong>Roku TV Channel:</strong> Delivers lean-back streaming of community-curated video clips with live synchronized community notes, interactive emotes, and mobile handoff QR passes.
               </li>
             </ul>
@@ -90,7 +93,7 @@ export default function TermsPage() {
 
             <h3 className="text-lg font-bold mt-4 mb-2 text-[hsl(var(--foreground))]">In-App Reporting & Blocking Mechanisms</h3>
             <p className="text-sm text-[hsl(var(--foreground))] mb-3">
-              Every client application (Web, Android app, Chrome Extension, and Roku TV Channel) provides user-accessible mechanisms to:
+              Every client application (Web, Android app, Chrome Extension, Amazon Fire TV, and Roku TV Channel) provides user-accessible mechanisms to:
             </p>
             <ul className="space-y-1.5 text-sm text-[hsl(var(--foreground))] list-disc pl-5 mb-4">
               <li><strong>Report Content:</strong> Tap or click the flag/report button on any annotation, comment, or TV card to instantly submit an objectionable content report specifying the reason.</li>
