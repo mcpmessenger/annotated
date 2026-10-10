@@ -691,6 +691,10 @@ export function AnnotationCard({
                   </a>
                 </div>
               )}
+
+              <div className="pt-2 mt-2 border-t border-[hsl(var(--border))]/50 flex items-center justify-between text-[10px] text-[hsl(var(--text-muted))]">
+                <span>⚡ Gemini can make mistakes. Verify critical facts and sources.</span>
+              </div>
             </div>
           ) : null}
         </div>

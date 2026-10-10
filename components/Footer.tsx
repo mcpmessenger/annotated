@@ -5,6 +5,9 @@ export function Footer() {
         <p>
           Annotated is a companion platform for exploring, sharing, and discussing annotations across the web.
         </p>
+        <p className="mt-2 text-xs text-[hsl(var(--text-subtle))]">
+          AI fact-checking and automated claim analysis are powered by Google Gemini. Gemini can make mistakes — always verify critical facts and consult primary sources.
+        </p>
         <div className="mt-6 pt-6 border-t border-[hsl(var(--border))] flex flex-col sm:flex-row justify-between gap-4">
           <p>&copy; {new Date().getFullYear()} Annotated. All rights reserved.</p>
           <div className="flex gap-4">

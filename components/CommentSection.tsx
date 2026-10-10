@@ -754,6 +754,9 @@ export function CommentSection({
                     <p className="text-[hsl(var(--text-muted))] text-[11px] leading-relaxed">
                       {commentFactChecks[comment.id].data.explanation}
                     </p>
+                    <div className="pt-1.5 mt-1 border-t border-[hsl(var(--border))]/40 text-[10px] text-[hsl(var(--text-muted))] flex items-center gap-1">
+                      <span>⚡ Gemini can make mistakes. Verify critical claims.</span>
+                    </div>
                   </>
                 ) : null}
               </div>
