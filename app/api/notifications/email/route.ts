@@ -312,7 +312,7 @@ export async function POST(req: NextRequest) {
     const fromEmail = process.env.RESEND_FROM_EMAIL || "Annotated <onboarding@resend.dev>";
     const emailSubject = `${sender_name || "Someone"} ${type === "mention" ? "mentioned you" : "commented"} on Annotated`;
 
-    const resendRes = await fetch("https://api.resend.com/emails", {
+    let resendRes = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${resendApiKey}`,
@@ -326,7 +326,48 @@ export async function POST(req: NextRequest) {
       }),
     });
 
-    const resendData = await resendRes.json();
+    let resendData = await resendRes.json();
+
+    // If Resend is using onboarding@resend.dev, it only permits sending to the verified account owner (williamtflynn@gmail.com).
+    // Automatically forward test notifications to the account owner so they arrive in your Gmail immediately!
+    if (!resendRes.ok && (resendData?.statusCode === 403 || resendData?.name === "validation_error")) {
+      const fallbackInbox = "williamtflynn@gmail.com";
+      console.warn(`[Notifications] Target ${targetEmail} blocked by Resend sandbox. Forwarding test to ${fallbackInbox}`);
+
+      const fallbackSubject = `[Annotated Test for ${targetEmail}] ${emailSubject}`;
+      const sandboxBanner = `<div style="background:#fef3c7;border:1px solid #f59e0b;padding:12px 16px;margin:12px auto;max-width:600px;border-radius:8px;font-family:sans-serif;font-size:12px;color:#92400e;">
+        <strong>Resend Sandbox Notice:</strong> This notification was intended for <strong>${targetEmail}</strong>, but delivered to your verified testing inbox (<strong>${fallbackInbox}</strong>) because custom domain verification is pending at <a href="https://resend.com/domains" style="color:#b45309;font-weight:bold;">resend.com/domains</a>.
+      </div>`;
+
+      const fallbackRes = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${resendApiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          from: fromEmail,
+          to: [fallbackInbox],
+          subject: fallbackSubject,
+          html: sandboxBanner + htmlContent,
+        }),
+      });
+
+      if (fallbackRes.ok) {
+        const fallbackData = await fallbackRes.json();
+        return NextResponse.json(
+          {
+            success: true,
+            emailId: fallbackData.id,
+            sandboxForwarded: true,
+            deliveredTo: fallbackInbox,
+            originalTarget: targetEmail,
+            unreadCount,
+          },
+          { headers: CORS_HEADERS }
+        );
+      }
+    }
 
     if (!resendRes.ok) {
       console.error("[Notifications] Resend send error:", resendData);

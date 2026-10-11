@@ -15,11 +15,17 @@ export async function loadNotifications(currentUser: CurrentUser | null): Promis
   if (!notifList) return;
 
   try {
-    const res = await supabase.from('notifications')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .limit(20)
-      .execute();
+    await supabase.ensureFreshToken();
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      apikey: supabase.key,
+      Authorization: `Bearer ${supabase.token || supabase.key}`,
+    };
+
+    const res = await fetch(
+      `${supabase.url}/rest/v1/notifications?recipient_id=eq.${encodeURIComponent(currentUser.id)}&order=created_at.desc&limit=20`,
+      { headers }
+    ).then((r) => r.json());
 
     const rows: NotificationRow[] = Array.isArray(res) ? res : [];
     const unread = rows.filter((n) => !n.read).length;
@@ -73,11 +79,20 @@ export async function loadNotifications(currentUser: CurrentUser | null): Promis
 export async function markNotificationsRead(currentUser: CurrentUser | null): Promise<void> {
   if (!currentUser?.id) return;
   try {
-    await supabase.from('notifications')
-      .update({ read: true })
-      .eq('recipient_id', currentUser.id)
-      .eq('read', false)
-      .execute();
+    await supabase.ensureFreshToken();
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      apikey: supabase.key,
+      Authorization: `Bearer ${supabase.token || supabase.key}`,
+    };
+    await fetch(
+      `${supabase.url}/rest/v1/notifications?recipient_id=eq.${encodeURIComponent(currentUser.id)}&read=eq.false`,
+      {
+        method: 'PATCH',
+        headers,
+        body: JSON.stringify({ read: true }),
+      }
+    );
 
     const badge = $('#notifBadge');
     if (badge) badge.style.display = 'none';
@@ -104,6 +119,8 @@ export function closeNotifPanel(): void {
   notifPanelOpen = false;
 }
 
+let notifPollInterval: any = null;
+
 export function initNotifications(getCurrentUser: () => CurrentUser | null): void {
   const bell = $('#notifBell');
   bell?.addEventListener('click', (e) => {
@@ -127,4 +144,14 @@ export function initNotifications(getCurrentUser: () => CurrentUser | null): voi
       closeNotifPanel();
     }
   });
+
+  // Poll for notifications every 30 seconds
+  if (notifPollInterval) clearInterval(notifPollInterval);
+  notifPollInterval = setInterval(() => {
+    const user = getCurrentUser();
+    if (user) {
+      loadNotifications(user);
+    }
+  }, 30_000);
 }
+

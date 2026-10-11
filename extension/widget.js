@@ -3240,7 +3240,16 @@
     const notifList = $("#notifList");
     if (!notifList) return;
     try {
-      const res = await supabase.from("notifications").select("*").order("created_at", { ascending: false }).limit(20).execute();
+      await supabase.ensureFreshToken();
+      const headers = {
+        "Content-Type": "application/json",
+        apikey: supabase.key,
+        Authorization: `Bearer ${supabase.token || supabase.key}`
+      };
+      const res = await fetch(
+        `${supabase.url}/rest/v1/notifications?recipient_id=eq.${encodeURIComponent(currentUser2.id)}&order=created_at.desc&limit=20`,
+        { headers }
+      ).then((r) => r.json());
       const rows = Array.isArray(res) ? res : [];
       const unread = rows.filter((n) => !n.read).length;
       if (notifBadge) {
@@ -3282,7 +3291,20 @@
   async function markNotificationsRead(currentUser2) {
     if (!currentUser2?.id) return;
     try {
-      await supabase.from("notifications").update({ read: true }).eq("recipient_id", currentUser2.id).eq("read", false).execute();
+      await supabase.ensureFreshToken();
+      const headers = {
+        "Content-Type": "application/json",
+        apikey: supabase.key,
+        Authorization: `Bearer ${supabase.token || supabase.key}`
+      };
+      await fetch(
+        `${supabase.url}/rest/v1/notifications?recipient_id=eq.${encodeURIComponent(currentUser2.id)}&read=eq.false`,
+        {
+          method: "PATCH",
+          headers,
+          body: JSON.stringify({ read: true })
+        }
+      );
       const badge = $("#notifBadge");
       if (badge) badge.style.display = "none";
       document.querySelectorAll('#notifList [style*="var(--soft)"]').forEach((el) => {
@@ -3305,6 +3327,7 @@
     if (panel) panel.style.display = "none";
     notifPanelOpen = false;
   }
+  var notifPollInterval = null;
   function initNotifications(getCurrentUser) {
     const bell = $("#notifBell");
     bell?.addEventListener("click", (e) => {
@@ -3326,6 +3349,13 @@
         closeNotifPanel();
       }
     });
+    if (notifPollInterval) clearInterval(notifPollInterval);
+    notifPollInterval = setInterval(() => {
+      const user = getCurrentUser();
+      if (user) {
+        loadNotifications(user);
+      }
+    }, 3e4);
   }
 
   // extension-src/widget/ui-controls.ts
