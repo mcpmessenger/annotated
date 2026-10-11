@@ -3471,10 +3471,74 @@
         setOpenOnHighlightPref(next);
       }
     });
+    const userEmailToggle = $("#userEmailNotifToggle");
+    const prefEmailToggle = $("#settingsEmailNotifToggle");
+    const userEmailRow = $("#userEmailNotifRow");
+    const prefEmailRow = $("#prefEmailNotifRow");
+    const updateEmailToggleUI = (enabled) => {
+      if (userEmailToggle) userEmailToggle.checked = enabled;
+      if (prefEmailToggle) prefEmailToggle.checked = enabled;
+    };
+    const setEmailNotifPref = (enabled) => {
+      updateEmailToggleUI(enabled);
+      safeStorageSet({ emailNotifications: enabled });
+      if (typeof chrome !== "undefined" && chrome.storage?.sync) {
+        chrome.storage.sync.set({ emailNotifications: enabled });
+      }
+      try {
+        const sessionStr = localStorage.getItem("annotated_session") || localStorage.getItem("supabase_session");
+        if (sessionStr) {
+          const sess = JSON.parse(sessionStr);
+          const uid = sess?.user?.id || sess?.userId;
+          if (uid) {
+            fetch(`${SITE_URL}/api/notifications/email`, {
+              method: "OPTIONS"
+              // warm up
+            }).catch(() => {
+            });
+          }
+        }
+      } catch (_) {
+      }
+    };
+    if (typeof chrome !== "undefined" && chrome.storage?.sync) {
+      chrome.storage.sync.get(["emailNotifications"], (res) => {
+        const isEnabled = res?.emailNotifications !== false;
+        updateEmailToggleUI(isEnabled);
+      });
+    } else if (typeof chrome !== "undefined" && chrome.storage?.local) {
+      chrome.storage.local.get(["emailNotifications"], (res) => {
+        const isEnabled = res?.emailNotifications !== false;
+        updateEmailToggleUI(isEnabled);
+      });
+    }
+    userEmailToggle?.addEventListener("change", (e) => {
+      setEmailNotifPref(e.target.checked);
+    });
+    prefEmailToggle?.addEventListener("change", (e) => {
+      setEmailNotifPref(e.target.checked);
+    });
+    userEmailRow?.addEventListener("click", (e) => {
+      if (e.target !== userEmailToggle) {
+        const next = !(userEmailToggle ? userEmailToggle.checked : true);
+        setEmailNotifPref(next);
+      }
+    });
+    prefEmailRow?.addEventListener("click", (e) => {
+      if (e.target !== prefEmailToggle) {
+        const next = !(prefEmailToggle ? prefEmailToggle.checked : true);
+        setEmailNotifPref(next);
+      }
+    });
     if (typeof chrome !== "undefined" && chrome.storage?.onChanged) {
       chrome.storage.onChanged.addListener((changes, areaName) => {
-        if ((areaName === "sync" || areaName === "local") && changes.openOnHighlight) {
-          updateToggleUI(changes.openOnHighlight.newValue !== false);
+        if (areaName === "sync" || areaName === "local") {
+          if (changes.openOnHighlight) {
+            updateToggleUI(changes.openOnHighlight.newValue !== false);
+          }
+          if (changes.emailNotifications) {
+            updateEmailToggleUI(changes.emailNotifications.newValue !== false);
+          }
         }
       });
     }

@@ -56,6 +56,49 @@ export function Header() {
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 
+  // ── Email Notification Settings ──────────────────────────────────────
+  const [emailNotifEnabled, setEmailNotifEnabled] = useState<boolean>(true);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const cached = localStorage.getItem("annotated_email_notifications");
+      if (cached !== null) {
+        setEmailNotifEnabled(cached === "true");
+      }
+    }
+    if (user?.id) {
+      supabase
+        .from("profiles")
+        .select("email_notifications")
+        .eq("id", user.id)
+        .maybeSingle()
+        .then(({ data }) => {
+          if (data && typeof data.email_notifications === "boolean") {
+            setEmailNotifEnabled(data.email_notifications);
+            localStorage.setItem("annotated_email_notifications", String(data.email_notifications));
+          }
+        });
+    }
+  }, [user?.id]);
+
+  const toggleEmailNotifications = async () => {
+    const nextVal = !emailNotifEnabled;
+    setEmailNotifEnabled(nextVal);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("annotated_email_notifications", String(nextVal));
+    }
+    if (user?.id) {
+      try {
+        await supabase
+          .from("profiles")
+          .update({ email_notifications: nextVal })
+          .eq("id", user.id);
+      } catch (err) {
+        console.warn("[Header] Error updating email_notifications:", err);
+      }
+    }
+  };
+
   // Auth
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -323,6 +366,31 @@ export function Header() {
                           <span>Explore annotations</span>
                           <span>→</span>
                         </Link>
+                        <div
+                          onClick={toggleEmailNotifications}
+                          className="flex items-center justify-between px-2.5 py-2 my-0.5 rounded-md hover:bg-[hsl(var(--border))] transition-colors cursor-pointer select-none"
+                        >
+                          <div className="flex flex-col pr-2">
+                            <span className="font-semibold text-[hsl(var(--foreground))] text-xs flex items-center gap-1.5">
+                              <span>🔔</span>
+                              <span>Email Notifications</span>
+                            </span>
+                            <span className="text-[10px] text-[hsl(var(--text-muted))]">
+                              Alerts for mentions &amp; replies
+                            </span>
+                          </div>
+                          <div
+                            className={`relative inline-flex h-4 w-7 shrink-0 rounded-full border border-transparent transition-colors duration-200 ease-in-out ${
+                              emailNotifEnabled ? "bg-[hsl(var(--accent))]" : "bg-neutral-300 dark:bg-neutral-700"
+                            }`}
+                          >
+                            <span
+                              className={`pointer-events-none inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition duration-200 ease-in-out ${
+                                emailNotifEnabled ? "translate-x-3" : "translate-x-0"
+                              }`}
+                            />
+                          </div>
+                        </div>
                         <button
                           onClick={handleLogout}
                           className="flex items-center justify-between px-2.5 py-1.5 rounded-md font-medium text-red-500 hover:bg-red-500/10 transition-colors text-left w-full mt-0.5"
@@ -461,6 +529,31 @@ export function Header() {
                 </div>
                 <div className="flex flex-col gap-3 text-sm">
                   <Link href={`/u/${username}`} onClick={() => setMobileMenuOpen(false)}>My profile</Link>
+                  <div
+                    onClick={toggleEmailNotifications}
+                    className="flex items-center justify-between py-1 cursor-pointer"
+                  >
+                    <div className="flex flex-col">
+                      <span className="font-medium text-xs flex items-center gap-1.5">
+                        <span>🔔</span>
+                        <span>Email Notifications</span>
+                      </span>
+                      <span className="text-[10px] text-[hsl(var(--text-muted))]">
+                        Alerts for mentions &amp; replies
+                      </span>
+                    </div>
+                    <div
+                      className={`relative inline-flex h-4 w-7 shrink-0 rounded-full border border-transparent transition-colors duration-200 ease-in-out ${
+                        emailNotifEnabled ? "bg-[hsl(var(--accent))]" : "bg-neutral-300 dark:bg-neutral-700"
+                      }`}
+                    >
+                      <span
+                        className={`pointer-events-none inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition duration-200 ease-in-out ${
+                          emailNotifEnabled ? "translate-x-3" : "translate-x-0"
+                        }`}
+                      />
+                    </div>
+                  </div>
                   <button onClick={() => { handleLogout(); setMobileMenuOpen(false); }} className="text-red-500 text-left">Sign out</button>
                 </div>
               </div>

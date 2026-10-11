@@ -548,31 +548,73 @@ export function CommentSection({
           )
         );
 
-        // ── Fire notifications for all @mentioned recipients ──────────
-        // (Allows self-notifications so users can test on their own accounts)
-        if (recipientsToNotify.length > 0) {
+        // ── Fire notifications for all recipients (mentions & note author) ──────────
+        // Also include the original annotation author if someone else commented on their note
+        const finalRecipients = [...recipientsToNotify];
+        if (
+          author?.id &&
+          author.id !== "author" &&
+          author.id !== user.id &&
+          !finalRecipients.some((r) => r.id === author.id)
+        ) {
+          finalRecipients.push({
+            id: author.id,
+            name: author.displayName || author.username || "Author",
+            handle: author.username || "author",
+            isAuthor: true,
+          });
+        }
+
+        if (finalRecipients.length > 0) {
           const senderName =
             user.user_metadata?.full_name ||
             user.user_metadata?.name ||
             user.email?.split("@")[0] ||
             "Someone";
 
-          const notifRows = recipientsToNotify
+          const notifRows = finalRecipients
             .filter((r) => r.id && r.id !== "author")
-            .map((r) => ({
-              recipient_id: r.id,
-              sender_id: user.id,
-              annotation_id: annotationId,
-              comment_id: savedComment.id,
-              message: `${senderName} mentioned you in a comment: "${text.slice(0, 80)}${text.length > 80 ? "…" : ""}"`,
-              read: false,
-            }));
+            .map((r) => {
+              const isAuthorReply = r.id === author?.id;
+              const notifMsg = isAuthorReply
+                ? `${senderName} commented on your annotation: "${text.slice(0, 80)}${text.length > 80 ? "…" : ""}"`
+                : `${senderName} mentioned you in a comment: "${text.slice(0, 80)}${text.length > 80 ? "…" : ""}"`;
+
+              return {
+                recipient_id: r.id,
+                sender_id: user.id,
+                annotation_id: annotationId,
+                comment_id: savedComment.id,
+                message: notifMsg,
+                read: false,
+                is_author: isAuthorReply,
+              };
+            });
 
           if (notifRows.length > 0) {
-            const { error: notifErr } = await supabase.from("notifications").insert(notifRows);
+            const { error: notifErr } = await supabase.from("notifications").insert(
+              notifRows.map(({ is_author, ...row }) => row)
+            );
             if (notifErr) {
               console.warn("[Notifications] Insert warning (table may not exist yet):", notifErr);
             }
+
+            // Dispatch email notifications via Resend for each recipient
+            notifRows.forEach((row) => {
+              fetch("/api/notifications/email", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  recipient_id: row.recipient_id,
+                  sender_name: senderName,
+                  sender_avatar: user.user_metadata?.avatar_url || user.user_metadata?.picture,
+                  message: row.message,
+                  comment_text: text,
+                  annotation_id: annotationId,
+                  type: row.is_author ? "comment" : "mention",
+                }),
+              }).catch((err) => console.warn("[Notifications] Email push error:", err));
+            });
           }
         }
       }
