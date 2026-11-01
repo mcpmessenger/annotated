@@ -57,6 +57,42 @@ export default async function Home() {
           </div>
         </section>
 
+        {/* Fire TV banner */}
+        <section className="border-b border-[hsl(var(--border))] bg-[hsl(var(--card))]">
+          <div className="editorial-container">
+            <div className="py-10 sm:py-12 flex flex-col md:flex-row items-start md:items-center gap-6 justify-between">
+              <div className="space-y-2 max-w-2xl">
+                <p className="text-xs font-semibold uppercase tracking-widest text-[hsl(var(--text-muted))]">
+                  Now on the big screen
+                </p>
+                <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">
+                  Annotated for Fire TV
+                </h2>
+                <p className="text-[hsl(var(--text-muted))]">
+                  The annotation layer moves to the living room — floating annotation bubbles,
+                  live fact-checks, and a QR-to-phone dispute flow, all on your Fire TV.
+                </p>
+              </div>
+              <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto shrink-0">
+                <a
+                  href="https://www.amazon.com/gp/product/B0HLMXSN93"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center justify-center px-6 py-3 rounded-[6px] font-medium bg-[hsl(var(--foreground))] text-[hsl(var(--background))] hover:opacity-90 transition-opacity text-center"
+                >
+                  Get it on Fire TV
+                </a>
+                <Link
+                  href="/firetv"
+                  className="inline-flex items-center justify-center px-6 py-3 rounded-[6px] font-medium border border-[hsl(var(--border))] text-[hsl(var(--foreground))] hover:bg-[hsl(var(--border))] transition-colors text-center"
+                >
+                  Learn more
+                </Link>
+              </div>
+            </div>
+          </div>
+        </section>
+
         {/* Continuous Scrolling Feed with Relocated Sticky Sidebar Details */}
         <section className="bg-[hsl(var(--background))]">
           <HomeFeed initialAnnotations={annotations} />

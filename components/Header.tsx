@@ -11,6 +11,7 @@ const navItems = [
   { label: "Explore", href: "/explore" },
   { label: "About", href: "/about" },
   { label: "Install", href: "/install" },
+  { label: "Fire TV", href: "/firetv" },
   { label: "Privacy", href: "/privacy" },
 ];
 
