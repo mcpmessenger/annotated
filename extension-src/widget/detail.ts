@@ -279,7 +279,7 @@ export async function showAnnotationDetail(
 
   // Dynamic profile lookup if user_id is present but profile not attached yet
   if (!ann.author_profile && ann.user_id) {
-    fetch(`${SUPABASE_CONFIG.url}/rest/v1/profiles?id=eq.${encodeURIComponent(ann.user_id)}`, {
+    fetch(`${SUPABASE_CONFIG.url}/rest/v1/public_profiles?id=eq.${encodeURIComponent(ann.user_id)}`, {
       headers: {
         apikey: SUPABASE_CONFIG.anonKey,
         Authorization: `Bearer ${SUPABASE_CONFIG.anonKey}`,

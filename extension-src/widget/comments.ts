@@ -60,7 +60,7 @@ export async function loadWidgetComments(
     if (userIds.length > 0) {
       try {
         const profRes = await fetch(
-          `${SUPABASE_CONFIG.url}/rest/v1/profiles?id=in.(${userIds.join(',')})`,
+          `${SUPABASE_CONFIG.url}/rest/v1/public_profiles?id=in.(${userIds.join(',')})`,
           {
             headers: {
               apikey: SUPABASE_CONFIG.anonKey,
