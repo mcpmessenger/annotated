@@ -31,6 +31,9 @@ async function copyStaticAssets(destination) {
     'supabase-client.js',
     'offscreen.html',
     'offscreen.js',
+    'welcome.html',
+    'welcome.css',
+    'welcome.js',
   ];
 
   for (const file of staticFiles) {
@@ -106,7 +109,7 @@ async function build() {
 
     // Verify package asset integrity before archiving
     function verifyPackageIntegrity(dir) {
-      const htmlFiles = ['widget.html', 'offscreen.html'];
+      const htmlFiles = ['widget.html', 'offscreen.html', 'welcome.html'];
       for (const htmlFile of htmlFiles) {
         const filePath = path.join(dir, htmlFile);
         if (!fs.existsSync(filePath)) continue;

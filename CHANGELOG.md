@@ -4,6 +4,17 @@ All notable changes to the **Annotated** platform (Chrome Extension and Web Appl
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.3.12] - 2026-11-10
+
+### Added
+- **First-Run Welcome Tab**: Added a dedicated onboarding welcome tab that opens automatically on fresh extension installation (`details.reason === 'install'`).
+  - Welcomes new users with the product overview and three-step quick start guide ("Highlight", "Annotate", "Publish").
+  - Seamless one-click Google OAuth sign-in integration directly wired to existing Supabase session management.
+  - "Try it now" live feed action button to view real community annotations immediately.
+  - Clean, zero-tracking, self-contained design matching the Annotated brand aesthetic in both light and dark display modes.
+
+---
+
 ## [2.3.9] - 2026-10-09
 
 ### Added

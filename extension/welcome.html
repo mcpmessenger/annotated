@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Welcome to Annotated</title>
+  <link rel="stylesheet" href="welcome.css">
+</head>
+<body>
+  <main class="welcome-container">
+    <header class="hero">
+      <div class="brand">
+        <img src="assets/icon-128.png" alt="Annotated logo" class="brand-icon" width="44" height="44">
+        <span class="brand-wordmark">annotated<span class="dot">.</span></span>
+      </div>
+      <h1 class="hero-title">The public annotation layer for the internet.</h1>
+      <p class="hero-subtitle">Highlight text, drop your thoughts, and turn the web into a multiplayer experience.</p>
+    </header>
+
+    <section class="steps-section" aria-label="How it works">
+      <div class="steps-grid">
+        <div class="step-card">
+          <div class="step-header">
+            <span class="step-badge">1</span>
+            <span class="step-name">Highlight</span>
+          </div>
+          <div class="step-visual visual-highlight">
+            <span class="mock-text-muted">The best ideas leave a trace &mdash;</span>
+            <mark class="mock-highlight-line">select any text on the page</mark>
+            <span class="mock-text-muted">to begin.</span>
+          </div>
+          <p class="step-desc">Select any text on any page (or on Twitter/X and YouTube).</p>
+        </div>
+
+        <div class="step-card">
+          <div class="step-header">
+            <span class="step-badge">2</span>
+            <span class="step-name">Annotate</span>
+          </div>
+          <div class="step-visual visual-annotate">
+            <div class="mock-composer">
+              <div class="mock-quote">&ldquo;select any text on the page&rdquo;</div>
+              <div class="mock-input">Add your note, fact-check, or clip&hellip;</div>
+            </div>
+          </div>
+          <p class="step-desc">The composer opens. Write your note, add a fact-check, or record a clip.</p>
+        </div>
+
+        <div class="step-card">
+          <div class="step-header">
+            <span class="step-badge">3</span>
+            <span class="step-name">Publish</span>
+          </div>
+          <div class="step-visual visual-publish">
+            <div class="mock-badge">
+              <span class="live-dot"></span>
+              <span class="live-label">Live for everyone</span>
+            </div>
+            <div class="mock-audience">Public web &middot; instant sync</div>
+          </div>
+          <p class="step-desc">Sign in once with Google and your note is live for everyone with the extension.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="actions-section" aria-label="Getting started">
+      <!-- Signed out state -->
+      <div id="authSection" class="auth-section">
+        <div class="action-buttons">
+          <button id="signInBtn" class="google-btn" type="button">
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+              <path d="M17.64 9.205c0-.638-.057-1.252-.164-1.841H9v3.481h4.844a4.14 4.14 0 01-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z" fill="#4285F4"/>
+              <path d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 009 18z" fill="#34A853"/>
+              <path d="M3.964 10.71A5.41 5.41 0 013.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 000 9c0 1.452.348 2.827.957 4.042l3.007-2.332z" fill="#FBBC05"/>
+              <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 00.957 4.958L3.964 6.29C4.672 4.163 6.656 3.58 9 3.58z" fill="#EA4335"/>
+            </svg>
+            <span>Sign in with Google</span>
+          </button>
+
+          <a id="tryItBtn" class="try-btn" href="https://annotated-repo.vercel.app/" target="_blank" rel="noopener noreferrer">
+            <span>See what people are annotating</span>
+            <span class="btn-arrow" aria-hidden="true">&rarr;</span>
+          </a>
+        </div>
+        <div id="authError" class="auth-error hidden" role="alert"></div>
+      </div>
+
+      <!-- Signed in state -->
+      <div id="signedInSection" class="signed-in-section hidden">
+        <div class="signed-in-card">
+          <div class="user-row">
+            <div id="userAvatar" class="avatar-circle"></div>
+            <div class="user-meta">
+              <div class="user-title">
+                <span class="check-icon" aria-hidden="true">&#x2713;</span>
+                <span>You&rsquo;re signed in as <strong id="userName">User</strong></span>
+              </div>
+              <span id="userEmail" class="user-email"></span>
+            </div>
+          </div>
+          <div class="signed-in-actions">
+            <a id="signedInTryBtn" class="try-btn try-btn-primary" href="https://annotated-repo.vercel.app/" target="_blank" rel="noopener noreferrer">
+              <span>See what people are annotating</span>
+              <span class="btn-arrow" aria-hidden="true">&rarr;</span>
+            </a>
+            <button id="signOutBtn" class="sign-out-btn" type="button">Sign out</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <footer class="welcome-footer">
+      <nav class="footer-links" aria-label="Quick links">
+        <a href="https://annotated-repo.vercel.app/" target="_blank" rel="noopener noreferrer">Web app</a>
+        <span class="footer-sep">&middot;</span>
+        <a href="https://chromewebstore.google.com/detail/annotated/bnaejhcknifnikgiohecinndejbajfdo" target="_blank" rel="noopener noreferrer">Chrome Web Store listing</a>
+        <span class="footer-sep">&middot;</span>
+        <a href="https://annotated-repo.vercel.app/privacy" target="_blank" rel="noopener noreferrer">Privacy</a>
+      </nav>
+    </footer>
+  </main>
+
+  <script src="supabase-client.js"></script>
+  <script src="welcome.js"></script>
+</body>
+</html>

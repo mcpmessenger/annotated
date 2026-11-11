@@ -201,8 +201,11 @@ function setupContextMenus(): void {
   });
 }
 
-chrome.runtime.onInstalled.addListener(() => {
+chrome.runtime.onInstalled.addListener((details: chrome.runtime.InstalledDetails) => {
   setupContextMenus();
+  if (details.reason === 'install') {
+    chrome.tabs.create({ url: chrome.runtime.getURL('welcome.html') });
+  }
 });
 
 // Setup on worker startup
