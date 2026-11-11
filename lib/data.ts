@@ -1,11 +1,12 @@
-import { supabase } from "./supabase";
+﻿import { supabase } from "./supabase";
 import { Annotation, User } from "./types";
 
 // Helper to map DB row to our UI Type
 function mapRowToAnnotation(row: any): Annotation {
   const profile = row.profiles || {};
-  const email = profile.email || "user@example.com";
-  const username = email.split("@")[0];
+  const username = (profile.full_name || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "") || "annotated";
   
   let sourceUrl = row.url;
   let title = row.page_title || row.hostname || "Webpage";
@@ -57,7 +58,7 @@ export async function getRecentAnnotations(): Promise<Annotation[]> {
   }
   
   const userIds = Array.from(new Set(data.map(a => a.user_id).filter(Boolean)));
-  const { data: pData } = await supabase.from("profiles").select("*").in("id", userIds);
+  const { data: pData } = await supabase.from("public_profiles").select("id, full_name, avatar_url").in("id", userIds);
   const profilesMap: Record<string, any> = {};
   if (pData) pData.forEach(p => { profilesMap[p.id] = p; });
 
@@ -119,7 +120,7 @@ export async function getAnnotationBySlug(slug: string): Promise<Annotation | un
   if (!data) return undefined;
   
   if (data.user_id) {
-    const { data: pData } = await supabase.from("profiles").select("*").eq("id", data.user_id).maybeSingle();
+    const { data: pData } = await supabase.from("public_profiles").select("id, full_name, avatar_url").eq("id", data.user_id).maybeSingle();
     if (pData) data.profiles = pData;
   }
   return mapRowToAnnotation(data);
@@ -131,17 +132,17 @@ export async function getUserProfile(username: string): Promise<User | undefined
 
   // 1. Try matching by email prefix
   let { data } = await supabase
-    .from("profiles")
-    .select("*")
-    .ilike("email", `${cleanUsername}@%`)
+    .from("public_profiles")
+    .select("id, full_name, avatar_url")
+    .ilike("full_name", cleanUsername)
     .maybeSingle();
 
   // 2. Try matching by full_name
   if (!data) {
     const res = await supabase
-      .from("profiles")
-      .select("*")
-      .ilike("full_name", cleanUsername)
+      .from("public_profiles")
+      .select("id, full_name, avatar_url")
+      .eq("id", cleanUsername)
       .maybeSingle();
     data = res.data;
   }
@@ -149,8 +150,8 @@ export async function getUserProfile(username: string): Promise<User | undefined
   // 3. Try matching by exact user id
   if (!data) {
     const res = await supabase
-      .from("profiles")
-      .select("*")
+      .from("public_profiles")
+      .select("id, full_name, avatar_url")
       .eq("id", cleanUsername)
       .maybeSingle();
     data = res.data;
@@ -176,7 +177,7 @@ export async function getUserProfile(username: string): Promise<User | undefined
     .select("*", { count: "exact", head: true })
     .eq("follower_id", data.id);
 
-  const resolvedUsername = data.email ? data.email.split("@")[0] : cleanUsername;
+  const resolvedUsername = (data.full_name || "").toLowerCase().replace(/[^a-z0-9]+/g, "") || cleanUsername;
 
   return {
     id: data.id,
@@ -196,23 +197,23 @@ export async function getUserAnnotations(username: string): Promise<Annotation[]
 
   // First get the user id
   let { data: user } = await supabase
-    .from("profiles")
+    .from("public_profiles")
     .select("id")
-    .ilike("email", `${cleanUsername}@%`)
+    .ilike("full_name", cleanUsername)
     .maybeSingle();
 
   if (!user) {
     const res = await supabase
-      .from("profiles")
+      .from("public_profiles")
       .select("id")
-      .ilike("full_name", cleanUsername)
+      .eq("id", cleanUsername)
       .maybeSingle();
     user = res.data;
   }
 
   if (!user) {
     const res = await supabase
-      .from("profiles")
+      .from("public_profiles")
       .select("id")
       .eq("id", cleanUsername)
       .maybeSingle();
@@ -229,7 +230,7 @@ export async function getUserAnnotations(username: string): Promise<Annotation[]
 
   if (error || !data) return [];
   
-  const { data: pData } = await supabase.from("profiles").select("*").eq("id", user.id).maybeSingle();
+  const { data: pData } = await supabase.from("public_profiles").select("id, full_name, avatar_url").eq("id", user.id).maybeSingle();
   
   return data.map(row => {
     row.profiles = pData || {};
@@ -252,7 +253,7 @@ export async function getAnnotationsByIntent(intent: string): Promise<Annotation
   if (error || !data) return [];
   
   const userIds = Array.from(new Set(data.map(a => a.user_id).filter(Boolean)));
-  const { data: pData } = await supabase.from("profiles").select("*").in("id", userIds);
+  const { data: pData } = await supabase.from("public_profiles").select("id, full_name, avatar_url").in("id", userIds);
   const profilesMap: Record<string, any> = {};
   if (pData) pData.forEach(p => { profilesMap[p.id] = p; });
 

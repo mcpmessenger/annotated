@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import { CommentReactionRow } from "./CommentReactionRow";
 import { SpeechToTextButton } from "@/components/SpeechToTextButton";
 
@@ -196,14 +196,13 @@ export function CommentSection({
   const loadProfiles = async () => {
     try {
       const { data } = await supabase
-        .from("profiles")
-        .select("id, full_name, email, avatar_url")
+        .from("public_profiles")
+        .select("id, full_name, avatar_url")
         .limit(100);
 
       const items: ProfileItem[] = (data || []).map((p: any) => {
-        const emailHandle = p.email ? p.email.split("@")[0] : "";
-        const cleanName = p.full_name || emailHandle || "User";
-        const handle = emailHandle || cleanName.replace(/[^a-zA-Z0-9_]/g, "");
+        const cleanName = p.full_name || "User";
+        const handle = cleanName.toLowerCase().replace(/[^a-z0-9_]/g, "") || "user";
         return {
           id: p.id,
           name: cleanName,
@@ -407,8 +406,8 @@ export function CommentSection({
         let profilesMap: Record<string, any> = {};
         if (userIds.length > 0) {
           const { data: pData } = await supabase
-            .from("profiles")
-            .select("*")
+            .from("public_profiles")
+            .select("id, full_name, avatar_url")
             .in("id", userIds);
           if (pData) {
             pData.forEach((p) => {
@@ -419,8 +418,7 @@ export function CommentSection({
 
         const enriched = rawComments.map((c) => {
           const p = profilesMap[c.user_id] || {};
-          const email = p.email || "";
-          const fallbackName = email.split("@")[0] || "User";
+          const fallbackName = p.full_name || "User";
           return {
             ...c,
             user_name: p.full_name || fallbackName,

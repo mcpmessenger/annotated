@@ -98,8 +98,8 @@ export async function GET(req: NextRequest) {
 
     const [{ data: profiles }, { data: reactionsData }] = await Promise.all([
       supabase
-        .from("profiles")
-        .select("id, email, full_name, avatar_url")
+        .from("public_profiles")
+        .select("id, full_name, avatar_url")
         .in("id", userIds),
       supabase
         .from("annotation_reactions")
@@ -127,8 +127,9 @@ export async function GET(req: NextRequest) {
 
     const items = rows.map((row: any) => {
       const profile = profileMap[row.user_id] || {};
-      const email: string = profile.email || "";
-      const username = email.split("@")[0] || "annotated";
+      const username = (profile.full_name || "")
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "") || "annotated";
 
       // Parse timestamp from comment if present e.g. "[? 00:26 - 01:03]"
       let mediaTimestamp: string | null = null;
