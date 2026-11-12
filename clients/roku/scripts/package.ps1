@@ -1,10 +1,10 @@
 Add-Type -AssemblyName System.IO.Compression
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 
-$scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-$sourceDir = (Resolve-Path "$scriptDir\..").Path
-$distDir = "$sourceDir\dist"
-$zipPath = "$distDir\channel.zip"
+$scriptDir  = Split-Path -Parent $MyInvocation.MyCommand.Path
+$sourceDir  = (Resolve-Path "$scriptDir\..").Path
+$distDir    = "$sourceDir\dist"
+$zipPath    = "$distDir\channel.zip"
 
 if (-not (Test-Path $distDir)) { New-Item -ItemType Directory -Path $distDir -Force | Out-Null }
 if (Test-Path $zipPath) { Remove-Item $zipPath -Force }
@@ -16,10 +16,18 @@ $items = @(
     "source\main.brs",
     "components\MainScene.brs",
     "components\MainScene.xml",
+    "components\FloatingAnnotationBubble.xml",
+    "components\FloatingAnnotationBubble.brs",
     "components\AnnotationFeedTask.xml",
     "components\AnnotationFeedTask.brs",
-    "components\ReactionTask.xml",
-    "components\ReactionTask.brs",
+    "components\PostReactionTask.xml",
+    "components\PostReactionTask.brs",
+    "components\PostReportTask.xml",
+    "components\PostReportTask.brs",
+    "components\FactCheckTask.xml",
+    "components\FactCheckTask.brs",
+    "components\ChannelFeedTask.xml",
+    "components\ChannelFeedTask.brs",
     "images\annotated_logo_512.png",
     "images\icon_fhd.png",
     "images\icon_hd.png",
@@ -34,6 +42,10 @@ $items = @(
 )
 
 foreach ($item in $items) {
+    if ($item -like "*.bak" -or $item -like "*~" -or $item.EndsWith(".bak")) {
+        Write-Warning "Excluding backup file: $item"
+        continue
+    }
     $fullPath = Join-Path $sourceDir $item
     if (Test-Path $fullPath) {
         $entryName = $item.Replace("\", "/")
@@ -42,7 +54,6 @@ foreach ($item in $items) {
         Write-Warning "Missing file: $fullPath"
     }
 }
+
 $zip.Dispose()
-$legacyDist = "C:\Users\senti\OneDrive\Desktop\Extensions\Annotated\annotated-roku-channel\dist"
-if (Test-Path $legacyDist) { Copy-Item -Path $zipPath -Destination "$legacyDist\channel.zip" -Force }
-Write-Host "Created channel.zip with official logo!"
+Write-Host "Done: channel.zip v1.2.1 (Vercel /api/react route, no Supabase keys)"

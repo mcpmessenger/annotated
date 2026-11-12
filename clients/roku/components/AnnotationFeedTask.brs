@@ -14,7 +14,7 @@ sub loadAnnotations()
     ' -----------------------------------------------------------------------
     BASE_URL = "https://annotated-repo.vercel.app"
     nowSecs = CreateObject("roDateTime").AsSeconds().toStr()
-    url = BASE_URL + "/api/feed?client=roku&video_only=false&limit=50&_t=" + nowSecs
+    url = BASE_URL + "/api/feed?video_only=false&limit=50&_t=" + nowSecs
 
     transfer = CreateObject("roUrlTransfer")
     transfer.SetCertificatesFile("common:/certs/ca-bundle.crt")

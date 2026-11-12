@@ -3,6 +3,7 @@
   <interface>
     <field id="annotationId" type="string" />
     <field id="reactionIndex" type="integer" />
+    <field id="status" type="string" />
   </interface>
   <script type="text/brightscript" uri="pkg:/components/PostReactionTask.brs" />
 </component>
