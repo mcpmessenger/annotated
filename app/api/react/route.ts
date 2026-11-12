@@ -74,7 +74,7 @@ export async function POST(req: NextRequest) {
     if (insertError) {
       console.error("[react] insert error:", insertError.message);
       return NextResponse.json(
-        { error: "Could not save reaction." },
+        { error: "Could not save reaction.", details: insertError.message, hasService: !!service },
         { status: 500, headers: CORS_HEADERS }
       );
     }
