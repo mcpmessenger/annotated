@@ -115,13 +115,15 @@
       <Poster id="ltAvatar" width="48" height="48" loadDisplayMode="scaleToFill" translation="[20, 20]" />
       <Label id="ltAuthor" text="@annotator" font="font:MediumBoldSystemFont" color="0x38BDF8FF" translation="[80, 20]" />
       <Label id="ltComment" text="Community Commentary" font="font:MediumSystemFont" color="0xF8FAFCFF" width="1400" wrap="true" maxLines="2" translation="[80, 60]" />
-        
-        <!-- Repositioned QR Code slightly overflowing the text bar -->
-        <Group id="globalQrGroup" translation="[1560, -30]" visible="true">
-            <Rectangle id="globalQrBg" width="160" height="160" color="0xFFFFFFFF" translation="[0, 0]">
-                <Poster id="globalQrCode" width="152" height="152" translation="[4, 4]" />
-            </Rectangle>
-        </Group>
+    </Group>
+
+    <!-- Global Persistent Annotation Mobile Pass QR Code (Videos, Tweets & Web Articles) -->
+    <Group id="globalQrGroup" translation="[1640, 820]" visible="true">
+      <Rectangle width="168" height="168" color="0x000000CC" translation="[0, 0]">
+        <Rectangle id="globalQrBg" width="160" height="160" color="0xFFFFFFFF" translation="[4, 4]">
+          <Poster id="globalQrCode" width="152" height="152" translation="[4, 4]" />
+        </Rectangle>
+      </Rectangle>
     </Group>
 
     <!-- Main Stage Reaction Bar -->
@@ -159,7 +161,6 @@
       <Rectangle width="1920" height="8" color="0x1E293B88" />
       <Rectangle id="progressFill" width="0" height="8" color="0x38BDF8FF" />
     </Group>
-
     <!-- Report Toast Banner -->
     <Group id="reportToast" translation="[660, 480]" visible="false">
       <Rectangle width="600" height="120" color="0x0F172AEF">
@@ -168,6 +169,7 @@
       </Rectangle>
     </Group>
     <Timer id="reportToastTimer" duration="2" repeat="false" />
+
 
     
 

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!--
+  ChannelFeedTask — channels-ready stub.
+  Waits for GET /api/channels/[userId] to go live (Channels PRD §5).
+  When ready: set channelUserId field, observe "items" and "error", control = "RUN".
+-->
+<component name="ChannelFeedTask" extends="Task">
+  <script type="text/brightscript" uri="pkg:/components/ChannelFeedTask.brs" />
+
+  <interface>
+    <field id="channelUserId" type="string" value="" />
+    <field id="items"         type="array"  />
+    <field id="profile"       type="assocarray" />
+    <field id="error"         type="string" />
+  </interface>
+</component>

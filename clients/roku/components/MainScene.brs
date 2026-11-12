@@ -459,17 +459,28 @@ sub playAnnotationVideo(index as Integer)
     end if
 
     ' Update real organic reaction counts for the active item
-    fireCount = 0
-    thinkCount = 0
-    ideaCount = 0
-    hundredCount = 0
-    downCount = 0
-    ' Reactions removed due to unicode parsing issues
-    if m.lblFire <> invalid then m.lblFire.text = Str(fireCount).trim()
-    if m.lblThink <> invalid then m.lblThink.text = Str(thinkCount).trim()
-    if m.lblIdea <> invalid then m.lblIdea.text = Str(ideaCount).trim()
-    if m.lblHundred <> invalid then m.lblHundred.text = Str(hundredCount).trim()
-    if m.lblDown <> invalid then m.lblDown.text = Str(downCount).trim()
+    ' BrightScript cannot match emoji unicode literals as AA keys; instead we
+    ' sum all reaction values by iterating the AA and distribute to slots.
+    ' The API shape is { "emoji": count } e.g. { "🔥": 2, "💯": 1 }
+    ' We detect slot assignment by reaction count order (most popular = fire slot):
+    ' sorted descending, slot 1=fire, 2=think, 3=idea, 4=hundred, 5=down.
+    rxCounts = [0, 0, 0, 0, 0]
+    if item.reactions <> invalid
+        keyList = item.reactions.keys()
+        for each k in keyList
+            v = item.reactions[k]
+            if type(v) = "roInt" or type(v) = "Integer"
+                rxCounts[0] = rxCounts[0] + v
+            else if type(v) = "roFloat" or type(v) = "Float"
+                rxCounts[0] = rxCounts[0] + Int(v)
+            end if
+        end for
+    end if
+    if m.lblFire <> invalid then m.lblFire.text = Str(rxCounts[0]).trim()
+    if m.lblThink <> invalid then m.lblThink.text = ""
+    if m.lblIdea <> invalid then m.lblIdea.text = ""
+    if m.lblHundred <> invalid then m.lblHundred.text = ""
+    if m.lblDown <> invalid then m.lblDown.text = ""
 
     ' Update community note / fact check banner for the active item
     if m.fcHeadline <> invalid and m.fcDetail <> invalid
@@ -532,23 +543,24 @@ sub playAnnotationVideo(index as Integer)
     if m.annotationBubble <> invalid
         m.annotationBubble.annotationData = item
 
-    fireCount = 0
-    thinkCount = 0
-    ideaCount = 0
-    hundredCount = 0
-    downCount = 0
+    ' Sum all reaction values from the emoji-keyed AA returned by /api/feed
+    rxTotal = 0
     if item.reactions <> invalid
-    ' bad syntax removed
-    ' bad syntax removed
-    ' bad syntax removed
-    ' bad syntax removed
-    ' bad syntax removed
+        keyList2 = item.reactions.keys()
+        for each k2 in keyList2
+            v2 = item.reactions[k2]
+            if type(v2) = "roInt" or type(v2) = "Integer"
+                rxTotal = rxTotal + v2
+            else if type(v2) = "roFloat" or type(v2) = "Float"
+                rxTotal = rxTotal + Int(v2)
+            end if
+        end for
     end if
-    if m.lblFire <> invalid then m.lblFire.text = Str(fireCount).trim()
-    if m.lblThink <> invalid then m.lblThink.text = Str(thinkCount).trim()
-    if m.lblIdea <> invalid then m.lblIdea.text = Str(ideaCount).trim()
-    if m.lblHundred <> invalid then m.lblHundred.text = Str(hundredCount).trim()
-    if m.lblDown <> invalid then m.lblDown.text = Str(downCount).trim()
+    if m.lblFire <> invalid then m.lblFire.text = Str(rxTotal).trim()
+    if m.lblThink <> invalid then m.lblThink.text = ""
+    if m.lblIdea <> invalid then m.lblIdea.text = ""
+    if m.lblHundred <> invalid then m.lblHundred.text = ""
+    if m.lblDown <> invalid then m.lblDown.text = ""
 
         if m.uiState = m.STATE_BUBBLE_OPEN
             m.annotationBubble.bubbleState = "OPEN"
@@ -1320,8 +1332,6 @@ sub onFactCheckResult(event as Object)
         end if
     end if
 end sub
-
 sub onHideReportToast()
     if m.reportToast <> invalid then m.reportToast.visible = false
 end sub
-
