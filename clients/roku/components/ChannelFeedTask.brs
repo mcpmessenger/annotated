@@ -3,7 +3,7 @@ sub init()
 end sub
 
 ' -----------------------------------------------------------------------
-' ChannelFeedTask — channels-ready stub
+' ChannelFeedTask - channels-ready stub
 '
 ' This task is NOT yet wired to the UI. It is stubbed here so that when
 ' GET /api/channels/[userId] lands (Channels PRD §5), the TV-side code
@@ -13,7 +13,7 @@ end sub
 '   3. observeField("items", "onChannelLoaded")
 '   4. control = "RUN"
 '
-' No sign-in is required — channel reads are public (Channels PRD §4).
+' No sign-in is required - channel reads are public (Channels PRD §4).
 ' -----------------------------------------------------------------------
 sub loadChannel()
     userId = m.top.channelUserId
@@ -50,7 +50,9 @@ sub loadChannel()
             if json.profile <> invalid
                 m.top.profile = json.profile
             end if
-            print "[ChannelFeedTask] Loaded channel for "; userId; " — "; (json.items <> invalid and json.items.count() > 0 ? json.items.count() : 0); " items"
+            itemCount = 0
+            if json.items <> invalid then itemCount = json.items.count()
+            print "[ChannelFeedTask] Loaded channel for "; userId; " - "; itemCount; " items"
             return
         end if
     end if
